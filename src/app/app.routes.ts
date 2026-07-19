@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
+import { permissionGuard } from './core/guards/permission.guard';
 
 export const routes: Routes = [
   /* ── Auth (no shell) ── */
@@ -47,6 +48,13 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () =>
       import('./features/patients/patient-list-page.component').then(m => m.PatientListPageComponent)
+  },
+  {
+    path: 'administration/users',
+    canActivate: [authGuard, permissionGuard],
+    data: { permission: 'Administration.UserManagement.View' },
+    loadComponent: () =>
+      import('./features/administration/users/user-list-page.component').then(m => m.UserListPageComponent)
   },
   moduleRoute('administration', 'Administration', ['User Management', 'Role Management', 'Permission Management', 'Branch Management', 'Multilingual Seed Data']),
   moduleRoute('doctors',        'Doctor Management',    ['Doctor Profiles', 'Availability', 'Specialization', 'Schedule', 'Performance Dashboard']),
