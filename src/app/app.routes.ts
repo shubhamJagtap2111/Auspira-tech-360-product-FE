@@ -39,7 +39,8 @@ export const routes: Routes = [
   /* ── App (wrapped in shell) ── */
   {
     path: '',
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard],
+    data: { permission: 'Administration.Dashboard.View' },
     loadComponent: () =>
       import('./features/dashboard/dashboard-page.component').then(m => m.DashboardPageComponent)
   },
@@ -89,6 +90,27 @@ export const routes: Routes = [
     data: { permission: 'Administration.Branch.View' },
     loadComponent: () =>
       import('./features/administration/branches/branch-management-page.component').then(m => m.BranchManagementPageComponent)
+  },
+  {
+    path: 'administration/departments',
+    canActivate: [authGuard, permissionGuard],
+    data: { permission: 'Administration.Department.View' },
+    loadComponent: () =>
+      import('./features/administration/organization/department-management-page.component').then(m => m.DepartmentManagementPageComponent)
+  },
+  {
+    path: 'administration/designations',
+    canActivate: [authGuard, permissionGuard],
+    data: { permission: 'Administration.Designation.View' },
+    loadComponent: () =>
+      import('./features/administration/organization/designation-management-page.component').then(m => m.DesignationManagementPageComponent)
+  },
+  {
+    path: 'administration/system-configuration',
+    canActivate: [authGuard, permissionGuard],
+    data: { permission: 'Administration.SystemConfiguration.View' },
+    loadComponent: () =>
+      import('./features/administration/system-configuration/system-configuration-page.component').then(m => m.SystemConfigurationPageComponent)
   },
   moduleRoute('administration', 'Administration', ['Hospital Management', 'User Management', 'Role Management', 'Permission Management', 'Branch Management', 'Multilingual Seed Data']),
   moduleRoute('doctors',        'Doctor Management',    ['Doctor Profiles', 'Availability', 'Specialization', 'Schedule', 'Performance Dashboard']),

@@ -1,551 +1,225 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { ToastService } from '../../shared/ui/toast/toast.service';
+import { AdministrationDashboard, AdministrationDashboardSummary } from './administration-dashboard.models';
+import { AdministrationDashboardService } from './administration-dashboard.service';
+
+interface DashboardCard {
+  labelKey: string;
+  value: string;
+  subKey: string;
+  icon: string;
+  tone: string;
+}
 
 @Component({
   standalone: true,
-  imports: [RouterLink],
+  imports: [CommonModule],
   template: `
-    <div class="dashboard">
-
-      <!-- ── Welcome Banner ── -->
-      <div class="welcome-bar">
-        <div class="welcome-left">
-          <p class="ac-eyebrow">{{ todayDate }}</p>
-          <h1 class="ac-page-title">{{ greeting }}, Dr. John 👋</h1>
-          <p class="welcome-sub">Here's what's happening at City General Hospital today.</p>
+    <section class="admin-dashboard">
+      <header class="page-head">
+        <div>
+          <h1 class="ac-page-title">{{ t('Administration.Dashboard.Title') }}</h1>
+          <p>{{ t('Administration.Dashboard.Subtitle') }}</p>
         </div>
-        <div class="welcome-actions">
-          <button class="ac-btn ac-btn-secondary" (click)="toast.info('Coming soon', 'Reports module is being prepared.')">
-            <span class="material-symbols-rounded" style="font-size:16px">analytics</span>
-            View Reports
-          </button>
-          <button class="ac-btn ac-btn-primary" routerLink="/appointments" (click)="toast.success('Redirecting', 'Opening appointment scheduler.')">
-            <span class="material-symbols-rounded" style="font-size:16px">add</span>
-            New Appointment
-          </button>
-        </div>
-      </div>
+        <button class="icon-btn" type="button" (click)="load()" [attr.title]="t('Administration.Rbac.Actions.Refresh')">
+          <span class="material-symbols-rounded">refresh</span>
+        </button>
+      </header>
 
-      <!-- ── KPI Cards ── -->
-      <div class="kpi-grid">
-        @for (card of kpiCards; track card.label) {
-          <div class="kpi-card ac-card" [style.--accent]="card.color">
-            <div class="kpi-top">
-              <div class="kpi-icon" [style.background]="card.bg" [style.color]="card.color">
-                <span class="material-symbols-rounded msf" style="font-size:22px">{{ card.icon }}</span>
+      @if (dashboard(); as model) {
+        <section class="kpi-grid">
+          @for (card of createCards(model.summary); track card.labelKey) {
+            <article class="metric-card" [style.--tone]="card.tone">
+              <div class="metric-icon"><span class="material-symbols-rounded">{{ card.icon }}</span></div>
+              <div>
+                <p class="metric-label">{{ t(card.labelKey) }}</p>
+                <strong>{{ card.value }}</strong>
+                <span>{{ t(card.subKey) }}</span>
               </div>
-              <div class="kpi-trend" [class.up]="card.trendUp" [class.down]="!card.trendUp">
-                <span class="material-symbols-rounded" style="font-size:14px">
-                  {{ card.trendUp ? 'trending_up' : 'trending_down' }}
-                </span>
-                {{ card.growth }}
-              </div>
-            </div>
-            <p class="kpi-value">{{ card.value }}</p>
-            <p class="kpi-label">{{ card.label }}</p>
-            <p class="kpi-sub">{{ card.sub }}</p>
-          </div>
-        }
-      </div>
-
-      <!-- ── Grid: Queue + Quick Actions ── -->
-      <div class="mid-grid">
-
-        <!-- Live Queue -->
-        <section class="ac-card queue-card">
-          <div class="card-head">
-            <div>
-              <h2 class="ac-section-title">Live Queue Board</h2>
-              <p class="card-sub">OPD today</p>
-            </div>
-            <span class="live-badge">
-              <span class="live-dot"></span>
-              Realtime
-            </span>
-          </div>
-          <div class="queue-list">
-            @for (item of queue; track item.no) {
-              <div class="queue-item">
-                <div class="queue-no">{{ item.no }}</div>
-                <div class="queue-info">
-                  <p class="queue-name">{{ item.patient }}</p>
-                  <p class="queue-doctor">{{ item.doctor }}</p>
-                </div>
-                <span class="queue-badge" [class]="'qb-' + item.statusColor">{{ item.status }}</span>
-              </div>
-            }
-          </div>
+            </article>
+          }
         </section>
 
-        <!-- Quick Actions -->
-        <section class="ac-card actions-card">
-          <div class="card-head">
-            <div>
-              <h2 class="ac-section-title">Quick Actions</h2>
-              <p class="card-sub">Frequently used workflows</p>
+        <section class="main-grid">
+          <article class="panel chart-panel">
+            <div class="section-head">
+              <h2>{{ t('Administration.Dashboard.Widgets.AuditSummary') }}</h2>
+              <span>{{ t('Administration.Dashboard.Labels.LastSevenDays') }}</span>
             </div>
-          </div>
-          <div class="actions-grid">
-            @for (action of quickActions; track action.label) {
-              <button class="action-btn" [style.--color]="action.color" [style.--bg]="action.bg"
-                      (click)="toast.success(action.label, 'Opening workflow...')">
-                <div class="action-icon">
-                  <span class="material-symbols-rounded msf" style="font-size:24px">{{ action.icon }}</span>
+            <div class="bar-list">
+              @for (item of model.auditSummary; track item.actionCode) {
+                <div class="bar-row">
+                  <span>{{ item.actionCode }}</span>
+                  <div class="bar-track"><div class="bar-fill" [style.width.%]="barWidth(item.eventCount, model.auditSummary)"></div></div>
+                  <strong>{{ item.eventCount }}</strong>
                 </div>
-                <span class="action-label">{{ action.label }}</span>
-              </button>
-            }
-          </div>
-        </section>
-      </div>
-
-      <!-- ── Grid: Revenue + Activity ── -->
-      <div class="lower-grid">
-
-        <!-- Revenue Breakdown -->
-        <section class="ac-card revenue-card">
-          <div class="card-head">
-            <div>
-              <h2 class="ac-section-title">Revenue Flow</h2>
-              <p class="card-sub">Today's collections</p>
+              } @empty {
+                <p class="empty">{{ t('Administration.Dashboard.Labels.NoData') }}</p>
+              }
             </div>
-            <span class="ac-badge ac-badge-success">₹ 2.4L</span>
-          </div>
-          <div class="revenue-bars">
-            @for (r of revenue; track r.label) {
-              <div class="rev-row">
-                <span class="rev-label">{{ r.label }}</span>
-                <div class="rev-track">
-                  <div class="rev-fill" [style.width.%]="r.pct" [style.background]="r.color"></div>
+          </article>
+
+          <article class="panel">
+            <div class="section-head">
+              <h2>{{ t('Administration.Dashboard.Widgets.SystemHealth') }}</h2>
+              <span class="status" [class.warning]="model.summary.systemHealthStatusCode !== 'HEALTHY'">
+                {{ t('Administration.Dashboard.Health.' + model.summary.systemHealthStatusCode) }}
+              </span>
+            </div>
+            <div class="health-list">
+              @for (item of model.systemHealth; track item.componentCode) {
+                <div class="health-row">
+                  <span class="dot" [class.warning]="item.statusCode !== 'HEALTHY'"></span>
+                  <div>
+                    <strong>{{ item.componentCode }}</strong>
+                    <p>{{ t(item.messageKey) }}</p>
+                  </div>
+                  <span class="status" [class.warning]="item.statusCode !== 'HEALTHY'">{{ t('Administration.Dashboard.Health.' + item.statusCode) }}</span>
                 </div>
-                <span class="rev-amount">{{ r.amount }}</span>
-              </div>
-            }
-          </div>
+              }
+            </div>
+          </article>
         </section>
 
-        <!-- Activity Feed -->
-        <section class="ac-card activity-card">
-          <div class="card-head">
-            <div>
-              <h2 class="ac-section-title">Activity Feed</h2>
-              <p class="card-sub">Recent events</p>
+        <section class="lower-grid">
+          <article class="panel">
+            <div class="section-head">
+              <h2>{{ t('Administration.Dashboard.Widgets.RecentLogins') }}</h2>
+              <span>{{ model.summary.loginsToday }} {{ t('Administration.Dashboard.Labels.Today') }}</span>
             </div>
-            <button class="ac-btn ac-btn-ghost" style="height:30px;font-size:12px">View all</button>
-          </div>
-          <div class="activity-list">
-            @for (a of activity; track a.id) {
-              <div class="activity-item">
-                <div class="activity-icon" [style.background]="a.bg" [style.color]="a.color">
-                  <span class="material-symbols-rounded msf" style="font-size:16px">{{ a.icon }}</span>
+            <div class="login-list">
+              @for (login of model.recentLogins; track login.email + login.loginDate) {
+                <div class="login-row">
+                  <span class="login-state" [class.failed]="!login.wasSuccessful">{{ t(login.wasSuccessful ? 'Administration.Dashboard.Labels.Success' : 'Administration.Dashboard.Labels.Failed') }}</span>
+                  <div>
+                    <strong>{{ login.displayName }}</strong>
+                    <p>{{ login.email }} · {{ login.loginDate | date: 'short' }}</p>
+                  </div>
                 </div>
-                <div class="activity-body">
-                  <p class="activity-text">{{ a.text }}</p>
-                  <p class="activity-time">{{ a.time }}</p>
+              } @empty {
+                <p class="empty">{{ t('Administration.Dashboard.Labels.NoData') }}</p>
+              }
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="section-head">
+              <h2>{{ t('Administration.Dashboard.Widgets.Notifications') }}</h2>
+              <span>{{ model.summary.notificationTemplateCount }} {{ t('Administration.Dashboard.Labels.TemplatesConfigured') }}</span>
+            </div>
+            <div class="template-list">
+              @for (item of model.notifications; track item.templateCode + item.channelCode + item.languageCode) {
+                <div class="template-row">
+                  <strong>{{ item.templateCode }}</strong>
+                  <span>{{ t('Administration.SystemConfiguration.Channel.' + item.channelCode) }} · {{ item.languageCode }}</span>
                 </div>
-              </div>
-            }
-          </div>
+              } @empty {
+                <p class="empty">{{ t('Administration.Dashboard.Labels.NoData') }}</p>
+              }
+            </div>
+          </article>
+
+          <article class="panel status-panel">
+            <div class="status-block">
+              <span class="material-symbols-rounded">verified</span>
+              <p>{{ t('Administration.Dashboard.Widgets.LicenseStatus') }}</p>
+              <strong>{{ t('Administration.Dashboard.License.' + model.summary.licenseStatusCode) }}</strong>
+            </div>
+            <div class="status-block">
+              <span class="material-symbols-rounded">workspace_premium</span>
+              <p>{{ t('Administration.Dashboard.Widgets.SubscriptionStatus') }}</p>
+              <strong>{{ t('Hospital.Subscription.Status.' + model.summary.subscriptionStatusCode) }}</strong>
+            </div>
+            <div class="status-block">
+              <span class="material-symbols-rounded">database</span>
+              <p>{{ t('Administration.Dashboard.Widgets.StorageUsage') }}</p>
+              <strong>{{ model.summary.storedProfileImageCount }}</strong>
+              <small>{{ t('Administration.Dashboard.Labels.ProfileImages') }}</small>
+            </div>
+          </article>
         </section>
 
-        <!-- Operational Alerts -->
-        <section class="ac-card alerts-card">
-          <div class="card-head">
-            <div>
-              <h2 class="ac-section-title">Alerts</h2>
-              <p class="card-sub">Needs attention</p>
-            </div>
-            <span class="ac-badge ac-badge-error">3 critical</span>
-          </div>
-          <div class="alerts-list">
-            @for (alert of alerts; track alert.title) {
-              <div class="alert-item" [class]="'alert-' + alert.type">
-                <span class="material-symbols-rounded alert-icon msf" style="font-size:18px">{{ alert.icon }}</span>
-                <div class="alert-body">
-                  <p class="alert-title">{{ alert.title }}</p>
-                  <p class="alert-desc">{{ alert.desc }}</p>
-                </div>
-                <span class="alert-badge" [class]="'ab-' + alert.type">{{ alert.level }}</span>
-              </div>
-            }
-          </div>
-        </section>
-      </div>
-
-    </div>
+        <footer class="generated">
+          {{ t('Administration.Dashboard.Labels.GeneratedAt') }}: {{ model.summary.generatedAt | date: 'medium' }}
+        </footer>
+      }
+    </section>
   `,
   styles: `
-    .dashboard {
-      display: flex;
-      flex-direction: column;
-      gap: 24px;
-      animation: slideUp 0.3s ease;
-    }
-    @keyframes slideUp {
-      from { opacity: 0; transform: translateY(12px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    /* ── Welcome ── */
-    .welcome-bar {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-    .welcome-sub {
-      margin-top: 4px;
-      font-size: 13.5px;
-      color: var(--ac-muted);
-    }
-    .welcome-actions {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-shrink: 0;
-    }
-
-    /* ── KPI Grid ── */
-    .kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 16px;
-    }
-    @media (max-width: 1280px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
-    @media (max-width: 768px)  { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 480px)  { .kpi-grid { grid-template-columns: 1fr; } }
-
-    .kpi-card {
-      padding: 18px;
-      transition: all 0.2s ease;
-      cursor: default;
-      position: relative;
-      overflow: hidden;
-    }
-    .kpi-card::before {
-      content: '';
-      position: absolute;
-      bottom: 0; left: 0; right: 0;
-      height: 3px;
-      background: var(--accent);
-      border-radius: 0 0 var(--ac-r) var(--ac-r);
-    }
-    .kpi-card:hover {
-      box-shadow: var(--ac-sh-md);
-      transform: translateY(-2px);
-    }
-    .kpi-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 12px;
-    }
-    .kpi-icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 40px;
-      height: 40px;
-      border-radius: var(--ac-r-sm);
-    }
-    .kpi-trend {
-      display: flex;
-      align-items: center;
-      gap: 2px;
-      font-size: 11.5px;
-      font-weight: 700;
-      padding: 2px 7px;
-      border-radius: var(--ac-r-full);
-    }
-    .kpi-trend.up   { background: var(--ac-success-light); color: var(--ac-success); }
-    .kpi-trend.down { background: var(--ac-error-light);   color: var(--ac-error); }
-    .kpi-value {
-      font-size: 26px;
-      font-weight: 800;
-      color: var(--ac-text);
-      letter-spacing: -0.02em;
-      line-height: 1.1;
-    }
-    .kpi-label {
-      font-size: 12.5px;
-      font-weight: 600;
-      color: var(--ac-text-3);
-      margin-top: 4px;
-    }
-    .kpi-sub {
-      font-size: 11px;
-      color: var(--ac-muted);
-      margin-top: 3px;
-    }
-
-    /* ── Mid Grid ── */
-    .mid-grid {
-      display: grid;
-      grid-template-columns: 1.2fr 0.8fr;
-      gap: 20px;
-    }
-    @media (max-width: 900px) { .mid-grid { grid-template-columns: 1fr; } }
-
-    .card-head {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-    .card-sub {
-      font-size: 12px;
-      color: var(--ac-muted);
-      margin-top: 3px;
-    }
-
-    /* Live badge */
-    .live-badge {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      border-radius: var(--ac-r-full);
-      background: var(--ac-success-light);
-      color: var(--ac-success);
-      font-size: 11.5px;
-      font-weight: 700;
-    }
-    .live-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--ac-success);
-      animation: pulse 1.5s ease-in-out infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50%       { opacity: 0.4; }
-    }
-
-    /* Queue */
-    .queue-card, .actions-card { padding: 20px; }
-    .queue-list { display: flex; flex-direction: column; gap: 8px; }
-    .queue-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px 12px;
-      border-radius: var(--ac-r-sm);
-      border: 1px solid var(--ac-border);
-      background: var(--ac-surface-2);
-      transition: all var(--ac-t);
-    }
-    .queue-item:hover { border-color: var(--ac-primary); background: var(--ac-primary-light); }
-    .queue-no {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 32px;
-      height: 32px;
-      border-radius: var(--ac-r-sm);
-      background: var(--ac-primary-lighter);
-      color: var(--ac-primary);
-      font-size: 13px;
-      font-weight: 800;
-      flex-shrink: 0;
-    }
-    .queue-info { flex: 1; min-width: 0; }
-    .queue-name  { font-size: 13.5px; font-weight: 600; color: var(--ac-text); }
-    .queue-doctor{ font-size: 11.5px; color: var(--ac-muted); }
-    .queue-badge {
-      padding: 3px 9px;
-      border-radius: var(--ac-r-full);
-      font-size: 11px;
-      font-weight: 700;
-      flex-shrink: 0;
-    }
-    .qb-green  { background: var(--ac-success-light); color: var(--ac-success); }
-    .qb-blue   { background: var(--ac-primary-light);  color: var(--ac-primary); }
-    .qb-amber  { background: var(--ac-warning-light);  color: var(--ac-warning); }
-    .qb-purple { background: var(--ac-secondary-light); color: var(--ac-secondary); }
-
-    /* Quick Actions */
-    .actions-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
-    }
-    .action-btn {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      padding: 16px 10px;
-      border-radius: var(--ac-r);
-      border: 1px solid var(--ac-border);
-      background: var(--ac-surface-2);
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-    .action-btn:hover {
-      background: var(--bg);
-      border-color: var(--color);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-      transform: translateY(-2px);
-    }
-    .action-icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 44px;
-      height: 44px;
-      border-radius: var(--ac-r);
-      background: var(--bg);
-      color: var(--color);
-    }
-    .action-label {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--ac-text-3);
-      text-align: center;
-    }
-
-    /* ── Lower Grid ── */
-    .lower-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 20px;
-    }
-    @media (max-width: 1100px) { .lower-grid { grid-template-columns: 1fr 1fr; } }
-    @media (max-width: 768px)  { .lower-grid { grid-template-columns: 1fr; } }
-
-    .revenue-card, .activity-card, .alerts-card { padding: 20px; }
-
-    /* Revenue */
-    .revenue-bars { display: flex; flex-direction: column; gap: 14px; }
-    .rev-row { display: grid; grid-template-columns: 80px 1fr 60px; align-items: center; gap: 10px; }
-    .rev-label { font-size: 12px; color: var(--ac-muted); }
-    .rev-track {
-      height: 8px;
-      background: var(--ac-surface-2);
-      border-radius: var(--ac-r-full);
-      overflow: hidden;
-    }
-    .rev-fill {
-      height: 100%;
-      border-radius: var(--ac-r-full);
-      transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
-    }
-    .rev-amount { font-size: 12.5px; font-weight: 700; color: var(--ac-text-3); text-align: right; }
-
-    /* Activity */
-    .activity-list { display: flex; flex-direction: column; gap: 12px; }
-    .activity-item { display: flex; align-items: flex-start; gap: 10px; }
-    .activity-icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 30px;
-      height: 30px;
-      border-radius: var(--ac-r-sm);
-      flex-shrink: 0;
-    }
-    .activity-body { flex: 1; min-width: 0; }
-    .activity-text { font-size: 12.5px; color: var(--ac-text-3); line-height: 1.4; }
-    .activity-time { font-size: 11px; color: var(--ac-muted); margin-top: 2px; }
-
-    /* Alerts */
-    .alerts-list { display: flex; flex-direction: column; gap: 10px; }
-    .alert-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      padding: 12px;
-      border-radius: var(--ac-r-sm);
-      border-left: 3px solid;
-    }
-    .alert-error  { background: var(--ac-error-light);   border-color: var(--ac-error); }
-    .alert-warning{ background: var(--ac-warning-light); border-color: var(--ac-warning); }
-    .alert-info   { background: var(--ac-info-light);    border-color: var(--ac-info); }
-    .alert-icon { margin-top: 1px; flex-shrink: 0; }
-    .alert-error .alert-icon   { color: var(--ac-error); }
-    .alert-warning .alert-icon { color: var(--ac-warning); }
-    .alert-info .alert-icon    { color: var(--ac-info); }
-    .alert-body { flex: 1; min-width: 0; }
-    .alert-title { font-size: 13px; font-weight: 600; color: var(--ac-text); }
-    .alert-desc  { font-size: 11.5px; color: var(--ac-muted); margin-top: 2px; }
-    .alert-badge {
-      padding: 2px 8px;
-      border-radius: var(--ac-r-full);
-      font-size: 10px;
-      font-weight: 800;
-      flex-shrink: 0;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-    .ab-error   { background: var(--ac-error);   color: #fff; }
-    .ab-warning { background: var(--ac-warning); color: #fff; }
-    .ab-info    { background: var(--ac-info);    color: #fff; }
+    .admin-dashboard { display: flex; flex-direction: column; gap: 16px; }
+    .page-head, .section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .page-head p { margin: 4px 0 0; color: var(--ac-muted); font-size: 13px; max-width: 880px; }
+    .icon-btn { width: 36px; height: 36px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-text-2); cursor: pointer; display: inline-grid; place-items: center; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+    .metric-card, .panel { border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; }
+    .metric-card { min-height: 116px; display: flex; gap: 12px; padding: 14px; border-top: 3px solid var(--tone); }
+    .metric-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 8px; color: var(--tone); background: color-mix(in srgb, var(--tone) 12%, transparent); flex: 0 0 auto; }
+    .metric-label { margin: 0 0 6px; color: var(--ac-muted); font-size: 12px; font-weight: 800; }
+    .metric-card strong { display: block; font-size: 24px; line-height: 1.1; }
+    .metric-card span { color: var(--ac-muted); font-size: 12px; }
+    .main-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(360px, .7fr); gap: 16px; }
+    .lower-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(320px, .7fr); gap: 16px; }
+    .panel { padding: 16px; min-width: 0; }
+    .section-head h2 { margin: 0; font-size: 16px; }
+    .section-head span { color: var(--ac-muted); font-size: 12px; font-weight: 700; }
+    .bar-list, .health-list, .login-list, .template-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+    .bar-row { display: grid; grid-template-columns: 120px 1fr 48px; gap: 10px; align-items: center; font-size: 13px; }
+    .bar-track { height: 10px; border-radius: 999px; background: var(--ac-bg); overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: inherit; background: #2563eb; }
+    .health-row, .login-row, .template-row { display: flex; gap: 10px; align-items: center; padding: 10px; border: 1px solid var(--ac-border); border-radius: 8px; }
+    .health-row p, .login-row p { margin: 3px 0 0; color: var(--ac-muted); font-size: 12px; }
+    .dot { width: 10px; height: 10px; border-radius: 999px; background: #16a34a; flex: 0 0 auto; }
+    .dot.warning { background: #d97706; }
+    .status, .login-state { margin-left: auto; padding: 4px 8px; border-radius: 999px; background: rgba(22,163,74,.1); color: #15803d; font-size: 11px; font-weight: 800; }
+    .status.warning, .login-state.failed { background: rgba(217,119,6,.12); color: #b45309; }
+    .template-row { justify-content: space-between; }
+    .template-row span { color: var(--ac-muted); font-size: 12px; }
+    .status-panel { display: grid; gap: 10px; }
+    .status-block { padding: 12px; border: 1px solid var(--ac-border); border-radius: 8px; display: grid; grid-template-columns: 34px 1fr auto; gap: 8px; align-items: center; }
+    .status-block span { color: #2563eb; }
+    .status-block p { margin: 0; color: var(--ac-muted); font-size: 12px; font-weight: 800; }
+    .status-block small { grid-column: 2 / -1; color: var(--ac-muted); }
+    .empty { margin: 0; color: var(--ac-muted); font-size: 13px; }
+    .generated { color: var(--ac-muted); font-size: 12px; text-align: right; }
+    @media (max-width: 1280px) { .kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .main-grid, .lower-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 720px) { .kpi-grid { grid-template-columns: 1fr; } .page-head, .section-head { flex-direction: column; } .bar-row { grid-template-columns: 1fr; } }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class DashboardPageComponent {
-  protected readonly toast = inject(ToastService);
+export class DashboardPageComponent implements OnInit {
+  protected readonly dashboard = signal<AdministrationDashboard | null>(null);
 
-  protected readonly greeting = (() => {
-    const h = new Date().getHours();
-    if (h < 12) return 'Good Morning';
-    if (h < 17) return 'Good Afternoon';
-    return 'Good Evening';
-  })();
+  private readonly service = inject(AdministrationDashboardService);
+  private readonly i18n = inject(I18nService);
+  private readonly toast = inject(ToastService);
 
-  protected readonly todayDate = new Date().toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-  });
+  async ngOnInit(): Promise<void> { await this.load(); }
+  protected t(key: string): string { return this.i18n.translate(key); }
 
-  protected readonly kpiCards = [
-    { label: "Today's Appointments", value: '86',    sub: '14 remaining today', icon: 'event',       color: '#2563EB', bg: 'rgba(37,99,235,0.1)',  growth: '+12%', trendUp: true  },
-    { label: 'Active Patients',       value: '342',   sub: '24 in consultation',  icon: 'people',      color: '#10B981', bg: 'rgba(16,185,129,0.1)', growth: '+5%',  trendUp: true  },
-    { label: 'Revenue Today',         value: '₹2.4L', sub: '₹18.2L this month',  icon: 'payments',    color: '#7C3AED', bg: 'rgba(124,58,237,0.1)', growth: '+8%',  trendUp: true  },
-    { label: 'Available Beds',        value: '47',    sub: '12 beds occupied',    icon: 'king_bed',    color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', growth: '-3',   trendUp: false },
-    { label: 'Lab Pending',           value: '13',    sub: '4 reports overdue',   icon: 'biotech',     color: '#EF4444', bg: 'rgba(239,68,68,0.1)',  growth: '+2',   trendUp: false },
-    { label: 'Pharmacy Alerts',       value: '7',     sub: 'Low stock warnings',  icon: 'medication',  color: '#0EA5E9', bg: 'rgba(14,165,233,0.1)', growth: '+3',   trendUp: false }
-  ];
+  protected async load(): Promise<void> {
+    const response = await this.service.getDashboard();
+    response.success && response.data ? this.dashboard.set(response.data) : this.toast.error(this.t(response.message));
+  }
 
-  protected readonly queue = [
-    { no: 'P01', patient: 'Aditya Mehta',    doctor: 'Dr. Priya Singh',  status: 'In Consultation', statusColor: 'blue'   },
-    { no: 'P02', patient: 'Sunita Rao',      doctor: 'Dr. Rahul Gupta',  status: 'Waiting',         statusColor: 'amber'  },
-    { no: 'P03', patient: 'Mohan Patil',     doctor: 'Dr. Kavita Nair',  status: 'Completed',       statusColor: 'green'  },
-    { no: 'P04', patient: 'Neha Joshi',      doctor: 'Dr. Arjun Verma',  status: 'Waiting',         statusColor: 'amber'  },
-    { no: 'P05', patient: 'Ravi Kulkarni',   doctor: 'Dr. Priya Singh',  status: 'Vitals Done',     statusColor: 'purple' }
-  ];
+  protected createCards(summary: AdministrationDashboardSummary): DashboardCard[] {
+    return [
+      { labelKey: 'Administration.Dashboard.Widgets.TotalHospitals', value: formatNumber(summary.totalHospitals), subKey: 'Administration.Dashboard.Labels.Today', icon: 'local_hospital', tone: '#2563eb' },
+      { labelKey: 'Administration.Dashboard.Widgets.TotalUsers', value: formatNumber(summary.totalUsers), subKey: 'Administration.Dashboard.Labels.Today', icon: 'groups', tone: '#0891b2' },
+      { labelKey: 'Administration.Dashboard.Widgets.ActiveUsers', value: formatNumber(summary.activeUsers), subKey: 'Administration.UserManagement.Status.Active', icon: 'person_check', tone: '#16a34a' },
+      { labelKey: 'Administration.Dashboard.Widgets.ActiveSessions', value: formatNumber(summary.activeSessions), subKey: 'Navigation.SessionManagement', icon: 'passkey', tone: '#7c3aed' },
+      { labelKey: 'Administration.Dashboard.Widgets.BranchCount', value: formatNumber(summary.branchCount), subKey: 'Navigation.BranchManagement', icon: 'account_tree', tone: '#d97706' },
+      { labelKey: 'Administration.Dashboard.Widgets.DepartmentCount', value: formatNumber(summary.departmentCount), subKey: 'Navigation.DepartmentManagement', icon: 'business', tone: '#be123c' }
+    ];
+  }
 
-  protected readonly quickActions = [
-    { icon: 'person_add',     label: 'New Patient',     color: '#2563EB', bg: 'rgba(37,99,235,0.08)'   },
-    { icon: 'event_available',label: 'Appointment',     color: '#10B981', bg: 'rgba(16,185,129,0.08)'  },
-    { icon: 'hotel',          label: 'Admit Patient',   color: '#7C3AED', bg: 'rgba(124,58,237,0.08)'  },
-    { icon: 'receipt_long',   label: 'Generate Bill',   color: '#F59E0B', bg: 'rgba(245,158,11,0.08)'  },
-    { icon: 'edit_note',      label: 'Prescription',    color: '#EF4444', bg: 'rgba(239,68,68,0.08)'   },
-    { icon: 'science',        label: 'Lab Request',     color: '#0EA5E9', bg: 'rgba(14,165,233,0.08)'  }
-  ];
+  protected barWidth(value: number, items: { eventCount: number }[]): number {
+    const max = Math.max(...items.map(item => item.eventCount), 1);
+    return Math.max(6, Math.round((value / max) * 100));
+  }
+}
 
-  protected readonly revenue = [
-    { label: 'OPD',       pct: 75, amount: '₹82K',   color: '#2563EB' },
-    { label: 'IPD',       pct: 52, amount: '₹56K',   color: '#7C3AED' },
-    { label: 'Lab',       pct: 38, amount: '₹41K',   color: '#10B981' },
-    { label: 'Pharmacy',  pct: 44, amount: '₹48K',   color: '#F59E0B' },
-    { label: 'Radiology', pct: 20, amount: '₹22K',   color: '#0EA5E9' }
-  ];
-
-  protected readonly activity = [
-    { id: 1, icon: 'person_add',   text: 'New patient Rahul Sharma registered (MRN-1094)',  time: '2 min ago',  bg: 'rgba(37,99,235,0.1)',  color: '#2563EB' },
-    { id: 2, icon: 'receipt',      text: 'Invoice #INV-0412 generated — ₹4,200',            time: '18 min ago', bg: 'rgba(16,185,129,0.1)', color: '#10B981' },
-    { id: 3, icon: 'science',      text: 'CBC Lab report ready for patient P-1089',         time: '35 min ago', bg: 'rgba(124,58,237,0.1)', color: '#7C3AED' },
-    { id: 4, icon: 'medication',   text: 'Pharmacy stock updated: 40 medicines restocked',  time: '1 hr ago',   bg: 'rgba(245,158,11,0.1)', color: '#F59E0B' },
-    { id: 5, icon: 'hotel',        text: 'Patient Sunita Rao admitted to Ward-3, Bed-B12',  time: '2 hr ago',   bg: 'rgba(14,165,233,0.1)', color: '#0EA5E9' }
-  ];
-
-  protected readonly alerts = [
-    { icon: 'medication_liquid', title: 'Pharmacy low stock',    desc: '7 medicines reached reorder level — immediate action needed.',      type: 'error',   level: 'Critical' },
-    { icon: 'warning',           title: '5 Insurance claims',     desc: 'Claims pending document verification. Deadline: tomorrow 5 PM.',   type: 'warning', level: 'Warning'  },
-    { icon: 'bed',               title: 'ICU near capacity',      desc: 'Only 2 ICU beds available. Consider bed management plan.',         type: 'info',    level: 'Info'     }
-  ];
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat().format(value);
 }
