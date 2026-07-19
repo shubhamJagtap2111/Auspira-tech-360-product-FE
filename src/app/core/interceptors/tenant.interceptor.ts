@@ -8,7 +8,7 @@ export const tenantInterceptor: HttpInterceptorFn = (request, next) => {
   return next(
     request.clone({
       setHeaders: {
-        'X-Tenant-Id': tenant.tenantId(),
+        'X-Tenant': tenant.tenantCode(),
         'Accept-Language': tenant.cultureCode()
       }
     })

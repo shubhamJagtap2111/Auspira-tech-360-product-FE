@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 
 @Component({
@@ -12,7 +13,7 @@ import { ToastService } from '../../shared/ui/toast/toast.service';
         <div class="header-left">
           <p class="ac-eyebrow">Module</p>
           <h1 class="ac-page-title">{{ title }}</h1>
-          <p class="page-desc">Enterprise-grade workflow surface connected to the Care360 API and PostgreSQL schema.</p>
+          <p class="page-desc">{{ t('Workspace.Module.Description') }}</p>
         </div>
         <div class="header-actions">
           <button class="ac-btn ac-btn-secondary">
@@ -220,6 +221,7 @@ import { ToastService } from '../../shared/ui/toast/toast.service';
 })
 export class ModuleWorkspacePageComponent {
   private readonly route = inject(ActivatedRoute);
+  private readonly i18n = inject(I18nService);
   protected readonly toast = inject(ToastService);
 
   protected readonly title        = this.route.snapshot.data['title']        as string;
@@ -238,4 +240,8 @@ export class ModuleWorkspacePageComponent {
     { ref: 'AC-1003', description: this.capabilities[2] ?? 'Workflow item', owner: 'Operations',   status: 'Completed',   statusColor: 'green'  },
     { ref: 'AC-1004', description: this.capabilities[3] ?? 'Workflow item', owner: 'Accounts',     status: 'Review',      statusColor: 'amber'  }
   ];
+
+  protected t(resourceKey: string): string {
+    return this.i18n.translate(resourceKey);
+  }
 }

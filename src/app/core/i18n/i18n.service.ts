@@ -47,33 +47,9 @@ export class I18nService {
 function createFallbackCatalog(cultureCode: string): LocalizationCatalog {
   return {
     requestedCulture: cultureCode,
-    effectiveCulture: 'en-US',
-    languages: [
-      {
-        cultureCode: 'en-US',
-        englishName: 'English',
-        nativeName: 'English',
-        isDefault: true,
-        direction: 'LeftToRight'
-      }
-    ],
-    resources: {
-      'app.name': 'Auspira Care360',
-      'nav.dashboard': 'Dashboard',
-      'nav.patients': 'Patients',
-      'nav.appointments': 'Appointments',
-      'nav.opd': 'OPD'
-    },
-    seedDataSets: [
-      {
-        module: 'patients',
-        name: 'gender',
-        items: [
-          { code: 'MALE', sortOrder: 10, translations: { 'en-US': 'Male' } },
-          { code: 'FEMALE', sortOrder: 20, translations: { 'en-US': 'Female' } },
-          { code: 'OTHER', sortOrder: 30, translations: { 'en-US': 'Other' } }
-        ]
-      }
-    ]
+    effectiveCulture: cultureCode,
+    languages: [],
+    resources: {},
+    seedDataSets: []
   };
 }
