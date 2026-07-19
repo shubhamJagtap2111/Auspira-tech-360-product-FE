@@ -83,6 +83,13 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/administration/hospital/hospital-management-page.component').then(m => m.HospitalManagementPageComponent)
   },
+  {
+    path: 'administration/branches',
+    canActivate: [authGuard, permissionGuard],
+    data: { permission: 'Administration.Branch.View' },
+    loadComponent: () =>
+      import('./features/administration/branches/branch-management-page.component').then(m => m.BranchManagementPageComponent)
+  },
   moduleRoute('administration', 'Administration', ['Hospital Management', 'User Management', 'Role Management', 'Permission Management', 'Branch Management', 'Multilingual Seed Data']),
   moduleRoute('doctors',        'Doctor Management',    ['Doctor Profiles', 'Availability', 'Specialization', 'Schedule', 'Performance Dashboard']),
   moduleRoute('appointments',   'Appointment Management', ['Calendar View', 'Slot Booking', 'Walk-In Registration', 'Follow-Ups', 'Queue Management']),
