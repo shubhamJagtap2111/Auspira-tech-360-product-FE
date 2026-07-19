@@ -3,7 +3,9 @@ import { firstValueFrom } from 'rxjs';
 import { ApiClientService } from '../http/api-client.service';
 import {
   ApiResponse,
+  AuthenticationSession,
   AuthResponse,
+  ChangePasswordRequest,
   ForgotPasswordRequest,
   LoginRequest,
   RefreshTokenRequest,
@@ -37,5 +39,25 @@ export class AuthService {
 
   verifyEmail(request: VerifyEmailRequest): Promise<ApiResponse<{ accepted: boolean }>> {
     return firstValueFrom(this.api.post<ApiResponse<{ accepted: boolean }>>('/auth/verify-email', request));
+  }
+
+  changePassword(request: ChangePasswordRequest): Promise<ApiResponse<{ accepted: boolean }>> {
+    return firstValueFrom(this.api.post<ApiResponse<{ accepted: boolean }>>('/auth/change-password', request));
+  }
+
+  getSessions(): Promise<ApiResponse<AuthenticationSession[]>> {
+    return firstValueFrom(this.api.get<ApiResponse<AuthenticationSession[]>>('/auth/sessions'));
+  }
+
+  revokeSession(sessionId: string): Promise<ApiResponse<{ accepted: boolean }>> {
+    return firstValueFrom(this.api.delete<ApiResponse<{ accepted: boolean }>>(`/auth/sessions/${sessionId}`));
+  }
+
+  forceLogout(userId: string): Promise<ApiResponse<{ accepted: boolean }>> {
+    return firstValueFrom(this.api.post<ApiResponse<{ accepted: boolean }>>(`/auth/users/${userId}/force-logout`, {}));
+  }
+
+  unlockAccount(userId: string): Promise<ApiResponse<{ accepted: boolean }>> {
+    return firstValueFrom(this.api.post<ApiResponse<{ accepted: boolean }>>(`/auth/users/${userId}/unlock`, {}));
   }
 }

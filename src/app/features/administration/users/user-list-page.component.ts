@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
-import { AssignableRole, ManagedUser, UserFormModel } from './user-management.models';
+import { AssignableRole, ManagedUser, UserAuditHistoryItem, UserFormModel, UserLanguageOption, UserTimeZoneOption } from './user-management.models';
 import { UserManagementService } from './user-management.service';
 
 const permissions = {
@@ -14,7 +14,11 @@ const permissions = {
   activate: 'Administration.UserManagement.Activate',
   unlock: 'Administration.UserManagement.Unlock',
   assignRoles: 'Administration.UserManagement.AssignRoles',
-  resetPassword: 'Administration.UserManagement.ResetPassword'
+  resetPassword: 'Administration.UserManagement.ResetPassword',
+  uploadProfileImage: 'Administration.UserManagement.UploadProfileImage',
+  export: 'Administration.UserManagement.Export',
+  import: 'Administration.UserManagement.Import',
+  viewAudit: 'Administration.UserManagement.ViewAudit'
 };
 
 @Component({
@@ -31,6 +35,12 @@ const permissions = {
           <button class="ac-btn ac-btn-primary" type="button" (click)="startCreate()">
             <span class="material-symbols-rounded">person_add</span>
             {{ t('Administration.UserManagement.Actions.New') }}
+          </button>
+        }
+        @if (can(permissions.export)) {
+          <button class="ac-btn ac-btn-secondary" type="button" (click)="exportUsers()">
+            <span class="material-symbols-rounded">download</span>
+            {{ t('Administration.UserManagement.Actions.Export') }}
           </button>
         }
       </header>
@@ -57,10 +67,35 @@ const permissions = {
             <option value="inactive">{{ t('Administration.UserManagement.Status.Inactive') }}</option>
           </select>
         </label>
+        <label>
+          <span>{{ t('Administration.UserManagement.Columns.Branch') }}</span>
+          <input name="branchFilter" [(ngModel)]="branchFilter" (keyup.enter)="loadUsers()" />
+        </label>
+        <label>
+          <span>{{ t('Administration.UserManagement.Columns.Department') }}</span>
+          <input name="departmentFilter" [(ngModel)]="departmentFilter" (keyup.enter)="loadUsers()" />
+        </label>
         <button class="icon-btn" type="button" (click)="loadUsers()" [attr.title]="t('Common.Actions.Updating')">
           <span class="material-symbols-rounded">search</span>
         </button>
       </section>
+
+      @if (can(permissions.import)) {
+        <section class="import-panel">
+          <label>
+            <span>{{ t('Administration.UserManagement.Actions.Import') }}</span>
+            <textarea name="importText" [(ngModel)]="importText" [placeholder]="t('Administration.UserManagement.Import.Placeholder')"></textarea>
+          </label>
+          <label>
+            <span>{{ t('Administration.UserManagement.Form.Password') }}</span>
+            <input type="password" name="importPassword" [(ngModel)]="importPassword" />
+          </label>
+          <button class="ac-btn ac-btn-secondary" type="button" (click)="importUsers()">
+            <span class="material-symbols-rounded">upload_file</span>
+            {{ t('Administration.UserManagement.Actions.Import') }}
+          </button>
+        </section>
+      }
 
       <section class="content-grid">
         <div class="table-wrap">
@@ -120,6 +155,11 @@ const permissions = {
                           <span class="material-symbols-rounded">key</span>
                         </button>
                       }
+                      @if (can(permissions.viewAudit)) {
+                        <button class="icon-btn" type="button" (click)="loadAudit(user)" [attr.title]="t('Administration.UserManagement.Actions.ViewAudit')">
+                          <span class="material-symbols-rounded">history</span>
+                        </button>
+                      }
                       @if (can(permissions.delete)) {
                         <button class="icon-btn danger" type="button" (click)="deleteUser(user)" [attr.title]="t('Administration.UserManagement.Actions.Delete')">
                           <span class="material-symbols-rounded">delete</span>
@@ -159,6 +199,42 @@ const permissions = {
               <span>{{ t('Administration.UserManagement.Form.Mobile') }}</span>
               <input name="mobileNo" [(ngModel)]="form.mobileNo" />
             </label>
+            <label>
+              <span>{{ t('Administration.UserManagement.Form.HospitalName') }}</span>
+              <input name="hospitalName" [(ngModel)]="form.hospitalName" />
+            </label>
+            <label>
+              <span>{{ t('Administration.UserManagement.Form.BranchCode') }}</span>
+              <input name="branchCode" [(ngModel)]="form.branchCode" />
+            </label>
+            <label>
+              <span>{{ t('Administration.UserManagement.Form.DepartmentCode') }}</span>
+              <input name="departmentCode" [(ngModel)]="form.departmentCode" />
+            </label>
+            <label>
+              <span>{{ t('Administration.UserManagement.Form.Language') }}</span>
+              <select name="languageCode" [(ngModel)]="form.languageCode">
+                <option value=""></option>
+                @for (language of languages(); track language.languageCode) {
+                  <option [value]="language.languageCode">{{ language.englishName }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              <span>{{ t('Administration.UserManagement.Form.TimeZone') }}</span>
+              <select name="timeZoneCode" [(ngModel)]="form.timeZoneCode">
+                <option value=""></option>
+                @for (timeZone of timeZones(); track timeZone.timeZoneCode) {
+                  <option [value]="timeZone.timeZoneCode">{{ t(timeZone.displayNameKey) }}</option>
+                }
+              </select>
+            </label>
+            @if (editingUserGuid() && can(permissions.uploadProfileImage)) {
+              <label>
+                <span>{{ t('Administration.UserManagement.Form.ProfileImage') }}</span>
+                <input type="file" accept="image/png,image/jpeg" (change)="uploadProfileImage($event)" />
+              </label>
+            }
             @if (!editingUserGuid()) {
               <label>
                 <span>{{ t('Administration.UserManagement.Form.Password') }}</span>
@@ -190,6 +266,18 @@ const permissions = {
           </form>
         </aside>
       </section>
+
+      @if (auditRows().length > 0) {
+        <section class="audit-panel">
+          <h2>{{ t('Administration.UserManagement.Actions.ViewAudit') }}</h2>
+          @for (audit of auditRows(); track audit.auditTrailId) {
+            <div class="audit-row">
+              <strong>{{ audit.action }}</strong>
+              <span>{{ audit.createdDate | date:'medium' }}</span>
+            </div>
+          }
+        </section>
+      }
     </section>
   `,
   styles: `
@@ -198,6 +286,11 @@ const permissions = {
     .page-head { align-items: flex-start; justify-content: space-between; }
     .page-head p { margin: 4px 0 0; color: var(--ac-muted); font-size: 13px; }
     .toolbar { align-items: end; padding: 14px; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; }
+    .import-panel, .audit-panel { padding: 14px; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; display: flex; gap: 12px; align-items: end; }
+    .import-panel textarea { min-height: 76px; border: 1px solid var(--ac-border); border-radius: 8px; padding: 10px; font: inherit; resize: vertical; }
+    .audit-panel { flex-direction: column; align-items: stretch; }
+    .audit-panel h2 { margin: 0; font-size: 16px; }
+    .audit-row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--ac-border); font-size: 13px; }
     .toolbar label { min-width: 180px; flex: 1; }
     label { display: flex; flex-direction: column; gap: 6px; color: var(--ac-text-2); font-size: 12px; font-weight: 700; }
     input, select { height: 38px; border: 1px solid var(--ac-border); border-radius: 8px; padding: 0 10px; background: var(--ac-surface); color: var(--ac-text); font: inherit; }
@@ -243,9 +336,16 @@ export class UserListPageComponent implements OnInit {
 
   protected searchText = '';
   protected roleCode = '';
+  protected importText = '';
+  protected importPassword = '';
+  protected branchFilter = '';
+  protected departmentFilter = '';
   protected statusFilter: 'all' | 'active' | 'inactive' = 'all';
   protected readonly users = signal<ManagedUser[]>([]);
   protected readonly roles = signal<AssignableRole[]>([]);
+  protected readonly languages = signal<UserLanguageOption[]>([]);
+  protected readonly timeZones = signal<UserTimeZoneOption[]>([]);
+  protected readonly auditRows = signal<UserAuditHistoryItem[]>([]);
   protected readonly totalCount = signal(0);
   protected readonly selectedUser = signal<ManagedUser | null>(null);
   protected readonly editingUserGuid = signal<string | null>(null);
@@ -256,7 +356,7 @@ export class UserListPageComponent implements OnInit {
   protected form: UserFormModel = emptyForm();
 
   async ngOnInit(): Promise<void> {
-    await Promise.all([this.loadRoles(), this.loadUsers()]);
+    await Promise.all([this.loadRoles(), this.loadReferenceData(), this.loadUsers()]);
   }
 
   protected t(key: string): string {
@@ -272,6 +372,12 @@ export class UserListPageComponent implements OnInit {
       searchText: this.searchText.trim(),
       roleCode: this.roleCode,
       isActive: this.statusFilter === 'all' ? null : this.statusFilter === 'active',
+      branchCode: this.branchFilter.trim(),
+      departmentCode: this.departmentFilter.trim(),
+      languageCode: undefined,
+      timeZoneCode: undefined,
+      sortColumn: 'FullName',
+      sortDirection: 'ASC',
       pageNumber: 1,
       pageSize: 50
     });
@@ -289,6 +395,14 @@ export class UserListPageComponent implements OnInit {
     const response = await this.service.getAssignableRoles();
     if (response.success && response.data) {
       this.roles.set(response.data);
+    }
+  }
+
+  protected async loadReferenceData(): Promise<void> {
+    const response = await this.service.getReferenceData();
+    if (response.success && response.data) {
+      this.languages.set(response.data.languages);
+      this.timeZones.set(response.data.timeZones);
     }
   }
 
@@ -311,6 +425,14 @@ export class UserListPageComponent implements OnInit {
       password: '',
       fullName: user.fullName,
       mobileNo: user.mobileNo ?? '',
+      hospitalGuid: user.hospitalGuid ?? '',
+      hospitalName: user.hospitalName ?? '',
+      branchCode: user.branchCode ?? '',
+      branchNameKey: user.branchNameKey ?? '',
+      departmentCode: user.departmentCode ?? '',
+      departmentNameKey: user.departmentNameKey ?? '',
+      languageCode: user.languageCode ?? '',
+      timeZoneCode: user.timeZoneCode ?? '',
       isEmailVerified: user.isEmailVerified,
       roleCodes: [...user.roleCodes],
       rowVersion: user.rowVersion
@@ -369,6 +491,59 @@ export class UserListPageComponent implements OnInit {
       : this.toast.error(this.t(response.message));
   }
 
+  protected async uploadProfileImage(event: Event): Promise<void> {
+    const userGuid = this.editingUserGuid();
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!userGuid || !file) {
+      return;
+    }
+
+    const base64Content = await readFileAsBase64(file);
+    const response = await this.service.uploadProfileImage(userGuid, file.name, file.type, base64Content);
+    await this.handleUserResponse(response, 'Administration.UserManagement.Messages.ProfileImageUploaded');
+  }
+
+  protected async exportUsers(): Promise<void> {
+    const response = await this.service.exportUsers({
+      searchText: this.searchText.trim(),
+      roleCode: this.roleCode,
+      isActive: this.statusFilter === 'all' ? null : this.statusFilter === 'active',
+      branchCode: this.branchFilter.trim(),
+      departmentCode: this.departmentFilter.trim(),
+      languageCode: undefined,
+      timeZoneCode: undefined
+    });
+
+    if (!response.success || !response.data) {
+      this.toast.error(this.t(response.message));
+      return;
+    }
+
+    downloadBase64(response.data.fileName, response.data.contentType, response.data.base64Content);
+    this.toast.success(this.t('Administration.UserManagement.Messages.ExportReady'));
+  }
+
+  protected async importUsers(): Promise<void> {
+    const rows = parseImportRows(this.importText);
+    const response = await this.service.importUsers(this.importPassword, rows);
+    if (!response.success || !response.data) {
+      this.toast.error(this.t(response.message));
+      return;
+    }
+
+    this.toast.success(`${this.t('Administration.UserManagement.Messages.ImportCompleted')} ${response.data.createdCount}/${rows.length}`);
+    this.importText = '';
+    await this.loadUsers();
+  }
+
+  protected async loadAudit(user: ManagedUser): Promise<void> {
+    const response = await this.service.getAuditHistory(user.userGuid);
+    if (response.success && response.data) {
+      this.auditRows.set(response.data);
+    }
+  }
+
   protected async deleteUser(user: ManagedUser): Promise<void> {
     if (!window.confirm(this.t('Administration.UserManagement.Confirm.Delete'))) {
       return;
@@ -416,8 +591,59 @@ function emptyForm(): UserFormModel {
     password: '',
     fullName: '',
     mobileNo: '',
+    hospitalGuid: '',
+    hospitalName: '',
+    branchCode: '',
+    branchNameKey: '',
+    departmentCode: '',
+    departmentNameKey: '',
+    languageCode: '',
+    timeZoneCode: '',
     isEmailVerified: false,
     roleCodes: [],
     rowVersion: ''
   };
+}
+
+function readFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '');
+    reader.readAsDataURL(file);
+  });
+}
+
+function downloadBase64(fileName: string, contentType: string, base64Content: string): void {
+  const bytes = Uint8Array.from(atob(base64Content), character => character.charCodeAt(0));
+  const url = URL.createObjectURL(new Blob([bytes], { type: contentType }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function parseImportRows(text: string) {
+  return text
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean)
+    .map(line => {
+      const [email, fullName, mobileNo, roleCodes, branchCode, departmentCode, languageCode, timeZoneCode] = line.split(',').map(value => value?.trim() ?? '');
+      return {
+        email,
+        fullName,
+        mobileNo: mobileNo || null,
+        roleCodes: roleCodes ? roleCodes.split('|').map(role => role.trim()).filter(Boolean) : [],
+        hospitalGuid: null,
+        hospitalName: null,
+        branchCode: branchCode || null,
+        branchNameKey: branchCode ? `Organization.Branch.${branchCode}` : null,
+        departmentCode: departmentCode || null,
+        departmentNameKey: departmentCode ? `Organization.Department.${departmentCode}` : null,
+        languageCode: languageCode || null,
+        timeZoneCode: timeZoneCode || null
+      };
+    });
 }

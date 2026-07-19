@@ -33,6 +33,21 @@ export interface VerifyEmailRequest {
   token: string;
 }
 
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface AuthenticationSession {
+  sessionId: string;
+  expiresAt: string;
+  createdDate: string;
+  lastUsedDate: string | null;
+  ipAddress: string | null;
+  machineName: string | null;
+  userAgent: string | null;
+}
+
 export interface AuthMenuItem {
   menuCode: string;
   menuNameKey: string;
