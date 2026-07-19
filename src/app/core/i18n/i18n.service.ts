@@ -2,7 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ApiClientService } from '../http/api-client.service';
 import { TenantContextService } from '../tenant/tenant-context.service';
-import { LocalizationCatalog, SeedDataItem } from './i18n.models';
+import { LocalizationCatalog, LocalizationVersion, SeedDataItem } from './i18n.models';
 
 @Injectable({ providedIn: 'root' })
 export class I18nService {
@@ -17,9 +17,11 @@ export class I18nService {
   async loadCatalog(cultureCode = this.tenant.cultureCode()): Promise<void> {
     this.tenant.setCulture(cultureCode);
     try {
-      const catalog = await firstValueFrom(
-        this.api.get<LocalizationCatalog>(`/localization/catalog?culture=${encodeURIComponent(cultureCode)}`)
-      );
+      const version = await this.loadVersion();
+      const cached = this.getCachedCatalog(cultureCode, version);
+      const catalog = cached ?? await this.loadRemoteCatalog(cultureCode);
+
+      this.setCachedCatalog(catalog);
       this.catalogSignal.set(catalog);
     } catch {
       this.catalogSignal.set(createFallbackCatalog(cultureCode));
@@ -42,6 +44,40 @@ export class I18nService {
     const culture = this.catalog()?.effectiveCulture ?? 'en-US';
     return item.translations[culture] ?? item.translations['en-US'] ?? item.code;
   }
+
+  private async loadVersion(): Promise<number> {
+    const response = await firstValueFrom(this.api.get<LocalizationVersion>('/localization/version'));
+    return response.version;
+  }
+
+  private async loadRemoteCatalog(cultureCode: string): Promise<LocalizationCatalog> {
+    return await firstValueFrom(
+      this.api.get<LocalizationCatalog>(`/localization/catalog?culture=${encodeURIComponent(cultureCode)}`)
+    );
+  }
+
+  private getCachedCatalog(cultureCode: string, version: number): LocalizationCatalog | null {
+    const cached = window.localStorage.getItem(this.getCacheKey(cultureCode));
+    if (!cached) {
+      return null;
+    }
+
+    try {
+      const catalog = JSON.parse(cached) as LocalizationCatalog;
+      return catalog.version === version ? catalog : null;
+    } catch {
+      window.localStorage.removeItem(this.getCacheKey(cultureCode));
+      return null;
+    }
+  }
+
+  private setCachedCatalog(catalog: LocalizationCatalog): void {
+    window.localStorage.setItem(this.getCacheKey(catalog.effectiveCulture), JSON.stringify(catalog));
+  }
+
+  private getCacheKey(cultureCode: string): string {
+    return `care360.localization.${this.tenant.tenantCode()}.${cultureCode}`;
+  }
 }
 
 function createFallbackCatalog(cultureCode: string): LocalizationCatalog {
@@ -50,6 +86,7 @@ function createFallbackCatalog(cultureCode: string): LocalizationCatalog {
     effectiveCulture: cultureCode,
     languages: [],
     resources: {},
-    seedDataSets: []
+    seedDataSets: [],
+    version: 0
   };
 }

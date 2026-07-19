@@ -3,7 +3,7 @@ import { Injectable, signal } from '@angular/core';
 @Injectable({ providedIn: 'root' })
 export class TenantContextService {
   readonly tenantCode = signal(resolveTenantCode());
-  readonly cultureCode = signal('en-US');
+  readonly cultureCode = signal(resolveCultureCode());
 
   setTenantCode(tenantCode: string): void {
     const normalizedTenantCode = tenantCode.trim();
@@ -16,7 +16,13 @@ export class TenantContextService {
   }
 
   setCulture(cultureCode: string): void {
-    this.cultureCode.set(cultureCode);
+    const normalizedCultureCode = cultureCode.trim();
+    if (!normalizedCultureCode) {
+      return;
+    }
+
+    window.localStorage.setItem('care360.cultureCode', normalizedCultureCode);
+    this.cultureCode.set(normalizedCultureCode);
   }
 }
 
@@ -26,6 +32,10 @@ function resolveTenantCode(): string {
   const subdomainTenantCode = resolveSubdomainTenantCode(window.location.hostname);
 
   return queryTenantCode ?? storedTenantCode ?? subdomainTenantCode ?? 'auspira-demo';
+}
+
+function resolveCultureCode(): string {
+  return window.localStorage.getItem('care360.cultureCode') ?? 'en-US';
 }
 
 function resolveSubdomainTenantCode(hostname: string): string | null {

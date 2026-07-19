@@ -8,7 +8,7 @@ import { I18nService } from '../../../core/i18n/i18n.service';
   imports: [MatButtonToggleModule],
   template: `
     <mat-button-toggle-group
-      aria-label="Language"
+      [attr.aria-label]="i18n.translate('Localization.LanguageSwitcher.AriaLabel')"
       [value]="i18n.catalog()?.effectiveCulture ?? 'en-US'"
       (change)="i18n.loadCatalog($event.value)">
       @for (language of i18n.languages(); track language.cultureCode) {

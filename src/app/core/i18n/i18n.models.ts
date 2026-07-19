@@ -24,4 +24,9 @@ export interface LocalizationCatalog {
   languages: Language[];
   resources: Record<string, string>;
   seedDataSets: SeedDataSet[];
+  version: number;
+}
+
+export interface LocalizationVersion {
+  version: number;
 }
