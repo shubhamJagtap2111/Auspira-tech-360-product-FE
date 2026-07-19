@@ -5,6 +5,8 @@ import { filter, map, startWith } from 'rxjs';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { ToastService } from '../../shared/ui/toast/toast.service';
+import { AuthService } from '../../core/auth/auth.service';
+import { AuthStore } from '../../core/auth/auth.store';
 
 
 @Component({
@@ -862,6 +864,8 @@ export class AppShellComponent implements OnInit {
   protected readonly i18n    = inject(I18nService);
   protected readonly toastSvc = inject(ToastService);
   private   readonly router  = inject(Router);
+  private   readonly authService = inject(AuthService);
+  private   readonly authStore = inject(AuthStore);
 
   /* ── State ── */
   protected readonly sidebarCollapsed = signal<boolean>(
@@ -992,9 +996,16 @@ export class AppShellComponent implements OnInit {
     this.profileOpen.set(false);
   }
 
-  logout(): void {
+  async logout(): Promise<void> {
     this.profileOpen.set(false);
-    this.router.navigateByUrl('/auth/login');
+    const refreshToken = this.authStore.refreshToken();
+
+    if (refreshToken) {
+      await this.authService.logout(refreshToken).catch(() => undefined);
+    }
+
+    this.authStore.clearSession();
+    await this.router.navigateByUrl('/auth/login');
   }
 
   /* ── Command Palette Hotkey ── */
@@ -1027,4 +1038,3 @@ export class AppShellComponent implements OnInit {
     return map[type] ?? 'var(--ac-info)';
   }
 }
-

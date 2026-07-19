@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { authGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   /* ── Auth (no shell) ── */
@@ -31,16 +32,19 @@ export const routes: Routes = [
   /* ── App (wrapped in shell) ── */
   {
     path: '',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./features/dashboard/dashboard-page.component').then(m => m.DashboardPageComponent)
   },
   {
     path: 'profile',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./features/profile/profile-page.component').then(m => m.ProfilePageComponent)
   },
   {
     path: 'patients',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./features/patients/patient-list-page.component').then(m => m.PatientListPageComponent)
   },
@@ -59,9 +63,9 @@ export const routes: Routes = [
 function moduleRoute(path: string, title: string, capabilities: string[]): Routes[number] {
   return {
     path,
+    canActivate: [authGuard],
     data: { title, capabilities },
     loadComponent: () =>
       import('./features/workspace/module-workspace-page.component').then(m => m.ModuleWorkspacePageComponent)
   };
 }
-
