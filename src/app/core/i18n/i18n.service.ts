@@ -1,5 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { ApiResponse } from '../auth/auth.models';
 import { ApiClientService } from '../http/api-client.service';
 import { TenantContextService } from '../tenant/tenant-context.service';
 import { LocalizationCatalog, LocalizationVersion, SeedDataItem } from './i18n.models';
@@ -46,14 +47,20 @@ export class I18nService {
   }
 
   private async loadVersion(): Promise<number> {
-    const response = await firstValueFrom(this.api.get<LocalizationVersion>('/localization/version'));
-    return response.version;
+    const response = await firstValueFrom(this.api.get<ApiResponse<LocalizationVersion>>('/localization/version'));
+    return response.data?.version ?? 0;
   }
 
   private async loadRemoteCatalog(cultureCode: string): Promise<LocalizationCatalog> {
-    return await firstValueFrom(
-      this.api.get<LocalizationCatalog>(`/localization/catalog?culture=${encodeURIComponent(cultureCode)}`)
+    const response = await firstValueFrom(
+      this.api.get<ApiResponse<LocalizationCatalog>>(`/localization/catalog?culture=${encodeURIComponent(cultureCode)}`)
     );
+
+    if (!response.success || !response.data) {
+      throw new Error(response.message);
+    }
+
+    return response.data;
   }
 
   private getCachedCatalog(cultureCode: string, version: number): LocalizationCatalog | null {
@@ -64,6 +71,11 @@ export class I18nService {
 
     try {
       const catalog = JSON.parse(cached) as LocalizationCatalog;
+      if (!catalog.resources || !catalog.effectiveCulture) {
+        window.localStorage.removeItem(this.getCacheKey(cultureCode));
+        return null;
+      }
+
       return catalog.version === version ? catalog : null;
     } catch {
       window.localStorage.removeItem(this.getCacheKey(cultureCode));
