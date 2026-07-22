@@ -4,6 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { AuthStore } from '../../core/auth/auth.store';
 import { I18nService } from '../../core/i18n/i18n.service';
+import { TenantContextService } from '../../core/tenant/tenant-context.service';
 
 @Component({
   standalone: true,
@@ -55,7 +56,15 @@ import { I18nService } from '../../core/i18n/i18n.service';
             {{ t(loading() ? 'Auth.Login.SigningIn' : 'Auth.Login.Submit') }}
           </button>
 
-          <a routerLink="/auth/forgot-password">{{ t('Auth.ForgotPassword.Link') }}</a>
+          <button class="google-button" type="button" (click)="onGoogleLogin()">
+            <span class="google-mark">G</span>
+            Continue with Google
+          </button>
+
+          <div class="auth-actions">
+            <a routerLink="/auth/forgot-password">{{ t('Auth.ForgotPassword.Link') }}</a>
+            <a class="register-button" routerLink="/auth/register">Register hospital</a>
+          </div>
         </form>
       </section>
     </div>
@@ -79,6 +88,10 @@ import { I18nService } from '../../core/i18n/i18n.service';
     .check input { width: 16px; height: 16px; }
     .primary { height: 44px; border: 0; border-radius: 10px; background: var(--ac-primary); color: #fff; font-weight: 700; cursor: pointer; }
     .primary:disabled { opacity: .7; cursor: not-allowed; }
+    .google-button { height: 44px; display: flex; align-items: center; justify-content: center; gap: 10px; border: 1px solid var(--ac-border); border-radius: 10px; background: var(--ac-surface); color: var(--ac-text); font-weight: 700; cursor: pointer; }
+    .google-mark { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--ac-border); color: #ea4335; font-weight: 800; font-family: Arial, sans-serif; }
+    .auth-actions { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .register-button { text-align: right; }
     .link-button, a { background: transparent; border: 0; color: var(--ac-primary); font-weight: 600; cursor: pointer; text-align: left; padding: 0; }
     .error { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--ac-error-light); color: var(--ac-error); font-size: 13px; }
     @media (max-width: 900px) { .auth-page { grid-template-columns: 1fr; } .auth-brand { display: none; } }
@@ -90,6 +103,7 @@ export class LoginPageComponent {
   private readonly authStore = inject(AuthStore);
   private readonly i18n = inject(I18nService);
   private readonly router = inject(Router);
+  private readonly tenantContext = inject(TenantContextService);
 
   protected email = '';
   protected password = '';
@@ -124,5 +138,9 @@ export class LoginPageComponent {
 
   protected togglePasswordVisibility(): void {
     this.showPassword.update((value) => !value);
+  }
+
+  protected onGoogleLogin(): void {
+    this.authService.startGoogleLogin(this.tenantContext.tenantCode(), this.rememberMe);
   }
 }

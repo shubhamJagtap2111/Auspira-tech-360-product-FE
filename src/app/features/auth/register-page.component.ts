@@ -1,6 +1,8 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { AuthService } from '../../core/auth/auth.service';
+import { TenantContextService } from '../../core/tenant/tenant-context.service';
 
 @Component({
   standalone: true,
@@ -33,6 +35,13 @@ import { FormsModule } from '@angular/forms';
           </div>
 
           <form (ngSubmit)="onRegister()" class="auth-form">
+            @if (errorMessage()) {
+              <p class="form-message error">{{ errorMessage() }}</p>
+            }
+            @if (successMessage()) {
+              <p class="form-message success">{{ successMessage() }}</p>
+            }
+
             <div class="form-row">
               <div class="form-group">
                 <label class="form-label">First Name</label>
@@ -54,7 +63,15 @@ import { FormsModule } from '@angular/forms';
               <label class="form-label">Hospital / Organization Name</label>
               <div class="input-wrap">
                 <span class="input-icon material-symbols-rounded" style="font-size:18px">local_hospital</span>
-                <input class="auth-input" type="text" [(ngModel)]="hospital" name="hospital" placeholder="City General Hospital" required />
+                <input class="auth-input" type="text" [(ngModel)]="hospital" name="hospital" placeholder="City General Hospital" required (blur)="syncTenantCode()" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Tenant Code</label>
+              <div class="input-wrap">
+                <span class="input-icon material-symbols-rounded" style="font-size:18px">database</span>
+                <input class="auth-input" type="text" [(ngModel)]="tenantCode" name="tenantCode" placeholder="city-general" required />
               </div>
             </div>
 
@@ -90,14 +107,19 @@ import { FormsModule } from '@angular/forms';
               </label>
             </div>
 
-            <button type="submit" class="login-btn" [class.loading]="loading()">
+            <button type="submit" class="login-btn" [class.loading]="loading()" [disabled]="loading()">
               @if (loading()) {
                 <span class="spinner"></span>
-                Creating account...
+                Creating tenant database...
               } @else {
                 <span class="material-symbols-rounded" style="font-size:18px">rocket_launch</span>
                 Create Account
               }
+            </button>
+
+            <button type="button" class="google-btn" (click)="onGoogleRegister()">
+              <span class="google-mark">G</span>
+              Sign up with Google
             </button>
           </form>
 
@@ -191,6 +213,17 @@ import { FormsModule } from '@angular/forms';
       transform: translateY(-1px);
     }
     .login-btn.loading { opacity: 0.75; cursor: not-allowed; }
+    .login-btn:disabled { opacity: 0.75; cursor: not-allowed; }
+    .google-btn {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      height: 44px; border-radius: 10px; background: var(--ac-surface); color: var(--ac-text);
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      transition: all 150ms ease; border: 1px solid var(--ac-border); font-family: inherit;
+    }
+    .google-mark { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--ac-border); color: #ea4335; font-weight: 800; font-family: Arial, sans-serif; }
+    .form-message { margin: 0; padding: 10px 12px; border-radius: 10px; font-size: 13px; line-height: 1.35; }
+    .form-message.error { background: var(--ac-error-light); color: var(--ac-error); }
+    .form-message.success { background: rgba(22, 163, 74, .1); color: var(--ac-success); }
     .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .auth-footer-text { font-size: 13px; color: var(--ac-muted); text-align: center; margin-bottom: 8px; }
@@ -199,14 +232,21 @@ import { FormsModule } from '@angular/forms';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RegisterPageComponent {
+  private readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
+  private readonly tenantContext = inject(TenantContextService);
+
   protected firstName = '';
   protected lastName = '';
   protected hospital = '';
+  protected tenantCode = '';
   protected email = '';
   protected password = '';
   protected termsAccepted = false;
   protected readonly showPwd  = signal(false);
   protected readonly loading  = signal(false);
+  protected readonly errorMessage = signal<string | null>(null);
+  protected readonly successMessage = signal<string | null>(null);
 
   protected readonly stats = [
     { value: '120+', label: 'Hospitals Onboarded' },
@@ -224,12 +264,74 @@ export class RegisterPageComponent {
     return { weak: 'Weak password', medium: 'Fair password', strong: 'Strong password' }[this.pwdStrength()];
   }
 
-  protected onRegister(): void {
+  protected async onRegister(): Promise<void> {
+    if (!this.termsAccepted) {
+      this.errorMessage.set('Please accept the Terms of Service and Privacy Policy.');
+      return;
+    }
+
     this.loading.set(true);
-    setTimeout(() => this.loading.set(false), 2000);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+
+    try {
+      const response = await this.authService.register({
+        hospitalName: this.hospital,
+        firstName: this.firstName,
+        lastName: this.lastName,
+        email: this.email,
+        password: this.password,
+        tenantCode: this.tenantCode || null,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata'
+      });
+
+      if (!response.success || !response.data) {
+        this.errorMessage.set(response.message || 'Could not create hospital tenant.');
+        return;
+      }
+
+      this.tenantContext.setTenantCode(response.data.tenantCode);
+      this.successMessage.set(`Hospital registered. Tenant database ${response.data.databaseName} is ready.`);
+      await this.router.navigate(['/auth/login'], { queryParams: { tenantCode: response.data.tenantCode } });
+    } catch {
+      this.errorMessage.set('Could not create hospital tenant. Please try again.');
+    } finally {
+      this.loading.set(false);
+    }
   }
 
   protected togglePasswordVisibility(): void {
     this.showPwd.update((visible) => !visible);
+  }
+
+  protected syncTenantCode(): void {
+    if (this.tenantCode.trim() || !this.hospital.trim()) {
+      return;
+    }
+
+    this.tenantCode = this.normalizeTenantCode(this.hospital);
+  }
+
+  protected onGoogleRegister(): void {
+    this.syncTenantCode();
+    if (!this.hospital.trim() || !this.tenantCode.trim()) {
+      this.errorMessage.set('Enter hospital name and tenant code before signing up with Google.');
+      return;
+    }
+
+    this.authService.startGoogleRegistration({
+      hospitalName: this.hospital,
+      tenantCode: this.tenantCode,
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata'
+    });
+  }
+
+  private normalizeTenantCode(value: string): string {
+    return value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 48);
   }
 }

@@ -14,6 +14,26 @@ export interface LoginRequest {
   rememberMe: boolean;
 }
 
+export interface RegisterTenantRequest {
+  hospitalName: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  tenantCode?: string | null;
+  mobileNo?: string | null;
+  timeZone?: string | null;
+}
+
+export interface TenantRegistrationResponse {
+  tenantId: string;
+  hospitalId: string;
+  tenantCode: string;
+  hospitalName: string;
+  databaseName: string;
+  adminEmail: string;
+}
+
 export interface RefreshTokenRequest {
   refreshToken: string;
 }

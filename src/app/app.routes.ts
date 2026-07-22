@@ -15,6 +15,11 @@ export const routes: Routes = [
       import('./features/auth/register-page.component').then(m => m.RegisterPageComponent)
   },
   {
+    path: 'auth/google-callback',
+    loadComponent: () =>
+      import('./features/auth/google-callback-page.component').then(m => m.GoogleCallbackPageComponent)
+  },
+  {
     path: 'auth/forgot-password',
     loadComponent: () =>
       import('./features/auth/forgot-password-page.component').then(m => m.ForgotPasswordPageComponent)
