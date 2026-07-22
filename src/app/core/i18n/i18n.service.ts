@@ -47,20 +47,23 @@ export class I18nService {
   }
 
   private async loadVersion(): Promise<number> {
-    const response = await firstValueFrom(this.api.get<ApiResponse<LocalizationVersion>>('/localization/version'));
-    return response.data?.version ?? 0;
+    const response = await firstValueFrom(
+      this.api.get<ApiResponse<LocalizationVersion> | LocalizationVersion>('/localization/version')
+    );
+    return unwrapApiResponse(response)?.version ?? 0;
   }
 
   private async loadRemoteCatalog(cultureCode: string): Promise<LocalizationCatalog> {
     const response = await firstValueFrom(
-      this.api.get<ApiResponse<LocalizationCatalog>>(`/localization/catalog?culture=${encodeURIComponent(cultureCode)}`)
+      this.api.get<ApiResponse<LocalizationCatalog> | LocalizationCatalog>(`/localization/catalog?culture=${encodeURIComponent(cultureCode)}`)
     );
+    const catalog = unwrapApiResponse(response);
 
-    if (!response.success || !response.data) {
-      throw new Error(response.message);
+    if (!catalog) {
+      throw new Error(getApiResponseMessage(response) ?? 'Localization catalog unavailable.');
     }
 
-    return response.data;
+    return catalog;
   }
 
   private getCachedCatalog(cultureCode: string, version: number): LocalizationCatalog | null {
@@ -71,7 +74,7 @@ export class I18nService {
 
     try {
       const catalog = JSON.parse(cached) as LocalizationCatalog;
-      if (!catalog.resources || !catalog.effectiveCulture) {
+      if (!isUsableCatalog(catalog)) {
         window.localStorage.removeItem(this.getCacheKey(cultureCode));
         return null;
       }
@@ -90,6 +93,31 @@ export class I18nService {
   private getCacheKey(cultureCode: string): string {
     return `care360.localization.${this.tenant.tenantCode()}.${cultureCode}`;
   }
+}
+
+function unwrapApiResponse<T>(response: ApiResponse<T> | T): T | null {
+  if (isApiResponse(response)) {
+    return response.success ? response.data : null;
+  }
+
+  return response;
+}
+
+function getApiResponseMessage<T>(response: ApiResponse<T> | T): string | null {
+  return isApiResponse(response) ? response.message : null;
+}
+
+function isApiResponse<T>(response: ApiResponse<T> | T): response is ApiResponse<T> {
+  return (
+    typeof response === 'object' &&
+    response !== null &&
+    'success' in response &&
+    'data' in response
+  );
+}
+
+function isUsableCatalog(catalog: LocalizationCatalog): boolean {
+  return !!catalog.effectiveCulture && Object.keys(catalog.resources ?? {}).length > 0;
 }
 
 function createFallbackCatalog(cultureCode: string): LocalizationCatalog {
