@@ -8,6 +8,17 @@ import { ToastService } from '../../shared/ui/toast/toast.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { AuthStore } from '../../core/auth/auth.store';
 
+interface NavItem {
+  path: string;
+  label: string;
+  icon: string;
+  children?: NavItem[];
+}
+
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
 
 @Component({
   selector: 'ac-root',
@@ -42,17 +53,42 @@ import { AuthStore } from '../../core/auth/auth.store';
                 @if (!sidebarCollapsed()) {
                   <p class="nav-group-label">{{ group.label }}</p>
                 }
-                @for (item of group.items; track item.path) {
-                  <a class="nav-item"
-                     [routerLink]="item.path"
-                     routerLinkActive="active"
-                     [routerLinkActiveOptions]="{ exact: item.path === '/' }"
-                     [title]="sidebarCollapsed() ? item.label : ''">
-                    <span class="material-symbols-rounded nav-icon">{{ item.icon }}</span>
+                @for (item of group.items; track item.path + item.label) {
+                  @if (item.children?.length) {
+                    <a class="nav-item nav-parent"
+                       [routerLink]="item.path"
+                       routerLinkActive="active"
+                       [routerLinkActiveOptions]="{ exact: item.path === '/' }"
+                       [title]="sidebarCollapsed() ? item.label : ''">
+                      <span class="material-symbols-rounded nav-icon">{{ item.icon }}</span>
+                      @if (!sidebarCollapsed()) {
+                        <span class="nav-label">{{ item.label }}</span>
+                      }
+                    </a>
                     @if (!sidebarCollapsed()) {
-                      <span class="nav-label">{{ item.label }}</span>
+                      <div class="nav-children">
+                        @for (child of item.children; track child.path + child.label) {
+                          <a class="nav-child"
+                             [routerLink]="child.path"
+                             routerLinkActive="active"
+                             [routerLinkActiveOptions]="{ exact: child.path === '/' }">
+                            <span>{{ child.label }}</span>
+                          </a>
+                        }
+                      </div>
                     }
-                  </a>
+                  } @else {
+                    <a class="nav-item"
+                       [routerLink]="item.path"
+                       routerLinkActive="active"
+                       [routerLinkActiveOptions]="{ exact: item.path === '/' }"
+                       [title]="sidebarCollapsed() ? item.label : ''">
+                      <span class="material-symbols-rounded nav-icon">{{ item.icon }}</span>
+                      @if (!sidebarCollapsed()) {
+                        <span class="nav-label">{{ item.label }}</span>
+                      }
+                    </a>
+                  }
                 }
               </div>
             }
@@ -215,7 +251,7 @@ import { AuthStore } from '../../core/auth/auth.store';
                 @if (!cpQuery) {
                   <div class="cp-section">
                     <p class="cp-section-label">Quick Navigation</p>
-                    @for (item of allNavItems.slice(0,8); track item.path) {
+                    @for (item of allNavItems.slice(0,8); track item.path + item.label) {
                       <a class="cp-item" [routerLink]="item.path" (click)="commandOpen.set(false)">
                         <span class="material-symbols-rounded cp-item-icon">{{ item.icon }}</span>
                         <span>{{ item.label }}</span>
@@ -225,7 +261,7 @@ import { AuthStore } from '../../core/auth/auth.store';
                   </div>
                 } @else {
                   <div class="cp-section">
-                    @for (item of filteredNav(); track item.path) {
+                    @for (item of filteredNav(); track item.path + item.label) {
                       <a class="cp-item" [routerLink]="item.path" (click)="commandOpen.set(false)">
                         <span class="material-symbols-rounded cp-item-icon">{{ item.icon }}</span>
                         <span>{{ item.label }}</span>
@@ -377,6 +413,35 @@ import { AuthStore } from '../../core/auth/auth.store';
       font-weight: 600;
     }
     .nav-item.active .nav-icon {
+      color: var(--ac-item-active-text);
+    }
+    .nav-parent {
+      margin-top: 2px;
+      font-weight: 700;
+    }
+    .nav-children {
+      display: grid;
+      gap: 1px;
+      margin: 1px 0 6px 28px;
+      padding-left: 8px;
+      border-left: 1px solid var(--ac-border);
+    }
+    .nav-child {
+      min-height: 28px;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      border-radius: var(--ac-r-sm);
+      color: var(--ac-muted);
+      font-size: 12.5px;
+      text-decoration: none;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .nav-child:hover,
+    .nav-child.active {
+      background: var(--ac-item-active-bg);
       color: var(--ac-item-active-text);
     }
     .nav-icon {
@@ -909,11 +974,149 @@ export class AppShellComponent implements OnInit {
   );
 
   /* ── Navigation Groups ── */
-  protected readonly navGroups = [
+  protected readonly navGroups: NavGroup[] = [
     {
       label: 'Dashboard',
       items: [
         { path: '/', label: 'Dashboard', icon: 'dashboard' }
+      ]
+    },
+    {
+      label: 'Super Admin',
+      items: [
+        {
+          path: '/super-admin',
+          label: 'Platform',
+          icon: 'admin_panel_settings',
+          children: [
+            { path: '/super-admin', label: 'Overview', icon: 'dashboard' },
+            { path: '/super-admin/announcements', label: 'Announcements', icon: 'campaign' },
+            { path: '/super-admin/settings', label: 'Global Settings', icon: 'settings' }
+          ]
+        },
+        {
+          path: '/super-admin/tenants',
+          label: 'Tenant Management',
+          icon: 'corporate_fare',
+          children: [
+            { path: '/super-admin/tenants', label: 'Hospitals', icon: 'local_hospital' },
+            { path: '/super-admin/provisioning', label: 'Provisioning', icon: 'deployed_code' },
+            { path: '/super-admin/domains', label: 'Domains', icon: 'dns' },
+            { path: '/super-admin/database-servers', label: 'Database Servers', icon: 'database' },
+            { path: '/super-admin/database-versions', label: 'Database Versions', icon: 'history' }
+          ]
+        },
+        {
+          path: '/super-admin/plans',
+          label: 'Plans',
+          icon: 'workspace_premium',
+          children: [
+            { path: '/super-admin/plans', label: 'Plans', icon: 'workspace_premium' },
+            { path: '/super-admin/features', label: 'Features', icon: 'toggle_on' },
+            { path: '/super-admin/plans', label: 'Limits', icon: 'speed' },
+            { path: '/super-admin/plans', label: 'Pricing', icon: 'sell' }
+          ]
+        },
+        {
+          path: '/super-admin/subscriptions',
+          label: 'Subscriptions',
+          icon: 'autorenew',
+          children: [
+            { path: '/super-admin/subscriptions', label: 'Active', icon: 'check_circle' },
+            { path: '/super-admin/subscriptions', label: 'Trial', icon: 'hourglass_top' },
+            { path: '/super-admin/subscriptions', label: 'Expired', icon: 'event_busy' },
+            { path: '/super-admin/subscriptions', label: 'Renewals', icon: 'published_with_changes' }
+          ]
+        },
+        {
+          path: '/super-admin/billing',
+          label: 'Billing',
+          icon: 'receipt_long',
+          children: [
+            { path: '/super-admin/billing', label: 'Payments', icon: 'payments' },
+            { path: '/super-admin/billing', label: 'Invoices', icon: 'request_quote' },
+            { path: '/super-admin/billing', label: 'GST', icon: 'percent' },
+            { path: '/super-admin/billing', label: 'Coupons', icon: 'confirmation_number' }
+          ]
+        },
+        {
+          path: '/super-admin/databases',
+          label: 'Database',
+          icon: 'database',
+          children: [
+            { path: '/super-admin/databases', label: 'Databases', icon: 'database' },
+            { path: '/super-admin/databases', label: 'Backups', icon: 'backup' },
+            { path: '/super-admin/databases', label: 'Restores', icon: 'restore' },
+            { path: '/super-admin/databases', label: 'Migrations', icon: 'schema' }
+          ]
+        },
+        {
+          path: '/super-admin/deployments/releases',
+          label: 'Deployments',
+          icon: 'rocket_launch',
+          children: [
+            { path: '/super-admin/deployments/releases', label: 'Releases', icon: 'new_releases' },
+            { path: '/super-admin/deployments/rollouts', label: 'Rollouts', icon: 'conversion_path' },
+            { path: '/super-admin/deployments/rollbacks', label: 'Rollbacks', icon: 'settings_backup_restore' }
+          ]
+        },
+        {
+          path: '/super-admin/monitoring',
+          label: 'Monitoring',
+          icon: 'monitoring',
+          children: [
+            { path: '/super-admin/monitoring', label: 'Health', icon: 'health_and_safety' },
+            { path: '/super-admin/monitoring', label: 'Logs', icon: 'receipt_long' },
+            { path: '/super-admin/monitoring', label: 'Performance', icon: 'speed' }
+          ]
+        },
+        {
+          path: '/administration/users',
+          label: 'Security',
+          icon: 'security',
+          children: [
+            { path: '/administration/users', label: 'Users', icon: 'manage_accounts' },
+            { path: '/administration/roles', label: 'Roles', icon: 'admin_panel_settings' },
+            { path: '/administration/permissions', label: 'Permissions', icon: 'rule' },
+            { path: '/super-admin/security/api-keys', label: 'API Keys', icon: 'key' },
+            { path: '/super-admin/security/sessions', label: 'Sessions', icon: 'devices' },
+            { path: '/super-admin/security/audit-logs', label: 'Audit Logs', icon: 'history_edu' }
+          ]
+        },
+        {
+          path: '/super-admin/support',
+          label: 'Support',
+          icon: 'support_agent',
+          children: [
+            { path: '/super-admin/support', label: 'Tickets', icon: 'confirmation_number' },
+            { path: '/super-admin/support/feedback', label: 'Feedback', icon: 'reviews' },
+            { path: '/super-admin/announcements', label: 'Announcements', icon: 'campaign' }
+          ]
+        },
+        {
+          path: '/super-admin/reports/revenue',
+          label: 'Reports',
+          icon: 'analytics',
+          children: [
+            { path: '/super-admin/reports/revenue', label: 'Revenue', icon: 'trending_up' },
+            { path: '/super-admin/reports/hospitals', label: 'Hospitals', icon: 'local_hospital' },
+            { path: '/super-admin/reports/growth', label: 'Growth', icon: 'show_chart' },
+            { path: '/super-admin/reports/usage', label: 'Usage', icon: 'query_stats' },
+            { path: '/super-admin/reports/ai-consumption', label: 'AI Consumption', icon: 'psychology' }
+          ]
+        },
+        {
+          path: '/super-admin/settings',
+          label: 'Settings',
+          icon: 'settings',
+          children: [
+            { path: '/super-admin/settings', label: 'SMTP', icon: 'outgoing_mail' },
+            { path: '/super-admin/settings', label: 'Storage', icon: 'storage' },
+            { path: '/super-admin/settings', label: 'Integrations', icon: 'hub' },
+            { path: '/super-admin/settings', label: 'Branding', icon: 'palette' },
+            { path: '/super-admin/settings', label: 'Localization', icon: 'language' }
+          ]
+        }
       ]
     },
     {
@@ -949,7 +1152,9 @@ export class AppShellComponent implements OnInit {
     }
   ];
 
-  protected readonly allNavItems = this.navGroups.flatMap(g => g.items);
+  protected readonly allNavItems = this.navGroups.flatMap(group =>
+    group.items.flatMap(item => [item, ...(item.children ?? [])])
+  );
 
   protected readonly filteredNav = computed(() =>
     this.allNavItems.filter(i =>
