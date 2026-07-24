@@ -25,6 +25,10 @@ export class AuthService {
     return firstValueFrom(this.api.post<ApiResponse<AuthResponse>>('/auth/login', request));
   }
 
+  auspiraSuperAdminLogin(request: LoginRequest): Promise<ApiResponse<AuthResponse>> {
+    return firstValueFrom(this.api.post<ApiResponse<AuthResponse>>('/auth/auspira-super-admin/login', request));
+  }
+
   register(request: RegisterTenantRequest): Promise<ApiResponse<TenantRegistrationResponse>> {
     return firstValueFrom(this.api.post<ApiResponse<TenantRegistrationResponse>>('/auth/register', request));
   }

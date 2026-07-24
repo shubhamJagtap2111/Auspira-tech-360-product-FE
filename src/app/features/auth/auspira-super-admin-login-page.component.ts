@@ -3,8 +3,6 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { AuthStore } from '../../core/auth/auth.store';
-import { I18nService } from '../../core/i18n/i18n.service';
-import { TenantContextService } from '../../core/tenant/tenant-context.service';
 
 @Component({
   standalone: true,
@@ -14,71 +12,56 @@ import { TenantContextService } from '../../core/tenant/tenant-context.service';
       <section class="auth-brand">
         <div class="brand-content">
           <div class="brand-mark">
-            <span class="material-symbols-rounded" style="font-size:28px;color:#fff">favorite</span>
+            <span class="material-symbols-rounded" style="font-size:28px;color:#fff">admin_panel_settings</span>
           </div>
-          <h1>{{ t('App.Brand.Name') }}</h1>
-          <p>{{ t('Auth.Brand.Tagline') }}</p>
+          <h1>Auspira Super Admin</h1>
+          <p>Platform control plane for Care360 hospitals.</p>
         </div>
       </section>
 
       <section class="auth-panel">
         <form class="auth-card" (ngSubmit)="onLogin()">
           <header>
-            <h2>Hospital login</h2>
-            <p>Sign in with a user from your hospital database.</p>
+            <h2>Super admin login</h2>
+            <p>Sign in with your Auspira master account.</p>
           </header>
 
-          @if (errorKey()) {
-            <p class="error">{{ t(errorKey()!) }}</p>
+          @if (error()) {
+            <p class="error">{{ error() }}</p>
           }
 
           <label>
-            <span>Hospital code</span>
-            <input type="text" name="hospitalCode" [(ngModel)]="hospitalCode" placeholder="sj-multi-speciality-hospital" required />
+            <span>Email address</span>
+            <input type="email" name="email" [(ngModel)]="email" placeholder="admin@auspira.com" required />
           </label>
 
           <label>
-            <span>{{ t('Auth.Login.Email.Label') }}</span>
-            <input type="email" name="email" [(ngModel)]="email" [placeholder]="t('Auth.Login.Email.Placeholder')" required />
-          </label>
-
-          <label>
-            <span>{{ t('Auth.Login.Password.Label') }}</span>
-            <input [type]="showPassword() ? 'text' : 'password'" name="password" [(ngModel)]="password" [placeholder]="t('Auth.Login.Password.Placeholder')" required />
+            <span>Password</span>
+            <input [type]="showPassword() ? 'text' : 'password'" name="password" [(ngModel)]="password" placeholder="Enter password" required />
           </label>
 
           <div class="form-row">
             <label class="check">
               <input type="checkbox" name="rememberMe" [(ngModel)]="rememberMe" />
-              <span>{{ t('Auth.Login.RememberMe.Label') }}</span>
+              <span>Remember me</span>
             </label>
             <button type="button" class="link-button" (click)="togglePasswordVisibility()">
-              {{ t(showPassword() ? 'Auth.Login.HidePassword' : 'Auth.Login.ShowPassword') }}
+              {{ showPassword() ? 'Hide' : 'Show' }}
             </button>
           </div>
 
           <button class="primary" type="submit" [disabled]="loading()">
-            {{ t(loading() ? 'Auth.Login.SigningIn' : 'Auth.Login.Submit') }}
+            {{ loading() ? 'Signing in...' : 'Sign in' }}
           </button>
 
-          <button class="google-button" type="button" (click)="onGoogleLogin()">
-            <span class="google-mark">G</span>
-            Continue with Google
-          </button>
-
-          <div class="auth-actions">
-            <a routerLink="/auth/forgot-password">{{ t('Auth.ForgotPassword.Link') }}</a>
-            <a class="register-button" routerLink="/auth/register">Register hospital</a>
-          </div>
-
-          <a class="platform-link" routerLink="/auth/auspira-super-admin">Auspira super admin login</a>
+          <a class="hospital-link" routerLink="/auth/login">Hospital user login</a>
         </form>
       </section>
     </div>
   `,
   styles: `
     .auth-page { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; background: var(--ac-bg); }
-    .auth-brand { display: flex; align-items: center; justify-content: center; padding: 48px; background: linear-gradient(145deg, #1e3a8a, #2563eb 55%, #0f766e); color: #fff; }
+    .auth-brand { display: flex; align-items: center; justify-content: center; padding: 48px; background: linear-gradient(145deg, #111827, #1d4ed8 60%, #0f766e); color: #fff; }
     .brand-content { max-width: 420px; }
     .brand-mark { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 14px; background: rgba(255,255,255,.16); margin-bottom: 24px; }
     h1 { font-size: 30px; margin: 0 0 12px; }
@@ -95,52 +78,40 @@ import { TenantContextService } from '../../core/tenant/tenant-context.service';
     .check input { width: 16px; height: 16px; }
     .primary { height: 44px; border: 0; border-radius: 10px; background: var(--ac-primary); color: #fff; font-weight: 700; cursor: pointer; }
     .primary:disabled { opacity: .7; cursor: not-allowed; }
-    .google-button { height: 44px; display: flex; align-items: center; justify-content: center; gap: 10px; border: 1px solid var(--ac-border); border-radius: 10px; background: var(--ac-surface); color: var(--ac-text); font-weight: 700; cursor: pointer; }
-    .google-mark { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--ac-border); color: #ea4335; font-weight: 800; font-family: Arial, sans-serif; }
-    .auth-actions { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
-    .platform-link { text-align: center; }
-    .register-button { text-align: right; }
     .link-button, a { background: transparent; border: 0; color: var(--ac-primary); font-weight: 600; cursor: pointer; text-align: left; padding: 0; }
+    .hospital-link { text-align: center; }
     .error { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--ac-error-light); color: var(--ac-error); font-size: 13px; }
     @media (max-width: 900px) { .auth-page { grid-template-columns: 1fr; } .auth-brand { display: none; } }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class LoginPageComponent {
+export class AuspiraSuperAdminLoginPageComponent {
   private readonly authService = inject(AuthService);
   private readonly authStore = inject(AuthStore);
-  private readonly i18n = inject(I18nService);
   private readonly router = inject(Router);
-  private readonly tenantContext = inject(TenantContextService);
 
   protected email = '';
   protected password = '';
-  protected hospitalCode = this.resolveInitialHospitalCode();
   protected rememberMe = false;
   protected readonly loading = signal(false);
   protected readonly showPassword = signal(false);
-  protected readonly errorKey = signal<string | null>(null);
-
-  protected t(key: string): string {
-    return this.i18n.translate(key);
-  }
+  protected readonly error = signal<string | null>(null);
 
   protected async onLogin(): Promise<void> {
     this.loading.set(true);
-    this.errorKey.set(null);
+    this.error.set(null);
 
     try {
-      this.tenantContext.setTenantCode(this.hospitalCode);
-      const response = await this.authService.login({ email: this.email, password: this.password, rememberMe: this.rememberMe });
+      const response = await this.authService.auspiraSuperAdminLogin({ email: this.email, password: this.password, rememberMe: this.rememberMe });
       if (!response.success || !response.data) {
-        this.errorKey.set(response.message);
+        this.error.set(response.message || 'Invalid email or password.');
         return;
       }
 
       this.authStore.setSession(response.data);
-      await this.router.navigateByUrl('/');
+      await this.router.navigateByUrl('/super-admin');
     } catch {
-      this.errorKey.set('Auth.Errors.InvalidCredentials');
+      this.error.set('Invalid email or password.');
     } finally {
       this.loading.set(false);
     }
@@ -148,19 +119,5 @@ export class LoginPageComponent {
 
   protected togglePasswordVisibility(): void {
     this.showPassword.update((value) => !value);
-  }
-
-  protected onGoogleLogin(): void {
-    this.authService.startGoogleLogin(this.tenantContext.tenantCode(), this.rememberMe);
-  }
-
-  private resolveInitialHospitalCode(): string {
-    const queryTenantCode = new URLSearchParams(window.location.search).get('tenantCode')?.trim();
-    if (queryTenantCode) {
-      return queryTenantCode;
-    }
-
-    const storedTenantCode = window.localStorage.getItem('care360.tenantCode')?.trim();
-    return storedTenantCode && storedTenantCode !== 'auspira-demo' ? storedTenantCode : '';
   }
 }

@@ -1,0 +1,75 @@
+
+> auspira-care360-web@0.1.0 start
+> ng serve --host 127.0.0.1 --port 4201
+
+[33m>[39m Building...
+[32m√[39m Building...
+[1mInitial chunk files[22m[2m | [22m[1mNames[22m                                 [2m | [22m [1mRaw size[22m[2m | [22m[1mEstimated transfer size[22m
+[32mchunk-64HV53UO.js[39m  [2m | [22m[2m-[22m                                     [2m | [22m[36m201.61 kB[39m[2m | [22m               [36m56.91 kB[39m
+[32mmain.js[39m            [2m | [22m[2mmain[22m                                  [2m | [22m[36m109.35 kB[39m[2m | [22m               [36m26.76 kB[39m
+[32mchunk-YVE74PJ6.js[39m  [2m | [22m[2m-[22m                                     [2m | [22m [36m84.03 kB[39m[2m | [22m               [36m21.31 kB[39m
+[32mchunk-CGTA6TNJ.js[39m  [2m | [22m[2m-[22m                                     [2m | [22m [36m44.07 kB[39m[2m | [22m                [36m8.81 kB[39m
+[32mpolyfills.js[39m       [2m | [22m[2mpolyfills[22m                             [2m | [22m [36m34.59 kB[39m[2m | [22m               [36m11.33 kB[39m
+[32mchunk-7W3ADIZ5.js[39m  [2m | [22m[2m-[22m                                     [2m | [22m [36m17.52 kB[39m[2m | [22m                [36m5.18 kB[39m
+[32mstyles.css[39m         [2m | [22m[2mstyles[22m                                [2m | [22m  [36m7.76 kB[39m[2m | [22m                [36m2.00 kB[39m
+[32mchunk-RSU5N7YO.js[39m  [2m | [22m[2m-[22m                                     [2m | [22m  [36m2.20 kB[39m[2m | [22m              [36m840 bytes[39m
+[32mchunk-57JAKO4Y.js[39m  [2m | [22m[2m-[22m                                     [2m | [22m  [36m1.56 kB[39m[2m | [22m              [36m529 bytes[39m
+[32mchunk-57YNAO5A.js[39m  [2m | [22m[2m-[22m                                     [2m | [22m[36m889 bytes[39m[2m | [22m              [36m889 bytes[39m
+[32mchunk-IT5WE6KM.js[39m  [2m | [22m[2m-[22m                                     [2m | [22m[36m821 bytes[39m[2m | [22m              [36m821 bytes[39m
+[32mchunk-PXF3H5XY.js[39m  [2m | [22m[2m-[22m                                     [2m | [22m[36m620 bytes[39m[2m | [22m              [36m620 bytes[39m
+[32mchunk-56K72M5F.js[39m  [2m | [22m[2m-[22m                                     [2m | [22m[36m538 bytes[39m[2m | [22m              [36m538 bytes[39m
+
+[1m [22m                  [2m | [22m[1mInitial total[22m                         [2m | [22m[1m505.55 kB[22m[2m | [22m              [1m136.54 kB[22m
+
+[1mLazy chunk files[22m   [2m | [22m[1mNames[22m                                 [2m | [22m [1mRaw size[22m[2m | [22m[1mEstimated transfer size[22m
+[32mchunk-5IQLG4MY.js[39m  [2m | [22m[2msubscription-management-page-component[22m[2m | [22m [36m35.81 kB[39m[2m | [22m                [36m7.54 kB[39m
+[32mchunk-OXYMUWGH.js[39m  [2m | [22m[2mtenant-management-page-component[22m      [2m | [22m [36m33.36 kB[39m[2m | [22m                [36m7.30 kB[39m
+[32mchunk-CE6S3HNW.js[39m  [2m | [22m[2muser-list-page-component[22m              [2m | [22m [36m31.19 kB[39m[2m | [22m                [36m6.74 kB[39m
+[32mchunk-ZB3N54WD.js[39m  [2m | [22m[2msystem-configuration-page-component[22m   [2m | [22m [36m29.04 kB[39m[2m | [22m                [36m5.42 kB[39m
+[32mchunk-MAVOE4LQ.js[39m  [2m | [22m[2mbilling-management-page-component[22m     [2m | [22m [36m26.62 kB[39m[2m | [22m                [36m5.58 kB[39m
+[32mchunk-U2MO63UU.js[39m  [2m | [22m[2mtenant-provisioning-page-component[22m    [2m | [22m [36m26.04 kB[39m[2m | [22m                [36m6.03 kB[39m
+[32mchunk-AAN2E643.js[39m  [2m | [22m[2mplan-management-page-component[22m        [2m | [22m [36m25.41 kB[39m[2m | [22m                [36m5.55 kB[39m
+[32mchunk-UGHX64SW.js[39m  [2m | [22m[2mnotification-center-page-component[22m    [2m | [22m [36m23.97 kB[39m[2m | [22m                [36m5.54 kB[39m
+[32mchunk-TKSIZ3WG.js[39m  [2m | [22m[2mhospital-management-page-component[22m    [2m | [22m [36m21.55 kB[39m[2m | [22m                [36m4.15 kB[39m
+[32mchunk-BEB2QRI7.js[39m  [2m | [22m[2mbranch-management-page-component[22m      [2m | [22m [36m21.30 kB[39m[2m | [22m                [36m4.95 kB[39m
+[32mchunk-RJ2NXLN2.js[39m  [2m | [22m[2mprofile-page-component[22m                [2m | [22m [36m20.18 kB[39m[2m | [22m                [36m4.85 kB[39m
+[32mchunk-UFAJLYPY.js[39m  [2m | [22m[2mfeature-catalog-page-component[22m        [2m | [22m [36m15.66 kB[39m[2m | [22m                [36m4.22 kB[39m
+[32mchunk-BBISUMMJ.js[39m  [2m | [22m[2msupport-center-page-component[22m         [2m | [22m [36m15.14 kB[39m[2m | [22m                [36m4.03 kB[39m
+[32mchunk-YIH2GATZ.js[39m  [2m | [22m[2mrole-management-page-component[22m        [2m | [22m [36m14.77 kB[39m[2m | [22m                [36m3.85 kB[39m
+[32mchunk-WT6NNLNQ.js[39m  [2m | [22m[2mpatient-list-page-component[22m           [2m | [22m [36m14.70 kB[39m[2m | [22m                [36m3.82 kB[39m
+[2m...and 19 more lazy chunks files. Use "--verbose" to show all the files.[22m
+
+Application bundle generation complete. [33.132 seconds] - 2026-07-24T06:15:27.475Z
+
+Watch mode enabled. Watching for file changes...
+NOTE: Raw file sizes do not reflect development server per-request transformations.
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m4201[22m/[39m
+[33m>[39m Changes detected. Rebuilding...
+[32m√[39m Changes detected. Rebuilding...
+[1mInitial chunk files[22m[2m | [22m[1mNames[22m                                   [2m | [22m [1mRaw size[22m[2m | [22m[1mEstimated transfer size[22m
+[32mmain.js[39m            [2m | [22m[2mmain[22m                                    [2m | [22m[36m109.59 kB[39m[2m | [22m               [36m26.81 kB[39m
+[32mchunk-4IMMUA4C.js[39m  [2m | [22m[2m-[22m                                       [2m | [22m  [36m1.65 kB[39m[2m | [22m              [36m555 bytes[39m
+
+[1mLazy chunk files[22m   [2m | [22m[1mNames[22m                                   [2m | [22m [1mRaw size[22m[2m | [22m[1mEstimated transfer size[22m
+[32mchunk-FV7ZTCH2.js[39m  [2m | [22m[2mregister-page-component[22m                 [2m | [22m [36m13.94 kB[39m[2m | [22m                [36m3.83 kB[39m
+[32mchunk-RAROFQ5Q.js[39m  [2m | [22m[2mlogin-page-component[22m                    [2m | [22m  [36m7.96 kB[39m[2m | [22m                [36m2.43 kB[39m
+[32mchunk-CQR6OS2J.js[39m  [2m | [22m[2mauspira-super-admin-login-page-component[22m[2m | [22m  [36m6.09 kB[39m[2m | [22m                [36m2.05 kB[39m
+[32mchunk-WV4BIRR5.js[39m  [2m | [22m[2mreset-password-page-component[22m           [2m | [22m  [36m4.90 kB[39m[2m | [22m                [36m1.67 kB[39m
+[32mchunk-EB5SUXU3.js[39m  [2m | [22m[2mverify-email-page-component[22m             [2m | [22m  [36m4.48 kB[39m[2m | [22m                [36m1.62 kB[39m
+[32mchunk-526K5MQM.js[39m  [2m | [22m[2mchange-password-page-component[22m          [2m | [22m  [36m4.44 kB[39m[2m | [22m                [36m1.55 kB[39m
+[32mchunk-IIRCBWN2.js[39m  [2m | [22m[2mforgot-password-page-component[22m          [2m | [22m  [36m3.96 kB[39m[2m | [22m                [36m1.49 kB[39m
+
+Application bundle generation complete. [32.059 seconds] - 2026-07-24T06:33:31.407Z
+
+Page reload sent to client(s).
+[33m>[39m Changes detected. Rebuilding...
+[32m√[39m Changes detected. Rebuilding...
+[1mInitial chunk files[22m[2m | [22m[1mNames[22m               [2m | [22m [1mRaw size[22m[2m | [22m[1mEstimated transfer size[22m
+[32mmain.js[39m            [2m | [22m[2mmain[22m                [2m | [22m[36m109.59 kB[39m[2m | [22m               [36m26.78 kB[39m
+
+[1mLazy chunk files[22m   [2m | [22m[1mNames[22m               [2m | [22m [1mRaw size[22m[2m | [22m[1mEstimated transfer size[22m
+[32mchunk-H4A7GX7G.js[39m  [2m | [22m[2mlogin-page-component[22m[2m | [22m  [36m8.18 kB[39m[2m | [22m                [36m2.52 kB[39m
+
+Application bundle generation complete. [3.226 seconds] - 2026-07-24T07:09:39.702Z
+
+Page reload sent to client(s).

@@ -10,6 +10,11 @@ export const routes: Routes = [
       import('./features/auth/login-page.component').then(m => m.LoginPageComponent)
   },
   {
+    path: 'auth/auspira-super-admin',
+    loadComponent: () =>
+      import('./features/auth/auspira-super-admin-login-page.component').then(m => m.AuspiraSuperAdminLoginPageComponent)
+  },
+  {
     path: 'auth/register',
     loadComponent: () =>
       import('./features/auth/register-page.component').then(m => m.RegisterPageComponent)
@@ -58,103 +63,103 @@ export const routes: Routes = [
   {
     path: 'super-admin',
     canActivate: [authGuard, permissionGuard],
-    data: { permission: 'Administration.Dashboard.View' },
+    data: { permission: 'SuperAdmin.Dashboard.View' },
     loadComponent: () =>
       import('./features/super-admin/super-admin-dashboard-page.component').then(m => m.SuperAdminDashboardPageComponent)
   },
   {
     path: 'super-admin/tenants',
     canActivate: [authGuard, permissionGuard],
-    data: { permission: 'Administration.Dashboard.View' },
+    data: { permission: 'SuperAdmin.Tenants.View' },
     loadComponent: () =>
       import('./features/super-admin/tenant-management-page.component').then(m => m.TenantManagementPageComponent)
   },
   {
     path: 'super-admin/plans',
     canActivate: [authGuard, permissionGuard],
-    data: { permission: 'Administration.Dashboard.View' },
+    data: { permission: 'SuperAdmin.Plans.View' },
     loadComponent: () =>
       import('./features/super-admin/plan-management-page.component').then(m => m.PlanManagementPageComponent)
   },
   {
     path: 'super-admin/provisioning',
     canActivate: [authGuard, permissionGuard],
-    data: { permission: 'Administration.Dashboard.View' },
+    data: { permission: 'SuperAdmin.Provisioning.View' },
     loadComponent: () =>
       import('./features/super-admin/tenant-provisioning-page.component').then(m => m.TenantProvisioningPageComponent)
   },
   {
     path: 'super-admin/features',
     canActivate: [authGuard, permissionGuard],
-    data: { permission: 'Administration.Dashboard.View' },
+    data: { permission: 'SuperAdmin.Features.View' },
     loadComponent: () =>
       import('./features/super-admin/feature-catalog-page.component').then(m => m.FeatureCatalogPageComponent)
   },
   {
     path: 'super-admin/subscriptions',
     canActivate: [authGuard, permissionGuard],
-    data: { permission: 'Administration.Dashboard.View' },
+    data: { permission: 'SuperAdmin.Subscriptions.View' },
     loadComponent: () =>
       import('./features/super-admin/subscription-management-page.component').then(m => m.SubscriptionManagementPageComponent)
   },
   {
     path: 'super-admin/billing',
     canActivate: [authGuard, permissionGuard],
-    data: { permission: 'Administration.Dashboard.View' },
+    data: { permission: 'SuperAdmin.Billing.View' },
     loadComponent: () =>
       import('./features/super-admin/billing-management-page.component').then(m => m.BillingManagementPageComponent)
   },
   {
     path: 'super-admin/databases',
     canActivate: [authGuard, permissionGuard],
-    data: { permission: 'Administration.Dashboard.View' },
+    data: { permission: 'SuperAdmin.Database.View' },
     loadComponent: () =>
       import('./features/super-admin/database-management-page.component').then(m => m.DatabaseManagementPageComponent)
   },
   {
     path: 'super-admin/monitoring',
     canActivate: [authGuard, permissionGuard],
-    data: { permission: 'Administration.Dashboard.View' },
+    data: { permission: 'SuperAdmin.Monitoring.View' },
     loadComponent: () =>
       import('./features/super-admin/monitoring-page.component').then(m => m.MonitoringPageComponent)
   },
   {
     path: 'super-admin/support',
     canActivate: [authGuard, permissionGuard],
-    data: { permission: 'Administration.Dashboard.View' },
+    data: { permission: 'SuperAdmin.Support.View' },
     loadComponent: () =>
       import('./features/super-admin/support-center-page.component').then(m => m.SupportCenterPageComponent)
   },
   {
     path: 'super-admin/notifications',
     canActivate: [authGuard, permissionGuard],
-    data: { permission: 'Administration.Dashboard.View' },
+    data: { permission: 'SuperAdmin.Notifications.View' },
     loadComponent: () =>
       import('./features/super-admin/notification-center-page.component').then(m => m.NotificationCenterPageComponent)
   },
   {
     path: 'super-admin/settings',
     canActivate: [authGuard, permissionGuard],
-    data: { permission: 'Administration.Dashboard.View' },
+    data: { permission: 'SuperAdmin.Settings.View' },
     loadComponent: () =>
       import('./features/super-admin/global-settings-page.component').then(m => m.GlobalSettingsPageComponent)
   },
-  moduleRoute('super-admin/announcements', 'Announcements', ['Application Updates', 'Maintenance', 'Renewal Reminders', 'Email', 'SMS', 'Push', 'WhatsApp']),
-  moduleRoute('super-admin/domains', 'Tenant Domains', ['Primary Domain', 'Custom Domains', 'Verification', 'SSL Status']),
-  moduleRoute('super-admin/database-servers', 'Database Servers', ['Provider', 'Region', 'Capacity', 'Health']),
-  moduleRoute('super-admin/database-versions', 'Database Versions', ['Schema Version', 'Migration Status', 'Backup Version']),
-  moduleRoute('super-admin/deployments/releases', 'Deployment Releases', ['Release Notes', 'Artifacts', 'Versions']),
-  moduleRoute('super-admin/deployments/rollouts', 'Deployment Rollouts', ['Phased Rollout', 'Tenant Selection', 'Progress']),
-  moduleRoute('super-admin/deployments/rollbacks', 'Deployment Rollbacks', ['Rollback Plan', 'Previous Version', 'Audit']),
-  moduleRoute('super-admin/security/api-keys', 'API Keys', ['Key Registry', 'Scopes', 'Rotation']),
-  moduleRoute('super-admin/security/sessions', 'Sessions', ['Active Sessions', 'Revocation', 'Device Tracking']),
-  moduleRoute('super-admin/security/audit-logs', 'Audit Logs', ['Actor', 'Entity', 'Action', 'Timeline']),
-  moduleRoute('super-admin/support/feedback', 'Feedback', ['Hospitals', 'Sentiment', 'Priority', 'Follow Up']),
-  moduleRoute('super-admin/reports/revenue', 'Revenue Reports', ['MRR', 'Invoices', 'Payments', 'Growth']),
-  moduleRoute('super-admin/reports/hospitals', 'Hospital Reports', ['Registrations', 'Status', 'Plan Mix']),
-  moduleRoute('super-admin/reports/growth', 'Growth Reports', ['New Hospitals', 'Trials', 'Conversions']),
-  moduleRoute('super-admin/reports/usage', 'Usage Reports', ['Users', 'Storage', 'Requests']),
-  moduleRoute('super-admin/reports/ai-consumption', 'AI Consumption Reports', ['AI Credits', 'Requests', 'Cost']),
+  moduleRoute('super-admin/announcements', 'Announcements', ['Application Updates', 'Maintenance', 'Renewal Reminders', 'Email', 'SMS', 'Push', 'WhatsApp'], 'SuperAdmin.Notifications.View'),
+  moduleRoute('super-admin/domains', 'Tenant Domains', ['Primary Domain', 'Custom Domains', 'Verification', 'SSL Status'], 'SuperAdmin.Tenants.View'),
+  moduleRoute('super-admin/database-servers', 'Database Servers', ['Provider', 'Region', 'Capacity', 'Health'], 'SuperAdmin.Database.View'),
+  moduleRoute('super-admin/database-versions', 'Database Versions', ['Schema Version', 'Migration Status', 'Backup Version'], 'SuperAdmin.Database.View'),
+  moduleRoute('super-admin/deployments/releases', 'Deployment Releases', ['Release Notes', 'Artifacts', 'Versions'], 'SuperAdmin.Provisioning.View'),
+  moduleRoute('super-admin/deployments/rollouts', 'Deployment Rollouts', ['Phased Rollout', 'Tenant Selection', 'Progress'], 'SuperAdmin.Provisioning.View'),
+  moduleRoute('super-admin/deployments/rollbacks', 'Deployment Rollbacks', ['Rollback Plan', 'Previous Version', 'Audit'], 'SuperAdmin.Provisioning.View'),
+  moduleRoute('super-admin/security/api-keys', 'API Keys', ['Key Registry', 'Scopes', 'Rotation'], 'SuperAdmin.Settings.View'),
+  moduleRoute('super-admin/security/sessions', 'Sessions', ['Active Sessions', 'Revocation', 'Device Tracking'], 'SuperAdmin.Audit.View'),
+  moduleRoute('super-admin/security/audit-logs', 'Audit Logs', ['Actor', 'Entity', 'Action', 'Timeline'], 'SuperAdmin.Audit.View'),
+  moduleRoute('super-admin/support/feedback', 'Feedback', ['Hospitals', 'Sentiment', 'Priority', 'Follow Up'], 'SuperAdmin.Support.View'),
+  moduleRoute('super-admin/reports/revenue', 'Revenue Reports', ['MRR', 'Invoices', 'Payments', 'Growth'], 'SuperAdmin.Billing.View'),
+  moduleRoute('super-admin/reports/hospitals', 'Hospital Reports', ['Registrations', 'Status', 'Plan Mix'], 'SuperAdmin.Tenants.View'),
+  moduleRoute('super-admin/reports/growth', 'Growth Reports', ['New Hospitals', 'Trials', 'Conversions'], 'SuperAdmin.Tenants.View'),
+  moduleRoute('super-admin/reports/usage', 'Usage Reports', ['Users', 'Storage', 'Requests'], 'SuperAdmin.Monitoring.View'),
+  moduleRoute('super-admin/reports/ai-consumption', 'AI Consumption Reports', ['AI Credits', 'Requests', 'Cost'], 'SuperAdmin.Monitoring.View'),
   {
     path: 'patients',
     canActivate: [authGuard],
@@ -229,11 +234,11 @@ export const routes: Routes = [
   moduleRoute('reports',        'Reports & Insights',   ['Dashboards', 'Revenue Insights', 'Appointment Reports', 'Inventory Reports', 'Doctor Performance'])
 ];
 
-function moduleRoute(path: string, title: string, capabilities: string[]): Routes[number] {
+function moduleRoute(path: string, title: string, capabilities: string[], permission?: string): Routes[number] {
   return {
     path,
-    canActivate: [authGuard],
-    data: { title, capabilities },
+    canActivate: permission ? [authGuard, permissionGuard] : [authGuard],
+    data: permission ? { title, capabilities, permission } : { title, capabilities },
     loadComponent: () =>
       import('./features/workspace/module-workspace-page.component').then(m => m.ModuleWorkspacePageComponent)
   };

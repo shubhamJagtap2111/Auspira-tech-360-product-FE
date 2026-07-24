@@ -12,11 +12,13 @@ interface NavItem {
   path: string;
   label: string;
   icon: string;
+  requiredPermission?: string;
   children?: NavItem[];
 }
 
 interface NavGroup {
   label: string;
+  requiredPermissionPrefix?: string;
   items: NavItem[];
 }
 
@@ -48,7 +50,7 @@ interface NavGroup {
 
           <!-- Navigation -->
           <nav class="nav">
-            @for (group of navGroups; track group.label) {
+            @for (group of filteredNavGroups(); track group.label) {
               <div class="nav-group">
                 @if (!sidebarCollapsed()) {
                   <p class="nav-group-label">{{ group.label }}</p>
@@ -251,7 +253,7 @@ interface NavGroup {
                 @if (!cpQuery) {
                   <div class="cp-section">
                     <p class="cp-section-label">Quick Navigation</p>
-                    @for (item of allNavItems.slice(0,8); track item.path + item.label) {
+                    @for (item of allNavItems().slice(0,8); track item.path + item.label) {
                       <a class="cp-item" [routerLink]="item.path" (click)="commandOpen.set(false)">
                         <span class="material-symbols-rounded cp-item-icon">{{ item.icon }}</span>
                         <span>{{ item.label }}</span>
@@ -983,6 +985,7 @@ export class AppShellComponent implements OnInit {
     },
     {
       label: 'Super Admin',
+      requiredPermissionPrefix: 'SuperAdmin.',
       items: [
         {
           path: '/super-admin',
@@ -1141,7 +1144,22 @@ export class AppShellComponent implements OnInit {
     {
       label: 'Administration',
       items: [
-        { path: '/administration', label: 'Users & Roles',  icon: 'manage_accounts' }
+        {
+          path: '/administration/users',
+          label: 'Hospital Admin',
+          icon: 'manage_accounts',
+          requiredPermission: 'Administration.UserManagement.View',
+          children: [
+            { path: '/administration/hospital', label: 'Hospital Profile', icon: 'local_hospital', requiredPermission: 'Administration.Hospital.View' },
+            { path: '/administration/branches', label: 'Branches', icon: 'account_tree', requiredPermission: 'Administration.Branch.View' },
+            { path: '/administration/users', label: 'Users', icon: 'manage_accounts', requiredPermission: 'Administration.UserManagement.View' },
+            { path: '/administration/roles', label: 'Roles', icon: 'admin_panel_settings', requiredPermission: 'Administration.Roles.View' },
+            { path: '/administration/permissions', label: 'Permissions', icon: 'rule', requiredPermission: 'Administration.Permissions.View' },
+            { path: '/administration/departments', label: 'Departments', icon: 'business', requiredPermission: 'Administration.Department.View' },
+            { path: '/administration/designations', label: 'Designations', icon: 'badge', requiredPermission: 'Administration.Designation.View' },
+            { path: '/administration/system-configuration', label: 'System Configuration', icon: 'settings', requiredPermission: 'Administration.SystemConfiguration.View' }
+          ]
+        }
       ]
     },
     {
@@ -1152,17 +1170,52 @@ export class AppShellComponent implements OnInit {
     }
   ];
 
-  protected readonly allNavItems = this.navGroups.flatMap(group =>
-    group.items.flatMap(item => [item, ...(item.children ?? [])])
+  protected readonly filteredNavGroups = computed(() =>
+    this.navGroups
+      .filter(group => this.canShowGroup(group))
+      .map(group => ({
+        ...group,
+        items: group.items
+          .map(item => this.filterNavItem(item))
+          .filter((item): item is NavItem => item !== null)
+      }))
+      .filter(group => group.items.length > 0)
+  );
+
+  protected readonly allNavItems = computed(() =>
+    this.filteredNavGroups().flatMap(group =>
+      group.items.flatMap(item => [item, ...(item.children ?? [])])
+    )
   );
 
   protected readonly filteredNav = computed(() =>
-    this.allNavItems.filter(i =>
+    this.allNavItems().filter(i =>
       i.label.toLowerCase().includes(this.cpQuery.toLowerCase())
     )
   );
 
   /* ── Notifications mock data ── */
+  private canShowGroup(group: NavGroup): boolean {
+    return !group.requiredPermissionPrefix
+      || this.authStore.permissions().some(permission => permission.startsWith(group.requiredPermissionPrefix!));
+  }
+
+  private filterNavItem(item: NavItem): NavItem | null {
+    const children = (item.children ?? [])
+      .map(child => this.filterNavItem(child))
+      .filter((child): child is NavItem => child !== null);
+
+    const canShowItem = !item.requiredPermission || this.authStore.hasPermission(item.requiredPermission);
+    if (!canShowItem && children.length === 0) {
+      return null;
+    }
+
+    return {
+      ...item,
+      children: children.length > 0 ? children : undefined
+    };
+  }
+
   protected readonly notifications = [
     { id: 1, icon: 'person_add', title: 'New patient registered: Rahul Sharma', time: '2 min ago', unread: true,  bg: 'rgba(37,99,235,0.1)',  color: '#2563EB' },
     { id: 2, icon: 'receipt',    title: 'Invoice #INV-0412 generated — ₹4,200', time: '18 min ago', unread: true,  bg: 'rgba(16,185,129,0.1)', color: '#10B981' },
