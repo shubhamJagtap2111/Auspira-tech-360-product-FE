@@ -12,6 +12,8 @@ export const appConfig: ApplicationConfig = {
     provideAnimations(),
     provideRouter(routes),
     provideHttpClient(withInterceptors([tenantInterceptor, authInterceptor])),
-    provideAppInitializer(() => inject(I18nService).loadCatalog())
+    provideAppInitializer(() => {
+      void inject(I18nService).loadCatalog();
+    })
   ]
 };

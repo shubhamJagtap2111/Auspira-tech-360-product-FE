@@ -17,15 +17,21 @@ export class I18nService {
 
   async loadCatalog(cultureCode = this.tenant.cultureCode()): Promise<void> {
     this.tenant.setCulture(cultureCode);
+    const cached = this.getCachedCatalog(cultureCode);
+    if (cached) {
+      this.catalogSignal.set(cached);
+    }
+
     try {
       const version = await this.loadVersion();
-      const cached = this.getCachedCatalog(cultureCode, version);
-      const catalog = cached ?? await this.loadRemoteCatalog(cultureCode);
+      const catalog = cached?.version === version ? cached : await this.loadRemoteCatalog(cultureCode);
 
       this.setCachedCatalog(catalog);
       this.catalogSignal.set(catalog);
     } catch {
-      this.catalogSignal.set(createFallbackCatalog(cultureCode));
+      if (!this.catalogSignal()) {
+        this.catalogSignal.set(createFallbackCatalog(cultureCode));
+      }
     }
   }
 
@@ -66,7 +72,7 @@ export class I18nService {
     return catalog;
   }
 
-  private getCachedCatalog(cultureCode: string, version: number): LocalizationCatalog | null {
+  private getCachedCatalog(cultureCode: string): LocalizationCatalog | null {
     const cached = window.localStorage.getItem(this.getCacheKey(cultureCode));
     if (!cached) {
       return null;
@@ -79,7 +85,7 @@ export class I18nService {
         return null;
       }
 
-      return catalog.version === version ? catalog : null;
+      return catalog;
     } catch {
       window.localStorage.removeItem(this.getCacheKey(cultureCode));
       return null;

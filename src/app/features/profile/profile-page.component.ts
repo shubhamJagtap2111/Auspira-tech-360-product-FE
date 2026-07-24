@@ -1,5 +1,8 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { AuthStore } from '../../core/auth/auth.store';
+import { getUserRoleLabel, isPlatformUser as isPlatformSession } from '../../core/auth/user-access';
+import { TenantContextService } from '../../core/tenant/tenant-context.service';
 
 type ProfileTab = 'personal' | 'security' | 'preferences' | 'notifications' | 'sessions';
 
@@ -22,18 +25,19 @@ type ProfileTab = 'personal' | 'security' | 'preferences' | 'notifications' | 's
       <div class="ac-card profile-hero">
         <div class="hero-left">
           <div class="avatar-upload">
-            <div class="big-avatar">DJ</div>
+            <div class="big-avatar">{{ userInitials() }}</div>
             <button class="upload-btn" title="Upload photo">
               <span class="material-symbols-rounded" style="font-size:16px">photo_camera</span>
             </button>
           </div>
           <div class="hero-info">
-            <h2 class="hero-name">Dr. John Smith</h2>
+            <h2 class="hero-name">{{ displayName() }}</h2>
+            <p class="hero-role">{{ roleLabel() }} - {{ organizationLabel() }}</p>
             <p class="hero-role">Administrator — City General Hospital</p>
             <div class="hero-badges">
-              <span class="ac-badge ac-badge-primary">Admin</span>
+              <span class="ac-badge ac-badge-primary">{{ roleLabel() }}</span>
               <span class="ac-badge ac-badge-success">Active</span>
-              <span class="ac-badge ac-badge-secondary">HIPAA Certified</span>
+              <span class="ac-badge ac-badge-secondary">{{ displayEmail() }}</span>
             </div>
           </div>
         </div>
@@ -72,17 +76,17 @@ type ProfileTab = 'personal' | 'security' | 'preferences' | 'notifications' | 's
                 <div class="form-row">
                   <div class="form-group">
                     <label class="form-label">First Name</label>
-                    <input class="ac-input" type="text" value="John" />
+                    <input class="ac-input" type="text" [value]="firstName()" />
                   </div>
                   <div class="form-group">
                     <label class="form-label">Last Name</label>
-                    <input class="ac-input" type="text" value="Smith" />
+                    <input class="ac-input" type="text" [value]="lastName()" />
                   </div>
                 </div>
                 <div class="form-row">
                   <div class="form-group">
                     <label class="form-label">Email Address</label>
-                    <input class="ac-input" type="email" value="john.smith@hospital.com" />
+                    <input class="ac-input" type="email" [value]="displayEmail()" />
                   </div>
                   <div class="form-group">
                     <label class="form-label">Phone Number</label>
@@ -326,6 +330,7 @@ type ProfileTab = 'personal' | 'security' | 'preferences' | 'notifications' | 's
     .upload-btn:hover { background: var(--ac-primary-hover); transform: scale(1.1); }
     .hero-name  { font-size: 18px; font-weight: 800; color: var(--ac-text); letter-spacing: -0.01em; }
     .hero-role  { font-size: 13px; color: var(--ac-muted); margin: 3px 0 10px; }
+    .hero-role + .hero-role { display: none; }
     .hero-badges { display: flex; gap: 6px; flex-wrap: wrap; }
     .hero-stats { display: flex; gap: 28px; flex-wrap: wrap; }
     .hero-stat { display: flex; flex-direction: column; align-items: center; }
@@ -436,7 +441,25 @@ type ProfileTab = 'personal' | 'security' | 'preferences' | 'notifications' | 's
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ProfilePageComponent {
+  private readonly authStore = inject(AuthStore);
+  private readonly tenantContext = inject(TenantContextService);
+
   protected readonly activeTab = signal<ProfileTab>('personal');
+  protected readonly displayName = computed(() => {
+    const session = this.authStore.session();
+    return session?.fullName?.trim() || session?.email || 'User';
+  });
+  protected readonly displayEmail = computed(() => this.authStore.session()?.email ?? '');
+  protected readonly roleLabel = computed(() => getUserRoleLabel(this.authStore.session()));
+  protected readonly organizationLabel = computed(() =>
+    isPlatformSession(this.authStore.session())
+      ? 'Auspira Care360'
+      : formatTenantName(this.tenantContext.tenantCode())
+  );
+  protected readonly userInitials = computed(() => getInitials(this.displayName(), this.displayEmail()));
+  protected readonly firstName = computed(() => this.nameParts()[0] ?? '');
+  protected readonly lastName = computed(() => this.nameParts().slice(1).join(' '));
+  private readonly nameParts = computed(() => this.displayName().split(/\s+/).filter(Boolean));
 
   protected readonly tabs: { id: ProfileTab; label: string; icon: string }[] = [
     { id: 'personal',      label: 'Personal Info',   icon: 'person' },
@@ -488,4 +511,29 @@ export class ProfilePageComponent {
     { id: 2, icon: 'phone_iphone',device: 'iPhone 15 — Safari Mobile', location: 'Pune, India',    browser: 'Safari',  time: '2 days ago',    current: false },
     { id: 3, icon: 'tablet',      device: 'iPad Air — Safari',         location: 'Mumbai, India',  browser: 'Safari',  time: '5 days ago',    current: false }
   ];
+}
+
+function getInitials(displayName: string, email: string): string {
+  const source = displayName && displayName !== 'User' ? displayName : email;
+  const initials = source
+    .replace(/@.*/, '')
+    .split(/[\s._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part[0]?.toUpperCase() ?? '')
+    .join('');
+
+  return initials || 'U';
+}
+
+function formatTenantName(tenantCode: string): string {
+  if (!tenantCode || tenantCode === 'master') {
+    return 'Hospital';
+  }
+
+  return tenantCode
+    .split(/[-_]+/)
+    .filter(Boolean)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }

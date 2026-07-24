@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
+import { DialogService } from '../../../shared/ui/dialog/dialog.service';
 import { AssignableRole, ManagedUser, UserAuditHistoryItem, UserFormModel, UserLanguageOption, UserTimeZoneOption } from './user-management.models';
 import { UserManagementService } from './user-management.service';
 
@@ -97,7 +98,7 @@ const permissions = {
         </section>
       }
 
-      <section class="content-grid">
+      <section class="content-grid ac-admin-layout" [class.drawer-open]="editorOpen()">
         <div class="table-wrap">
           <table>
             <thead>
@@ -177,7 +178,28 @@ const permissions = {
           </table>
         </div>
 
-        <aside class="editor">
+        @if (editorOpen()) {
+        <aside class="ac-admin-drawer">
+          <div class="ac-admin-drawer-head">
+            <div class="ac-admin-drawer-title">
+              <span class="ac-admin-drawer-icon material-symbols-rounded">manage_accounts</span>
+              <div>
+                <p>{{ editingUserGuid() ? t('Administration.UserManagement.Actions.Edit') : t('Administration.UserManagement.Actions.New') }}</p>
+                <h2>{{ form.fullName || t(editingUserGuid() ? 'Administration.UserManagement.Form.EditTitle' : 'Administration.UserManagement.Form.CreateTitle') }}</h2>
+              </div>
+            </div>
+            <button class="icon-btn" type="button" (click)="closeEditor()" title="Close editor">
+              <span class="material-symbols-rounded">close</span>
+            </button>
+          </div>
+          <div class="ac-admin-drawer-summary">
+            <span class="ac-admin-pill"><span class="material-symbols-rounded">mail</span>{{ form.email || 'New account' }}</span>
+            <span class="ac-admin-pill"><span class="material-symbols-rounded">badge</span>{{ form.roleCodes.length || 0 }} roles</span>
+            @if (form.isEmailVerified) {
+              <span class="ac-admin-pill featured"><span class="material-symbols-rounded">verified</span>{{ t('Administration.UserManagement.Form.EmailVerified') }}</span>
+            }
+          </div>
+          <div class="ac-admin-drawer-body">
           <header>
             <h2>{{ t(editingUserGuid() ? 'Administration.UserManagement.Form.EditTitle' : 'Administration.UserManagement.Form.CreateTitle') }}</h2>
           </header>
@@ -186,85 +208,59 @@ const permissions = {
             <p class="error">{{ t(errorKey()!) }}</p>
           }
 
-          <form (ngSubmit)="saveUser()">
-            <label>
-              <span>{{ t('Administration.UserManagement.Form.FullName') }}</span>
-              <input name="fullName" [(ngModel)]="form.fullName" required />
-            </label>
-            <label>
-              <span>{{ t('Administration.UserManagement.Form.Email') }}</span>
-              <input type="email" name="email" [(ngModel)]="form.email" required />
-            </label>
-            <label>
-              <span>{{ t('Administration.UserManagement.Form.Mobile') }}</span>
-              <input name="mobileNo" [(ngModel)]="form.mobileNo" />
-            </label>
-            <label>
-              <span>{{ t('Administration.UserManagement.Form.HospitalName') }}</span>
-              <input name="hospitalName" [(ngModel)]="form.hospitalName" />
-            </label>
-            <label>
-              <span>{{ t('Administration.UserManagement.Form.BranchCode') }}</span>
-              <input name="branchCode" [(ngModel)]="form.branchCode" />
-            </label>
-            <label>
-              <span>{{ t('Administration.UserManagement.Form.DepartmentCode') }}</span>
-              <input name="departmentCode" [(ngModel)]="form.departmentCode" />
-            </label>
-            <label>
-              <span>{{ t('Administration.UserManagement.Form.Language') }}</span>
-              <select name="languageCode" [(ngModel)]="form.languageCode">
-                <option value=""></option>
-                @for (language of languages(); track language.languageCode) {
-                  <option [value]="language.languageCode">{{ language.englishName }}</option>
+          <form id="user-editor-form" (ngSubmit)="saveUser()">
+            <section class="ac-admin-form-section">
+              <div class="ac-admin-section-title"><span class="material-symbols-rounded">person</span><h3>{{ t('Administration.UserManagement.Form.CreateTitle') }}</h3></div>
+              <div class="ac-admin-form-grid">
+                <label><span>{{ t('Administration.UserManagement.Form.FullName') }}</span><input name="fullName" [(ngModel)]="form.fullName" required /></label>
+                <label><span>{{ t('Administration.UserManagement.Form.Email') }}</span><input type="email" name="email" [(ngModel)]="form.email" required /></label>
+                <label><span>{{ t('Administration.UserManagement.Form.Mobile') }}</span><input name="mobileNo" [(ngModel)]="form.mobileNo" /></label>
+                @if (!editingUserGuid()) {
+                  <label><span>{{ t('Administration.UserManagement.Form.Password') }}</span><input type="password" name="password" [(ngModel)]="form.password" required /></label>
                 }
-              </select>
-            </label>
-            <label>
-              <span>{{ t('Administration.UserManagement.Form.TimeZone') }}</span>
-              <select name="timeZoneCode" [(ngModel)]="form.timeZoneCode">
-                <option value=""></option>
-                @for (timeZone of timeZones(); track timeZone.timeZoneCode) {
-                  <option [value]="timeZone.timeZoneCode">{{ t(timeZone.displayNameKey) }}</option>
+                @if (editingUserGuid() && can(permissions.uploadProfileImage)) {
+                  <label class="ac-admin-wide"><span>{{ t('Administration.UserManagement.Form.ProfileImage') }}</span><input type="file" accept="image/png,image/jpeg" (change)="uploadProfileImage($event)" /></label>
                 }
-              </select>
-            </label>
-            @if (editingUserGuid() && can(permissions.uploadProfileImage)) {
-              <label>
-                <span>{{ t('Administration.UserManagement.Form.ProfileImage') }}</span>
-                <input type="file" accept="image/png,image/jpeg" (change)="uploadProfileImage($event)" />
-              </label>
-            }
-            @if (!editingUserGuid()) {
-              <label>
-                <span>{{ t('Administration.UserManagement.Form.Password') }}</span>
-                <input type="password" name="password" [(ngModel)]="form.password" required />
-              </label>
-            }
-            <label class="check-row">
-              <input type="checkbox" name="isEmailVerified" [(ngModel)]="form.isEmailVerified" />
-              <span>{{ t('Administration.UserManagement.Form.EmailVerified') }}</span>
-            </label>
-            <fieldset>
-              <legend>{{ t('Administration.UserManagement.Form.Roles') }}</legend>
-              @for (role of roles(); track role.roleCode) {
-                <label class="check-row">
-                  <input type="checkbox" [name]="'role_' + role.roleCode" [checked]="hasRole(role.roleCode)" (change)="toggleRole(role.roleCode)" />
-                  <span>{{ t(role.roleNameKey) }}</span>
-                </label>
-              }
-            </fieldset>
-            <div class="form-actions">
-              <button class="ac-btn ac-btn-secondary" type="button" (click)="clearForm()">
-                {{ t('Administration.UserManagement.Actions.Cancel') }}
-              </button>
-              <button class="ac-btn ac-btn-primary" type="submit" [disabled]="saving()">
-                <span class="material-symbols-rounded">save</span>
-                {{ t(saving() ? 'Common.Actions.Updating' : 'Administration.UserManagement.Actions.Save') }}
-              </button>
-            </div>
+                <label class="ac-admin-switch-row"><input type="checkbox" name="isEmailVerified" [(ngModel)]="form.isEmailVerified" /><span>{{ t('Administration.UserManagement.Form.EmailVerified') }}</span></label>
+              </div>
+            </section>
+
+            <section class="ac-admin-form-section">
+              <div class="ac-admin-section-title"><span class="material-symbols-rounded">corporate_fare</span><h3>{{ t('Administration.Branch.Section.Profile') }}</h3></div>
+              <div class="ac-admin-form-grid">
+                <label><span>{{ t('Administration.UserManagement.Form.HospitalName') }}</span><input name="hospitalName" [(ngModel)]="form.hospitalName" /></label>
+                <label><span>{{ t('Administration.UserManagement.Form.BranchCode') }}</span><input name="branchCode" [(ngModel)]="form.branchCode" /></label>
+                <label><span>{{ t('Administration.UserManagement.Form.DepartmentCode') }}</span><input name="departmentCode" [(ngModel)]="form.departmentCode" /></label>
+                <label><span>{{ t('Administration.UserManagement.Form.Language') }}</span><select name="languageCode" [(ngModel)]="form.languageCode"><option value=""></option>@for (language of languages(); track language.languageCode) { <option [value]="language.languageCode">{{ language.englishName }}</option> }</select></label>
+                <label><span>{{ t('Administration.UserManagement.Form.TimeZone') }}</span><select name="timeZoneCode" [(ngModel)]="form.timeZoneCode"><option value=""></option>@for (timeZone of timeZones(); track timeZone.timeZoneCode) { <option [value]="timeZone.timeZoneCode">{{ t(timeZone.displayNameKey) }}</option> }</select></label>
+              </div>
+            </section>
+
+            <section class="ac-admin-form-section">
+              <div class="ac-admin-section-title"><span class="material-symbols-rounded">admin_panel_settings</span><h3>{{ t('Administration.UserManagement.Form.Roles') }}</h3></div>
+              <fieldset class="ac-admin-fieldset">
+                <legend>{{ t('Administration.UserManagement.Form.Roles') }}</legend>
+                @for (role of roles(); track role.roleCode) {
+                  <label class="ac-admin-switch-row">
+                    <input type="checkbox" [name]="'role_' + role.roleCode" [checked]="hasRole(role.roleCode)" (change)="toggleRole(role.roleCode)" />
+                    <span>{{ t(role.roleNameKey) }}</span>
+                  </label>
+                }
+              </fieldset>
+            </section>
           </form>
+          </div>
+          <div class="ac-admin-drawer-actions">
+            <button class="ac-btn ac-btn-secondary" type="button" (click)="closeEditor()">
+              {{ t('Administration.UserManagement.Actions.Cancel') }}
+            </button>
+            <button class="ac-btn ac-btn-primary" type="submit" form="user-editor-form" [disabled]="saving()">
+              <span class="material-symbols-rounded">save</span>
+              {{ t(saving() ? 'Common.Actions.Updating' : 'Administration.UserManagement.Actions.Save') }}
+            </button>
+          </div>
         </aside>
+        }
       </section>
 
       @if (auditRows().length > 0) {
@@ -333,6 +329,7 @@ export class UserListPageComponent implements OnInit {
   private readonly i18n = inject(I18nService);
   private readonly authStore = inject(AuthStore);
   private readonly toast = inject(ToastService);
+  private readonly dialog = inject(DialogService);
 
   protected searchText = '';
   protected roleCode = '';
@@ -351,9 +348,10 @@ export class UserListPageComponent implements OnInit {
   protected readonly editingUserGuid = signal<string | null>(null);
   protected readonly saving = signal(false);
   protected readonly errorKey = signal<string | null>(null);
-  protected readonly isDirty = computed(() => !!this.form.email || !!this.form.fullName || !!this.form.mobileNo);
+  protected readonly editorOpen = signal(false);
 
   protected form: UserFormModel = emptyForm();
+  private formBaseline = serializeUserForm(this.form);
 
   async ngOnInit(): Promise<void> {
     await Promise.all([this.loadRoles(), this.loadReferenceData(), this.loadUsers()]);
@@ -414,7 +412,9 @@ export class UserListPageComponent implements OnInit {
     this.editingUserGuid.set(null);
     this.selectedUser.set(null);
     this.form = emptyForm();
+    this.formBaseline = serializeUserForm(this.form);
     this.errorKey.set(null);
+    this.editorOpen.set(true);
   }
 
   protected startEdit(user: ManagedUser): void {
@@ -437,13 +437,21 @@ export class UserListPageComponent implements OnInit {
       roleCodes: [...user.roleCodes],
       rowVersion: user.rowVersion
     };
+    this.formBaseline = serializeUserForm(this.form);
     this.errorKey.set(null);
+    this.editorOpen.set(true);
   }
 
   protected clearForm(): void {
     this.form = emptyForm();
+    this.formBaseline = serializeUserForm(this.form);
     this.editingUserGuid.set(null);
     this.errorKey.set(null);
+    this.editorOpen.set(false);
+  }
+
+  protected closeEditor(): void {
+    this.clearForm();
   }
 
   protected hasRole(roleCode: string): boolean {
@@ -545,7 +553,17 @@ export class UserListPageComponent implements OnInit {
   }
 
   protected async deleteUser(user: ManagedUser): Promise<void> {
-    if (!window.confirm(this.t('Administration.UserManagement.Confirm.Delete'))) {
+    const confirmed = await this.dialog.confirm({
+      title: this.t('Administration.UserManagement.Actions.Delete'),
+      message: this.t('Administration.UserManagement.Confirm.Delete'),
+      details: user.fullName,
+      confirmText: this.t('Administration.UserManagement.Actions.Delete'),
+      cancelText: this.t('Administration.UserManagement.Actions.Cancel'),
+      intent: 'danger',
+      icon: 'delete'
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -558,6 +576,14 @@ export class UserListPageComponent implements OnInit {
     this.toast.success(this.t('Administration.UserManagement.Messages.Deleted'));
     await this.loadUsers();
     this.clearForm();
+  }
+
+  hasUnsavedChanges(): boolean {
+    return serializeUserForm(this.form) !== this.formBaseline;
+  }
+
+  unsavedChangesMessage(): string {
+    return 'Your user form has changes that have not been saved.';
   }
 
   protected isLocked(user: ManagedUser): boolean {
@@ -581,6 +607,7 @@ export class UserListPageComponent implements OnInit {
 
     this.toast.success(this.t(successKey));
     this.startEdit(response.data);
+    this.editorOpen.set(false);
     await this.loadUsers();
   }
 }
@@ -603,6 +630,13 @@ function emptyForm(): UserFormModel {
     roleCodes: [],
     rowVersion: ''
   };
+}
+
+function serializeUserForm(form: UserFormModel): string {
+  return JSON.stringify({
+    ...form,
+    roleCodes: [...form.roleCodes].sort()
+  });
 }
 
 function readFileAsBase64(file: File): Promise<string> {

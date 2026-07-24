@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ToastService } from '../../shared/ui/toast/toast.service';
+import { DialogService } from '../../shared/ui/dialog/dialog.service';
 import {
   Feature,
   LimitDefinition,
@@ -388,6 +389,8 @@ export class PlanManagementPageComponent implements OnInit {
 
   private readonly service = inject(PlanManagementService);
   private readonly toast = inject(ToastService);
+  private readonly dialog = inject(DialogService);
+  private formBaseline = this.snapshotForms();
 
   async ngOnInit(): Promise<void> {
     await this.load();
@@ -422,6 +425,8 @@ export class PlanManagementPageComponent implements OnInit {
     for (const feature of plan.features) {
       this.featureValues.set(feature.featureCode, feature.isEnabled);
     }
+
+    this.formBaseline = this.snapshotForms();
   }
 
   protected startNewPlan(): void {
@@ -433,6 +438,7 @@ export class PlanManagementPageComponent implements OnInit {
       this.featureValues.set(feature.code, false);
     }
     this.activeTab.set('plans');
+    this.formBaseline = this.snapshotForms();
   }
 
   protected async savePlan(): Promise<void> {
@@ -480,7 +486,21 @@ export class PlanManagementPageComponent implements OnInit {
 
   protected async deactivatePlan(): Promise<void> {
     const code = this.selectedPlanCode();
-    if (!code || !window.confirm(`Deactivate ${code}?`)) {
+    if (!code) {
+      return;
+    }
+
+    const confirmed = await this.dialog.confirm({
+      title: 'Deactivate plan?',
+      message: `Deactivate ${code}?`,
+      details: 'Hospitals will no longer be able to select this plan for new assignments.',
+      confirmText: 'Deactivate plan',
+      cancelText: 'Keep active',
+      intent: 'warning',
+      icon: 'block'
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -530,6 +550,14 @@ export class PlanManagementPageComponent implements OnInit {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: currencyCode || 'USD', maximumFractionDigits: 0 }).format(value || 0);
   }
 
+  hasUnsavedChanges(): boolean {
+    return this.snapshotForms() !== this.formBaseline;
+  }
+
+  unsavedChangesMessage(): string {
+    return 'Your plan, feature, or limit editor contains changes that have not been saved.';
+  }
+
   private applyCatalog(response: { success: boolean; message: string; data: PlanCatalog | null }, selectFirst: boolean): void {
     if (!response.success || !response.data) {
       this.toast.error(response.message || 'Could not load plan catalog');
@@ -547,6 +575,16 @@ export class PlanManagementPageComponent implements OnInit {
     if (plan) {
       this.selectPlan(plan);
     }
+  }
+
+  private snapshotForms(): string {
+    return JSON.stringify({
+      planForm: this.planForm,
+      featureForm: this.featureForm,
+      limitForm: this.limitForm,
+      limitValues: [...this.limitValues.entries()].sort(([left], [right]) => left.localeCompare(right)),
+      featureValues: [...this.featureValues.entries()].sort(([left], [right]) => left.localeCompare(right))
+    });
   }
 }
 

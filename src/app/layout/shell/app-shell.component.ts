@@ -5,14 +5,19 @@ import { filter, map, startWith } from 'rxjs';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { ToastService } from '../../shared/ui/toast/toast.service';
+import { ConfirmDialogComponent } from '../../shared/ui/dialog/confirm-dialog.component';
 import { AuthService } from '../../core/auth/auth.service';
 import { AuthStore } from '../../core/auth/auth.store';
+import { getUserRoleLabel, isHospitalAdminUser as isHospitalAdminSession, isPlatformUser as isPlatformSession } from '../../core/auth/user-access';
+import { TenantContextService } from '../../core/tenant/tenant-context.service';
+import { Language } from '../../core/i18n/i18n.models';
 
 interface NavItem {
   path: string;
   label: string;
   icon: string;
   requiredPermission?: string;
+  hospitalAdminOnly?: boolean;
   children?: NavItem[];
 }
 
@@ -22,10 +27,16 @@ interface NavGroup {
   items: NavItem[];
 }
 
+const fallbackLanguages: Language[] = [
+  { cultureCode: 'en-US', englishName: 'English', nativeName: 'English', isDefault: true, direction: 'LeftToRight' },
+  { cultureCode: 'hi-IN', englishName: 'Hindi', nativeName: 'Hindi', isDefault: false, direction: 'LeftToRight' },
+  { cultureCode: 'mr-IN', englishName: 'Marathi', nativeName: 'Marathi', isDefault: false, direction: 'LeftToRight' }
+];
+
 @Component({
   selector: 'ac-root',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, FormsModule],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, FormsModule, ConfirmDialogComponent],
   template: `
     @if (isAuthPage()) {
       <router-outlet />
@@ -136,18 +147,18 @@ interface NavGroup {
             <div class="header-center">
               <div class="tenant-chip">
                 <span class="tenant-dot"></span>
-                <span class="tenant-name">City General Hospital</span>
+                <span class="tenant-name">{{ tenantHeaderLabel() }}</span>
               </div>
               <button class="branch-btn">
                 <span class="material-symbols-rounded" style="font-size:16px">account_tree</span>
-                <span>Main Branch</span>
+                <span>{{ branchHeaderLabel() }}</span>
                 <span class="material-symbols-rounded" style="font-size:16px">expand_more</span>
               </button>
             </div>
 
             <!-- Actions -->
             <div class="header-right">
-              <button class="hdr-btn notif-btn" (click)="notifOpen.set(!notifOpen())" title="Notifications">
+              <button class="hdr-btn notif-btn" (click)="toggleNotifications()" title="Notifications">
                 <span class="material-symbols-rounded">notifications</span>
                 <span class="notif-dot">3</span>
               </button>
@@ -157,18 +168,18 @@ interface NavGroup {
               <button class="hdr-btn" (click)="toggleDark()" [title]="dark() ? 'Light mode' : 'Dark mode'">
                 <span class="material-symbols-rounded">{{ dark() ? 'light_mode' : 'dark_mode' }}</span>
               </button>
-              <button class="hdr-btn lang-btn" title="Language">
+              <button class="hdr-btn lang-btn" title="Language" (click)="toggleLanguageMenu()">
                 <span class="material-symbols-rounded">language</span>
                 <span class="lang-code">{{ activeLang() }}</span>
               </button>
               <div class="hdr-sep"></div>
-              <button class="profile-btn" (click)="profileOpen.set(!profileOpen())">
+              <button class="profile-btn" (click)="toggleProfileMenu()">
                 <div class="avatar">
-                  <span>DJ</span>
+                  <span>{{ userInitials() }}</span>
                 </div>
                 <div class="profile-meta">
-                  <span class="profile-name">Dr. John</span>
-                  <span class="profile-role">Administrator</span>
+                  <span class="profile-name">{{ displayName() }}</span>
+                  <span class="profile-role">{{ roleLabel() }}</span>
                 </div>
                 <span class="material-symbols-rounded" style="font-size:18px;color:var(--ac-muted)">expand_more</span>
               </button>
@@ -200,15 +211,43 @@ interface NavGroup {
             </div>
           }
 
+          <!-- Language Dropdown -->
+          @if (langOpen()) {
+            <div class="lang-drop">
+              <div class="lang-head">
+                <span class="material-symbols-rounded">translate</span>
+                <div>
+                  <p class="lang-title">Language</p>
+                  <p class="lang-sub">Choose display language</p>
+                </div>
+              </div>
+              @for (language of availableLanguages(); track language.cultureCode) {
+                <button class="lang-item"
+                        [class.active]="language.cultureCode === activeCulture()"
+                        (click)="selectLanguage(language.cultureCode)">
+                  <span class="lang-current">
+                    @if (language.cultureCode === activeCulture()) {
+                      <span class="material-symbols-rounded">check</span>
+                    }
+                  </span>
+                  <span class="lang-copy">
+                    <strong>{{ language.englishName }}</strong>
+                    <small>{{ language.nativeName }} - {{ language.cultureCode }}</small>
+                  </span>
+                </button>
+              }
+            </div>
+          }
+
           <!-- Profile Dropdown -->
           @if (profileOpen()) {
             <div class="profile-drop">
               <div class="pd-user">
-                <div class="pd-avatar">DJ</div>
+                <div class="pd-avatar">{{ userInitials() }}</div>
                 <div class="pd-info">
-                  <p class="pd-name">Dr. John Smith</p>
-                  <p class="pd-role">Administrator</p>
-                  <p class="pd-org">City General Hospital</p>
+                  <p class="pd-name">{{ displayName() }}</p>
+                  <p class="pd-role">{{ roleLabel() }}</p>
+                  <p class="pd-org">{{ organizationLabel() }}</p>
                 </div>
               </div>
               <hr class="pd-sep" />
@@ -227,7 +266,7 @@ interface NavGroup {
           }
 
           <!-- Close dropdowns backdrop -->
-          @if (notifOpen() || profileOpen()) {
+          @if (notifOpen() || profileOpen() || langOpen()) {
             <div class="drop-backdrop" (click)="closeDropdowns()"></div>
           }
 
@@ -304,6 +343,7 @@ interface NavGroup {
 
       </div>
     }
+    <ac-confirm-dialog />
   `,
   styles: `
     /* ── Shell Layout ── */
@@ -729,6 +769,57 @@ interface NavGroup {
     .np-footer a { font-size: 13px; color: var(--ac-primary); font-weight: 600; }
 
     /* ── Profile Dropdown ── */
+    .lang-drop {
+      position: absolute;
+      top: calc(var(--ac-header-h) + 8px);
+      right: 170px;
+      width: 280px;
+      background: var(--ac-surface);
+      border: 1px solid var(--ac-border);
+      border-radius: var(--ac-r-lg);
+      box-shadow: var(--ac-sh-xl);
+      z-index: 200;
+      animation: scaleIn 0.15s ease;
+      overflow: hidden;
+    }
+    .lang-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--ac-border);
+    }
+    .lang-head .material-symbols-rounded { color: var(--ac-primary); font-size: 20px !important; }
+    .lang-title { font-size: 14px; font-weight: 800; color: var(--ac-text); }
+    .lang-sub { font-size: 11.5px; color: var(--ac-muted); margin-top: 1px; }
+    .lang-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 11px 14px;
+      border: none;
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+      transition: background var(--ac-t);
+    }
+    .lang-item:hover,
+    .lang-item.active { background: var(--ac-surface-2); }
+    .lang-current {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      color: var(--ac-primary);
+      flex-shrink: 0;
+    }
+    .lang-current .material-symbols-rounded { font-size: 18px !important; }
+    .lang-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .lang-copy strong { font-size: 13px; color: var(--ac-text); }
+    .lang-copy small { font-size: 11.5px; color: var(--ac-muted); }
+
     .profile-drop {
       position: absolute;
       top: calc(var(--ac-header-h) + 8px);
@@ -933,6 +1024,7 @@ export class AppShellComponent implements OnInit {
   private   readonly router  = inject(Router);
   private   readonly authService = inject(AuthService);
   private   readonly authStore = inject(AuthStore);
+  private   readonly tenantContext = inject(TenantContextService);
 
   /* ── State ── */
   protected readonly sidebarCollapsed = signal<boolean>(
@@ -944,6 +1036,7 @@ export class AppShellComponent implements OnInit {
   protected readonly commandOpen  = signal(false);
   protected readonly notifOpen    = signal(false);
   protected readonly profileOpen  = signal(false);
+  protected readonly langOpen     = signal(false);
   protected cpQuery = '';
 
   /* ── Route detection ── */
@@ -974,6 +1067,38 @@ export class AppShellComponent implements OnInit {
   protected readonly activeLang = computed(() =>
     (this.i18n.catalog()?.effectiveCulture ?? 'en-US').split('-')[0].toUpperCase()
   );
+  protected readonly activeCulture = computed(() =>
+    this.i18n.catalog()?.effectiveCulture ?? this.tenantContext.cultureCode()
+  );
+  protected readonly availableLanguages = computed<Language[]>(() => {
+    const languages = this.i18n.languages();
+    return languages.length > 0 ? languages : fallbackLanguages;
+  });
+
+  protected readonly displayName = computed(() => {
+    const session = this.authStore.session();
+    return session?.fullName?.trim() || session?.email || 'User';
+  });
+  protected readonly displayEmail = computed(() => this.authStore.session()?.email ?? '');
+  protected readonly isPlatformUser = computed(() =>
+    isPlatformSession(this.authStore.session())
+  );
+  protected readonly isHospitalAdminUser = computed(() =>
+    isHospitalAdminSession(this.authStore.session())
+  );
+  protected readonly roleLabel = computed(() => getUserRoleLabel(this.authStore.session()));
+  protected readonly organizationLabel = computed(() =>
+    this.isPlatformUser()
+      ? 'Auspira Care360'
+      : formatTenantName(this.tenantContext.tenantCode())
+  );
+  protected readonly tenantHeaderLabel = computed(() =>
+    this.isPlatformUser() ? 'Auspira Platform' : this.organizationLabel()
+  );
+  protected readonly branchHeaderLabel = computed(() =>
+    this.isPlatformUser() ? 'Control Plane' : 'Main Branch'
+  );
+  protected readonly userInitials = computed(() => getInitials(this.displayName(), this.displayEmail()));
 
   /* ── Navigation Groups ── */
   protected readonly navGroups: NavGroup[] = [
@@ -1149,6 +1274,7 @@ export class AppShellComponent implements OnInit {
           label: 'Hospital Admin',
           icon: 'manage_accounts',
           requiredPermission: 'Administration.UserManagement.View',
+          hospitalAdminOnly: true,
           children: [
             { path: '/administration/hospital', label: 'Hospital Profile', icon: 'local_hospital', requiredPermission: 'Administration.Hospital.View' },
             { path: '/administration/branches', label: 'Branches', icon: 'account_tree', requiredPermission: 'Administration.Branch.View' },
@@ -1205,7 +1331,8 @@ export class AppShellComponent implements OnInit {
       .map(child => this.filterNavItem(child))
       .filter((child): child is NavItem => child !== null);
 
-    const canShowItem = !item.requiredPermission || this.authStore.hasPermission(item.requiredPermission);
+    const canShowItem = (!item.requiredPermission || this.authStore.hasPermission(item.requiredPermission))
+      && (!item.hospitalAdminOnly || this.isHospitalAdminUser());
     if (!canShowItem && children.length === 0) {
       return null;
     }
@@ -1226,10 +1353,10 @@ export class AppShellComponent implements OnInit {
   /* ── Profile menu ── */
   protected readonly profileMenu = [
     { icon: 'account_circle',    label: 'My Profile',        path: '/profile' },
-    { icon: 'settings',          label: 'Account Settings',  path: '/profile' },
-    { icon: 'security',          label: 'Security Settings', path: '/profile' },
-    { icon: 'history',           label: 'Activity Logs',     path: '/profile' },
-    { icon: 'lock_reset',        label: 'Change Password',   path: '/profile' }
+    { icon: 'settings',          label: 'Account Settings',  path: '/profile/account-settings' },
+    { icon: 'security',          label: 'Security Settings', path: '/profile/security-settings' },
+    { icon: 'history',           label: 'Activity Logs',     path: '/profile/activity-logs' },
+    { icon: 'lock_reset',        label: 'Change Password',   path: '/profile/change-password' }
   ];
 
   /* ── Actions ── */
@@ -1249,9 +1376,38 @@ export class AppShellComponent implements OnInit {
     });
   }
 
+  toggleNotifications(): void {
+    this.notifOpen.update(open => !open);
+    this.profileOpen.set(false);
+    this.langOpen.set(false);
+  }
+
+  toggleProfileMenu(): void {
+    this.profileOpen.update(open => !open);
+    this.notifOpen.set(false);
+    this.langOpen.set(false);
+  }
+
+  toggleLanguageMenu(): void {
+    this.langOpen.update(open => !open);
+    this.notifOpen.set(false);
+    this.profileOpen.set(false);
+  }
+
+  async selectLanguage(cultureCode: string): Promise<void> {
+    try {
+      await this.i18n.loadCatalog(cultureCode);
+      this.langOpen.set(false);
+      this.toastSvc.success('Language updated', `Display language changed to ${cultureCode}.`);
+    } catch {
+      this.toastSvc.error('Language not changed', 'Unable to load the selected language.');
+    }
+  }
+
   closeDropdowns(): void {
     this.notifOpen.set(false);
     this.profileOpen.set(false);
+    this.langOpen.set(false);
   }
 
   async logout(): Promise<void> {
@@ -1277,6 +1433,7 @@ export class AppShellComponent implements OnInit {
       this.commandOpen.set(false);
       this.notifOpen.set(false);
       this.profileOpen.set(false);
+      this.langOpen.set(false);
     }
   }
 
@@ -1295,4 +1452,29 @@ export class AppShellComponent implements OnInit {
     };
     return map[type] ?? 'var(--ac-info)';
   }
+}
+
+function getInitials(displayName: string, email: string): string {
+  const source = displayName && displayName !== 'User' ? displayName : email;
+  const initials = source
+    .replace(/@.*/, '')
+    .split(/[\s._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part[0]?.toUpperCase() ?? '')
+    .join('');
+
+  return initials || 'U';
+}
+
+function formatTenantName(tenantCode: string): string {
+  if (!tenantCode || tenantCode === 'master') {
+    return 'Hospital';
+  }
+
+  return tenantCode
+    .split(/[-_]+/)
+    .filter(Boolean)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }

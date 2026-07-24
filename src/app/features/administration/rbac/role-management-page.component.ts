@@ -42,7 +42,7 @@ const permissions = {
         </button>
       </section>
 
-      <section class="content-grid">
+      <section class="content-grid ac-admin-layout" [class.drawer-open]="editorOpen()">
         <div class="table-wrap">
           <table>
             <thead>
@@ -96,63 +96,66 @@ const permissions = {
           </table>
         </div>
 
-        <aside class="editor">
-          <h2>{{ t(form.rowVersion ? 'Administration.Rbac.Form.EditRole' : 'Administration.Rbac.Form.CreateRole') }}</h2>
+        @if (editorOpen()) {
+        <aside class="ac-admin-drawer">
+          <div class="ac-admin-drawer-head">
+            <div class="ac-admin-drawer-title">
+              <span class="ac-admin-drawer-icon material-symbols-rounded">admin_panel_settings</span>
+              <div>
+                <p>{{ t(form.rowVersion ? 'Administration.Rbac.Form.EditRole' : 'Administration.Rbac.Form.CreateRole') }}</p>
+                <h2>{{ form.roleCode || t('Administration.Rbac.Actions.NewRole') }}</h2>
+              </div>
+            </div>
+            <button class="icon-btn" type="button" (click)="closeEditor()" title="Close editor">
+              <span class="material-symbols-rounded">close</span>
+            </button>
+          </div>
+          <div class="ac-admin-drawer-summary">
+            <span class="ac-admin-pill"><span class="material-symbols-rounded">key</span>{{ form.roleCode || 'NEW_ROLE' }}</span>
+            <span class="ac-admin-pill"><span class="material-symbols-rounded">rule</span>{{ form.permissionCodes.length }} permissions</span>
+            @if (form.isActive) {
+              <span class="ac-admin-pill featured"><span class="material-symbols-rounded">check_circle</span>{{ t('Administration.UserManagement.Status.Active') }}</span>
+            }
+          </div>
+          <div class="ac-admin-drawer-body">
           @if (errorKey()) {
             <p class="error">{{ t(errorKey()!) }}</p>
           }
-          <form (ngSubmit)="saveRole()">
-            <label>
-              <span>{{ t('Administration.Rbac.Form.RoleCode') }}</span>
-              <input name="roleCode" [(ngModel)]="form.roleCode" [disabled]="!!form.rowVersion" required />
-            </label>
-            <label>
-              <span>{{ t('Administration.Rbac.Form.RoleNameKey') }}</span>
-              <input name="roleNameKey" [(ngModel)]="form.roleNameKey" required />
-            </label>
-            <label>
-              <span>{{ t('Administration.Rbac.Form.DescriptionKey') }}</span>
-              <input name="roleDescriptionKey" [(ngModel)]="form.roleDescriptionKey" />
-            </label>
-            <label>
-              <span>{{ t('Administration.Rbac.Form.ParentRole') }}</span>
-              <select name="parentRoleCode" [(ngModel)]="parentRoleCode">
-                <option value=""></option>
-                @for (role of roles(); track role.roleCode) {
-                  @if (role.roleCode !== form.roleCode) {
-                    <option [value]="role.roleCode">{{ t(role.roleNameKey) }}</option>
-                  }
+          <form id="role-editor-form" (ngSubmit)="saveRole()">
+            <section class="ac-admin-form-section">
+              <div class="ac-admin-section-title"><span class="material-symbols-rounded">badge</span><h3>{{ t('Administration.Rbac.Form.CreateRole') }}</h3></div>
+              <div class="ac-admin-form-grid">
+                <label><span>{{ t('Administration.Rbac.Form.RoleCode') }}</span><input name="roleCode" [(ngModel)]="form.roleCode" [disabled]="!!form.rowVersion" required /></label>
+                <label><span>{{ t('Administration.Rbac.Form.RoleNameKey') }}</span><input name="roleNameKey" [(ngModel)]="form.roleNameKey" required /></label>
+                <label class="ac-admin-wide"><span>{{ t('Administration.Rbac.Form.DescriptionKey') }}</span><input name="roleDescriptionKey" [(ngModel)]="form.roleDescriptionKey" /></label>
+                <label><span>{{ t('Administration.Rbac.Form.ParentRole') }}</span><select name="parentRoleCode" [(ngModel)]="parentRoleCode"><option value=""></option>@for (role of roles(); track role.roleCode) { @if (role.roleCode !== form.roleCode) { <option [value]="role.roleCode">{{ t(role.roleNameKey) }}</option> } }</select></label>
+                <label class="ac-admin-switch-row"><input type="checkbox" name="isActive" [(ngModel)]="form.isActive" /><span>{{ t('Administration.Rbac.Form.Active') }}</span></label>
+              </div>
+            </section>
+            <section class="ac-admin-form-section">
+              <div class="ac-admin-section-title"><span class="material-symbols-rounded">rule</span><h3>{{ t('Administration.Rbac.Actions.AssignPermissions') }}</h3></div>
+              <label><span>{{ t('Administration.Rbac.Columns.Permissions') }}</span><input name="permissionSearch" [(ngModel)]="permissionSearch" /></label>
+              <fieldset class="ac-admin-fieldset">
+                <legend>{{ t('Administration.Rbac.Actions.AssignPermissions') }}</legend>
+                @for (item of filteredCatalog(); track item.permissionCode) {
+                  <label class="ac-admin-switch-row">
+                    <input type="checkbox" [name]="'perm_' + item.permissionCode" [checked]="hasPermission(item.permissionCode)" (change)="togglePermission(item.permissionCode)" />
+                    <span>{{ t(item.permissionNameKey) }}</span>
+                  </label>
                 }
-              </select>
-            </label>
-            <label>
-              <span>{{ t('Administration.Rbac.Columns.Permissions') }}</span>
-              <input name="permissionSearch" [(ngModel)]="permissionSearch" />
-            </label>
-            <fieldset>
-              <legend>{{ t('Administration.Rbac.Actions.AssignPermissions') }}</legend>
-              @for (item of filteredCatalog(); track item.permissionCode) {
-                <label class="check-row">
-                  <input type="checkbox" [name]="'perm_' + item.permissionCode" [checked]="hasPermission(item.permissionCode)" (change)="togglePermission(item.permissionCode)" />
-                  <span>{{ t(item.permissionNameKey) }}</span>
-                </label>
-              }
-            </fieldset>
-            <label class="check-row">
-              <input type="checkbox" name="isActive" [(ngModel)]="form.isActive" />
-              <span>{{ t('Administration.Rbac.Form.Active') }}</span>
-            </label>
-            <div class="form-actions">
-              <button class="ac-btn ac-btn-secondary" type="button" (click)="startCreate()">
-                {{ t('Common.Actions.Cancel') }}
-              </button>
-              <button class="ac-btn ac-btn-primary" type="submit" [disabled]="saving() || (!can(permissions.create) && !can(permissions.edit))">
-                <span class="material-symbols-rounded">save</span>
-                {{ t('Administration.Rbac.Actions.SaveRole') }}
-              </button>
-            </div>
+              </fieldset>
+            </section>
           </form>
+          </div>
+          <div class="ac-admin-drawer-actions">
+            <button class="ac-btn ac-btn-secondary" type="button" (click)="closeEditor()">{{ t('Common.Actions.Cancel') }}</button>
+            <button class="ac-btn ac-btn-primary" type="submit" form="role-editor-form" [disabled]="saving() || (!can(permissions.create) && !can(permissions.edit))">
+              <span class="material-symbols-rounded">save</span>
+              {{ t('Administration.Rbac.Actions.SaveRole') }}
+            </button>
+          </div>
         </aside>
+        }
       </section>
     </section>
   `,
@@ -204,6 +207,7 @@ export class RoleManagementPageComponent implements OnInit {
   protected readonly catalog = signal<PermissionCatalogItem[]>([]);
   protected readonly saving = signal(false);
   protected readonly errorKey = signal<string | null>(null);
+  protected readonly editorOpen = signal(false);
   protected form = emptyForm();
 
   async ngOnInit(): Promise<void> {
@@ -246,6 +250,8 @@ export class RoleManagementPageComponent implements OnInit {
     this.form = emptyForm();
     this.parentRoleCode = '';
     this.errorKey.set(null);
+    this.permissionSearch = '';
+    this.editorOpen.set(true);
   }
 
   protected async startEdit(role: RoleDto): Promise<void> {
@@ -262,6 +268,15 @@ export class RoleManagementPageComponent implements OnInit {
     };
     this.parentRoleCode = detail.parentRoleCode ?? '';
     this.errorKey.set(null);
+    this.editorOpen.set(true);
+  }
+
+  protected closeEditor(): void {
+    this.form = emptyForm();
+    this.parentRoleCode = '';
+    this.permissionSearch = '';
+    this.errorKey.set(null);
+    this.editorOpen.set(false);
   }
 
   protected hasPermission(permissionCode: string): boolean {
@@ -289,23 +304,20 @@ export class RoleManagementPageComponent implements OnInit {
   }
 
   protected async copyFrom(role: RoleDto): Promise<void> {
-    const code = window.prompt(this.t('Administration.Rbac.Form.RoleCode'), `${role.roleCode}_COPY`);
-    if (!code) {
-      return;
-    }
-
-    const roleNameKey = window.prompt(this.t('Administration.Rbac.Form.RoleNameKey'), `${role.roleNameKey}.Copy`);
-    if (!roleNameKey) {
-      return;
-    }
-
-    const response = await this.service.copyRole(role.roleCode, {
-      targetRoleCode: code,
-      targetRoleNameKey: roleNameKey,
-      targetRoleDescriptionKey: role.roleDescriptionKey ?? ''
-    });
-
-    await this.handleSaveResponse(response, 'Administration.Rbac.Messages.RoleCopied', false);
+    const response = await this.service.getRole(role.roleCode);
+    const detail = response.data ?? role;
+    this.form = {
+      roleCode: `${role.roleCode}_COPY`,
+      roleNameKey: `${role.roleNameKey}.Copy`,
+      roleDescriptionKey: role.roleDescriptionKey ?? '',
+      sortOrder: role.sortOrder + 1,
+      isActive: true,
+      rowVersion: '',
+      permissionCodes: [...detail.permissionCodes]
+    };
+    this.parentRoleCode = detail.parentRoleCode ?? '';
+    this.errorKey.set(null);
+    this.editorOpen.set(true);
   }
 
   private async handleSaveResponse(response: { success: boolean; message: string; data: RoleDto | null }, successKey: string, updateParent: boolean): Promise<void> {
@@ -322,6 +334,7 @@ export class RoleManagementPageComponent implements OnInit {
     this.toast.success(this.t(successKey));
     await this.loadRoles();
     await this.startEdit(response.data);
+    this.editorOpen.set(false);
   }
 }
 

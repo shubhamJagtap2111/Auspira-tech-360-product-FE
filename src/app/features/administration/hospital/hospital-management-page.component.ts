@@ -13,6 +13,7 @@ const permissions = {
   settings: 'Administration.Hospital.Settings',
   subscription: 'Administration.Hospital.Subscription'
 };
+type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
 
 @Component({
   standalone: true,
@@ -24,9 +25,29 @@ const permissions = {
           <h1 class="ac-page-title">{{ t('Administration.Hospital.Title') }}</h1>
           <p>{{ t('Administration.Hospital.Subtitle') }}</p>
         </div>
-        <button class="icon-btn" type="button" (click)="loadProfile()" [attr.title]="t('Administration.Rbac.Actions.Refresh')">
-          <span class="material-symbols-rounded">refresh</span>
-        </button>
+        <div class="head-actions">
+          @if (can(permissions.branding)) {
+            <button class="ac-btn ac-btn-secondary" type="button" (click)="openDrawer('branding')">
+              <span class="material-symbols-rounded">palette</span>
+              {{ t('Administration.Hospital.Section.Branding') }}
+            </button>
+          }
+          @if (can(permissions.settings)) {
+            <button class="ac-btn ac-btn-secondary" type="button" (click)="openDrawer('settings')">
+              <span class="material-symbols-rounded">tune</span>
+              {{ t('Administration.Hospital.Section.Settings') }}
+            </button>
+          }
+          @if (can(permissions.subscription)) {
+            <button class="ac-btn ac-btn-secondary" type="button" (click)="openDrawer('subscription')">
+              <span class="material-symbols-rounded">workspace_premium</span>
+              {{ t('Administration.Hospital.Section.Subscription') }}
+            </button>
+          }
+          <button class="icon-btn" type="button" (click)="loadProfile()" [attr.title]="t('Administration.Rbac.Actions.Refresh')">
+            <span class="material-symbols-rounded">refresh</span>
+          </button>
+        </div>
       </header>
 
       @if (profile(); as form) {
@@ -101,64 +122,91 @@ const permissions = {
             }
           </div>
 
-          <aside class="side-form">
-            <section class="panel">
-              <h2>{{ t('Administration.Hospital.Section.Branding') }}</h2>
-              <label><span>{{ t('Administration.Hospital.Fields.LogoUrl') }}</span><input name="logoUrl" [(ngModel)]="form.branding.logoUrl" /></label>
-              <label><span>{{ t('Administration.Hospital.Fields.FaviconUrl') }}</span><input name="faviconUrl" [(ngModel)]="form.branding.faviconUrl" /></label>
-              <div class="color-grid">
-                <label><span>{{ t('Administration.Hospital.Fields.PrimaryColor') }}</span><input type="color" name="primaryColor" [(ngModel)]="form.branding.primaryColor" /></label>
-                <label><span>{{ t('Administration.Hospital.Fields.SecondaryColor') }}</span><input type="color" name="secondaryColor" [(ngModel)]="form.branding.secondaryColor" /></label>
-                <label><span>{{ t('Administration.Hospital.Fields.AccentColor') }}</span><input type="color" name="accentColor" [(ngModel)]="form.branding.accentColor" /></label>
+          @if (profileDrawer(); as drawer) {
+            <aside class="ac-admin-drawer">
+              <div class="ac-admin-drawer-head">
+                <div class="ac-admin-drawer-title">
+                  <span class="ac-admin-drawer-icon material-symbols-rounded">{{ drawerIcon(drawer) }}</span>
+                  <div>
+                    <p>{{ t('Administration.Hospital.Title') }}</p>
+                    <h2>{{ t(drawerTitle(drawer)) }}</h2>
+                  </div>
+                </div>
+                <button class="icon-btn" type="button" (click)="closeDrawer()" title="Close editor"><span class="material-symbols-rounded">close</span></button>
               </div>
-              @if (can(permissions.branding)) {
-                <button class="ac-btn ac-btn-secondary" type="button" (click)="saveBranding()" [disabled]="saving()">
-                  {{ t('Administration.Hospital.Actions.SaveBranding') }}
-                </button>
-              }
-            </section>
-
-            @if (can(permissions.subscription)) {
-              <section class="panel">
-                <h2>{{ t('Administration.Hospital.Section.Subscription') }}</h2>
-                <dl>
-                  <dt>{{ t('Administration.Hospital.Fields.PlanName') }}</dt><dd>{{ t(form.subscription.planNameKey) }}</dd>
-                  <dt>{{ t('Administration.Hospital.Fields.SubscriptionStatus') }}</dt><dd>{{ t(subscriptionStatusKey(form.subscription.statusCode)) }}</dd>
-                  <dt>{{ t('Administration.Hospital.Fields.SubscriptionEndDate') }}</dt><dd>{{ form.subscription.endDate || '-' }}</dd>
-                  <dt>{{ t('Administration.Hospital.Fields.MaxUsers') }}</dt><dd>{{ form.subscription.maxUsers ?? '-' }}</dd>
-                  <dt>{{ t('Administration.Hospital.Fields.MaxBranches') }}</dt><dd>{{ form.subscription.maxBranches ?? '-' }}</dd>
-                </dl>
-              </section>
-            }
-
-            <section class="panel">
-              <h2>{{ t('Administration.Hospital.Section.Settings') }}</h2>
-              @for (setting of form.settings; track setting.settingKey; let index = $index) {
-                <div class="setting-row">
-                  <input [name]="'settingKey_' + index" [(ngModel)]="setting.settingKey" [attr.aria-label]="t('Administration.Hospital.Fields.SettingKey')" />
-                  <input [name]="'settingValue_' + index" [(ngModel)]="setting.settingValue" [attr.aria-label]="t('Administration.Hospital.Fields.SettingValue')" />
-                </div>
-              }
-              @if (can(permissions.settings)) {
-                <div class="side-actions">
-                  <button class="ac-btn ac-btn-secondary" type="button" (click)="addSetting()">{{ t('Administration.Hospital.Actions.AddSetting') }}</button>
-                  <button class="ac-btn ac-btn-primary" type="button" (click)="saveSettings()" [disabled]="saving()">{{ t('Administration.Hospital.Actions.SaveSettings') }}</button>
-                </div>
-              }
-            </section>
-          </aside>
+              <div class="ac-admin-drawer-summary">
+                <span class="ac-admin-pill"><span class="material-symbols-rounded">local_hospital</span>{{ form.hospitalName }}</span>
+                <span class="ac-admin-pill featured"><span class="material-symbols-rounded">{{ drawerIcon(drawer) }}</span>{{ t(drawerTitle(drawer)) }}</span>
+              </div>
+              <div class="ac-admin-drawer-body">
+                @if (drawer === 'branding') {
+                  <section class="ac-admin-form-section">
+                    <div class="ac-admin-section-title"><span class="material-symbols-rounded">imagesmode</span><h3>{{ t('Administration.Hospital.Section.Branding') }}</h3></div>
+                    <div class="ac-admin-form-grid">
+                      <label class="ac-admin-wide"><span>{{ t('Administration.Hospital.Fields.LogoUrl') }}</span><input name="logoUrl" [(ngModel)]="form.branding.logoUrl" /></label>
+                      <label class="ac-admin-wide"><span>{{ t('Administration.Hospital.Fields.FaviconUrl') }}</span><input name="faviconUrl" [(ngModel)]="form.branding.faviconUrl" /></label>
+                      <label><span>{{ t('Administration.Hospital.Fields.PrimaryColor') }}</span><input type="color" name="primaryColor" [(ngModel)]="form.branding.primaryColor" /></label>
+                      <label><span>{{ t('Administration.Hospital.Fields.SecondaryColor') }}</span><input type="color" name="secondaryColor" [(ngModel)]="form.branding.secondaryColor" /></label>
+                      <label><span>{{ t('Administration.Hospital.Fields.AccentColor') }}</span><input type="color" name="accentColor" [(ngModel)]="form.branding.accentColor" /></label>
+                    </div>
+                  </section>
+                }
+                @if (drawer === 'settings') {
+                  <section class="ac-admin-form-section">
+                    <div class="ac-admin-section-title"><span class="material-symbols-rounded">tune</span><h3>{{ t('Administration.Hospital.Section.Settings') }}</h3></div>
+                    <div class="setting-list">
+                      @for (setting of form.settings; track setting.settingKey; let index = $index) {
+                        <div class="setting-row">
+                          <input [name]="'settingKey_' + index" [(ngModel)]="setting.settingKey" [attr.aria-label]="t('Administration.Hospital.Fields.SettingKey')" />
+                          <input [name]="'settingValue_' + index" [(ngModel)]="setting.settingValue" [attr.aria-label]="t('Administration.Hospital.Fields.SettingValue')" />
+                        </div>
+                      }
+                    </div>
+                    <button class="ac-btn ac-btn-secondary" type="button" (click)="addSetting()">{{ t('Administration.Hospital.Actions.AddSetting') }}</button>
+                  </section>
+                }
+                @if (drawer === 'subscription') {
+                  <section class="ac-admin-form-section">
+                    <div class="ac-admin-section-title"><span class="material-symbols-rounded">workspace_premium</span><h3>{{ t('Administration.Hospital.Section.Subscription') }}</h3></div>
+                    <dl class="subscription-summary">
+                      <dt>{{ t('Administration.Hospital.Fields.PlanName') }}</dt><dd>{{ t(form.subscription.planNameKey) }}</dd>
+                      <dt>{{ t('Administration.Hospital.Fields.SubscriptionStatus') }}</dt><dd>{{ t(subscriptionStatusKey(form.subscription.statusCode)) }}</dd>
+                    </dl>
+                    <div class="ac-admin-form-grid">
+                      <label><span>{{ t('Administration.Hospital.Fields.PlanName') }}</span><input name="planCode" [(ngModel)]="form.subscription.planCode" /></label>
+                      <label><span>{{ t('Administration.Hospital.Fields.SubscriptionStatus') }}</span><input name="statusCode" [(ngModel)]="form.subscription.statusCode" /></label>
+                      <label><span>{{ t('Administration.Hospital.Fields.SubscriptionEndDate') }}</span><input type="date" name="subscriptionEndDate" [(ngModel)]="form.subscription.endDate" /></label>
+                      <label><span>{{ t('Administration.Hospital.Fields.MaxUsers') }}</span><input type="number" min="0" name="maxUsers" [(ngModel)]="form.subscription.maxUsers" /></label>
+                      <label><span>{{ t('Administration.Hospital.Fields.MaxBranches') }}</span><input type="number" min="0" name="maxBranches" [(ngModel)]="form.subscription.maxBranches" /></label>
+                    </div>
+                  </section>
+                }
+              </div>
+              <div class="ac-admin-drawer-actions">
+                <button class="ac-btn ac-btn-secondary" type="button" (click)="closeDrawer()">{{ t('Common.Actions.Cancel') }}</button>
+                @if (drawer === 'branding') {
+                  <button class="ac-btn ac-btn-primary" type="button" (click)="saveBranding()" [disabled]="saving()"><span class="material-symbols-rounded">save</span>{{ t('Administration.Hospital.Actions.SaveBranding') }}</button>
+                }
+                @if (drawer === 'settings') {
+                  <button class="ac-btn ac-btn-primary" type="button" (click)="saveSettings()" [disabled]="saving()"><span class="material-symbols-rounded">save</span>{{ t('Administration.Hospital.Actions.SaveSettings') }}</button>
+                }
+                @if (drawer === 'subscription') {
+                  <button class="ac-btn ac-btn-primary" type="button" (click)="saveSubscription()" [disabled]="saving()"><span class="material-symbols-rounded">save</span>{{ t('Administration.Hospital.Actions.SaveProfile') }}</button>
+                }
+              </div>
+            </aside>
+          }
         </section>
       }
     </section>
   `,
   styles: `
     .hospital-page { display: flex; flex-direction: column; gap: 16px; }
-    .page-head, .layout, .save-row, .side-actions { display: flex; gap: 12px; }
+    .page-head, .layout, .save-row, .head-actions { display: flex; gap: 12px; }
     .page-head { align-items: flex-start; justify-content: space-between; }
     .page-head p { margin: 4px 0 0; color: var(--ac-muted); font-size: 13px; }
     .layout { align-items: flex-start; }
     .main-form { flex: 1 1 auto; display: flex; flex-direction: column; gap: 12px; }
-    .side-form { width: min(380px, 100%); flex: 0 0 380px; display: flex; flex-direction: column; gap: 12px; }
     .panel { border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; padding: 16px; }
     .panel h2 { margin: 0 0 14px; font-size: 16px; }
     .form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
@@ -172,9 +220,10 @@ const permissions = {
     dl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin: 0; font-size: 13px; }
     dt { color: var(--ac-muted); font-weight: 700; }
     dd { margin: 0; color: var(--ac-text); text-align: right; }
+    .subscription-summary { border: 1px solid var(--ac-border); border-radius: 8px; padding: 12px; background: var(--ac-surface-2); }
     .setting-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
-    .side-actions { justify-content: flex-end; margin-top: 8px; }
-    @media (max-width: 1120px) { .layout { flex-direction: column; } .side-form { width: 100%; flex-basis: auto; } }
+    .setting-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+    @media (max-width: 1120px) { .layout { flex-direction: column; } }
     @media (max-width: 760px) { .page-head { flex-direction: column; } .form-grid, .color-grid { grid-template-columns: 1fr; } .wide { grid-column: auto; } }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -187,6 +236,7 @@ export class HospitalManagementPageComponent implements OnInit {
   private readonly toast = inject(ToastService);
 
   protected readonly profile = signal<HospitalProfile | null>(null);
+  protected readonly profileDrawer = signal<HospitalProfileDrawer | null>(null);
   protected readonly saving = signal(false);
 
   async ngOnInit(): Promise<void> {
@@ -203,6 +253,30 @@ export class HospitalManagementPageComponent implements OnInit {
 
   protected subscriptionStatusKey(statusCode: string): string {
     return `Hospital.Subscription.Status.${statusCode || 'UNKNOWN'}`;
+  }
+
+  protected openDrawer(drawer: HospitalProfileDrawer): void {
+    this.profileDrawer.set(drawer);
+  }
+
+  protected closeDrawer(): void {
+    this.profileDrawer.set(null);
+  }
+
+  protected drawerTitle(drawer: HospitalProfileDrawer): string {
+    return {
+      branding: 'Administration.Hospital.Section.Branding',
+      settings: 'Administration.Hospital.Section.Settings',
+      subscription: 'Administration.Hospital.Section.Subscription'
+    }[drawer];
+  }
+
+  protected drawerIcon(drawer: HospitalProfileDrawer): string {
+    return {
+      branding: 'palette',
+      settings: 'tune',
+      subscription: 'workspace_premium'
+    }[drawer];
   }
 
   protected async loadProfile(): Promise<void> {
@@ -231,6 +305,7 @@ export class HospitalManagementPageComponent implements OnInit {
     }
 
     await this.save(() => this.service.updateBranding(current.branding), 'Administration.Hospital.Messages.BrandingUpdated');
+    this.closeDrawer();
   }
 
   protected async saveSettings(): Promise<void> {
@@ -240,6 +315,17 @@ export class HospitalManagementPageComponent implements OnInit {
     }
 
     await this.save(() => this.service.updateSettings(current.settings), 'Administration.Hospital.Messages.SettingsUpdated');
+    this.closeDrawer();
+  }
+
+  protected async saveSubscription(): Promise<void> {
+    const current = this.profile();
+    if (!current) {
+      return;
+    }
+
+    await this.save(() => this.service.updateProfile(current), 'Administration.Hospital.Messages.Updated');
+    this.closeDrawer();
   }
 
   protected addSetting(): void {

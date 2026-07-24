@@ -32,7 +32,7 @@ const permissions = {
         <label><span>{{ t('Administration.Designation.Filter.Search') }}</span><input name="searchText" [(ngModel)]="searchText" (keyup.enter)="load()" /></label>
         <button class="icon-btn" type="button" (click)="load()" [attr.title]="t('Administration.Rbac.Actions.Refresh')"><span class="material-symbols-rounded">refresh</span></button>
       </section>
-      <section class="layout">
+      <section class="layout ac-admin-layout" [class.drawer-open]="drawerOpen()">
         <div class="table-wrap">
           <table>
             <thead><tr><th>{{ t('Administration.Designation.Columns.Designation') }}</th><th>{{ t('Administration.Designation.Columns.Parent') }}</th><th>{{ t('Administration.Designation.Columns.Level') }}</th><th>{{ t('Administration.UserManagement.Columns.Status') }}</th><th>{{ t('Administration.UserManagement.Columns.Actions') }}</th></tr></thead>
@@ -55,21 +55,44 @@ const permissions = {
             </tbody>
           </table>
         </div>
-        <aside class="editor">
+        @if (drawerOpen()) {
+        <aside class="ac-admin-drawer">
           @if (form(); as model) {
-            <h2>{{ t('Administration.Designation.Title') }}</h2>
-            <label><span>{{ t('Administration.Designation.Fields.DesignationCode') }}</span><input name="designationCode" [(ngModel)]="model.designationCode" /></label>
-            <label><span>{{ t('Administration.Designation.Fields.DesignationName') }}</span><input name="designationName" [(ngModel)]="model.designationName" /></label>
-            <label><span>{{ t('Administration.Designation.Fields.DescriptionKey') }}</span><input name="descriptionKey" [(ngModel)]="model.descriptionKey" /></label>
-            <label><span>{{ t('Administration.Designation.Fields.ParentDesignationGuid') }}</span><input name="parentDesignationGuid" [(ngModel)]="model.parentDesignationGuid" /></label>
-            <label><span>{{ t('Administration.Designation.Fields.LevelNo') }}</span><input type="number" name="levelNo" [(ngModel)]="model.levelNo" /></label>
-            <label><span>{{ t('Administration.Designation.Fields.SortOrder') }}</span><input type="number" name="sortOrder" [(ngModel)]="model.sortOrder" /></label>
-            <div class="form-actions">
-              <button class="ac-btn ac-btn-secondary" type="button" (click)="startCreate()">{{ t('Common.Actions.Cancel') }}</button>
+            <div class="ac-admin-drawer-head">
+              <div class="ac-admin-drawer-title">
+                <span class="ac-admin-drawer-icon material-symbols-rounded">badge</span>
+                <div>
+                  <p>{{ model.designationGuid ? t('Administration.UserManagement.Actions.Edit') : t('Administration.Designation.Actions.New') }}</p>
+                  <h2>{{ model.designationName || t('Administration.Designation.Title') }}</h2>
+                </div>
+              </div>
+              <button class="icon-btn" type="button" (click)="closeDrawer()" title="Close editor"><span class="material-symbols-rounded">close</span></button>
+            </div>
+            <div class="ac-admin-drawer-summary">
+              <span class="ac-admin-pill"><span class="material-symbols-rounded">tag</span>{{ model.designationCode || 'NEW' }}</span>
+              <span class="ac-admin-pill"><span class="material-symbols-rounded">stairs</span>Level {{ model.levelNo }}</span>
+              @if (model.isActive) { <span class="ac-admin-pill featured"><span class="material-symbols-rounded">check_circle</span>{{ t('Administration.UserManagement.Status.Active') }}</span> }
+            </div>
+            <div class="ac-admin-drawer-body">
+              <section class="ac-admin-form-section">
+                <div class="ac-admin-section-title"><span class="material-symbols-rounded">workspace_premium</span><h3>{{ t('Administration.Designation.Title') }}</h3></div>
+                <div class="ac-admin-form-grid">
+                  <label><span>{{ t('Administration.Designation.Fields.DesignationCode') }}</span><input name="designationCode" [(ngModel)]="model.designationCode" /></label>
+                  <label><span>{{ t('Administration.Designation.Fields.DesignationName') }}</span><input name="designationName" [(ngModel)]="model.designationName" /></label>
+                  <label><span>{{ t('Administration.Designation.Fields.ParentDesignationGuid') }}</span><input name="parentDesignationGuid" [(ngModel)]="model.parentDesignationGuid" /></label>
+                  <label><span>{{ t('Administration.Designation.Fields.LevelNo') }}</span><input type="number" name="levelNo" [(ngModel)]="model.levelNo" /></label>
+                  <label><span>{{ t('Administration.Designation.Fields.SortOrder') }}</span><input type="number" name="sortOrder" [(ngModel)]="model.sortOrder" /></label>
+                  <label class="ac-admin-wide"><span>{{ t('Administration.Designation.Fields.DescriptionKey') }}</span><input name="descriptionKey" [(ngModel)]="model.descriptionKey" /></label>
+                </div>
+              </section>
+            </div>
+            <div class="ac-admin-drawer-actions">
+              <button class="ac-btn ac-btn-secondary" type="button" (click)="closeDrawer()">{{ t('Common.Actions.Cancel') }}</button>
               <button class="ac-btn ac-btn-primary" type="button" (click)="save()" [disabled]="saving() || !canSave(model)"><span class="material-symbols-rounded">save</span>{{ t('Administration.Designation.Actions.Save') }}</button>
             </div>
           }
         </aside>
+        }
       </section>
     </section>
   `,
@@ -106,6 +129,7 @@ export class DesignationManagementPageComponent implements OnInit {
   protected readonly permissions = permissions;
   protected readonly designations = signal<Designation[]>([]);
   protected readonly form = signal<Designation>(createEmptyDesignation());
+  protected readonly drawerOpen = signal(false);
   protected readonly saving = signal(false);
   protected searchText = '';
 
@@ -118,8 +142,9 @@ export class DesignationManagementPageComponent implements OnInit {
   protected t(key: string): string { return this.i18n.translate(key); }
   protected can(permission: string): boolean { return this.auth.hasPermission(permission); }
   protected canSave(item: Designation): boolean { return item.designationGuid ? this.can(permissions.edit) : this.can(permissions.create); }
-  protected edit(item: Designation): void { this.form.set({ ...item }); }
-  protected startCreate(): void { this.form.set(createEmptyDesignation()); }
+  protected edit(item: Designation): void { this.form.set({ ...item }); this.drawerOpen.set(true); }
+  protected startCreate(): void { this.form.set(createEmptyDesignation()); this.drawerOpen.set(true); }
+  protected closeDrawer(): void { this.drawerOpen.set(false); }
 
   protected async load(): Promise<void> {
     const response = await this.service.searchDesignations(this.searchText, true);
@@ -141,6 +166,7 @@ export class DesignationManagementPageComponent implements OnInit {
       const response = await operation();
       if (!response.success || !response.data) { this.toast.error(this.t(response.message)); return; }
       this.form.set(response.data);
+      this.drawerOpen.set(false);
       await this.load();
       this.toast.success(this.t(successKey));
     } finally {

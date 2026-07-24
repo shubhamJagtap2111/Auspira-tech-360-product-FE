@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ToastService } from '../../shared/ui/toast/toast.service';
+import { DialogService } from '../../shared/ui/dialog/dialog.service';
 import { PlanManagementService } from './plan-management.service';
 import {
   RegisterTenantRequest,
@@ -489,6 +490,8 @@ export class TenantManagementPageComponent implements OnInit {
   private readonly service = inject(TenantManagementService);
   private readonly planService = inject(PlanManagementService);
   private readonly toast = inject(ToastService);
+  private readonly dialog = inject(DialogService);
+  private readonly newHospitalBaseline = JSON.stringify(createHospitalForm());
 
   async ngOnInit(): Promise<void> {
     await Promise.all([this.loadPlanOptions(), this.loadTenants()]);
@@ -574,11 +577,29 @@ export class TenantManagementPageComponent implements OnInit {
   }
 
   protected async archiveTenant(tenant: TenantListItem): Promise<void> {
-    if (!window.confirm(`Archive ${tenant.hospitalName}?`)) {
+    const confirmed = await this.dialog.confirm({
+      title: 'Archive hospital?',
+      message: `Archive ${tenant.hospitalName}?`,
+      details: 'This moves the hospital out of active operations. You can still review its audit and tenant history later.',
+      confirmText: 'Archive hospital',
+      cancelText: 'Keep active',
+      intent: 'danger',
+      icon: 'archive'
+    });
+
+    if (!confirmed) {
       return;
     }
 
     await this.updateTenantStatus(tenant, 'Archived');
+  }
+
+  hasUnsavedChanges(): boolean {
+    return JSON.stringify(this.newHospital) !== this.newHospitalBaseline || !!this.actionReason.trim();
+  }
+
+  unsavedChangesMessage(): string {
+    return 'Your hospital form or action reason has changes that have not been saved.';
   }
 
   protected async upgradeTenant(tenant: TenantListItem): Promise<void> {

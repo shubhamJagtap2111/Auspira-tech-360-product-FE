@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
 import { permissionGuard } from './core/guards/permission.guard';
+import { pendingChangesGuard } from './core/guards/pending-changes.guard';
 
 export const routes: Routes = [
   /* ── Auth (no shell) ── */
@@ -61,6 +62,34 @@ export const routes: Routes = [
       import('./features/profile/profile-page.component').then(m => m.ProfilePageComponent)
   },
   {
+    path: 'profile/account-settings',
+    canActivate: [authGuard],
+    data: { mode: 'account' },
+    loadComponent: () =>
+      import('./features/profile/profile-action-page.component').then(m => m.ProfileActionPageComponent)
+  },
+  {
+    path: 'profile/security-settings',
+    canActivate: [authGuard],
+    data: { mode: 'security' },
+    loadComponent: () =>
+      import('./features/profile/profile-action-page.component').then(m => m.ProfileActionPageComponent)
+  },
+  {
+    path: 'profile/activity-logs',
+    canActivate: [authGuard],
+    data: { mode: 'activity' },
+    loadComponent: () =>
+      import('./features/profile/profile-action-page.component').then(m => m.ProfileActionPageComponent)
+  },
+  {
+    path: 'profile/change-password',
+    canActivate: [authGuard],
+    data: { mode: 'password' },
+    loadComponent: () =>
+      import('./features/profile/profile-action-page.component').then(m => m.ProfileActionPageComponent)
+  },
+  {
     path: 'super-admin',
     canActivate: [authGuard, permissionGuard],
     data: { permission: 'SuperAdmin.Dashboard.View' },
@@ -70,6 +99,7 @@ export const routes: Routes = [
   {
     path: 'super-admin/tenants',
     canActivate: [authGuard, permissionGuard],
+    canDeactivate: [pendingChangesGuard],
     data: { permission: 'SuperAdmin.Tenants.View' },
     loadComponent: () =>
       import('./features/super-admin/tenant-management-page.component').then(m => m.TenantManagementPageComponent)
@@ -77,6 +107,7 @@ export const routes: Routes = [
   {
     path: 'super-admin/plans',
     canActivate: [authGuard, permissionGuard],
+    canDeactivate: [pendingChangesGuard],
     data: { permission: 'SuperAdmin.Plans.View' },
     loadComponent: () =>
       import('./features/super-admin/plan-management-page.component').then(m => m.PlanManagementPageComponent)
@@ -169,6 +200,7 @@ export const routes: Routes = [
   {
     path: 'administration/users',
     canActivate: [authGuard, permissionGuard],
+    canDeactivate: [pendingChangesGuard],
     data: { permission: 'Administration.UserManagement.View' },
     loadComponent: () =>
       import('./features/administration/users/user-list-page.component').then(m => m.UserListPageComponent)

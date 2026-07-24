@@ -20,6 +20,7 @@ const permissions = {
 const resetFrequencies = ['NONE', 'FISCAL_YEAR', 'YEAR', 'MONTH', 'DAY'];
 const channels = ['EMAIL', 'SMS', 'WHATSAPP', 'IN_APP'];
 const languages = ['en-US', 'hi-IN', 'mr-IN'];
+type ConfigEditorMode = 'number-series' | 'fiscal-year' | 'template';
 
 @Component({
   standalone: true,
@@ -106,28 +107,6 @@ const languages = ['en-US', 'hi-IN', 'mr-IN'];
             </table>
           </div>
 
-          @if (can(permissions.numberSeries)) {
-            <div class="form-grid">
-              <label><span>{{ t('Administration.SystemConfiguration.Fields.SeriesCode') }}</span><input name="seriesCode" [(ngModel)]="numberSeriesForm().seriesCode" /></label>
-              <label><span>{{ t('Administration.SystemConfiguration.Fields.SeriesNameKey') }}</span><input name="seriesNameKey" [(ngModel)]="numberSeriesForm().seriesNameKey" /></label>
-              <label><span>{{ t('Administration.SystemConfiguration.Fields.Prefix') }}</span><input name="prefix" [(ngModel)]="numberSeriesForm().prefix" /></label>
-              <label><span>{{ t('Administration.SystemConfiguration.Fields.Suffix') }}</span><input name="suffix" [(ngModel)]="numberSeriesForm().suffix" /></label>
-              <label><span>{{ t('Administration.SystemConfiguration.Fields.NextNumber') }}</span><input type="number" name="nextNumber" [(ngModel)]="numberSeriesForm().nextNumber" /></label>
-              <label><span>{{ t('Administration.SystemConfiguration.Fields.PaddingLength') }}</span><input type="number" name="paddingLength" [(ngModel)]="numberSeriesForm().paddingLength" /></label>
-              <label>
-                <span>{{ t('Administration.SystemConfiguration.Fields.ResetFrequency') }}</span>
-                <select name="resetFrequency" [(ngModel)]="numberSeriesForm().resetFrequencyCode">
-                  @for (code of resetFrequencies; track code) {
-                    <option [value]="code">{{ t('Administration.SystemConfiguration.ResetFrequency.' + code) }}</option>
-                  }
-                </select>
-              </label>
-              <button class="ac-btn ac-btn-primary align-end" type="button" (click)="saveNumberSeries()" [disabled]="saving()">
-                <span class="material-symbols-rounded">save</span>
-                {{ t('Administration.SystemConfiguration.Actions.SaveNumberSeries') }}
-              </button>
-            </div>
-          }
         </div>
 
         <div class="panel">
@@ -170,19 +149,6 @@ const languages = ['en-US', 'hi-IN', 'mr-IN'];
             </table>
           </div>
 
-          @if (can(permissions.fiscalYear)) {
-            <div class="form-grid">
-              <label><span>{{ t('Administration.SystemConfiguration.Fields.FiscalYearCode') }}</span><input name="fiscalYearCode" [(ngModel)]="fiscalYearForm().fiscalYearCode" /></label>
-              <label><span>{{ t('Administration.SystemConfiguration.Fields.StartDate') }}</span><input type="date" name="startDate" [(ngModel)]="fiscalYearForm().startDate" /></label>
-              <label><span>{{ t('Administration.SystemConfiguration.Fields.EndDate') }}</span><input type="date" name="endDate" [(ngModel)]="fiscalYearForm().endDate" /></label>
-              <label class="check-row"><input type="checkbox" name="isCurrent" [(ngModel)]="fiscalYearForm().isCurrent" /><span>{{ t('Administration.SystemConfiguration.Fields.Current') }}</span></label>
-              <label class="check-row"><input type="checkbox" name="isClosed" [(ngModel)]="fiscalYearForm().isClosed" /><span>{{ t('Administration.SystemConfiguration.Fields.Closed') }}</span></label>
-              <button class="ac-btn ac-btn-primary align-end" type="button" (click)="saveFiscalYear()" [disabled]="saving()">
-                <span class="material-symbols-rounded">save</span>
-                {{ t('Administration.SystemConfiguration.Actions.SaveFiscalYear') }}
-              </button>
-            </div>
-          }
         </div>
       </section>
 
@@ -225,35 +191,89 @@ const languages = ['en-US', 'hi-IN', 'mr-IN'];
             </table>
           </div>
 
-          @if (can(permissions.notifications)) {
-            <aside class="template-editor">
-              <label><span>{{ t('Administration.SystemConfiguration.Fields.TemplateCode') }}</span><input name="templateCode" [(ngModel)]="templateForm().templateCode" /></label>
-              <label>
-                <span>{{ t('Administration.SystemConfiguration.Fields.Channel') }}</span>
-                <select name="channelCode" [(ngModel)]="templateForm().channelCode">
-                  @for (code of channels; track code) {
-                    <option [value]="code">{{ t('Administration.SystemConfiguration.Channel.' + code) }}</option>
-                  }
-                </select>
-              </label>
-              <label>
-                <span>{{ t('Administration.SystemConfiguration.Fields.Language') }}</span>
-                <select name="languageCode" [(ngModel)]="templateForm().languageCode">
-                  @for (code of languages; track code) {
-                    <option [value]="code">{{ code }}</option>
-                  }
-                </select>
-              </label>
-              <label><span>{{ t('Administration.SystemConfiguration.Fields.Subject') }}</span><input name="subjectTemplate" [(ngModel)]="templateForm().subjectTemplate" /></label>
-              <label class="wide"><span>{{ t('Administration.SystemConfiguration.Fields.Body') }}</span><textarea name="bodyTemplate" [(ngModel)]="templateForm().bodyTemplate"></textarea></label>
-              <button class="ac-btn ac-btn-primary" type="button" (click)="saveTemplate()" [disabled]="saving()">
-                <span class="material-symbols-rounded">save</span>
-                {{ t('Administration.SystemConfiguration.Actions.SaveTemplate') }}
-              </button>
-            </aside>
-          }
         </div>
       </section>
+
+      @if (editorMode(); as mode) {
+        <aside class="ac-admin-drawer">
+          <div class="ac-admin-drawer-head">
+            <div class="ac-admin-drawer-title">
+              <span class="ac-admin-drawer-icon material-symbols-rounded">{{ editorIcon(mode) }}</span>
+              <div>
+                <p>{{ t('Administration.SystemConfiguration.Title') }}</p>
+                <h2>{{ editorTitle(mode) }}</h2>
+              </div>
+            </div>
+            <button class="icon-btn" type="button" (click)="closeEditor()" title="Close editor"><span class="material-symbols-rounded">close</span></button>
+          </div>
+          <div class="ac-admin-drawer-summary">
+            @if (mode === 'number-series') {
+              <span class="ac-admin-pill"><span class="material-symbols-rounded">tag</span>{{ numberSeriesForm().seriesCode || 'NEW' }}</span>
+              <span class="ac-admin-pill"><span class="material-symbols-rounded">pin</span>{{ numberSeriesForm().nextNumber }}</span>
+            }
+            @if (mode === 'fiscal-year') {
+              <span class="ac-admin-pill"><span class="material-symbols-rounded">event</span>{{ fiscalYearForm().fiscalYearCode || 'NEW' }}</span>
+              @if (fiscalYearForm().isCurrent) { <span class="ac-admin-pill featured"><span class="material-symbols-rounded">check_circle</span>{{ t('Administration.SystemConfiguration.Fields.Current') }}</span> }
+            }
+            @if (mode === 'template') {
+              <span class="ac-admin-pill"><span class="material-symbols-rounded">draft</span>{{ templateForm().templateCode || 'NEW' }}</span>
+              <span class="ac-admin-pill"><span class="material-symbols-rounded">language</span>{{ templateForm().languageCode }}</span>
+            }
+          </div>
+          <div class="ac-admin-drawer-body">
+            @if (mode === 'number-series') {
+              <section class="ac-admin-form-section">
+                <div class="ac-admin-section-title"><span class="material-symbols-rounded">format_list_numbered</span><h3>{{ t('Administration.SystemConfiguration.Section.NumberSeries') }}</h3></div>
+                <div class="ac-admin-form-grid">
+                  <label><span>{{ t('Administration.SystemConfiguration.Fields.SeriesCode') }}</span><input name="seriesCode" [(ngModel)]="numberSeriesForm().seriesCode" /></label>
+                  <label><span>{{ t('Administration.SystemConfiguration.Fields.SeriesNameKey') }}</span><input name="seriesNameKey" [(ngModel)]="numberSeriesForm().seriesNameKey" /></label>
+                  <label><span>{{ t('Administration.SystemConfiguration.Fields.Prefix') }}</span><input name="prefix" [(ngModel)]="numberSeriesForm().prefix" /></label>
+                  <label><span>{{ t('Administration.SystemConfiguration.Fields.Suffix') }}</span><input name="suffix" [(ngModel)]="numberSeriesForm().suffix" /></label>
+                  <label><span>{{ t('Administration.SystemConfiguration.Fields.NextNumber') }}</span><input type="number" name="nextNumber" [(ngModel)]="numberSeriesForm().nextNumber" /></label>
+                  <label><span>{{ t('Administration.SystemConfiguration.Fields.PaddingLength') }}</span><input type="number" name="paddingLength" [(ngModel)]="numberSeriesForm().paddingLength" /></label>
+                  <label class="ac-admin-wide"><span>{{ t('Administration.SystemConfiguration.Fields.ResetFrequency') }}</span><select name="resetFrequency" [(ngModel)]="numberSeriesForm().resetFrequencyCode">@for (code of resetFrequencies; track code) { <option [value]="code">{{ t('Administration.SystemConfiguration.ResetFrequency.' + code) }}</option> }</select></label>
+                </div>
+              </section>
+            }
+            @if (mode === 'fiscal-year') {
+              <section class="ac-admin-form-section">
+                <div class="ac-admin-section-title"><span class="material-symbols-rounded">event_available</span><h3>{{ t('Administration.SystemConfiguration.Section.FiscalYear') }}</h3></div>
+                <div class="ac-admin-form-grid">
+                  <label><span>{{ t('Administration.SystemConfiguration.Fields.FiscalYearCode') }}</span><input name="fiscalYearCode" [(ngModel)]="fiscalYearForm().fiscalYearCode" /></label>
+                  <label><span>{{ t('Administration.SystemConfiguration.Fields.StartDate') }}</span><input type="date" name="startDate" [(ngModel)]="fiscalYearForm().startDate" /></label>
+                  <label><span>{{ t('Administration.SystemConfiguration.Fields.EndDate') }}</span><input type="date" name="endDate" [(ngModel)]="fiscalYearForm().endDate" /></label>
+                  <label class="ac-admin-switch-row"><input type="checkbox" name="isCurrent" [(ngModel)]="fiscalYearForm().isCurrent" /><span>{{ t('Administration.SystemConfiguration.Fields.Current') }}</span></label>
+                  <label class="ac-admin-switch-row"><input type="checkbox" name="isClosed" [(ngModel)]="fiscalYearForm().isClosed" /><span>{{ t('Administration.SystemConfiguration.Fields.Closed') }}</span></label>
+                </div>
+              </section>
+            }
+            @if (mode === 'template') {
+              <section class="ac-admin-form-section">
+                <div class="ac-admin-section-title"><span class="material-symbols-rounded">notifications</span><h3>{{ t('Administration.SystemConfiguration.Section.NotificationTemplates') }}</h3></div>
+                <div class="ac-admin-form-grid">
+                  <label><span>{{ t('Administration.SystemConfiguration.Fields.TemplateCode') }}</span><input name="templateCode" [(ngModel)]="templateForm().templateCode" /></label>
+                  <label><span>{{ t('Administration.SystemConfiguration.Fields.Channel') }}</span><select name="channelCode" [(ngModel)]="templateForm().channelCode">@for (code of channels; track code) { <option [value]="code">{{ t('Administration.SystemConfiguration.Channel.' + code) }}</option> }</select></label>
+                  <label><span>{{ t('Administration.SystemConfiguration.Fields.Language') }}</span><select name="languageCode" [(ngModel)]="templateForm().languageCode">@for (code of languages; track code) { <option [value]="code">{{ code }}</option> }</select></label>
+                  <label class="ac-admin-wide"><span>{{ t('Administration.SystemConfiguration.Fields.Subject') }}</span><input name="subjectTemplate" [(ngModel)]="templateForm().subjectTemplate" /></label>
+                  <label class="ac-admin-wide"><span>{{ t('Administration.SystemConfiguration.Fields.Body') }}</span><textarea name="bodyTemplate" [(ngModel)]="templateForm().bodyTemplate"></textarea></label>
+                </div>
+              </section>
+            }
+          </div>
+          <div class="ac-admin-drawer-actions">
+            <button class="ac-btn ac-btn-secondary" type="button" (click)="closeEditor()">{{ t('Common.Actions.Cancel') }}</button>
+            @if (mode === 'number-series') {
+              <button class="ac-btn ac-btn-primary" type="button" (click)="saveNumberSeries()" [disabled]="saving()"><span class="material-symbols-rounded">save</span>{{ t('Administration.SystemConfiguration.Actions.SaveNumberSeries') }}</button>
+            }
+            @if (mode === 'fiscal-year') {
+              <button class="ac-btn ac-btn-primary" type="button" (click)="saveFiscalYear()" [disabled]="saving()"><span class="material-symbols-rounded">save</span>{{ t('Administration.SystemConfiguration.Actions.SaveFiscalYear') }}</button>
+            }
+            @if (mode === 'template') {
+              <button class="ac-btn ac-btn-primary" type="button" (click)="saveTemplate()" [disabled]="saving()"><span class="material-symbols-rounded">save</span>{{ t('Administration.SystemConfiguration.Actions.SaveTemplate') }}</button>
+            }
+          </div>
+        </aside>
+      }
     </section>
   `,
   styles: `
@@ -277,7 +297,6 @@ const languages = ['en-US', 'hi-IN', 'mr-IN'];
     .icon-btn { width: 36px; height: 36px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-text-2); cursor: pointer; display: inline-grid; place-items: center; }
     .form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
     .template-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 420px); gap: 14px; align-items: start; }
-    .template-editor { margin-top: 14px; display: flex; flex-direction: column; gap: 12px; }
     label { display: flex; flex-direction: column; gap: 6px; color: var(--ac-text-2); font-size: 12px; font-weight: 700; }
     input, select, textarea { border: 1px solid var(--ac-border); border-radius: 8px; padding: 0 10px; background: var(--ac-surface); color: var(--ac-text); font: inherit; }
     input, select { height: 38px; }
@@ -303,6 +322,7 @@ export class SystemConfigurationPageComponent implements OnInit {
   protected readonly numberSeriesForm = signal<NumberSeries>(createEmptyNumberSeries());
   protected readonly fiscalYearForm = signal<FiscalYear>(createEmptyFiscalYear());
   protected readonly templateForm = signal<NotificationTemplate>(createEmptyTemplate());
+  protected readonly editorMode = signal<ConfigEditorMode | null>(null);
   protected readonly saving = signal(false);
 
   private readonly service = inject(SystemConfigurationService);
@@ -338,28 +358,56 @@ export class SystemConfigurationPageComponent implements OnInit {
     }, 'Administration.SystemConfiguration.Messages.SettingsSaved');
   }
 
-  protected newNumberSeries(): void { this.numberSeriesForm.set(createEmptyNumberSeries()); }
-  protected editNumberSeries(item: NumberSeries): void { this.numberSeriesForm.set({ ...item }); }
+  protected newNumberSeries(): void { this.numberSeriesForm.set(createEmptyNumberSeries()); this.editorMode.set('number-series'); }
+  protected editNumberSeries(item: NumberSeries): void { this.numberSeriesForm.set({ ...item }); this.editorMode.set('number-series'); }
   protected async saveNumberSeries(): Promise<void> { await this.saveOperation(() => this.service.saveNumberSeries(this.numberSeriesForm()), 'Administration.SystemConfiguration.Messages.NumberSeriesSaved'); }
   protected async setNumberSeriesStatus(item: NumberSeries, isActive: boolean): Promise<void> {
     const key = isActive ? 'Administration.SystemConfiguration.Messages.NumberSeriesActivated' : 'Administration.SystemConfiguration.Messages.NumberSeriesDeactivated';
     await this.saveOperation(() => this.service.setNumberSeriesStatus(item.numberSeriesGuid, isActive), key);
   }
 
-  protected newFiscalYear(): void { this.fiscalYearForm.set(createEmptyFiscalYear()); }
-  protected editFiscalYear(item: FiscalYear): void { this.fiscalYearForm.set({ ...normalizeFiscalYear(item) }); }
+  protected newFiscalYear(): void { this.fiscalYearForm.set(createEmptyFiscalYear()); this.editorMode.set('fiscal-year'); }
+  protected editFiscalYear(item: FiscalYear): void { this.fiscalYearForm.set({ ...normalizeFiscalYear(item) }); this.editorMode.set('fiscal-year'); }
   protected async saveFiscalYear(): Promise<void> { await this.saveOperation(() => this.service.saveFiscalYear(this.fiscalYearForm()), 'Administration.SystemConfiguration.Messages.FiscalYearSaved'); }
   protected async setFiscalYearStatus(item: FiscalYear, isClosed: boolean): Promise<void> {
     const key = isClosed ? 'Administration.SystemConfiguration.Messages.FiscalYearClosed' : 'Administration.SystemConfiguration.Messages.FiscalYearOpened';
     await this.saveOperation(() => this.service.setFiscalYearStatus(item.fiscalYearGuid, isClosed), key);
   }
 
-  protected newTemplate(): void { this.templateForm.set(createEmptyTemplate()); }
-  protected editTemplate(item: NotificationTemplate): void { this.templateForm.set({ ...item }); }
+  protected newTemplate(): void { this.templateForm.set(createEmptyTemplate()); this.editorMode.set('template'); }
+  protected editTemplate(item: NotificationTemplate): void { this.templateForm.set({ ...item }); this.editorMode.set('template'); }
   protected async saveTemplate(): Promise<void> { await this.saveOperation(() => this.service.saveTemplate(this.templateForm()), 'Administration.SystemConfiguration.Messages.TemplateSaved'); }
   protected async setTemplateStatus(item: NotificationTemplate, isActive: boolean): Promise<void> {
     const key = isActive ? 'Administration.SystemConfiguration.Messages.TemplateActivated' : 'Administration.SystemConfiguration.Messages.TemplateDeactivated';
     await this.saveOperation(() => this.service.setTemplateStatus(item.notificationTemplateGuid, isActive), key);
+  }
+
+  protected closeEditor(): void {
+    this.editorMode.set(null);
+  }
+
+  protected editorTitle(mode: ConfigEditorMode): string {
+    if (mode === 'number-series') {
+      return this.t('Administration.SystemConfiguration.Section.NumberSeries');
+    }
+
+    if (mode === 'fiscal-year') {
+      return this.t('Administration.SystemConfiguration.Section.FiscalYear');
+    }
+
+    return this.t('Administration.SystemConfiguration.Section.NotificationTemplates');
+  }
+
+  protected editorIcon(mode: ConfigEditorMode): string {
+    if (mode === 'number-series') {
+      return 'format_list_numbered';
+    }
+
+    if (mode === 'fiscal-year') {
+      return 'event_available';
+    }
+
+    return 'notifications';
   }
 
   private async saveOperation(operation: () => Promise<{ success: boolean; message: string; data: unknown }>, successKey: string): Promise<void> {
@@ -368,6 +416,7 @@ export class SystemConfigurationPageComponent implements OnInit {
       const response = await operation();
       if (!response.success) { this.toast.error(this.t(response.message)); return; }
       await this.load();
+      this.closeEditor();
       this.toast.success(this.t(successKey));
     } finally {
       this.saving.set(false);

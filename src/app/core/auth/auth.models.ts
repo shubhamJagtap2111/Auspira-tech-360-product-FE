@@ -83,5 +83,6 @@ export interface AuthResponse {
   refreshToken: string;
   accessTokenExpiresAt: string;
   permissions: string[];
+  roleCodes?: string[];
   menuItems: AuthMenuItem[];
 }
