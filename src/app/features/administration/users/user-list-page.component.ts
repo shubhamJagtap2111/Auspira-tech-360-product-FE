@@ -5,6 +5,7 @@ import { AuthStore } from '../../../core/auth/auth.store';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
 import { DialogService } from '../../../shared/ui/dialog/dialog.service';
+import { AcDropdownComponent } from '../../../shared/ui/dropdown/dropdown.component';
 import { AssignableRole, ManagedUser, UserAuditHistoryItem, UserFormModel, UserLanguageOption, UserTimeZoneOption } from './user-management.models';
 import { UserManagementService } from './user-management.service';
 
@@ -24,7 +25,7 @@ const permissions = {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, AcDropdownComponent],
   template: `
     <section class="user-page">
       <header class="page-head">
@@ -53,20 +54,11 @@ const permissions = {
         </label>
         <label>
           <span>{{ t('Administration.UserManagement.Filter.Role') }}</span>
-          <select name="roleCode" [(ngModel)]="roleCode" (change)="loadUsers()">
-            <option value="">{{ t('Administration.UserManagement.Filter.AllRoles') }}</option>
-            @for (role of roles(); track role.roleCode) {
-              <option [value]="role.roleCode">{{ t(role.roleNameKey) }}</option>
-            }
-          </select>
+          <ac-dropdown name="roleCode" [(ngModel)]="roleCode" [options]="roleFilterOptions()" (selectionChange)="loadUsers()" />
         </label>
         <label>
           <span>{{ t('Administration.UserManagement.Filter.Status') }}</span>
-          <select name="status" [(ngModel)]="statusFilter" (change)="loadUsers()">
-            <option value="all">{{ t('Administration.UserManagement.Filter.AllStatuses') }}</option>
-            <option value="active">{{ t('Administration.UserManagement.Status.Active') }}</option>
-            <option value="inactive">{{ t('Administration.UserManagement.Status.Inactive') }}</option>
-          </select>
+          <ac-dropdown name="status" [(ngModel)]="statusFilter" [options]="statusOptions()" (selectionChange)="loadUsers()" />
         </label>
         <label>
           <span>{{ t('Administration.UserManagement.Columns.Branch') }}</span>
@@ -231,8 +223,8 @@ const permissions = {
                 <label><span>{{ t('Administration.UserManagement.Form.HospitalName') }}</span><input name="hospitalName" [(ngModel)]="form.hospitalName" /></label>
                 <label><span>{{ t('Administration.UserManagement.Form.BranchCode') }}</span><input name="branchCode" [(ngModel)]="form.branchCode" /></label>
                 <label><span>{{ t('Administration.UserManagement.Form.DepartmentCode') }}</span><input name="departmentCode" [(ngModel)]="form.departmentCode" /></label>
-                <label><span>{{ t('Administration.UserManagement.Form.Language') }}</span><select name="languageCode" [(ngModel)]="form.languageCode"><option value=""></option>@for (language of languages(); track language.languageCode) { <option [value]="language.languageCode">{{ language.englishName }}</option> }</select></label>
-                <label><span>{{ t('Administration.UserManagement.Form.TimeZone') }}</span><select name="timeZoneCode" [(ngModel)]="form.timeZoneCode"><option value=""></option>@for (timeZone of timeZones(); track timeZone.timeZoneCode) { <option [value]="timeZone.timeZoneCode">{{ t(timeZone.displayNameKey) }}</option> }</select></label>
+                <label><span>{{ t('Administration.UserManagement.Form.Language') }}</span><ac-dropdown name="languageCode" [(ngModel)]="form.languageCode" [options]="languageOptions()" /></label>
+                <label><span>{{ t('Administration.UserManagement.Form.TimeZone') }}</span><ac-dropdown name="timeZoneCode" [(ngModel)]="form.timeZoneCode" [options]="timeZoneOptions()" /></label>
               </div>
             </section>
 
@@ -363,6 +355,35 @@ export class UserListPageComponent implements OnInit {
 
   protected can(permissionCode: string): boolean {
     return this.authStore.hasPermission(permissionCode);
+  }
+
+  protected roleFilterOptions() {
+    return [
+      { label: this.t('Administration.UserManagement.Filter.AllRoles'), value: '' },
+      ...this.roles().map(role => ({ label: this.t(role.roleNameKey), value: role.roleCode }))
+    ];
+  }
+
+  protected statusOptions() {
+    return [
+      { label: this.t('Administration.UserManagement.Filter.AllStatuses'), value: 'all' },
+      { label: this.t('Administration.UserManagement.Status.Active'), value: 'active' },
+      { label: this.t('Administration.UserManagement.Status.Inactive'), value: 'inactive' }
+    ];
+  }
+
+  protected languageOptions() {
+    return [
+      { label: '', value: '' },
+      ...this.languages().map(language => ({ label: language.englishName, value: language.languageCode }))
+    ];
+  }
+
+  protected timeZoneOptions() {
+    return [
+      { label: '', value: '' },
+      ...this.timeZones().map(timeZone => ({ label: this.t(timeZone.displayNameKey), value: timeZone.timeZoneCode }))
+    ];
   }
 
   protected async loadUsers(): Promise<void> {

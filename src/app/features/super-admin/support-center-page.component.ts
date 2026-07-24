@@ -3,12 +3,13 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ToastService } from '../../shared/ui/toast/toast.service';
+import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
 import { SupportCenterSnapshot, SupportTicketItem } from './support-center.models';
 import { SupportCenterService } from './support-center.service';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="support-page">
@@ -78,24 +79,12 @@ import { SupportCenterService } from './support-center.service';
           <aside class="ops-panel">
             <section class="mini-form">
               <h2>New Ticket</h2>
-              <select [(ngModel)]="ticketForm.tenantCode" name="ticketTenant">
-                <option value="">Select hospital</option>
-                @for (hospital of model.hospitals; track hospital.tenantCode) {
-                  <option [value]="hospital.tenantCode">{{ hospital.hospitalName }}</option>
-                }
-              </select>
-              <select [(ngModel)]="ticketForm.issueType" name="issueType">
-                <option>Provisioning</option>
-                <option>Billing</option>
-                <option>Database</option>
-                <option>Performance</option>
-                <option>Access</option>
-                <option>Integration</option>
-              </select>
+              <ac-dropdown [(ngModel)]="ticketForm.tenantCode" name="ticketTenant" [options]="hospitalOptions(model)" />
+              <ac-dropdown [(ngModel)]="ticketForm.issueType" name="issueType" [options]="issueTypeOptions" />
               <input [(ngModel)]="ticketForm.title" name="ticketTitle" placeholder="Issue title" />
               <textarea [(ngModel)]="ticketForm.description" name="ticketDescription" placeholder="Issue details"></textarea>
               <div class="form-grid">
-                <select [(ngModel)]="ticketForm.priority" name="priority"><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></select>
+                <ac-dropdown [(ngModel)]="ticketForm.priority" name="priority" [options]="priorityOptions" />
                 <input [(ngModel)]="ticketForm.slaHours" name="slaHours" type="number" min="1" />
               </div>
               <input [(ngModel)]="ticketForm.assignedTo" name="assignedTo" placeholder="Assigned to" />
@@ -109,13 +98,7 @@ import { SupportCenterService } from './support-center.service';
               } @else {
                 <p class="empty">Select a ticket to update.</p>
               }
-              <select [(ngModel)]="statusForm.status" name="status">
-                <option>Open</option>
-                <option>InProgress</option>
-                <option>Waiting</option>
-                <option>Resolved</option>
-                <option>Closed</option>
-              </select>
+              <ac-dropdown [(ngModel)]="statusForm.status" name="status" [options]="ticketStatusOptions" />
               <input [(ngModel)]="statusForm.assignedTo" name="statusAssignedTo" placeholder="Assigned to" />
               <textarea [(ngModel)]="statusForm.resolution" name="resolution" placeholder="Resolution"></textarea>
               <button class="ac-btn ac-btn-primary" type="button" [disabled]="!selectedTicketId()" (click)="updateStatus()">Update Status</button>
@@ -185,9 +168,19 @@ export class SupportCenterPageComponent implements OnInit {
 
   protected ticketForm = { tenantCode: '', issueType: 'Provisioning', title: '', description: '', priority: 'Medium', slaHours: 24, assignedTo: '' };
   protected statusForm = { status: 'InProgress', assignedTo: '', resolution: '' };
+  protected readonly issueTypeOptions = ['Provisioning', 'Billing', 'Database', 'Performance', 'Access', 'Integration'].map(value => ({ label: value, value }));
+  protected readonly priorityOptions = ['Low', 'Medium', 'High', 'Critical'].map(value => ({ label: value, value }));
+  protected readonly ticketStatusOptions = ['Open', 'InProgress', 'Waiting', 'Resolved', 'Closed'].map(value => ({ label: value, value }));
 
   ngOnInit(): void {
     void this.load();
+  }
+
+  protected hospitalOptions(model: SupportCenterSnapshot) {
+    return [
+      { label: 'Select hospital', value: '' },
+      ...model.hospitals.map(hospital => ({ label: hospital.hospitalName, value: hospital.tenantCode }))
+    ];
   }
 
   protected async load(): Promise<void> {

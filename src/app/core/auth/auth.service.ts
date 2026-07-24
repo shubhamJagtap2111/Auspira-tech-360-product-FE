@@ -7,12 +7,14 @@ import {
   AuthenticationSession,
   AuthResponse,
   ChangePasswordRequest,
+  CurrentUserProfile,
   ForgotPasswordRequest,
   LoginRequest,
   RegisterTenantRequest,
   RefreshTokenRequest,
   ResetPasswordRequest,
   TenantRegistrationResponse,
+  UpdateCurrentUserRequest,
   VerifyEmailRequest
 } from './auth.models';
 
@@ -90,5 +92,13 @@ export class AuthService {
 
   unlockAccount(userId: string): Promise<ApiResponse<{ accepted: boolean }>> {
     return firstValueFrom(this.api.post<ApiResponse<{ accepted: boolean }>>(`/auth/users/${userId}/unlock`, {}));
+  }
+
+  getCurrentUser(): Promise<CurrentUserProfile> {
+    return firstValueFrom(this.api.get<CurrentUserProfile>('/auth/me'));
+  }
+
+  updateCurrentUser(request: UpdateCurrentUserRequest): Promise<ApiResponse<CurrentUserProfile>> {
+    return firstValueFrom(this.api.put<ApiResponse<CurrentUserProfile>>('/auth/me', request));
   }
 }

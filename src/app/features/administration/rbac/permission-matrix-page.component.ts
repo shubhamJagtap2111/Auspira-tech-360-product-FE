@@ -2,12 +2,13 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { I18nService } from '../../../core/i18n/i18n.service';
+import { AcDropdownComponent } from '../../../shared/ui/dropdown/dropdown.component';
 import { PermissionMatrixRow, RoleDto } from './rbac.models';
 import { RbacService } from './rbac.service';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, AcDropdownComponent],
   template: `
     <section class="matrix-page">
       <header class="page-head">
@@ -23,12 +24,7 @@ import { RbacService } from './rbac.service';
       <section class="toolbar">
         <label>
           <span>{{ t('Administration.Rbac.Columns.Role') }}</span>
-          <select name="roleCode" [(ngModel)]="roleCode" (change)="loadMatrix()">
-            <option value="">{{ t('Administration.Rbac.Filter.AllRoles') }}</option>
-            @for (role of roles(); track role.roleCode) {
-              <option [value]="role.roleCode">{{ t(role.roleNameKey) }}</option>
-            }
-          </select>
+          <ac-dropdown name="roleCode" [(ngModel)]="roleCode" [options]="roleOptions()" (selectionChange)="loadMatrix()" />
         </label>
         <label>
           <span>{{ t('Administration.Rbac.Columns.Permission') }}</span>
@@ -170,6 +166,13 @@ export class PermissionMatrixPageComponent implements OnInit {
 
   protected t(key: string): string {
     return this.i18n.translate(key);
+  }
+
+  protected roleOptions() {
+    return [
+      { label: this.t('Administration.Rbac.Filter.AllRoles'), value: '' },
+      ...this.roles().map(role => ({ label: this.t(role.roleNameKey), value: role.roleCode }))
+    ];
   }
 
   protected async loadRoles(): Promise<void> {

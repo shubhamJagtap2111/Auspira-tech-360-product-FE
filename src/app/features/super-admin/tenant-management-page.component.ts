@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { DialogService } from '../../shared/ui/dialog/dialog.service';
+import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
 import { PlanManagementService } from './plan-management.service';
 import {
   RegisterTenantRequest,
@@ -23,7 +24,7 @@ interface TenantTabItem {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent],
   template: `
     <section class="tenant-page">
       <header class="page-head">
@@ -62,30 +63,15 @@ interface TenantTabItem {
         </label>
         <label>
           <span>Tenant Status</span>
-          <select name="tenantStatus" [(ngModel)]="tenantStatus" (change)="loadTenants()">
-            <option value="">All</option>
-            @for (status of statusOptions; track status) {
-              <option [value]="status">{{ status }}</option>
-            }
-          </select>
+          <ac-dropdown name="tenantStatus" [(ngModel)]="tenantStatus" [options]="tenantStatusOptions()" (selectionChange)="loadTenants()" />
         </label>
         <label>
           <span>License</span>
-          <select name="licenseStatus" [(ngModel)]="licenseStatus" (change)="loadTenants()">
-            <option value="">All</option>
-            @for (status of licenseOptions; track status) {
-              <option [value]="status">{{ status }}</option>
-            }
-          </select>
+          <ac-dropdown name="licenseStatus" [(ngModel)]="licenseStatus" [options]="licenseStatusOptions()" (selectionChange)="loadTenants()" />
         </label>
         <label>
           <span>Database</span>
-          <select name="databaseStatus" [(ngModel)]="databaseStatus" (change)="loadTenants()">
-            <option value="">All</option>
-            @for (status of databaseOptions; track status) {
-              <option [value]="status">{{ status }}</option>
-            }
-          </select>
+          <ac-dropdown name="databaseStatus" [(ngModel)]="databaseStatus" [options]="databaseStatusOptions()" (selectionChange)="loadTenants()" />
         </label>
         <button class="icon-btn" type="button" (click)="loadTenants()" title="Search hospitals">
           <span class="material-symbols-rounded">search</span>
@@ -245,11 +231,7 @@ interface TenantTabItem {
               <div class="quick-actions">
                 <label>
                   <span>Plan</span>
-                  <select name="selectedPlan" [(ngModel)]="selectedPlan">
-                    @for (plan of planOptions(); track plan) {
-                      <option [value]="plan">{{ plan }}</option>
-                    }
-                  </select>
+                  <ac-dropdown name="selectedPlan" [(ngModel)]="selectedPlan" [options]="planDropdownOptions()" />
                 </label>
                 <label>
                   <span>Reason</span>
@@ -495,6 +477,22 @@ export class TenantManagementPageComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     await Promise.all([this.loadPlanOptions(), this.loadTenants()]);
+  }
+
+  protected tenantStatusOptions() {
+    return [{ label: 'All', value: '' }, ...this.statusOptions.map(status => ({ label: status, value: status }))];
+  }
+
+  protected licenseStatusOptions() {
+    return [{ label: 'All', value: '' }, ...this.licenseOptions.map(status => ({ label: status, value: status }))];
+  }
+
+  protected databaseStatusOptions() {
+    return [{ label: 'All', value: '' }, ...this.databaseOptions.map(status => ({ label: status, value: status }))];
+  }
+
+  protected planDropdownOptions() {
+    return this.planOptions().map(plan => ({ label: plan, value: plan }));
   }
 
   protected async loadPlanOptions(): Promise<void> {

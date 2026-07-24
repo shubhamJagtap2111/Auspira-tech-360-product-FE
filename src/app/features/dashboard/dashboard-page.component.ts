@@ -74,13 +74,22 @@ interface StaffAction {
           <section class="main-grid">
             <article class="panel chart-panel">
               <div class="section-head">
-                <h2>{{ t('Administration.Dashboard.Widgets.AuditSummary') }}</h2>
+                <div>
+                  <h2>Hospital activity</h2>
+                  <p>Simple view of what happened in the workspace.</p>
+                </div>
                 <span>{{ t('Administration.Dashboard.Labels.LastSevenDays') }}</span>
               </div>
               <div class="bar-list">
                 @for (item of model.auditSummary; track item.actionCode) {
-                  <div class="bar-row">
-                    <span>{{ item.actionCode }}</span>
+                  <div class="bar-row" [style.--tone]="auditTone(item.actionCode)">
+                    <span class="audit-name">
+                      <span class="audit-icon material-symbols-rounded">{{ auditIcon(item.actionCode) }}</span>
+                      <span>
+                        <strong>{{ auditLabel(item.actionCode) }}</strong>
+                        <small>{{ auditHelp(item.actionCode) }}</small>
+                      </span>
+                    </span>
                     <div class="bar-track"><div class="bar-fill" [style.width.%]="barWidth(item.eventCount, model.auditSummary)"></div></div>
                     <strong>{{ item.eventCount }}</strong>
                   </div>
@@ -290,11 +299,17 @@ interface StaffAction {
     .staff-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr); gap: 16px; align-items: start; }
     .panel { padding: 16px; min-width: 0; }
     .section-head h2 { margin: 0; font-size: 16px; }
+    .section-head p { margin: 3px 0 0; color: var(--ac-muted); font-size: 12px; }
     .section-head span { color: var(--ac-muted); font-size: 12px; font-weight: 700; }
     .bar-list, .health-list, .login-list, .template-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
-    .bar-row { display: grid; grid-template-columns: 120px 1fr 48px; gap: 10px; align-items: center; font-size: 13px; }
+    .bar-row { display: grid; grid-template-columns: minmax(220px, 300px) 1fr 48px; gap: 12px; align-items: center; font-size: 13px; }
+    .audit-name { display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: center; gap: 10px; min-width: 0; }
+    .audit-name strong { display: block; color: var(--ac-text); line-height: 1.15; }
+    .audit-name small { display: block; color: var(--ac-muted); font-size: 11px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .audit-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 8px; background: color-mix(in srgb, var(--tone) 12%, transparent); color: var(--tone); font-size: 19px; }
     .bar-track { height: 10px; border-radius: 999px; background: var(--ac-bg); overflow: hidden; }
-    .bar-fill { height: 100%; border-radius: inherit; background: #2563eb; }
+    .bar-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--tone), color-mix(in srgb, var(--tone) 72%, #ffffff)); }
+    .bar-row > strong { justify-self: end; min-width: 34px; padding: 4px 8px; border-radius: 999px; background: color-mix(in srgb, var(--tone) 10%, transparent); color: var(--tone); text-align: center; font-size: 12px; }
     .health-row, .login-row, .template-row { display: flex; gap: 10px; align-items: center; padding: 10px; border: 1px solid var(--ac-border); border-radius: 8px; }
     .health-row p, .login-row p { margin: 3px 0 0; color: var(--ac-muted); font-size: 12px; }
     .dot { width: 10px; height: 10px; border-radius: 999px; background: #16a34a; flex: 0 0 auto; }
@@ -323,7 +338,7 @@ interface StaffAction {
     .mini-health div { display: flex; align-items: center; gap: 8px; color: var(--ac-text-2); font-size: 13px; font-weight: 800; }
     .generated { color: var(--ac-muted); font-size: 12px; text-align: right; }
     @media (max-width: 1280px) { .kpi-grid, .staff-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .main-grid, .lower-grid, .staff-grid { grid-template-columns: 1fr; } }
-    @media (max-width: 760px) { .dashboard-hero { grid-template-columns: 1fr; } .kpi-grid, .staff-kpi-grid, .quick-actions { grid-template-columns: 1fr; } .section-head { flex-direction: column; } .bar-row { grid-template-columns: 1fr; } }
+    @media (max-width: 760px) { .dashboard-hero { grid-template-columns: 1fr; } .kpi-grid, .staff-kpi-grid, .quick-actions { grid-template-columns: 1fr; } .section-head { flex-direction: column; } .bar-row { grid-template-columns: 1fr; } .audit-name small { white-space: normal; } }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -388,6 +403,22 @@ export class DashboardPageComponent implements OnInit {
     const max = Math.max(...items.map(item => item.eventCount), 1);
     return Math.max(6, Math.round((value / max) * 100));
   }
+
+  protected auditLabel(actionCode: string): string {
+    return auditCopy(actionCode).label;
+  }
+
+  protected auditHelp(actionCode: string): string {
+    return auditCopy(actionCode).help;
+  }
+
+  protected auditIcon(actionCode: string): string {
+    return auditCopy(actionCode).icon;
+  }
+
+  protected auditTone(actionCode: string): string {
+    return auditCopy(actionCode).tone;
+  }
 }
 
 function formatNumber(value: number): string {
@@ -427,4 +458,36 @@ function createAccessModules(permissions: string[]): string[] {
     .map(module => module.label);
 
   return matches.length > 0 ? matches : ['Profile'];
+}
+
+function auditCopy(actionCode: string): { label: string; help: string; icon: string; tone: string } {
+  const normalized = actionCode.replace(/[\s_-]+/g, '').toLowerCase();
+  const labels: Record<string, { label: string; help: string; icon: string; tone: string }> = {
+    httprequest: { label: 'Workspace usage', help: 'Screens and services used by the team', icon: 'monitoring', tone: '#2563eb' },
+    httprequestfailed: { label: 'Needs support attention', help: 'Screen or service requests that did not complete', icon: 'report', tone: '#dc2626' },
+    login: { label: 'Sign-in checks', help: 'People trying to access Care360', icon: 'login', tone: '#7c3aed' },
+    loginsucceeded: { label: 'Successful sign-ins', help: 'Users who entered the system successfully', icon: 'verified_user', tone: '#16a34a' },
+    loginfailed: { label: 'Unsuccessful sign-ins', help: 'Incorrect password or blocked access attempts', icon: 'lock', tone: '#d97706' },
+    logout: { label: 'Sessions closed', help: 'Users who signed out of Care360', icon: 'logout', tone: '#0891b2' },
+    create: { label: 'New records created', help: 'New hospital information added by users', icon: 'add_circle', tone: '#0f766e' },
+    update: { label: 'Records updated', help: 'Existing hospital information changed', icon: 'edit', tone: '#2563eb' },
+    delete: { label: 'Records removed', help: 'Hospital information removed from the workspace', icon: 'delete', tone: '#be123c' },
+    updatebranding: { label: 'Hospital profile updated', help: 'Logo, colors, or identity settings changed', icon: 'palette', tone: '#c026d3' },
+    setparent: { label: 'Access hierarchy changed', help: 'Role or organization relationship updated', icon: 'account_tree', tone: '#475569' }
+  };
+
+  return labels[normalized] ?? {
+    label: humanizeAction(actionCode),
+    help: 'Workspace event recorded by Care360',
+    icon: 'history',
+    tone: '#64748b'
+  };
+}
+
+function humanizeAction(value: string): string {
+  return value
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .trim()
+    .replace(/\w\S*/g, word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
 }

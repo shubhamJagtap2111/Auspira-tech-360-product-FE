@@ -1,14 +1,35 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { AuthService } from '../../core/auth/auth.service';
 import { AuthStore } from '../../core/auth/auth.store';
+import { AuthenticationSession, AuthResponse, CurrentUserProfile } from '../../core/auth/auth.models';
 import { getUserRoleLabel, isPlatformUser as isPlatformSession } from '../../core/auth/user-access';
 import { TenantContextService } from '../../core/tenant/tenant-context.service';
+import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
+import { ToastService } from '../../shared/ui/toast/toast.service';
+import { AdministrationDashboard } from '../dashboard/administration-dashboard.models';
+import { AdministrationDashboardService } from '../dashboard/administration-dashboard.service';
 
 type ProfileTab = 'personal' | 'security' | 'preferences' | 'notifications' | 'sessions';
 
+interface ProfileSessionItem {
+  id: string;
+  icon: string;
+  device: string;
+  location: string;
+  browser: string;
+  time: string;
+}
+
+interface ProfileFormModel {
+  firstName: string;
+  lastName: string;
+  mobileNo: string;
+}
+
 @Component({
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, AcDropdownComponent],
   template: `
     <div class="profile-page">
 
@@ -33,16 +54,15 @@ type ProfileTab = 'personal' | 'security' | 'preferences' | 'notifications' | 's
           <div class="hero-info">
             <h2 class="hero-name">{{ displayName() }}</h2>
             <p class="hero-role">{{ roleLabel() }} - {{ organizationLabel() }}</p>
-            <p class="hero-role">Administrator — City General Hospital</p>
             <div class="hero-badges">
               <span class="ac-badge ac-badge-primary">{{ roleLabel() }}</span>
-              <span class="ac-badge ac-badge-success">Active</span>
+              <span class="ac-badge" [class.ac-badge-success]="isAccountActive()" [class.ac-badge-secondary]="!isAccountActive()">{{ isAccountActive() ? 'Active' : 'Inactive' }}</span>
               <span class="ac-badge ac-badge-secondary">{{ displayEmail() }}</span>
             </div>
           </div>
         </div>
         <div class="hero-stats">
-          @for (s of heroStats; track s.label) {
+          @for (s of heroStats(); track s.label) {
             <div class="hero-stat">
               <strong>{{ s.value }}</strong>
               <span>{{ s.label }}</span>
@@ -68,49 +88,68 @@ type ProfileTab = 'personal' | 'security' | 'preferences' | 'notifications' | 's
           <!-- ── Personal Info ── -->
           @if (activeTab() === 'personal') {
             <div class="content-card ac-card">
-              <div class="section-head">
-                <h3 class="ac-section-title">Personal Information</h3>
-                <p class="section-sub">Update your personal details here.</p>
+              <div class="section-head profile-edit-head">
+                <div>
+                  <h3 class="ac-section-title">Personal Information</h3>
+                  <p class="section-sub">{{ editingProfile() ? 'Update the details used on your Care360 account.' : 'Personal details from your account record.' }}</p>
+                </div>
+                @if (!editingProfile()) {
+                  <button type="button" class="ac-btn ac-btn-secondary" (click)="startEditProfile()">
+                    <span class="material-symbols-rounded" style="font-size:16px">edit</span>
+                    Edit details
+                  </button>
+                }
               </div>
-              <form class="profile-form">
+              <form class="profile-form" (ngSubmit)="saveProfile()">
                 <div class="form-row">
                   <div class="form-group">
                     <label class="form-label">First Name</label>
-                    <input class="ac-input" type="text" [value]="firstName()" />
+                    <input class="ac-input" type="text" name="firstName" [(ngModel)]="profileForm.firstName" [readonly]="!editingProfile()" placeholder="Enter first name" />
                   </div>
                   <div class="form-group">
                     <label class="form-label">Last Name</label>
-                    <input class="ac-input" type="text" [value]="lastName()" />
+                    <input class="ac-input" type="text" name="lastName" [(ngModel)]="profileForm.lastName" [readonly]="!editingProfile()" placeholder="Enter last name" />
                   </div>
                 </div>
                 <div class="form-row">
                   <div class="form-group">
                     <label class="form-label">Email Address</label>
-                    <input class="ac-input" type="email" [value]="displayEmail()" />
+                    <input class="ac-input" type="email" [value]="displayEmail()" readonly />
                   </div>
                   <div class="form-group">
                     <label class="form-label">Phone Number</label>
-                    <input class="ac-input" type="tel" value="+91 98765 43210" />
+                    <input class="ac-input" type="tel" name="mobileNo" [(ngModel)]="profileForm.mobileNo" [readonly]="!editingProfile()" placeholder="Add phone number" />
                   </div>
                 </div>
                 <div class="form-row">
                   <div class="form-group">
-                    <label class="form-label">Designation</label>
-                    <input class="ac-input" type="text" value="Chief Medical Officer" />
+                    <label class="form-label">Role</label>
+                    <input class="ac-input" type="text" [value]="roleLabel()" readonly />
                   </div>
                   <div class="form-group">
                     <label class="form-label">Department</label>
-                    <input class="ac-input" type="text" value="Administration" />
+                    <input class="ac-input" type="text" [value]="assignmentValue(profile()?.departmentNameKey ?? profile()?.departmentCode, 'Department not assigned')" readonly />
                   </div>
                 </div>
-                <div class="form-group">
-                  <label class="form-label">Bio</label>
-                  <textarea class="ac-input bio-textarea" rows="3">Experienced healthcare administrator with 15+ years in hospital management and clinical operations.</textarea>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Branch</label>
+                    <input class="ac-input" type="text" [value]="assignmentValue(profile()?.branchNameKey ?? profile()?.branchCode, 'Branch not assigned')" readonly />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Account Created</label>
+                    <input class="ac-input" type="text" [value]="formatDate(profile()?.createdDate)" readonly />
+                  </div>
                 </div>
-                <div class="form-actions">
-                  <button type="button" class="ac-btn ac-btn-secondary">Cancel</button>
-                  <button type="submit" class="ac-btn ac-btn-primary">Save Changes</button>
-                </div>
+                @if (editingProfile()) {
+                  <div class="form-actions">
+                    <button type="button" class="ac-btn ac-btn-secondary" (click)="cancelEditProfile()" [disabled]="savingProfile()">Cancel</button>
+                    <button type="submit" class="ac-btn ac-btn-primary" [disabled]="savingProfile()">
+                      <span class="material-symbols-rounded" style="font-size:16px">{{ savingProfile() ? 'progress_activity' : 'save' }}</span>
+                      {{ savingProfile() ? 'Saving...' : 'Save changes' }}
+                    </button>
+                  </div>
+                }
               </form>
             </div>
           }
@@ -127,7 +166,7 @@ type ProfileTab = 'personal' | 'security' | 'preferences' | 'notifications' | 's
                   <div class="security-block-head">
                     <div>
                       <h4 class="security-title">Change Password</h4>
-                      <p class="security-desc">Last changed 90 days ago</p>
+                      <p class="security-desc">{{ passwordChangedLabel() }}</p>
                     </div>
                   </div>
                   <form class="profile-form">
@@ -205,18 +244,11 @@ type ProfileTab = 'personal' | 'security' | 'preferences' | 'notifications' | 's
               <div class="form-row" style="margin-top:16px">
                 <div class="form-group">
                   <label class="form-label">Language</label>
-                  <select class="ac-input">
-                    <option>English (US)</option>
-                    <option>हिन्दी</option>
-                    <option>मराठी</option>
-                  </select>
+                  <ac-dropdown name="profileLanguage" [(ngModel)]="profileLanguage" [options]="languageOptions" />
                 </div>
                 <div class="form-group">
                   <label class="form-label">Timezone</label>
-                  <select class="ac-input">
-                    <option>Asia/Kolkata (IST +5:30)</option>
-                    <option>UTC</option>
-                  </select>
+                  <ac-dropdown name="profileTimezone" [(ngModel)]="profileTimezone" [options]="timeZoneOptions" />
                 </div>
               </div>
             </div>
@@ -265,29 +297,21 @@ type ProfileTab = 'personal' | 'security' | 'preferences' | 'notifications' | 's
                 <p class="section-sub">These devices are currently logged in to your account.</p>
               </div>
               <div class="sessions-list">
-                @for (s of sessions; track s.id) {
-                  <div class="session-item" [class.current]="s.current">
+                @for (s of sessions(); track s.id) {
+                  <div class="session-item">
                     <div class="session-icon">
                       <span class="material-symbols-rounded" style="font-size:22px;color:var(--ac-muted)">{{ s.icon }}</span>
                     </div>
                     <div class="session-info">
                       <div class="session-top">
                         <p class="session-device">{{ s.device }}</p>
-                        @if (s.current) { <span class="current-badge">Current</span> }
                       </div>
                       <p class="session-meta">{{ s.location }} · {{ s.browser }} · {{ s.time }}</p>
                     </div>
-                    @if (!s.current) {
-                      <button class="revoke-btn">Revoke</button>
-                    }
                   </div>
+                } @empty {
+                  <p class="empty-state">No active sessions available for this account.</p>
                 }
-              </div>
-              <div class="sessions-footer">
-                <button class="ac-btn" style="color:var(--ac-error);border:1px solid var(--ac-error-light);background:var(--ac-error-light)">
-                  <span class="material-symbols-rounded" style="font-size:16px">logout</span>
-                  Sign out all other sessions
-                </button>
               </div>
             </div>
           }
@@ -367,6 +391,7 @@ type ProfileTab = 'personal' | 'security' | 'preferences' | 'notifications' | 's
     /* Content */
     .content-card { padding: 24px; }
     .section-head { margin-bottom: 24px; }
+    .profile-edit-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
     .section-sub { font-size: 13px; color: var(--ac-muted); margin-top: 3px; }
 
     /* Form */
@@ -440,26 +465,50 @@ type ProfileTab = 'personal' | 'security' | 'preferences' | 'notifications' | 's
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ProfilePageComponent {
+export class ProfilePageComponent implements OnInit {
   private readonly authStore = inject(AuthStore);
+  private readonly authService = inject(AuthService);
+  private readonly dashboardService = inject(AdministrationDashboardService);
   private readonly tenantContext = inject(TenantContextService);
+  private readonly toast = inject(ToastService);
 
   protected readonly activeTab = signal<ProfileTab>('personal');
+  protected readonly profile = signal<CurrentUserProfile | null>(null);
+  protected readonly dashboard = signal<AdministrationDashboard | null>(null);
+  protected readonly sessions = signal<ProfileSessionItem[]>([]);
+  protected readonly editingProfile = signal(false);
+  protected readonly savingProfile = signal(false);
+  protected profileForm: ProfileFormModel = { firstName: '', lastName: '', mobileNo: '' };
   protected readonly displayName = computed(() => {
+    const profile = this.profile();
     const session = this.authStore.session();
-    return session?.fullName?.trim() || session?.email || 'User';
+    return profile?.fullName?.trim() || session?.fullName?.trim() || profile?.email || session?.email || 'User';
   });
-  protected readonly displayEmail = computed(() => this.authStore.session()?.email ?? '');
-  protected readonly roleLabel = computed(() => getUserRoleLabel(this.authStore.session()));
-  protected readonly organizationLabel = computed(() =>
-    isPlatformSession(this.authStore.session())
+  protected readonly displayEmail = computed(() => this.profile()?.email ?? this.authStore.session()?.email ?? '');
+  protected readonly roleLabel = computed(() => getUserRoleLabel(this.profileSession()));
+  protected readonly organizationLabel = computed(() => {
+    const session = this.profileSession();
+    const profile = this.profile();
+    return isPlatformSession(session)
       ? 'Auspira Care360'
-      : formatTenantName(this.tenantContext.tenantCode())
-  );
+      : profile?.hospitalName?.trim() || formatTenantName(profile?.tenantCode || this.tenantContext.tenantCode());
+  });
+  protected readonly isAccountActive = computed(() => this.profile()?.isActive ?? true);
   protected readonly userInitials = computed(() => getInitials(this.displayName(), this.displayEmail()));
   protected readonly firstName = computed(() => this.nameParts()[0] ?? '');
   protected readonly lastName = computed(() => this.nameParts().slice(1).join(' '));
   private readonly nameParts = computed(() => this.displayName().split(/\s+/).filter(Boolean));
+  protected profileLanguage = 'en-US';
+  protected profileTimezone = 'Asia/Kolkata';
+  protected readonly languageOptions = [
+    { label: 'English (US)', value: 'en-US' },
+    { label: 'Hindi', value: 'hi-IN' },
+    { label: 'Marathi', value: 'mr-IN' }
+  ];
+  protected readonly timeZoneOptions = [
+    { label: 'Asia/Kolkata (IST +5:30)', value: 'Asia/Kolkata' },
+    { label: 'UTC', value: 'UTC' }
+  ];
 
   protected readonly tabs: { id: ProfileTab; label: string; icon: string }[] = [
     { id: 'personal',      label: 'Personal Info',   icon: 'person' },
@@ -469,11 +518,11 @@ export class ProfilePageComponent {
     { id: 'sessions',      label: 'Sessions',        icon: 'devices' }
   ];
 
-  protected readonly heroStats = [
-    { value: '3.2y', label: 'Member since' },
-    { value: '1,248', label: 'Actions logged' },
-    { value: '42',  label: 'Modules used' }
-  ];
+  protected readonly heroStats = computed(() => [
+    { value: formatMemberSince(this.profile()?.createdDate), label: 'Member since' },
+    { value: formatNumber(this.actionsLogged()), label: 'Actions logged' },
+    { value: formatNumber(this.assignedModuleCount()), label: 'Modules assigned' }
+  ]);
 
   protected preferences = [
     { icon: 'dark_mode',     label: 'Dark Mode',            desc: 'Toggle between light and dark theme',     bg: 'rgba(37,99,235,0.08)',   color: '#2563EB', enabled: false },
@@ -484,7 +533,7 @@ export class ProfilePageComponent {
 
   protected readonly twoFaMethods = [
     { icon: 'smartphone',  label: 'Authenticator App',  desc: 'Google Authenticator or Authy',      bg: 'rgba(37,99,235,0.08)',  color: '#2563EB', enabled: false },
-    { icon: 'sms',         label: 'SMS / Text Message', desc: 'One-time code via text message',      bg: 'rgba(16,185,129,0.08)', color: '#10B981', enabled: true  },
+    { icon: 'sms',         label: 'SMS / Text Message', desc: 'One-time code via text message',      bg: 'rgba(16,185,129,0.08)', color: '#10B981', enabled: false },
     { icon: 'mail',        label: 'Email OTP',          desc: 'One-time code via email',             bg: 'rgba(245,158,11,0.08)', color: '#F59E0B', enabled: false }
   ];
 
@@ -506,11 +555,139 @@ export class ProfilePageComponent {
     }
   ];
 
-  protected readonly sessions = [
-    { id: 1, icon: 'computer',    device: 'Windows 11 — Chrome 124',   location: 'Mumbai, India',  browser: 'Chrome',  time: 'Active now',    current: true  },
-    { id: 2, icon: 'phone_iphone',device: 'iPhone 15 — Safari Mobile', location: 'Pune, India',    browser: 'Safari',  time: '2 days ago',    current: false },
-    { id: 3, icon: 'tablet',      device: 'iPad Air — Safari',         location: 'Mumbai, India',  browser: 'Safari',  time: '5 days ago',    current: false }
-  ];
+  async ngOnInit(): Promise<void> {
+    await Promise.allSettled([this.loadProfile(), this.loadDashboard(), this.loadSessions()]);
+  }
+
+  protected assignmentValue(value: string | null | undefined, fallback: string): string {
+    return value?.trim() ? humanizeValue(value) : fallback;
+  }
+
+  protected formatDate(value: string | null | undefined): string {
+    return value ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value)) : 'Sync pending';
+  }
+
+  protected passwordChangedLabel(): string {
+    const value = this.profile()?.passwordChangedDate;
+    return value ? `Last changed ${formatRelativeDate(value)}` : 'Password change date not available';
+  }
+
+  protected startEditProfile(): void {
+    this.syncProfileForm();
+    this.editingProfile.set(true);
+  }
+
+  protected cancelEditProfile(): void {
+    this.syncProfileForm();
+    this.editingProfile.set(false);
+  }
+
+  protected async saveProfile(): Promise<void> {
+    const profile = this.profile();
+    if (!profile || this.savingProfile()) {
+      return;
+    }
+
+    const fullName = `${this.profileForm.firstName} ${this.profileForm.lastName}`.replace(/\s+/g, ' ').trim();
+    if (!fullName) {
+      return;
+    }
+
+    this.savingProfile.set(true);
+    try {
+      const response = await this.authService.updateCurrentUser({
+        fullName,
+        mobileNo: this.profileForm.mobileNo.trim() || null,
+        languageCode: this.profileLanguage || profile.languageCode,
+        timeZoneCode: this.profileTimezone || profile.timeZoneCode,
+        rowVersion: profile.rowVersion
+      });
+
+      if (!response.success || !response.data) {
+        this.toast.error(response.message);
+        return;
+      }
+
+      this.profile.set(response.data);
+      this.syncProfileForm();
+      this.refreshStoredSession(response.data);
+      this.editingProfile.set(false);
+      this.toast.success('Profile details updated');
+    } finally {
+      this.savingProfile.set(false);
+    }
+  }
+
+  private async loadProfile(): Promise<void> {
+    const profile = await this.authService.getCurrentUser();
+    this.profile.set(profile);
+    this.profileLanguage = profile.languageCode || this.profileLanguage;
+    this.profileTimezone = profile.timeZoneCode || this.profileTimezone;
+    this.syncProfileForm();
+  }
+
+  private async loadDashboard(): Promise<void> {
+    const response = await this.dashboardService.getDashboard().catch(() => null);
+    if (response?.success && response.data) {
+      this.dashboard.set(response.data);
+    }
+  }
+
+  private async loadSessions(): Promise<void> {
+    const response = await this.authService.getSessions().catch(() => null);
+    this.sessions.set(response?.success && response.data ? response.data.map(mapSession) : []);
+  }
+
+  private profileSession(): AuthResponse | null {
+    const session = this.authStore.session();
+    const profile = this.profile();
+    return profile && session
+      ? {
+          ...session,
+          email: profile.email,
+          fullName: profile.fullName,
+          permissions: profile.permissions.length > 0 ? profile.permissions : session.permissions,
+          roleCodes: profile.roleCodes.length > 0 ? profile.roleCodes : session.roleCodes
+        }
+      : session;
+  }
+
+  private syncProfileForm(): void {
+    const parts = this.displayName().split(/\s+/).filter(Boolean);
+    this.profileForm = {
+      firstName: parts[0] ?? '',
+      lastName: parts.slice(1).join(' '),
+      mobileNo: this.profile()?.mobileNo ?? ''
+    };
+  }
+
+  private refreshStoredSession(profile: CurrentUserProfile): void {
+    const session = this.authStore.session();
+    if (!session) {
+      return;
+    }
+
+    this.authStore.setSession({
+      ...session,
+      fullName: profile.fullName,
+      email: profile.email,
+      permissions: profile.permissions.length > 0 ? profile.permissions : session.permissions,
+      roleCodes: profile.roleCodes.length > 0 ? profile.roleCodes : session.roleCodes
+    });
+  }
+
+  private actionsLogged(): number {
+    return this.dashboard()?.auditSummary.reduce((total, item) => total + item.eventCount, 0) ?? 0;
+  }
+
+  private assignedModuleCount(): number {
+    const menuCount = this.authStore.session()?.menuItems?.length ?? 0;
+    if (menuCount > 0) {
+      return menuCount;
+    }
+
+    return new Set(this.authStore.permissions().map(permission => permission.split('.')[0]).filter(Boolean)).size;
+  }
 }
 
 function getInitials(displayName: string, email: string): string {
@@ -524,6 +701,114 @@ function getInitials(displayName: string, email: string): string {
     .join('');
 
   return initials || 'U';
+}
+
+function mapSession(session: AuthenticationSession): ProfileSessionItem {
+  const browser = detectBrowser(session.userAgent);
+  return {
+    id: session.sessionId,
+    icon: detectDeviceIcon(session.userAgent),
+    device: session.machineName?.trim() || browser || 'Active device',
+    location: session.ipAddress?.trim() || 'Location not captured',
+    browser: browser || 'Browser not captured',
+    time: formatRelativeDate(session.lastUsedDate ?? session.createdDate)
+  };
+}
+
+function formatMemberSince(value: string | null | undefined): string {
+  if (!value) {
+    return 'New';
+  }
+
+  const createdAt = new Date(value);
+  if (Number.isNaN(createdAt.getTime())) {
+    return 'New';
+  }
+
+  const days = Math.max(0, Math.floor((Date.now() - createdAt.getTime()) / 86_400_000));
+  if (days < 1) {
+    return 'Today';
+  }
+  if (days < 31) {
+    return `${days}d`;
+  }
+
+  const months = Math.floor(days / 30);
+  if (months < 12) {
+    return `${months}m`;
+  }
+
+  return `${(days / 365).toFixed(1)}y`;
+}
+
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat().format(value);
+}
+
+function formatRelativeDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'Date not available';
+  }
+
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.floor(diffMs / 60_000);
+  if (diffMinutes < 1) {
+    return 'Just now';
+  }
+  if (diffMinutes < 60) {
+    return `${diffMinutes} min ago`;
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `${diffHours}h ago`;
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 30) {
+    return `${diffDays}d ago`;
+  }
+
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date);
+}
+
+function humanizeValue(value: string): string {
+  return value
+    .replace(/^Navigation\./, '')
+    .replace(/^TimeZone\./, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .trim()
+    .replace(/\w\S*/g, word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
+}
+
+function detectBrowser(userAgent: string | null): string {
+  const value = userAgent ?? '';
+  if (value.includes('Edg/')) {
+    return 'Microsoft Edge';
+  }
+  if (value.includes('Chrome/')) {
+    return 'Chrome';
+  }
+  if (value.includes('Firefox/')) {
+    return 'Firefox';
+  }
+  if (value.includes('Safari/')) {
+    return 'Safari';
+  }
+  return '';
+}
+
+function detectDeviceIcon(userAgent: string | null): string {
+  const value = userAgent?.toLowerCase() ?? '';
+  if (value.includes('iphone') || value.includes('android')) {
+    return 'phone_iphone';
+  }
+  if (value.includes('ipad') || value.includes('tablet')) {
+    return 'tablet';
+  }
+  return 'computer';
 }
 
 function formatTenantName(tenantCode: string): string {

@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ToastService } from '../../shared/ui/toast/toast.service';
+import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
 import {
   ProvisionTenantResponse,
   ProvisioningFeatureOption,
@@ -15,7 +16,7 @@ type WizardStep = 'basic' | 'plan' | 'database' | 'admin' | 'features' | 'review
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="provision-page">
@@ -115,11 +116,7 @@ type WizardStep = 'basic' | 'plan' | 'database' | 'admin' | 'features' | 'review
                   <div class="form-grid">
                     <label>
                       Database Server
-                      <select [(ngModel)]="form.databaseServerKey" name="databaseServerKey">
-                        @for (server of model.databaseServers; track server.serverKey) {
-                          <option [value]="server.serverKey">{{ server.serverKey }} - {{ server.provider }} / {{ server.region }}</option>
-                        }
-                      </select>
+                      <ac-dropdown [(ngModel)]="form.databaseServerKey" name="databaseServerKey" [options]="databaseServerOptions(model)" />
                     </label>
                     <label>
                       Database Name
@@ -371,6 +368,13 @@ export class TenantProvisioningPageComponent implements OnInit {
 
   ngOnInit(): void {
     void this.load();
+  }
+
+  protected databaseServerOptions(model: TenantProvisioningSnapshot) {
+    return model.databaseServers.map(server => ({
+      label: `${server.serverKey} - ${server.provider} / ${server.region}`,
+      value: server.serverKey
+    }));
   }
 
   protected async load(): Promise<void> {

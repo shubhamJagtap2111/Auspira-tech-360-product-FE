@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ToastService } from '../../shared/ui/toast/toast.service';
+import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
 import {
   BillingManagementSnapshot,
   BillingPayment,
@@ -14,7 +15,7 @@ type BillingTab = 'invoices' | 'payments' | 'taxes' | 'gst' | 'refunds' | 'credi
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="billing-page">
@@ -152,7 +153,7 @@ type BillingTab = 'invoices' | 'payments' | 'taxes' | 'gst' | 'refunds' | 'credi
               <div class="form-grid">
                 <input [(ngModel)]="taxForm.taxCode" name="taxCode" placeholder="GST18" />
                 <input [(ngModel)]="taxForm.taxName" name="taxName" placeholder="GST 18%" />
-                <select [(ngModel)]="taxForm.taxType" name="taxType"><option>GST</option><option>CGST</option><option>SGST</option><option>IGST</option><option>VAT</option></select>
+                <ac-dropdown [(ngModel)]="taxForm.taxType" name="taxType" [options]="taxTypeOptions" />
                 <input [(ngModel)]="taxForm.ratePercent" name="ratePercent" type="number" placeholder="18" />
                 <input [(ngModel)]="taxForm.countryCode" name="countryCode" placeholder="IN" />
                 <input [(ngModel)]="taxForm.stateCode" name="stateCode" placeholder="MH" />
@@ -165,27 +166,17 @@ type BillingTab = 'invoices' | 'payments' | 'taxes' | 'gst' | 'refunds' | 'credi
 
             <section class="mini-form">
               <h3>Refunds</h3>
-              <select [(ngModel)]="refundForm.paymentId" name="refundPaymentId">
-                <option value="">Select payment</option>
-                @for (payment of model.payments; track payment.paymentId) {
-                  <option [value]="payment.paymentId">{{ payment.hospitalName }} - {{ money(payment.amount, payment.currencyCode) }}</option>
-                }
-              </select>
+              <ac-dropdown [(ngModel)]="refundForm.paymentId" name="refundPaymentId" [options]="paymentOptions(model)" />
               <input [(ngModel)]="refundForm.amount" name="refundAmount" type="number" placeholder="Amount" />
               <input [(ngModel)]="refundForm.currencyCode" name="refundCurrency" placeholder="INR" />
               <input [(ngModel)]="refundForm.reason" name="refundReason" placeholder="Reason" />
-              <select [(ngModel)]="refundForm.status" name="refundStatus"><option>Requested</option><option>Approved</option><option>Completed</option><option>Rejected</option></select>
+              <ac-dropdown [(ngModel)]="refundForm.status" name="refundStatus" [options]="refundStatusOptions" />
               <button class="ac-btn ac-btn-primary" type="button" (click)="createRefund()">Create Refund</button>
             </section>
 
             <section class="mini-form">
               <h3>Credits</h3>
-              <select [(ngModel)]="creditForm.tenantCode" name="creditTenant">
-                <option value="">Select hospital</option>
-                @for (tenant of model.tenants; track tenant.tenantCode) {
-                  <option [value]="tenant.tenantCode">{{ tenant.hospitalName }}</option>
-                }
-              </select>
+              <ac-dropdown [(ngModel)]="creditForm.tenantCode" name="creditTenant" [options]="tenantOptions(model)" />
               <input [(ngModel)]="creditForm.amount" name="creditAmount" type="number" placeholder="Amount" />
               <input [(ngModel)]="creditForm.currencyCode" name="creditCurrency" placeholder="INR" />
               <input [(ngModel)]="creditForm.reason" name="creditReason" placeholder="Reason" />
@@ -195,18 +186,13 @@ type BillingTab = 'invoices' | 'payments' | 'taxes' | 'gst' | 'refunds' | 'credi
 
             <section class="mini-form">
               <h3>Transactions</h3>
-              <select [(ngModel)]="transactionForm.tenantCode" name="txTenant">
-                <option value="">Select hospital</option>
-                @for (tenant of model.tenants; track tenant.tenantCode) {
-                  <option [value]="tenant.tenantCode">{{ tenant.hospitalName }}</option>
-                }
-              </select>
+              <ac-dropdown [(ngModel)]="transactionForm.tenantCode" name="txTenant" [options]="tenantOptions(model)" />
               <input [(ngModel)]="transactionForm.transactionType" name="txType" placeholder="Invoice / Payment / Adjustment" />
               <input [(ngModel)]="transactionForm.referenceNo" name="txRef" placeholder="Reference" />
-              <select [(ngModel)]="transactionForm.direction" name="txDirection"><option>Debit</option><option>Credit</option></select>
+              <ac-dropdown [(ngModel)]="transactionForm.direction" name="txDirection" [options]="directionOptions" />
               <input [(ngModel)]="transactionForm.amount" name="txAmount" type="number" placeholder="Amount" />
               <input [(ngModel)]="transactionForm.currencyCode" name="txCurrency" placeholder="INR" />
-              <select [(ngModel)]="transactionForm.status" name="txStatus"><option>Posted</option><option>Pending</option><option>Void</option></select>
+              <ac-dropdown [(ngModel)]="transactionForm.status" name="txStatus" [options]="transactionStatusOptions" />
               <input [(ngModel)]="transactionForm.description" name="txDescription" placeholder="Description" />
               <button class="ac-btn ac-btn-primary" type="button" (click)="recordTransaction()">Record Transaction</button>
             </section>
@@ -280,9 +266,30 @@ export class BillingManagementPageComponent implements OnInit {
   protected refundForm = { paymentId: '', amount: 0, currencyCode: 'INR', reason: '', status: 'Requested' };
   protected creditForm = { tenantCode: '', amount: 0, currencyCode: 'INR', reason: '', expiresAt: '' };
   protected transactionForm = { tenantCode: '', subscriptionId: null, invoiceId: null, paymentId: null, refundId: null, creditId: null, transactionType: 'Adjustment', referenceNo: '', direction: 'Debit', amount: 0, currencyCode: 'INR', status: 'Posted', description: '' };
+  protected readonly taxTypeOptions = ['GST', 'CGST', 'SGST', 'IGST', 'VAT'].map(value => ({ label: value, value }));
+  protected readonly refundStatusOptions = ['Requested', 'Approved', 'Completed', 'Rejected'].map(value => ({ label: value, value }));
+  protected readonly directionOptions = ['Debit', 'Credit'].map(value => ({ label: value, value }));
+  protected readonly transactionStatusOptions = ['Posted', 'Pending', 'Void'].map(value => ({ label: value, value }));
 
   ngOnInit(): void {
     void this.load();
+  }
+
+  protected paymentOptions(model: BillingManagementSnapshot) {
+    return [
+      { label: 'Select payment', value: '' },
+      ...model.payments.map(payment => ({
+        label: `${payment.hospitalName} - ${this.money(payment.amount, payment.currencyCode)}`,
+        value: payment.paymentId
+      }))
+    ];
+  }
+
+  protected tenantOptions(model: BillingManagementSnapshot) {
+    return [
+      { label: 'Select hospital', value: '' },
+      ...model.tenants.map(tenant => ({ label: tenant.hospitalName, value: tenant.tenantCode }))
+    ];
   }
 
   protected async load(): Promise<void> {

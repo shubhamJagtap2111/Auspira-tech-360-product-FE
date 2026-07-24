@@ -3,12 +3,13 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ToastService } from '../../shared/ui/toast/toast.service';
+import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
 import { Feature, Plan, PlanCatalog, UpsertFeatureRequest } from './plan-management.models';
 import { FeatureCatalogService } from './feature-catalog.service';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent],
   template: `
     <section class="feature-page">
       <header class="page-head">
@@ -64,12 +65,7 @@ import { FeatureCatalogService } from './feature-catalog.service';
               </label>
               <label>
                 <span>Category</span>
-                <select name="categoryFilter" [(ngModel)]="categoryFilter">
-                  <option value="">All</option>
-                  @for (category of categories(); track category) {
-                    <option [value]="category">{{ category }}</option>
-                  }
-                </select>
+                <ac-dropdown name="categoryFilter" [(ngModel)]="categoryFilter" [options]="categoryOptions()" />
               </label>
             </div>
 
@@ -229,6 +225,13 @@ export class FeatureCatalogPageComponent implements OnInit {
   protected readonly categories = computed(() =>
     [...new Set((this.catalog()?.features ?? []).map(feature => feature.category))].sort((a, b) => a.localeCompare(b))
   );
+
+  protected categoryOptions() {
+    return [
+      { label: 'All', value: '' },
+      ...this.categories().map(category => ({ label: category, value: category }))
+    ];
+  }
 
   protected readonly filteredFeatures = computed(() => {
     const text = this.searchText.trim().toLowerCase();

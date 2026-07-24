@@ -3,12 +3,13 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@ang
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ToastService } from '../../shared/ui/toast/toast.service';
+import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
 import { DatabaseGridItem, DatabaseManagementSnapshot } from './database-management.models';
 import { DatabaseManagementService } from './database-management.service';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="database-page">
@@ -89,12 +90,7 @@ import { DatabaseManagementService } from './database-management.service';
           <aside class="side-panel">
             <section class="operation-box">
               <h2>Run Migration</h2>
-              <select [(ngModel)]="migrationForm.tenantCode" name="migrationTenant">
-                <option value="">Select hospital</option>
-                @for (db of model.databases; track db.tenantCode) {
-                  <option [value]="db.tenantCode">{{ db.hospitalName }}</option>
-                }
-              </select>
+              <ac-dropdown [(ngModel)]="migrationForm.tenantCode" name="migrationTenant" [options]="migrationTenantOptions(model)" />
               <input [(ngModel)]="migrationForm.targetVersion" name="targetVersion" placeholder="1.0.1" />
               <input [(ngModel)]="migrationForm.message" name="migrationMessage" placeholder="Migration notes" />
               <button class="ac-btn ac-btn-primary" type="button" (click)="runMigration()">Run Migration</button>
@@ -172,6 +168,13 @@ export class DatabaseManagementPageComponent implements OnInit {
 
   ngOnInit(): void {
     void this.load();
+  }
+
+  protected migrationTenantOptions(model: DatabaseManagementSnapshot) {
+    return [
+      { label: 'Select hospital', value: '' },
+      ...model.databases.map(db => ({ label: db.hospitalName, value: db.tenantCode }))
+    ];
   }
 
   protected async load(): Promise<void> {

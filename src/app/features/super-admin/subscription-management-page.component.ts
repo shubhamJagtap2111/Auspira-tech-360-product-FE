@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ToastService } from '../../shared/ui/toast/toast.service';
+import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
 import {
   SubscriptionCoupon,
   SubscriptionInvoice,
@@ -17,7 +18,7 @@ type SubscriptionTab = 'subscriptions' | 'invoices' | 'payments' | 'renewals' | 
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent],
   template: `
     <section class="subscription-page">
       <header class="page-head">
@@ -286,19 +287,11 @@ type SubscriptionTab = 'subscriptions' | 'invoices' | 'payments' | 'renewals' | 
             <form (ngSubmit)="saveSubscription()">
               <label>
                 <span>Hospital</span>
-                <select name="tenantCode" [(ngModel)]="subscriptionForm.tenantCode" required>
-                  @for (tenant of model.tenants; track tenant.tenantCode) {
-                    <option [value]="tenant.tenantCode">{{ tenant.hospitalName }}</option>
-                  }
-                </select>
+                <ac-dropdown name="tenantCode" [(ngModel)]="subscriptionForm.tenantCode" [options]="tenantOptions(model)" required />
               </label>
               <label>
                 <span>Plan</span>
-                <select name="planCode" [(ngModel)]="subscriptionForm.planCode" (change)="applySelectedPlanAmount()" required>
-                  @for (plan of model.plans; track plan.planCode) {
-                    <option [value]="plan.planCode">{{ plan.planName }}</option>
-                  }
-                </select>
+                <ac-dropdown name="planCode" [(ngModel)]="subscriptionForm.planCode" [options]="planOptions(model)" (selectionChange)="applySelectedPlanAmount()" required />
               </label>
               <div class="form-grid">
                 <label>
@@ -317,21 +310,13 @@ type SubscriptionTab = 'subscriptions' | 'invoices' | 'payments' | 'renewals' | 
                 </label>
                 <label>
                   <span>Status</span>
-                  <select name="status" [(ngModel)]="subscriptionForm.status">
-                    @for (status of statusOptions; track status) {
-                      <option [value]="status">{{ status }}</option>
-                    }
-                  </select>
+                  <ac-dropdown name="status" [(ngModel)]="subscriptionForm.status" [options]="subscriptionStatusOptions()" />
                 </label>
               </div>
               <div class="form-grid">
                 <label>
                   <span>Billing Cycle</span>
-                  <select name="billingCycle" [(ngModel)]="subscriptionForm.billingCycle" (change)="applySelectedPlanAmount()">
-                    @for (cycle of billingCycles; track cycle) {
-                      <option [value]="cycle">{{ cycle }}</option>
-                    }
-                  </select>
+                  <ac-dropdown name="billingCycle" [(ngModel)]="subscriptionForm.billingCycle" [options]="billingCycleOptions()" (selectionChange)="applySelectedPlanAmount()" />
                 </label>
                 <label>
                   <span>Amount</span>
@@ -345,12 +330,7 @@ type SubscriptionTab = 'subscriptions' | 'invoices' | 'payments' | 'renewals' | 
                 </label>
                 <label>
                   <span>Coupon</span>
-                  <select name="couponCode" [(ngModel)]="subscriptionForm.couponCode">
-                    <option value="">None</option>
-                    @for (coupon of model.coupons; track coupon.code) {
-                      <option [value]="coupon.code">{{ coupon.code }}</option>
-                    }
-                  </select>
+                  <ac-dropdown name="couponCode" [(ngModel)]="subscriptionForm.couponCode" [options]="couponOptions(model)" />
                 </label>
               </div>
               <label class="switch">
@@ -459,10 +439,7 @@ type SubscriptionTab = 'subscriptions' | 'invoices' | 'payments' | 'renewals' | 
                 </label>
                 <label>
                   <span>Type</span>
-                  <select name="couponType" [(ngModel)]="couponForm.discountType">
-                    <option value="Percent">Percent</option>
-                    <option value="Fixed">Fixed</option>
-                  </select>
+                  <ac-dropdown name="couponType" [(ngModel)]="couponForm.discountType" [options]="couponTypeOptions" />
                 </label>
               </div>
               <div class="form-grid">
@@ -567,6 +544,10 @@ export class SubscriptionManagementPageComponent implements OnInit {
   protected paymentForm = { invoiceId: '', paymentReference: '', amount: 0, currencyCode: 'USD', method: 'BankTransfer', status: 'Success', paidAt: today() };
   protected couponForm: UpsertSubscriptionCouponRequest = emptyCouponForm();
   protected couponMaxInput = '';
+  protected readonly couponTypeOptions = [
+    { label: 'Percent', value: 'Percent' },
+    { label: 'Fixed', value: 'Fixed' }
+  ];
 
   protected readonly selectedSubscription = computed(() =>
     this.snapshot()?.subscriptions.find(item => item.subscriptionId === this.selectedSubscriptionId()) ?? null
@@ -581,6 +562,29 @@ export class SubscriptionManagementPageComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     await this.load();
+  }
+
+  protected tenantOptions(model: SubscriptionManagementSnapshot) {
+    return model.tenants.map(tenant => ({ label: tenant.hospitalName, value: tenant.tenantCode }));
+  }
+
+  protected planOptions(model: SubscriptionManagementSnapshot) {
+    return model.plans.map(plan => ({ label: plan.planName, value: plan.planCode }));
+  }
+
+  protected subscriptionStatusOptions() {
+    return this.statusOptions.map(status => ({ label: status, value: status }));
+  }
+
+  protected billingCycleOptions() {
+    return this.billingCycles.map(cycle => ({ label: cycle, value: cycle }));
+  }
+
+  protected couponOptions(model: SubscriptionManagementSnapshot) {
+    return [
+      { label: 'None', value: '' },
+      ...model.coupons.map(coupon => ({ label: coupon.code, value: coupon.code }))
+    ];
   }
 
   protected async load(): Promise<void> {

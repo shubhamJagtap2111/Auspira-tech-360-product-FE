@@ -2,10 +2,11 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { FormsModule } from '@angular/forms';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { ToastService } from '../../shared/ui/toast/toast.service';
+import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
 
 @Component({
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, AcDropdownComponent],
   template: `
     <div class="patients">
 
@@ -55,19 +56,8 @@ import { ToastService } from '../../shared/ui/toast/toast.service';
             </button>
           }
         </div>
-        <select class="toolbar-select" [(ngModel)]="genderFilter">
-          <option value="">All Genders</option>
-          <option value="Male">Male</option>
-          <option value="Female">Female</option>
-          <option value="Other">Other</option>
-        </select>
-        <select class="toolbar-select" [(ngModel)]="statusFilter">
-          <option value="">All Statuses</option>
-          <option value="Checked In">Checked In</option>
-          <option value="Waiting">Waiting</option>
-          <option value="Completed">Completed</option>
-          <option value="Scheduled">Scheduled</option>
-        </select>
+        <ac-dropdown class="toolbar-select" name="genderFilter" [(ngModel)]="genderFilter" [options]="genderOptions" />
+        <ac-dropdown class="toolbar-select" name="statusFilter" [(ngModel)]="statusFilter" [options]="statusOptions" />
         <div class="toolbar-count">
           <span>{{ filteredPatients().length }} patients</span>
         </div>
@@ -190,14 +180,7 @@ import { ToastService } from '../../shared/ui/toast/toast.service';
     .toolbar-input:focus { border-color: var(--ac-primary); background: var(--ac-surface); box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
     .toolbar-input::placeholder { color: var(--ac-muted-2); }
     .clear-btn { position: absolute; right: 10px; color: var(--ac-muted); cursor: pointer; display: flex; align-items: center; }
-    .toolbar-select {
-      height: 38px; padding: 0 10px; min-width: 150px;
-      border: 1px solid var(--ac-border); border-radius: var(--ac-r-sm);
-      background: var(--ac-surface-2); color: var(--ac-text);
-      font-size: 13.5px; font-family: inherit; outline: none;
-      cursor: pointer; transition: all var(--ac-t);
-    }
-    .toolbar-select:focus { border-color: var(--ac-primary); }
+    .toolbar-select { min-width: 150px; }
     .toolbar-count { font-size: 12.5px; color: var(--ac-muted); padding: 0 4px; white-space: nowrap; }
 
     /* Table */
@@ -280,6 +263,19 @@ export class PatientListPageComponent {
   protected searchQuery  = '';
   protected genderFilter = '';
   protected statusFilter = '';
+  protected readonly genderOptions = [
+    { label: 'All Genders', value: '' },
+    { label: 'Male', value: 'Male' },
+    { label: 'Female', value: 'Female' },
+    { label: 'Other', value: 'Other' }
+  ];
+  protected readonly statusOptions = [
+    { label: 'All Statuses', value: '' },
+    { label: 'Checked In', value: 'Checked In' },
+    { label: 'Waiting', value: 'Waiting' },
+    { label: 'Completed', value: 'Completed' },
+    { label: 'Scheduled', value: 'Scheduled' }
+  ];
 
   protected readonly patients = [
     { mrn: 'P-1089', name: 'Aditya Mehta',    initials: 'AM', age: 34, blood: 'O+',  mobile: '+91 98765 00001', gender: 'Male',   genderColor: 'blue',   lastVisit: '09 Jun 2025', status: 'Checked In', statusColor: 'blue',   avatarBg: '#2563EB' },

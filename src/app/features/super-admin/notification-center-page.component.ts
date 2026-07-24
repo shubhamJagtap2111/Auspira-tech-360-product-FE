@@ -3,12 +3,13 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ToastService } from '../../shared/ui/toast/toast.service';
+import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
 import { NotificationCenterService } from './notification-center.service';
 import { NotificationCenterSnapshot, NotificationTemplateItem } from './notification-center.models';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="notification-page">
@@ -63,11 +64,7 @@ import { NotificationCenterSnapshot, NotificationTemplateItem } from './notifica
               </label>
               <label>
                 <span>Audience</span>
-                <select [(ngModel)]="sendForm.audience" name="notificationAudience">
-                  @for (audience of audiences; track audience.code) {
-                    <option [value]="audience.code">{{ audience.label }}</option>
-                  }
-                </select>
+                <ac-dropdown [(ngModel)]="sendForm.audience" name="notificationAudience" [options]="audienceOptions()" />
               </label>
               <label>
                 <span>Schedule</span>
@@ -143,16 +140,8 @@ import { NotificationCenterSnapshot, NotificationTemplateItem } from './notifica
             <section class="template-form">
               <h3>Edit Template</h3>
               <div class="form-grid">
-                <select [(ngModel)]="templateForm.notificationType" name="templateType">
-                  @for (type of notificationTypes; track type.code) {
-                    <option [value]="type.code">{{ type.label }}</option>
-                  }
-                </select>
-                <select [(ngModel)]="templateForm.channel" name="templateChannel">
-                  @for (channel of channels; track channel.code) {
-                    <option [value]="channel.code">{{ channel.label }}</option>
-                  }
-                </select>
+                <ac-dropdown [(ngModel)]="templateForm.notificationType" name="templateType" [options]="notificationTypeOptions()" />
+                <ac-dropdown [(ngModel)]="templateForm.channel" name="templateChannel" [options]="channelOptions()" />
               </div>
               <input [(ngModel)]="templateForm.templateCode" name="templateCode" placeholder="Template code" />
               <input [(ngModel)]="templateForm.subject" name="templateSubject" placeholder="Subject" />
@@ -328,6 +317,18 @@ export class NotificationCenterPageComponent implements OnInit {
 
   ngOnInit(): void {
     void this.load();
+  }
+
+  protected audienceOptions() {
+    return this.audiences.map(audience => ({ label: audience.label, value: audience.code }));
+  }
+
+  protected notificationTypeOptions() {
+    return this.notificationTypes.map(type => ({ label: type.label, value: type.code }));
+  }
+
+  protected channelOptions() {
+    return this.channels.map(channel => ({ label: channel.label, value: channel.code }));
   }
 
   protected async load(): Promise<void> {

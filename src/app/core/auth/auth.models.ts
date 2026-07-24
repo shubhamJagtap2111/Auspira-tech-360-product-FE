@@ -86,3 +86,43 @@ export interface AuthResponse {
   roleCodes?: string[];
   menuItems: AuthMenuItem[];
 }
+
+export interface CurrentUserProfile {
+  userId: string;
+  email: string;
+  fullName: string;
+  tenantId: string;
+  tenantCode: string;
+  permissions: string[];
+  roleCodes: string[];
+  mobileNo: string | null;
+  profileImagePath: string | null;
+  profileImageFileName: string | null;
+  profileImageContentType: string | null;
+  hospitalGuid: string | null;
+  hospitalName: string | null;
+  branchCode: string | null;
+  branchNameKey: string | null;
+  departmentCode: string | null;
+  departmentNameKey: string | null;
+  languageCode: string | null;
+  languageName: string | null;
+  timeZoneCode: string | null;
+  timeZoneNameKey: string | null;
+  isEmailVerified: boolean;
+  emailVerifiedDate: string | null;
+  lastLoginDate: string | null;
+  passwordChangedDate: string | null;
+  isActive: boolean;
+  createdDate: string | null;
+  modifiedDate: string | null;
+  rowVersion: string;
+}
+
+export interface UpdateCurrentUserRequest {
+  fullName: string;
+  mobileNo: string | null;
+  languageCode: string | null;
+  timeZoneCode: string | null;
+  rowVersion: string;
+}

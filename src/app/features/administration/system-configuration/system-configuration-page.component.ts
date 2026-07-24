@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
+import { AcDropdownComponent } from '../../../shared/ui/dropdown/dropdown.component';
 import { FiscalYear, NotificationTemplate, NumberSeries, SystemConfigurationSetting } from './system-configuration.models';
 import { SystemConfigurationService } from './system-configuration.service';
 
@@ -24,7 +25,7 @@ type ConfigEditorMode = 'number-series' | 'fiscal-year' | 'template';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, AcDropdownComponent],
   template: `
     <section class="config-page">
       <header class="page-head">
@@ -231,7 +232,7 @@ type ConfigEditorMode = 'number-series' | 'fiscal-year' | 'template';
                   <label><span>{{ t('Administration.SystemConfiguration.Fields.Suffix') }}</span><input name="suffix" [(ngModel)]="numberSeriesForm().suffix" /></label>
                   <label><span>{{ t('Administration.SystemConfiguration.Fields.NextNumber') }}</span><input type="number" name="nextNumber" [(ngModel)]="numberSeriesForm().nextNumber" /></label>
                   <label><span>{{ t('Administration.SystemConfiguration.Fields.PaddingLength') }}</span><input type="number" name="paddingLength" [(ngModel)]="numberSeriesForm().paddingLength" /></label>
-                  <label class="ac-admin-wide"><span>{{ t('Administration.SystemConfiguration.Fields.ResetFrequency') }}</span><select name="resetFrequency" [(ngModel)]="numberSeriesForm().resetFrequencyCode">@for (code of resetFrequencies; track code) { <option [value]="code">{{ t('Administration.SystemConfiguration.ResetFrequency.' + code) }}</option> }</select></label>
+                  <label class="ac-admin-wide"><span>{{ t('Administration.SystemConfiguration.Fields.ResetFrequency') }}</span><ac-dropdown name="resetFrequency" [(ngModel)]="numberSeriesForm().resetFrequencyCode" [options]="resetFrequencyOptions()" /></label>
                 </div>
               </section>
             }
@@ -252,8 +253,8 @@ type ConfigEditorMode = 'number-series' | 'fiscal-year' | 'template';
                 <div class="ac-admin-section-title"><span class="material-symbols-rounded">notifications</span><h3>{{ t('Administration.SystemConfiguration.Section.NotificationTemplates') }}</h3></div>
                 <div class="ac-admin-form-grid">
                   <label><span>{{ t('Administration.SystemConfiguration.Fields.TemplateCode') }}</span><input name="templateCode" [(ngModel)]="templateForm().templateCode" /></label>
-                  <label><span>{{ t('Administration.SystemConfiguration.Fields.Channel') }}</span><select name="channelCode" [(ngModel)]="templateForm().channelCode">@for (code of channels; track code) { <option [value]="code">{{ t('Administration.SystemConfiguration.Channel.' + code) }}</option> }</select></label>
-                  <label><span>{{ t('Administration.SystemConfiguration.Fields.Language') }}</span><select name="languageCode" [(ngModel)]="templateForm().languageCode">@for (code of languages; track code) { <option [value]="code">{{ code }}</option> }</select></label>
+                  <label><span>{{ t('Administration.SystemConfiguration.Fields.Channel') }}</span><ac-dropdown name="channelCode" [(ngModel)]="templateForm().channelCode" [options]="channelOptions()" /></label>
+                  <label><span>{{ t('Administration.SystemConfiguration.Fields.Language') }}</span><ac-dropdown name="languageCode" [(ngModel)]="templateForm().languageCode" [options]="templateLanguageOptions()" /></label>
                   <label class="ac-admin-wide"><span>{{ t('Administration.SystemConfiguration.Fields.Subject') }}</span><input name="subjectTemplate" [(ngModel)]="templateForm().subjectTemplate" /></label>
                   <label class="ac-admin-wide"><span>{{ t('Administration.SystemConfiguration.Fields.Body') }}</span><textarea name="bodyTemplate" [(ngModel)]="templateForm().bodyTemplate"></textarea></label>
                 </div>
@@ -333,6 +334,24 @@ export class SystemConfigurationPageComponent implements OnInit {
   async ngOnInit(): Promise<void> { await this.load(); }
   protected t(key: string): string { return this.i18n.translate(key); }
   protected can(permission: string): boolean { return this.auth.hasPermission(permission); }
+
+  protected resetFrequencyOptions() {
+    return this.resetFrequencies.map(code => ({
+      label: this.t('Administration.SystemConfiguration.ResetFrequency.' + code),
+      value: code
+    }));
+  }
+
+  protected channelOptions() {
+    return this.channels.map(code => ({
+      label: this.t('Administration.SystemConfiguration.Channel.' + code),
+      value: code
+    }));
+  }
+
+  protected templateLanguageOptions() {
+    return this.languages.map(code => ({ label: code, value: code }));
+  }
 
   protected canEditCategory(categoryCode: string): boolean {
     return this.can(permissions.edit) && (categoryPermission(categoryCode) === null || this.can(categoryPermission(categoryCode)!));

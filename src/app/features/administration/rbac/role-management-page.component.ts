@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
+import { AcDropdownComponent } from '../../../shared/ui/dropdown/dropdown.component';
 import { PermissionCatalogItem, RoleDto, RoleFormModel } from './rbac.models';
 import { RbacService } from './rbac.service';
 
@@ -16,7 +17,7 @@ const permissions = {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, AcDropdownComponent],
   template: `
     <section class="rbac-page">
       <header class="page-head">
@@ -128,7 +129,7 @@ const permissions = {
                 <label><span>{{ t('Administration.Rbac.Form.RoleCode') }}</span><input name="roleCode" [(ngModel)]="form.roleCode" [disabled]="!!form.rowVersion" required /></label>
                 <label><span>{{ t('Administration.Rbac.Form.RoleNameKey') }}</span><input name="roleNameKey" [(ngModel)]="form.roleNameKey" required /></label>
                 <label class="ac-admin-wide"><span>{{ t('Administration.Rbac.Form.DescriptionKey') }}</span><input name="roleDescriptionKey" [(ngModel)]="form.roleDescriptionKey" /></label>
-                <label><span>{{ t('Administration.Rbac.Form.ParentRole') }}</span><select name="parentRoleCode" [(ngModel)]="parentRoleCode"><option value=""></option>@for (role of roles(); track role.roleCode) { @if (role.roleCode !== form.roleCode) { <option [value]="role.roleCode">{{ t(role.roleNameKey) }}</option> } }</select></label>
+                <label><span>{{ t('Administration.Rbac.Form.ParentRole') }}</span><ac-dropdown name="parentRoleCode" [(ngModel)]="parentRoleCode" [options]="parentRoleOptions()" /></label>
                 <label class="ac-admin-switch-row"><input type="checkbox" name="isActive" [(ngModel)]="form.isActive" /><span>{{ t('Administration.Rbac.Form.Active') }}</span></label>
               </div>
             </section>
@@ -220,6 +221,15 @@ export class RoleManagementPageComponent implements OnInit {
 
   protected can(permissionCode: string): boolean {
     return this.authStore.hasPermission(permissionCode);
+  }
+
+  protected parentRoleOptions() {
+    return [
+      { label: '', value: '' },
+      ...this.roles()
+        .filter(role => role.roleCode !== this.form.roleCode)
+        .map(role => ({ label: this.t(role.roleNameKey), value: role.roleCode }))
+    ];
   }
 
   protected async loadRoles(): Promise<void> {

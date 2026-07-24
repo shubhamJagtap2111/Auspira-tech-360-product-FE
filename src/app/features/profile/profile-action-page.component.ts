@@ -8,6 +8,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { Language } from '../../core/i18n/i18n.models';
 import { TenantContextService } from '../../core/tenant/tenant-context.service';
 import { ToastService } from '../../shared/ui/toast/toast.service';
+import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
 
 type ProfileActionMode = 'account' | 'security' | 'activity' | 'password';
 
@@ -31,7 +32,7 @@ const fallbackLanguages: Language[] = [
 
 @Component({
   standalone: true,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, AcDropdownComponent],
   template: `
     <div class="profile-action">
       <div class="page-head">
@@ -66,19 +67,11 @@ const fallbackLanguages: Language[] = [
             </label>
             <label>
               <span>Language</span>
-              <select class="ac-input" name="language" [(ngModel)]="account.language" (change)="changeLanguage(account.language)">
-                @for (language of languages(); track language.cultureCode) {
-                  <option [value]="language.cultureCode">{{ language.englishName }} - {{ language.nativeName }}</option>
-                }
-              </select>
+              <ac-dropdown name="language" [(ngModel)]="account.language" [options]="languageOptions()" (selectionChange)="changeLanguage(account.language)" />
             </label>
             <label>
               <span>Time zone</span>
-              <select class="ac-input" name="timeZone" [(ngModel)]="account.timeZone">
-                <option value="Asia/Kolkata">Asia/Kolkata</option>
-                <option value="UTC">UTC</option>
-                <option value="Asia/Dubai">Asia/Dubai</option>
-              </select>
+              <ac-dropdown name="timeZone" [(ngModel)]="account.timeZone" [options]="timeZoneOptions()" />
             </label>
             <label class="check-row">
               <input type="checkbox" name="emailDigest" [(ngModel)]="account.emailDigest" />
@@ -350,6 +343,21 @@ export class ProfileActionPageComponent {
       compactMode: false
     };
     this.toast.info('Account settings reset');
+  }
+
+  protected languageOptions() {
+    return this.languages().map(language => ({
+      label: `${language.englishName} - ${language.nativeName}`,
+      value: language.cultureCode
+    }));
+  }
+
+  protected timeZoneOptions() {
+    return [
+      { label: 'Asia/Kolkata', value: 'Asia/Kolkata' },
+      { label: 'UTC', value: 'UTC' },
+      { label: 'Asia/Dubai', value: 'Asia/Dubai' }
+    ];
   }
 
   protected async changeLanguage(cultureCode: string): Promise<void> {
