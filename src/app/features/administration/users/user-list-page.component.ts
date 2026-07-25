@@ -6,6 +6,7 @@ import { I18nService } from '../../../core/i18n/i18n.service';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
 import { DialogService } from '../../../shared/ui/dialog/dialog.service';
 import { AcDropdownComponent } from '../../../shared/ui/dropdown/dropdown.component';
+import { AcAdminDrawerComponent } from '../../../shared/ui/admin-drawer/admin-drawer.component';
 import { AssignableRole, ManagedUser, UserAuditHistoryItem, UserFormModel, UserLanguageOption, UserTimeZoneOption } from './user-management.models';
 import { UserManagementService } from './user-management.service';
 
@@ -25,7 +26,7 @@ const permissions = {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcDropdownComponent],
+  imports: [CommonModule, FormsModule, AcDropdownComponent, AcAdminDrawerComponent],
   template: `
     <section class="user-page">
       <header class="page-head">
@@ -33,18 +34,20 @@ const permissions = {
           <h1 class="ac-page-title">{{ t('Administration.UserManagement.Title') }}</h1>
           <p>{{ t('Administration.UserManagement.Subtitle') }}</p>
         </div>
-        @if (can(permissions.create)) {
-          <button class="ac-btn ac-btn-primary" type="button" (click)="startCreate()">
-            <span class="material-symbols-rounded">person_add</span>
-            {{ t('Administration.UserManagement.Actions.New') }}
-          </button>
-        }
-        @if (can(permissions.export)) {
-          <button class="ac-btn ac-btn-secondary" type="button" (click)="exportUsers()">
-            <span class="material-symbols-rounded">download</span>
-            {{ t('Administration.UserManagement.Actions.Export') }}
-          </button>
-        }
+        <div class="page-actions">
+          @if (can(permissions.create)) {
+            <button class="ac-btn ac-btn-primary" type="button" (click)="startCreate()">
+              <span class="material-symbols-rounded">person_add</span>
+              {{ t('Administration.UserManagement.Actions.New') }}
+            </button>
+          }
+          @if (can(permissions.export)) {
+            <button class="ac-btn ac-btn-secondary" type="button" (click)="exportUsers()">
+              <span class="material-symbols-rounded">download</span>
+              {{ t('Administration.UserManagement.Actions.Export') }}
+            </button>
+          }
+        </div>
       </header>
 
       <section class="toolbar">
@@ -72,23 +75,6 @@ const permissions = {
           <span class="material-symbols-rounded">search</span>
         </button>
       </section>
-
-      @if (can(permissions.import)) {
-        <section class="import-panel">
-          <label>
-            <span>{{ t('Administration.UserManagement.Actions.Import') }}</span>
-            <textarea name="importText" [(ngModel)]="importText" [placeholder]="t('Administration.UserManagement.Import.Placeholder')"></textarea>
-          </label>
-          <label>
-            <span>{{ t('Administration.UserManagement.Form.Password') }}</span>
-            <input type="password" name="importPassword" [(ngModel)]="importPassword" />
-          </label>
-          <button class="ac-btn ac-btn-secondary" type="button" (click)="importUsers()">
-            <span class="material-symbols-rounded">upload_file</span>
-            {{ t('Administration.UserManagement.Actions.Import') }}
-          </button>
-        </section>
-      }
 
       <section class="content-grid ac-admin-layout" [class.drawer-open]="editorOpen()">
         <div class="table-wrap">
@@ -171,87 +157,76 @@ const permissions = {
         </div>
 
         @if (editorOpen()) {
-        <aside class="ac-admin-drawer">
-          <div class="ac-admin-drawer-head">
-            <div class="ac-admin-drawer-title">
-              <span class="ac-admin-drawer-icon material-symbols-rounded">manage_accounts</span>
-              <div>
-                <p>{{ editingUserGuid() ? t('Administration.UserManagement.Actions.Edit') : t('Administration.UserManagement.Actions.New') }}</p>
-                <h2>{{ form.fullName || t(editingUserGuid() ? 'Administration.UserManagement.Form.EditTitle' : 'Administration.UserManagement.Form.CreateTitle') }}</h2>
-              </div>
-            </div>
-            <button class="icon-btn" type="button" (click)="closeEditor()" title="Close editor">
-              <span class="material-symbols-rounded">close</span>
-            </button>
-          </div>
-          <div class="ac-admin-drawer-summary">
-            <span class="ac-admin-pill"><span class="material-symbols-rounded">mail</span>{{ form.email || 'New account' }}</span>
-            <span class="ac-admin-pill"><span class="material-symbols-rounded">badge</span>{{ form.roleCodes.length || 0 }} roles</span>
+        <ac-admin-drawer
+          [open]="editorOpen()"
+          icon="manage_accounts"
+          [eyebrow]="editingUserGuid() ? t('Administration.UserManagement.Actions.Edit') : t('Administration.UserManagement.Actions.New')"
+          [title]="form.fullName || t(editingUserGuid() ? 'Administration.UserManagement.Form.EditTitle' : 'Administration.UserManagement.Form.CreateTitle')"
+          (closed)="closeEditor()">
+            <span drawer-summary class="ac-admin-pill"><span class="material-symbols-rounded">mail</span>{{ form.email || 'New account' }}</span>
+            <span drawer-summary class="ac-admin-pill"><span class="material-symbols-rounded">badge</span>{{ form.roleCodes.length || 0 }} roles</span>
             @if (form.isEmailVerified) {
-              <span class="ac-admin-pill featured"><span class="material-symbols-rounded">verified</span>{{ t('Administration.UserManagement.Form.EmailVerified') }}</span>
+              <span drawer-summary class="ac-admin-pill featured"><span class="material-symbols-rounded">verified</span>{{ t('Administration.UserManagement.Form.EmailVerified') }}</span>
             }
+          <div drawer-body class="ac-admin-drawer-content">
+            <header>
+              <h2>{{ t(editingUserGuid() ? 'Administration.UserManagement.Form.EditTitle' : 'Administration.UserManagement.Form.CreateTitle') }}</h2>
+            </header>
+
+            @if (errorKey()) {
+              <p class="error">{{ t(errorKey()!) }}</p>
+            }
+
+            <form id="user-editor-form" (ngSubmit)="saveUser()">
+              <section class="ac-admin-form-section">
+                <div class="ac-admin-section-title"><span class="material-symbols-rounded">person</span><h3>{{ t('Administration.UserManagement.Form.CreateTitle') }}</h3></div>
+                <div class="ac-admin-form-grid">
+                  <label><span>{{ t('Administration.UserManagement.Form.FullName') }}</span><input name="fullName" [(ngModel)]="form.fullName" required /></label>
+                  <label><span>{{ t('Administration.UserManagement.Form.Email') }}</span><input type="email" name="email" [(ngModel)]="form.email" required /></label>
+                  <label><span>{{ t('Administration.UserManagement.Form.Mobile') }}</span><input name="mobileNo" [(ngModel)]="form.mobileNo" /></label>
+                  @if (!editingUserGuid()) {
+                    <label><span>{{ t('Administration.UserManagement.Form.Password') }}</span><input type="password" name="password" [(ngModel)]="form.password" required /></label>
+                  }
+                  @if (editingUserGuid() && can(permissions.uploadProfileImage)) {
+                    <label class="ac-admin-wide"><span>{{ t('Administration.UserManagement.Form.ProfileImage') }}</span><input type="file" accept="image/png,image/jpeg" (change)="uploadProfileImage($event)" /></label>
+                  }
+                  <label class="ac-admin-switch-row"><input type="checkbox" name="isEmailVerified" [(ngModel)]="form.isEmailVerified" /><span>{{ t('Administration.UserManagement.Form.EmailVerified') }}</span></label>
+                </div>
+              </section>
+
+              <section class="ac-admin-form-section">
+                <div class="ac-admin-section-title"><span class="material-symbols-rounded">corporate_fare</span><h3>{{ t('Administration.Branch.Section.Profile') }}</h3></div>
+                <div class="ac-admin-form-grid">
+                  <label><span>{{ t('Administration.UserManagement.Form.HospitalName') }}</span><input name="hospitalName" [(ngModel)]="form.hospitalName" /></label>
+                  <label><span>{{ t('Administration.UserManagement.Form.BranchCode') }}</span><input name="branchCode" [(ngModel)]="form.branchCode" /></label>
+                  <label><span>{{ t('Administration.UserManagement.Form.DepartmentCode') }}</span><input name="departmentCode" [(ngModel)]="form.departmentCode" /></label>
+                  <label><span>{{ t('Administration.UserManagement.Form.Language') }}</span><ac-dropdown name="languageCode" [(ngModel)]="form.languageCode" [options]="languageOptions()" /></label>
+                  <label><span>{{ t('Administration.UserManagement.Form.TimeZone') }}</span><ac-dropdown name="timeZoneCode" [(ngModel)]="form.timeZoneCode" [options]="timeZoneOptions()" /></label>
+                </div>
+              </section>
+
+              <section class="ac-admin-form-section">
+                <div class="ac-admin-section-title"><span class="material-symbols-rounded">admin_panel_settings</span><h3>{{ t('Administration.UserManagement.Form.Roles') }}</h3></div>
+                <fieldset class="ac-admin-fieldset">
+                  <legend>{{ t('Administration.UserManagement.Form.Roles') }}</legend>
+                  @for (role of roles(); track role.roleCode) {
+                    <label class="ac-admin-switch-row">
+                      <input type="checkbox" [name]="'role_' + role.roleCode" [checked]="hasRole(role.roleCode)" (change)="toggleRole(role.roleCode)" />
+                      <span>{{ t(role.roleNameKey) }}</span>
+                    </label>
+                  }
+                </fieldset>
+              </section>
+            </form>
           </div>
-          <div class="ac-admin-drawer-body">
-          <header>
-            <h2>{{ t(editingUserGuid() ? 'Administration.UserManagement.Form.EditTitle' : 'Administration.UserManagement.Form.CreateTitle') }}</h2>
-          </header>
-
-          @if (errorKey()) {
-            <p class="error">{{ t(errorKey()!) }}</p>
-          }
-
-          <form id="user-editor-form" (ngSubmit)="saveUser()">
-            <section class="ac-admin-form-section">
-              <div class="ac-admin-section-title"><span class="material-symbols-rounded">person</span><h3>{{ t('Administration.UserManagement.Form.CreateTitle') }}</h3></div>
-              <div class="ac-admin-form-grid">
-                <label><span>{{ t('Administration.UserManagement.Form.FullName') }}</span><input name="fullName" [(ngModel)]="form.fullName" required /></label>
-                <label><span>{{ t('Administration.UserManagement.Form.Email') }}</span><input type="email" name="email" [(ngModel)]="form.email" required /></label>
-                <label><span>{{ t('Administration.UserManagement.Form.Mobile') }}</span><input name="mobileNo" [(ngModel)]="form.mobileNo" /></label>
-                @if (!editingUserGuid()) {
-                  <label><span>{{ t('Administration.UserManagement.Form.Password') }}</span><input type="password" name="password" [(ngModel)]="form.password" required /></label>
-                }
-                @if (editingUserGuid() && can(permissions.uploadProfileImage)) {
-                  <label class="ac-admin-wide"><span>{{ t('Administration.UserManagement.Form.ProfileImage') }}</span><input type="file" accept="image/png,image/jpeg" (change)="uploadProfileImage($event)" /></label>
-                }
-                <label class="ac-admin-switch-row"><input type="checkbox" name="isEmailVerified" [(ngModel)]="form.isEmailVerified" /><span>{{ t('Administration.UserManagement.Form.EmailVerified') }}</span></label>
-              </div>
-            </section>
-
-            <section class="ac-admin-form-section">
-              <div class="ac-admin-section-title"><span class="material-symbols-rounded">corporate_fare</span><h3>{{ t('Administration.Branch.Section.Profile') }}</h3></div>
-              <div class="ac-admin-form-grid">
-                <label><span>{{ t('Administration.UserManagement.Form.HospitalName') }}</span><input name="hospitalName" [(ngModel)]="form.hospitalName" /></label>
-                <label><span>{{ t('Administration.UserManagement.Form.BranchCode') }}</span><input name="branchCode" [(ngModel)]="form.branchCode" /></label>
-                <label><span>{{ t('Administration.UserManagement.Form.DepartmentCode') }}</span><input name="departmentCode" [(ngModel)]="form.departmentCode" /></label>
-                <label><span>{{ t('Administration.UserManagement.Form.Language') }}</span><ac-dropdown name="languageCode" [(ngModel)]="form.languageCode" [options]="languageOptions()" /></label>
-                <label><span>{{ t('Administration.UserManagement.Form.TimeZone') }}</span><ac-dropdown name="timeZoneCode" [(ngModel)]="form.timeZoneCode" [options]="timeZoneOptions()" /></label>
-              </div>
-            </section>
-
-            <section class="ac-admin-form-section">
-              <div class="ac-admin-section-title"><span class="material-symbols-rounded">admin_panel_settings</span><h3>{{ t('Administration.UserManagement.Form.Roles') }}</h3></div>
-              <fieldset class="ac-admin-fieldset">
-                <legend>{{ t('Administration.UserManagement.Form.Roles') }}</legend>
-                @for (role of roles(); track role.roleCode) {
-                  <label class="ac-admin-switch-row">
-                    <input type="checkbox" [name]="'role_' + role.roleCode" [checked]="hasRole(role.roleCode)" (change)="toggleRole(role.roleCode)" />
-                    <span>{{ t(role.roleNameKey) }}</span>
-                  </label>
-                }
-              </fieldset>
-            </section>
-          </form>
-          </div>
-          <div class="ac-admin-drawer-actions">
-            <button class="ac-btn ac-btn-secondary" type="button" (click)="closeEditor()">
+            <button drawer-actions class="ac-btn ac-btn-secondary" type="button" (click)="closeEditor()">
               {{ t('Administration.UserManagement.Actions.Cancel') }}
             </button>
-            <button class="ac-btn ac-btn-primary" type="submit" form="user-editor-form" [disabled]="saving()">
+            <button drawer-actions class="ac-btn ac-btn-primary" type="submit" form="user-editor-form" [disabled]="saving()">
               <span class="material-symbols-rounded">save</span>
               {{ t(saving() ? 'Common.Actions.Updating' : 'Administration.UserManagement.Actions.Save') }}
             </button>
-          </div>
-        </aside>
+        </ac-admin-drawer>
         }
       </section>
 
@@ -270,12 +245,12 @@ const permissions = {
   `,
   styles: `
     .user-page { display: flex; flex-direction: column; gap: 16px; }
-    .page-head, .toolbar, .content-grid, .form-actions, .row-actions { display: flex; gap: 12px; }
+    .page-head, .toolbar, .content-grid, .form-actions, .row-actions, .page-actions { display: flex; gap: 12px; }
     .page-head { align-items: flex-start; justify-content: space-between; }
+    .page-actions { align-items: center; justify-content: flex-end; flex-wrap: wrap; margin-left: auto; }
     .page-head p { margin: 4px 0 0; color: var(--ac-muted); font-size: 13px; }
     .toolbar { align-items: end; padding: 14px; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; }
-    .import-panel, .audit-panel { padding: 14px; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; display: flex; gap: 12px; align-items: end; }
-    .import-panel textarea { min-height: 76px; border: 1px solid var(--ac-border); border-radius: 8px; padding: 10px; font: inherit; resize: vertical; }
+    .audit-panel { padding: 14px; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; display: flex; gap: 12px; align-items: end; }
     .audit-panel { flex-direction: column; align-items: stretch; }
     .audit-panel h2 { margin: 0; font-size: 16px; }
     .audit-row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--ac-border); font-size: 13px; }
@@ -311,7 +286,7 @@ const permissions = {
     .form-actions { justify-content: flex-end; margin-top: 4px; }
     .error { margin: 0 0 10px; padding: 10px 12px; border-radius: 8px; background: var(--ac-error-light); color: var(--ac-error); font-size: 13px; }
     @media (max-width: 1120px) { .content-grid { flex-direction: column; } .editor { width: 100%; flex-basis: auto; } }
-    @media (max-width: 720px) { .page-head, .toolbar { flex-direction: column; align-items: stretch; } table { min-width: 760px; } }
+    @media (max-width: 720px) { .page-head, .toolbar, .page-actions { flex-direction: column; align-items: stretch; } .page-actions { width: 100%; margin-left: 0; } table { min-width: 760px; } }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -325,8 +300,6 @@ export class UserListPageComponent implements OnInit {
 
   protected searchText = '';
   protected roleCode = '';
-  protected importText = '';
-  protected importPassword = '';
   protected branchFilter = '';
   protected departmentFilter = '';
   protected statusFilter: 'all' | 'active' | 'inactive' = 'all';
@@ -553,19 +526,6 @@ export class UserListPageComponent implements OnInit {
     this.toast.success(this.t('Administration.UserManagement.Messages.ExportReady'));
   }
 
-  protected async importUsers(): Promise<void> {
-    const rows = parseImportRows(this.importText);
-    const response = await this.service.importUsers(this.importPassword, rows);
-    if (!response.success || !response.data) {
-      this.toast.error(this.t(response.message));
-      return;
-    }
-
-    this.toast.success(`${this.t('Administration.UserManagement.Messages.ImportCompleted')} ${response.data.createdCount}/${rows.length}`);
-    this.importText = '';
-    await this.loadUsers();
-  }
-
   protected async loadAudit(user: ManagedUser): Promise<void> {
     const response = await this.service.getAuditHistory(user.userGuid);
     if (response.success && response.data) {
@@ -677,28 +637,4 @@ function downloadBase64(fileName: string, contentType: string, base64Content: st
   link.download = fileName;
   link.click();
   URL.revokeObjectURL(url);
-}
-
-function parseImportRows(text: string) {
-  return text
-    .split(/\r?\n/)
-    .map(line => line.trim())
-    .filter(Boolean)
-    .map(line => {
-      const [email, fullName, mobileNo, roleCodes, branchCode, departmentCode, languageCode, timeZoneCode] = line.split(',').map(value => value?.trim() ?? '');
-      return {
-        email,
-        fullName,
-        mobileNo: mobileNo || null,
-        roleCodes: roleCodes ? roleCodes.split('|').map(role => role.trim()).filter(Boolean) : [],
-        hospitalGuid: null,
-        hospitalName: null,
-        branchCode: branchCode || null,
-        branchNameKey: branchCode ? `Organization.Branch.${branchCode}` : null,
-        departmentCode: departmentCode || null,
-        departmentNameKey: departmentCode ? `Organization.Department.${departmentCode}` : null,
-        languageCode: languageCode || null,
-        timeZoneCode: timeZoneCode || null
-      };
-    });
 }

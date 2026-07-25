@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
+import { AcAdminDrawerComponent } from '../../../shared/ui/admin-drawer/admin-drawer.component';
 import { HospitalProfile, HospitalSetting } from './hospital-management.models';
 import { HospitalManagementService } from './hospital-management.service';
 
@@ -17,7 +18,7 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, AcAdminDrawerComponent],
   template: `
     <section class="hospital-page">
       <header class="page-head">
@@ -123,78 +124,69 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
           </div>
 
           @if (profileDrawer(); as drawer) {
-            <aside class="ac-admin-drawer">
-              <div class="ac-admin-drawer-head">
-                <div class="ac-admin-drawer-title">
-                  <span class="ac-admin-drawer-icon material-symbols-rounded">{{ drawerIcon(drawer) }}</span>
-                  <div>
-                    <p>{{ t('Administration.Hospital.Title') }}</p>
-                    <h2>{{ t(drawerTitle(drawer)) }}</h2>
-                  </div>
+            <ac-admin-drawer
+              [open]="!!profileDrawer()"
+              [icon]="drawerIcon(drawer)"
+              [eyebrow]="t('Administration.Hospital.Title')"
+              [title]="t(drawerTitle(drawer))"
+              (closed)="closeDrawer()">
+                <span drawer-summary class="ac-admin-pill"><span class="material-symbols-rounded">local_hospital</span>{{ form.hospitalName }}</span>
+                <span drawer-summary class="ac-admin-pill featured"><span class="material-symbols-rounded">{{ drawerIcon(drawer) }}</span>{{ t(drawerTitle(drawer)) }}</span>
+                <div drawer-body class="ac-admin-drawer-content">
+                  @if (drawer === 'branding') {
+                    <section class="ac-admin-form-section">
+                      <div class="ac-admin-section-title"><span class="material-symbols-rounded">imagesmode</span><h3>{{ t('Administration.Hospital.Section.Branding') }}</h3></div>
+                      <div class="ac-admin-form-grid">
+                        <label class="ac-admin-wide"><span>{{ t('Administration.Hospital.Fields.LogoUrl') }}</span><input name="logoUrl" [(ngModel)]="form.branding.logoUrl" /></label>
+                        <label class="ac-admin-wide"><span>{{ t('Administration.Hospital.Fields.FaviconUrl') }}</span><input name="faviconUrl" [(ngModel)]="form.branding.faviconUrl" /></label>
+                        <label><span>{{ t('Administration.Hospital.Fields.PrimaryColor') }}</span><input type="color" name="primaryColor" [(ngModel)]="form.branding.primaryColor" /></label>
+                        <label><span>{{ t('Administration.Hospital.Fields.SecondaryColor') }}</span><input type="color" name="secondaryColor" [(ngModel)]="form.branding.secondaryColor" /></label>
+                        <label><span>{{ t('Administration.Hospital.Fields.AccentColor') }}</span><input type="color" name="accentColor" [(ngModel)]="form.branding.accentColor" /></label>
+                      </div>
+                    </section>
+                  }
+                  @if (drawer === 'settings') {
+                    <section class="ac-admin-form-section">
+                      <div class="ac-admin-section-title"><span class="material-symbols-rounded">tune</span><h3>{{ t('Administration.Hospital.Section.Settings') }}</h3></div>
+                      <div class="setting-list">
+                        @for (setting of form.settings; track setting.settingKey; let index = $index) {
+                          <div class="setting-row">
+                            <input [name]="'settingKey_' + index" [(ngModel)]="setting.settingKey" [attr.aria-label]="t('Administration.Hospital.Fields.SettingKey')" />
+                            <input [name]="'settingValue_' + index" [(ngModel)]="setting.settingValue" [attr.aria-label]="t('Administration.Hospital.Fields.SettingValue')" />
+                          </div>
+                        }
+                      </div>
+                      <button class="ac-btn ac-btn-secondary" type="button" (click)="addSetting()">{{ t('Administration.Hospital.Actions.AddSetting') }}</button>
+                    </section>
+                  }
+                  @if (drawer === 'subscription') {
+                    <section class="ac-admin-form-section">
+                      <div class="ac-admin-section-title"><span class="material-symbols-rounded">workspace_premium</span><h3>{{ t('Administration.Hospital.Section.Subscription') }}</h3></div>
+                      <dl class="subscription-summary">
+                        <dt>{{ t('Administration.Hospital.Fields.PlanName') }}</dt><dd>{{ t(form.subscription.planNameKey) }}</dd>
+                        <dt>{{ t('Administration.Hospital.Fields.SubscriptionStatus') }}</dt><dd>{{ t(subscriptionStatusKey(form.subscription.statusCode)) }}</dd>
+                      </dl>
+                      <div class="ac-admin-form-grid">
+                        <label><span>{{ t('Administration.Hospital.Fields.PlanName') }}</span><input name="planCode" [(ngModel)]="form.subscription.planCode" /></label>
+                        <label><span>{{ t('Administration.Hospital.Fields.SubscriptionStatus') }}</span><input name="statusCode" [(ngModel)]="form.subscription.statusCode" /></label>
+                        <label><span>{{ t('Administration.Hospital.Fields.SubscriptionEndDate') }}</span><input type="date" name="subscriptionEndDate" [(ngModel)]="form.subscription.endDate" /></label>
+                        <label><span>{{ t('Administration.Hospital.Fields.MaxUsers') }}</span><input type="number" min="0" name="maxUsers" [(ngModel)]="form.subscription.maxUsers" /></label>
+                        <label><span>{{ t('Administration.Hospital.Fields.MaxBranches') }}</span><input type="number" min="0" name="maxBranches" [(ngModel)]="form.subscription.maxBranches" /></label>
+                      </div>
+                    </section>
+                  }
                 </div>
-                <button class="icon-btn" type="button" (click)="closeDrawer()" title="Close editor"><span class="material-symbols-rounded">close</span></button>
-              </div>
-              <div class="ac-admin-drawer-summary">
-                <span class="ac-admin-pill"><span class="material-symbols-rounded">local_hospital</span>{{ form.hospitalName }}</span>
-                <span class="ac-admin-pill featured"><span class="material-symbols-rounded">{{ drawerIcon(drawer) }}</span>{{ t(drawerTitle(drawer)) }}</span>
-              </div>
-              <div class="ac-admin-drawer-body">
+                <button drawer-actions class="ac-btn ac-btn-secondary" type="button" (click)="closeDrawer()">{{ t('Common.Actions.Cancel') }}</button>
                 @if (drawer === 'branding') {
-                  <section class="ac-admin-form-section">
-                    <div class="ac-admin-section-title"><span class="material-symbols-rounded">imagesmode</span><h3>{{ t('Administration.Hospital.Section.Branding') }}</h3></div>
-                    <div class="ac-admin-form-grid">
-                      <label class="ac-admin-wide"><span>{{ t('Administration.Hospital.Fields.LogoUrl') }}</span><input name="logoUrl" [(ngModel)]="form.branding.logoUrl" /></label>
-                      <label class="ac-admin-wide"><span>{{ t('Administration.Hospital.Fields.FaviconUrl') }}</span><input name="faviconUrl" [(ngModel)]="form.branding.faviconUrl" /></label>
-                      <label><span>{{ t('Administration.Hospital.Fields.PrimaryColor') }}</span><input type="color" name="primaryColor" [(ngModel)]="form.branding.primaryColor" /></label>
-                      <label><span>{{ t('Administration.Hospital.Fields.SecondaryColor') }}</span><input type="color" name="secondaryColor" [(ngModel)]="form.branding.secondaryColor" /></label>
-                      <label><span>{{ t('Administration.Hospital.Fields.AccentColor') }}</span><input type="color" name="accentColor" [(ngModel)]="form.branding.accentColor" /></label>
-                    </div>
-                  </section>
+                  <button drawer-actions class="ac-btn ac-btn-primary" type="button" (click)="saveBranding()" [disabled]="saving()"><span class="material-symbols-rounded">save</span>{{ t('Administration.Hospital.Actions.SaveBranding') }}</button>
                 }
                 @if (drawer === 'settings') {
-                  <section class="ac-admin-form-section">
-                    <div class="ac-admin-section-title"><span class="material-symbols-rounded">tune</span><h3>{{ t('Administration.Hospital.Section.Settings') }}</h3></div>
-                    <div class="setting-list">
-                      @for (setting of form.settings; track setting.settingKey; let index = $index) {
-                        <div class="setting-row">
-                          <input [name]="'settingKey_' + index" [(ngModel)]="setting.settingKey" [attr.aria-label]="t('Administration.Hospital.Fields.SettingKey')" />
-                          <input [name]="'settingValue_' + index" [(ngModel)]="setting.settingValue" [attr.aria-label]="t('Administration.Hospital.Fields.SettingValue')" />
-                        </div>
-                      }
-                    </div>
-                    <button class="ac-btn ac-btn-secondary" type="button" (click)="addSetting()">{{ t('Administration.Hospital.Actions.AddSetting') }}</button>
-                  </section>
+                  <button drawer-actions class="ac-btn ac-btn-primary" type="button" (click)="saveSettings()" [disabled]="saving()"><span class="material-symbols-rounded">save</span>{{ t('Administration.Hospital.Actions.SaveSettings') }}</button>
                 }
                 @if (drawer === 'subscription') {
-                  <section class="ac-admin-form-section">
-                    <div class="ac-admin-section-title"><span class="material-symbols-rounded">workspace_premium</span><h3>{{ t('Administration.Hospital.Section.Subscription') }}</h3></div>
-                    <dl class="subscription-summary">
-                      <dt>{{ t('Administration.Hospital.Fields.PlanName') }}</dt><dd>{{ t(form.subscription.planNameKey) }}</dd>
-                      <dt>{{ t('Administration.Hospital.Fields.SubscriptionStatus') }}</dt><dd>{{ t(subscriptionStatusKey(form.subscription.statusCode)) }}</dd>
-                    </dl>
-                    <div class="ac-admin-form-grid">
-                      <label><span>{{ t('Administration.Hospital.Fields.PlanName') }}</span><input name="planCode" [(ngModel)]="form.subscription.planCode" /></label>
-                      <label><span>{{ t('Administration.Hospital.Fields.SubscriptionStatus') }}</span><input name="statusCode" [(ngModel)]="form.subscription.statusCode" /></label>
-                      <label><span>{{ t('Administration.Hospital.Fields.SubscriptionEndDate') }}</span><input type="date" name="subscriptionEndDate" [(ngModel)]="form.subscription.endDate" /></label>
-                      <label><span>{{ t('Administration.Hospital.Fields.MaxUsers') }}</span><input type="number" min="0" name="maxUsers" [(ngModel)]="form.subscription.maxUsers" /></label>
-                      <label><span>{{ t('Administration.Hospital.Fields.MaxBranches') }}</span><input type="number" min="0" name="maxBranches" [(ngModel)]="form.subscription.maxBranches" /></label>
-                    </div>
-                  </section>
+                  <button drawer-actions class="ac-btn ac-btn-primary" type="button" (click)="saveSubscription()" [disabled]="saving()"><span class="material-symbols-rounded">save</span>{{ t('Administration.Hospital.Actions.SaveProfile') }}</button>
                 }
-              </div>
-              <div class="ac-admin-drawer-actions">
-                <button class="ac-btn ac-btn-secondary" type="button" (click)="closeDrawer()">{{ t('Common.Actions.Cancel') }}</button>
-                @if (drawer === 'branding') {
-                  <button class="ac-btn ac-btn-primary" type="button" (click)="saveBranding()" [disabled]="saving()"><span class="material-symbols-rounded">save</span>{{ t('Administration.Hospital.Actions.SaveBranding') }}</button>
-                }
-                @if (drawer === 'settings') {
-                  <button class="ac-btn ac-btn-primary" type="button" (click)="saveSettings()" [disabled]="saving()"><span class="material-symbols-rounded">save</span>{{ t('Administration.Hospital.Actions.SaveSettings') }}</button>
-                }
-                @if (drawer === 'subscription') {
-                  <button class="ac-btn ac-btn-primary" type="button" (click)="saveSubscription()" [disabled]="saving()"><span class="material-symbols-rounded">save</span>{{ t('Administration.Hospital.Actions.SaveProfile') }}</button>
-                }
-              </div>
-            </aside>
+            </ac-admin-drawer>
           }
         </section>
       }

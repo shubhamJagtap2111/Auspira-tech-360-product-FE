@@ -11,6 +11,7 @@ import { AuthStore } from '../../core/auth/auth.store';
 import { getUserRoleLabel, isHospitalAdminUser as isHospitalAdminSession, isPlatformUser as isPlatformSession } from '../../core/auth/user-access';
 import { TenantContextService } from '../../core/tenant/tenant-context.service';
 import { Language } from '../../core/i18n/i18n.models';
+import { AppLoaderComponent } from '../../shared/ui/app-loader/app-loader.component';
 
 interface NavItem {
   path: string;
@@ -36,7 +37,7 @@ const fallbackLanguages: Language[] = [
 @Component({
   selector: 'ac-root',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, FormsModule, ConfirmDialogComponent],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, FormsModule, ConfirmDialogComponent, AppLoaderComponent],
   template: `
     @if (isAuthPage()) {
       <router-outlet />
@@ -344,6 +345,7 @@ const fallbackLanguages: Language[] = [
       </div>
     }
     <ac-confirm-dialog />
+    <ac-app-loader />
   `,
   styles: `
     /* ── Shell Layout ── */

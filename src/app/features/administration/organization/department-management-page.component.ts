@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
+import { AcAdminDrawerComponent } from '../../../shared/ui/admin-drawer/admin-drawer.component';
 import { Department } from './organization-management.models';
 import { OrganizationManagementService } from './organization-management.service';
 
@@ -17,7 +18,7 @@ const permissions = {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, AcAdminDrawerComponent],
   template: `
     <section class="org-page">
       <header class="page-head">
@@ -73,44 +74,35 @@ const permissions = {
         </div>
 
         @if (drawerOpen()) {
-        <aside class="ac-admin-drawer">
           @if (form(); as model) {
-            <div class="ac-admin-drawer-head">
-              <div class="ac-admin-drawer-title">
-                <span class="ac-admin-drawer-icon material-symbols-rounded">business</span>
-                <div>
-                  <p>{{ model.departmentGuid ? t('Administration.UserManagement.Actions.Edit') : t('Administration.Department.Actions.New') }}</p>
-                  <h2>{{ model.departmentName || t('Administration.Department.Title') }}</h2>
-                </div>
+            <ac-admin-drawer
+              [open]="drawerOpen()"
+              icon="business"
+              [eyebrow]="model.departmentGuid ? t('Administration.UserManagement.Actions.Edit') : t('Administration.Department.Actions.New')"
+              [title]="model.departmentName || t('Administration.Department.Title')"
+              (closed)="closeDrawer()">
+              <span drawer-summary class="ac-admin-pill"><span class="material-symbols-rounded">tag</span>{{ model.departmentCode || 'NEW' }}</span>
+              <span drawer-summary class="ac-admin-pill"><span class="material-symbols-rounded">account_tree</span>{{ model.branchName || model.branchCode || 'Branch' }}</span>
+              @if (model.isActive) { <span drawer-summary class="ac-admin-pill featured"><span class="material-symbols-rounded">check_circle</span>{{ t('Administration.UserManagement.Status.Active') }}</span> }
+              <div drawer-body class="ac-admin-drawer-content">
+                <section class="ac-admin-form-section">
+                  <div class="ac-admin-section-title"><span class="material-symbols-rounded">badge</span><h3>{{ t('Administration.Department.Title') }}</h3></div>
+                  <div class="ac-admin-form-grid">
+                    <label><span>{{ t('Administration.Department.Fields.DepartmentCode') }}</span><input name="departmentCode" [(ngModel)]="model.departmentCode" /></label>
+                    <label><span>{{ t('Administration.Department.Fields.DepartmentName') }}</span><input name="departmentName" [(ngModel)]="model.departmentName" /></label>
+                    <label><span>{{ t('Administration.Department.Fields.BranchGuid') }}</span><input name="branchGuid" [(ngModel)]="model.branchGuid" /></label>
+                    <label><span>{{ t('Administration.Department.Fields.SortOrder') }}</span><input type="number" name="sortOrder" [(ngModel)]="model.sortOrder" /></label>
+                    <label class="ac-admin-wide"><span>{{ t('Administration.Department.Fields.DescriptionKey') }}</span><input name="descriptionKey" [(ngModel)]="model.descriptionKey" /></label>
+                    @if (can(permissions.assignHead)) {
+                      <label class="ac-admin-wide"><span>{{ t('Administration.Department.Fields.DepartmentHeadUserGuid') }}</span><input name="departmentHeadUserGuid" [(ngModel)]="model.departmentHeadUserGuid" /></label>
+                    }
+                  </div>
+                </section>
               </div>
-              <button class="icon-btn" type="button" (click)="closeDrawer()" title="Close editor"><span class="material-symbols-rounded">close</span></button>
-            </div>
-            <div class="ac-admin-drawer-summary">
-              <span class="ac-admin-pill"><span class="material-symbols-rounded">tag</span>{{ model.departmentCode || 'NEW' }}</span>
-              <span class="ac-admin-pill"><span class="material-symbols-rounded">account_tree</span>{{ model.branchName || model.branchCode || 'Branch' }}</span>
-              @if (model.isActive) { <span class="ac-admin-pill featured"><span class="material-symbols-rounded">check_circle</span>{{ t('Administration.UserManagement.Status.Active') }}</span> }
-            </div>
-            <div class="ac-admin-drawer-body">
-              <section class="ac-admin-form-section">
-                <div class="ac-admin-section-title"><span class="material-symbols-rounded">badge</span><h3>{{ t('Administration.Department.Title') }}</h3></div>
-                <div class="ac-admin-form-grid">
-                  <label><span>{{ t('Administration.Department.Fields.DepartmentCode') }}</span><input name="departmentCode" [(ngModel)]="model.departmentCode" /></label>
-                  <label><span>{{ t('Administration.Department.Fields.DepartmentName') }}</span><input name="departmentName" [(ngModel)]="model.departmentName" /></label>
-                  <label><span>{{ t('Administration.Department.Fields.BranchGuid') }}</span><input name="branchGuid" [(ngModel)]="model.branchGuid" /></label>
-                  <label><span>{{ t('Administration.Department.Fields.SortOrder') }}</span><input type="number" name="sortOrder" [(ngModel)]="model.sortOrder" /></label>
-                  <label class="ac-admin-wide"><span>{{ t('Administration.Department.Fields.DescriptionKey') }}</span><input name="descriptionKey" [(ngModel)]="model.descriptionKey" /></label>
-                  @if (can(permissions.assignHead)) {
-                    <label class="ac-admin-wide"><span>{{ t('Administration.Department.Fields.DepartmentHeadUserGuid') }}</span><input name="departmentHeadUserGuid" [(ngModel)]="model.departmentHeadUserGuid" /></label>
-                  }
-                </div>
-              </section>
-            </div>
-            <div class="ac-admin-drawer-actions">
-              <button class="ac-btn ac-btn-secondary" type="button" (click)="closeDrawer()">{{ t('Common.Actions.Cancel') }}</button>
-              <button class="ac-btn ac-btn-primary" type="button" (click)="save()" [disabled]="saving() || !canSave(model)"><span class="material-symbols-rounded">save</span>{{ t('Administration.Department.Actions.Save') }}</button>
-            </div>
+              <button drawer-actions class="ac-btn ac-btn-secondary" type="button" (click)="closeDrawer()">{{ t('Common.Actions.Cancel') }}</button>
+              <button drawer-actions class="ac-btn ac-btn-primary" type="button" (click)="save()" [disabled]="saving() || !canSave(model)"><span class="material-symbols-rounded">save</span>{{ t('Administration.Department.Actions.Save') }}</button>
+            </ac-admin-drawer>
           }
-        </aside>
         }
       </section>
     </section>

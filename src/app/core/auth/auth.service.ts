@@ -44,10 +44,9 @@ export class AuthService {
     window.location.href = `${this.apiBaseUrl}/auth/external/google/login?${params.toString()}`;
   }
 
-  startGoogleRegistration(request: Pick<RegisterTenantRequest, 'hospitalName' | 'tenantCode' | 'timeZone'>): void {
+  startGoogleRegistration(request: Pick<RegisterTenantRequest, 'hospitalName' | 'timeZone'>): void {
     const params = new URLSearchParams({
       hospitalName: request.hospitalName,
-      tenantCode: request.tenantCode ?? '',
       timeZone: request.timeZone ?? 'Asia/Kolkata',
       redirectUri: `${window.location.origin}/auth/google-callback`
     });

@@ -5,6 +5,7 @@ import { AuthStore } from '../../../core/auth/auth.store';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
 import { AcDropdownComponent } from '../../../shared/ui/dropdown/dropdown.component';
+import { AcAdminDrawerComponent } from '../../../shared/ui/admin-drawer/admin-drawer.component';
 import { PermissionCatalogItem, RoleDto, RoleFormModel } from './rbac.models';
 import { RbacService } from './rbac.service';
 
@@ -17,7 +18,7 @@ const permissions = {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcDropdownComponent],
+  imports: [CommonModule, FormsModule, AcDropdownComponent, AcAdminDrawerComponent],
   template: `
     <section class="rbac-page">
       <header class="page-head">
@@ -98,64 +99,53 @@ const permissions = {
         </div>
 
         @if (editorOpen()) {
-        <aside class="ac-admin-drawer">
-          <div class="ac-admin-drawer-head">
-            <div class="ac-admin-drawer-title">
-              <span class="ac-admin-drawer-icon material-symbols-rounded">admin_panel_settings</span>
-              <div>
-                <p>{{ t(form.rowVersion ? 'Administration.Rbac.Form.EditRole' : 'Administration.Rbac.Form.CreateRole') }}</p>
-                <h2>{{ form.roleCode || t('Administration.Rbac.Actions.NewRole') }}</h2>
-              </div>
-            </div>
-            <button class="icon-btn" type="button" (click)="closeEditor()" title="Close editor">
-              <span class="material-symbols-rounded">close</span>
-            </button>
-          </div>
-          <div class="ac-admin-drawer-summary">
-            <span class="ac-admin-pill"><span class="material-symbols-rounded">key</span>{{ form.roleCode || 'NEW_ROLE' }}</span>
-            <span class="ac-admin-pill"><span class="material-symbols-rounded">rule</span>{{ form.permissionCodes.length }} permissions</span>
+        <ac-admin-drawer
+          [open]="editorOpen()"
+          icon="admin_panel_settings"
+          [eyebrow]="t(form.rowVersion ? 'Administration.Rbac.Form.EditRole' : 'Administration.Rbac.Form.CreateRole')"
+          [title]="form.roleCode || t('Administration.Rbac.Actions.NewRole')"
+          (closed)="closeEditor()">
+            <span drawer-summary class="ac-admin-pill"><span class="material-symbols-rounded">key</span>{{ form.roleCode || 'NEW_ROLE' }}</span>
+            <span drawer-summary class="ac-admin-pill"><span class="material-symbols-rounded">rule</span>{{ form.permissionCodes.length }} permissions</span>
             @if (form.isActive) {
-              <span class="ac-admin-pill featured"><span class="material-symbols-rounded">check_circle</span>{{ t('Administration.UserManagement.Status.Active') }}</span>
+              <span drawer-summary class="ac-admin-pill featured"><span class="material-symbols-rounded">check_circle</span>{{ t('Administration.UserManagement.Status.Active') }}</span>
             }
+          <div drawer-body class="ac-admin-drawer-content">
+            @if (errorKey()) {
+              <p class="error">{{ t(errorKey()!) }}</p>
+            }
+            <form id="role-editor-form" (ngSubmit)="saveRole()">
+              <section class="ac-admin-form-section">
+                <div class="ac-admin-section-title"><span class="material-symbols-rounded">badge</span><h3>{{ t('Administration.Rbac.Form.CreateRole') }}</h3></div>
+                <div class="ac-admin-form-grid">
+                  <label><span>{{ t('Administration.Rbac.Form.RoleCode') }}</span><input name="roleCode" [(ngModel)]="form.roleCode" [disabled]="!!form.rowVersion" required /></label>
+                  <label><span>{{ t('Administration.Rbac.Form.RoleNameKey') }}</span><input name="roleNameKey" [(ngModel)]="form.roleNameKey" required /></label>
+                  <label class="ac-admin-wide"><span>{{ t('Administration.Rbac.Form.DescriptionKey') }}</span><input name="roleDescriptionKey" [(ngModel)]="form.roleDescriptionKey" /></label>
+                  <label><span>{{ t('Administration.Rbac.Form.ParentRole') }}</span><ac-dropdown name="parentRoleCode" [(ngModel)]="parentRoleCode" [options]="parentRoleOptions()" /></label>
+                  <label class="ac-admin-switch-row"><input type="checkbox" name="isActive" [(ngModel)]="form.isActive" /><span>{{ t('Administration.Rbac.Form.Active') }}</span></label>
+                </div>
+              </section>
+              <section class="ac-admin-form-section">
+                <div class="ac-admin-section-title"><span class="material-symbols-rounded">rule</span><h3>{{ t('Administration.Rbac.Actions.AssignPermissions') }}</h3></div>
+                <label><span>{{ t('Administration.Rbac.Columns.Permissions') }}</span><input name="permissionSearch" [(ngModel)]="permissionSearch" /></label>
+                <fieldset class="ac-admin-fieldset">
+                  <legend>{{ t('Administration.Rbac.Actions.AssignPermissions') }}</legend>
+                  @for (item of filteredCatalog(); track item.permissionCode) {
+                    <label class="ac-admin-switch-row">
+                      <input type="checkbox" [name]="'perm_' + item.permissionCode" [checked]="hasPermission(item.permissionCode)" (change)="togglePermission(item.permissionCode)" />
+                      <span>{{ t(item.permissionNameKey) }}</span>
+                    </label>
+                  }
+                </fieldset>
+              </section>
+            </form>
           </div>
-          <div class="ac-admin-drawer-body">
-          @if (errorKey()) {
-            <p class="error">{{ t(errorKey()!) }}</p>
-          }
-          <form id="role-editor-form" (ngSubmit)="saveRole()">
-            <section class="ac-admin-form-section">
-              <div class="ac-admin-section-title"><span class="material-symbols-rounded">badge</span><h3>{{ t('Administration.Rbac.Form.CreateRole') }}</h3></div>
-              <div class="ac-admin-form-grid">
-                <label><span>{{ t('Administration.Rbac.Form.RoleCode') }}</span><input name="roleCode" [(ngModel)]="form.roleCode" [disabled]="!!form.rowVersion" required /></label>
-                <label><span>{{ t('Administration.Rbac.Form.RoleNameKey') }}</span><input name="roleNameKey" [(ngModel)]="form.roleNameKey" required /></label>
-                <label class="ac-admin-wide"><span>{{ t('Administration.Rbac.Form.DescriptionKey') }}</span><input name="roleDescriptionKey" [(ngModel)]="form.roleDescriptionKey" /></label>
-                <label><span>{{ t('Administration.Rbac.Form.ParentRole') }}</span><ac-dropdown name="parentRoleCode" [(ngModel)]="parentRoleCode" [options]="parentRoleOptions()" /></label>
-                <label class="ac-admin-switch-row"><input type="checkbox" name="isActive" [(ngModel)]="form.isActive" /><span>{{ t('Administration.Rbac.Form.Active') }}</span></label>
-              </div>
-            </section>
-            <section class="ac-admin-form-section">
-              <div class="ac-admin-section-title"><span class="material-symbols-rounded">rule</span><h3>{{ t('Administration.Rbac.Actions.AssignPermissions') }}</h3></div>
-              <label><span>{{ t('Administration.Rbac.Columns.Permissions') }}</span><input name="permissionSearch" [(ngModel)]="permissionSearch" /></label>
-              <fieldset class="ac-admin-fieldset">
-                <legend>{{ t('Administration.Rbac.Actions.AssignPermissions') }}</legend>
-                @for (item of filteredCatalog(); track item.permissionCode) {
-                  <label class="ac-admin-switch-row">
-                    <input type="checkbox" [name]="'perm_' + item.permissionCode" [checked]="hasPermission(item.permissionCode)" (change)="togglePermission(item.permissionCode)" />
-                    <span>{{ t(item.permissionNameKey) }}</span>
-                  </label>
-                }
-              </fieldset>
-            </section>
-          </form>
-          </div>
-          <div class="ac-admin-drawer-actions">
-            <button class="ac-btn ac-btn-secondary" type="button" (click)="closeEditor()">{{ t('Common.Actions.Cancel') }}</button>
-            <button class="ac-btn ac-btn-primary" type="submit" form="role-editor-form" [disabled]="saving() || (!can(permissions.create) && !can(permissions.edit))">
+            <button drawer-actions class="ac-btn ac-btn-secondary" type="button" (click)="closeEditor()">{{ t('Common.Actions.Cancel') }}</button>
+            <button drawer-actions class="ac-btn ac-btn-primary" type="submit" form="role-editor-form" [disabled]="saving() || (!can(permissions.create) && !can(permissions.edit))">
               <span class="material-symbols-rounded">save</span>
               {{ t('Administration.Rbac.Actions.SaveRole') }}
             </button>
-          </div>
-        </aside>
+        </ac-admin-drawer>
         }
       </section>
     </section>

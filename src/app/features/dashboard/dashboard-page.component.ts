@@ -337,6 +337,129 @@ interface StaffAction {
     .mini-health { display: grid; gap: 8px; margin-top: 12px; }
     .mini-health div { display: flex; align-items: center; gap: 8px; color: var(--ac-text-2); font-size: 13px; font-weight: 800; }
     .generated { color: var(--ac-muted); font-size: 12px; text-align: right; }
+    :host-context(.dark) .dashboard-hero {
+      border-color: rgba(96,165,250,.22);
+      background:
+        radial-gradient(circle at 12% 18%, rgba(37,99,235,.28), transparent 32%),
+        radial-gradient(circle at 76% 30%, rgba(20,184,166,.18), transparent 28%),
+        linear-gradient(135deg, rgba(15,23,42,.96), rgba(8,20,27,.96) 58%, rgba(28,19,13,.92));
+      box-shadow: 0 20px 60px rgba(0,0,0,.32);
+    }
+    :host-context(.dark) .dashboard-hero.staff-hero {
+      background:
+        radial-gradient(circle at 12% 18%, rgba(20,184,166,.24), transparent 32%),
+        radial-gradient(circle at 78% 28%, rgba(37,99,235,.22), transparent 28%),
+        linear-gradient(135deg, rgba(10,24,28,.96), rgba(12,22,38,.96) 58%, rgba(31,25,13,.9));
+    }
+    :host-context(.dark) .eyebrow { color: #2dd4bf; }
+    :host-context(.dark) .dashboard-hero p { color: #cbd5e1; }
+    :host-context(.dark) .hero-tags span {
+      border-color: rgba(148,163,184,.22);
+      background: rgba(15,23,42,.72);
+      color: #e2e8f0;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+    }
+    :host-context(.dark) .hero-tags .material-symbols-rounded { color: #60a5fa; }
+    :host-context(.dark) .hero-panel {
+      border-color: rgba(148,163,184,.28);
+      background: linear-gradient(180deg, rgba(30,41,59,.86), rgba(15,23,42,.88));
+      box-shadow: 0 22px 50px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.07);
+    }
+    :host-context(.dark) .hero-panel > .material-symbols-rounded {
+      color: #60a5fa;
+      background: rgba(37,99,235,.2);
+      box-shadow: inset 0 0 0 1px rgba(96,165,250,.12);
+    }
+    :host-context(.dark) .hero-panel p { color: #94a3b8; }
+    :host-context(.dark) .icon-btn {
+      background: rgba(15,23,42,.82);
+      border-color: rgba(148,163,184,.24);
+      color: #dbeafe;
+    }
+    :host-context(.dark) .metric-card,
+    :host-context(.dark) .panel {
+      border-color: rgba(148,163,184,.18);
+      background: linear-gradient(180deg, rgba(22,30,42,.96), rgba(17,24,34,.96));
+      box-shadow: 0 16px 36px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04);
+    }
+    :host-context(.dark) .metric-card {
+      border-top-color: var(--tone);
+      box-shadow: 0 16px 34px rgba(0,0,0,.24), 0 -1px 0 color-mix(in srgb, var(--tone) 34%, transparent) inset;
+    }
+    :host-context(.dark) .metric-card:hover,
+    :host-context(.dark) .panel:hover {
+      border-color: color-mix(in srgb, var(--tone, #60a5fa) 28%, rgba(148,163,184,.2));
+    }
+    :host-context(.dark) .metric-icon,
+    :host-context(.dark) .audit-icon,
+    :host-context(.dark) .quick-action .material-symbols-rounded {
+      background: color-mix(in srgb, var(--tone) 18%, rgba(15,23,42,.8));
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 22%, transparent);
+    }
+    :host-context(.dark) .metric-label,
+    :host-context(.dark) .metric-card span,
+    :host-context(.dark) .section-head p,
+    :host-context(.dark) .section-head span,
+    :host-context(.dark) .health-row p,
+    :host-context(.dark) .login-row p,
+    :host-context(.dark) .template-row span,
+    :host-context(.dark) .status-block p,
+    :host-context(.dark) .status-block small,
+    :host-context(.dark) .empty,
+    :host-context(.dark) .generated {
+      color: #94a3b8;
+    }
+    :host-context(.dark) .metric-card strong,
+    :host-context(.dark) .section-head h2,
+    :host-context(.dark) .audit-name strong,
+    :host-context(.dark) .health-row strong,
+    :host-context(.dark) .login-row strong,
+    :host-context(.dark) .template-row strong,
+    :host-context(.dark) .status-block strong {
+      color: #f8fafc;
+    }
+    :host-context(.dark) .bar-track {
+      background: rgba(2,6,23,.72);
+      box-shadow: inset 0 0 0 1px rgba(148,163,184,.08);
+    }
+    :host-context(.dark) .bar-fill {
+      background: linear-gradient(90deg, var(--tone), color-mix(in srgb, var(--tone) 70%, #93c5fd));
+      box-shadow: 0 0 18px color-mix(in srgb, var(--tone) 28%, transparent);
+    }
+    :host-context(.dark) .bar-row > strong,
+    :host-context(.dark) .status,
+    :host-context(.dark) .login-state {
+      background: color-mix(in srgb, var(--tone, #16a34a) 16%, rgba(15,23,42,.8));
+      color: color-mix(in srgb, var(--tone, #22c55e) 78%, #ffffff);
+    }
+    :host-context(.dark) .status.warning,
+    :host-context(.dark) .login-state.failed {
+      background: rgba(217,119,6,.18);
+      color: #fbbf24;
+    }
+    :host-context(.dark) .health-row,
+    :host-context(.dark) .login-row,
+    :host-context(.dark) .template-row,
+    :host-context(.dark) .status-block {
+      border-color: rgba(148,163,184,.16);
+      background: rgba(15,23,42,.42);
+    }
+    :host-context(.dark) .quick-action {
+      border-color: rgba(148,163,184,.18);
+      background: color-mix(in srgb, var(--tone) 10%, rgba(15,23,42,.82));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+    }
+    :host-context(.dark) .access-cloud span {
+      border-color: rgba(148,163,184,.18);
+      background: rgba(15,23,42,.62);
+      color: #cbd5e1;
+    }
+    :host-context(.dark) .readiness-ring {
+      background:
+        radial-gradient(circle, rgba(45,212,191,.18), rgba(96,165,250,.1) 56%, transparent 57%),
+        rgba(15,23,42,.54);
+      border: 1px solid rgba(148,163,184,.14);
+    }
     @media (max-width: 1280px) { .kpi-grid, .staff-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .main-grid, .lower-grid, .staff-grid { grid-template-columns: 1fr; } }
     @media (max-width: 760px) { .dashboard-hero { grid-template-columns: 1fr; } .kpi-grid, .staff-kpi-grid, .quick-actions { grid-template-columns: 1fr; } .section-head { flex-direction: column; } .bar-row { grid-template-columns: 1fr; } .audit-name small { white-space: normal; } }
   `,

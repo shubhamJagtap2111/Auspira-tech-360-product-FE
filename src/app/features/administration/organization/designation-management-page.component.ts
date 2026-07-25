@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
+import { AcAdminDrawerComponent } from '../../../shared/ui/admin-drawer/admin-drawer.component';
 import { Designation } from './organization-management.models';
 import { OrganizationManagementService } from './organization-management.service';
 
@@ -16,7 +17,7 @@ const permissions = {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, AcAdminDrawerComponent],
   template: `
     <section class="org-page">
       <header class="page-head">
@@ -56,42 +57,33 @@ const permissions = {
           </table>
         </div>
         @if (drawerOpen()) {
-        <aside class="ac-admin-drawer">
           @if (form(); as model) {
-            <div class="ac-admin-drawer-head">
-              <div class="ac-admin-drawer-title">
-                <span class="ac-admin-drawer-icon material-symbols-rounded">badge</span>
-                <div>
-                  <p>{{ model.designationGuid ? t('Administration.UserManagement.Actions.Edit') : t('Administration.Designation.Actions.New') }}</p>
-                  <h2>{{ model.designationName || t('Administration.Designation.Title') }}</h2>
-                </div>
+            <ac-admin-drawer
+              [open]="drawerOpen()"
+              icon="badge"
+              [eyebrow]="model.designationGuid ? t('Administration.UserManagement.Actions.Edit') : t('Administration.Designation.Actions.New')"
+              [title]="model.designationName || t('Administration.Designation.Title')"
+              (closed)="closeDrawer()">
+              <span drawer-summary class="ac-admin-pill"><span class="material-symbols-rounded">tag</span>{{ model.designationCode || 'NEW' }}</span>
+              <span drawer-summary class="ac-admin-pill"><span class="material-symbols-rounded">stairs</span>Level {{ model.levelNo }}</span>
+              @if (model.isActive) { <span drawer-summary class="ac-admin-pill featured"><span class="material-symbols-rounded">check_circle</span>{{ t('Administration.UserManagement.Status.Active') }}</span> }
+              <div drawer-body class="ac-admin-drawer-content">
+                <section class="ac-admin-form-section">
+                  <div class="ac-admin-section-title"><span class="material-symbols-rounded">workspace_premium</span><h3>{{ t('Administration.Designation.Title') }}</h3></div>
+                  <div class="ac-admin-form-grid">
+                    <label><span>{{ t('Administration.Designation.Fields.DesignationCode') }}</span><input name="designationCode" [(ngModel)]="model.designationCode" /></label>
+                    <label><span>{{ t('Administration.Designation.Fields.DesignationName') }}</span><input name="designationName" [(ngModel)]="model.designationName" /></label>
+                    <label><span>{{ t('Administration.Designation.Fields.ParentDesignationGuid') }}</span><input name="parentDesignationGuid" [(ngModel)]="model.parentDesignationGuid" /></label>
+                    <label><span>{{ t('Administration.Designation.Fields.LevelNo') }}</span><input type="number" name="levelNo" [(ngModel)]="model.levelNo" /></label>
+                    <label><span>{{ t('Administration.Designation.Fields.SortOrder') }}</span><input type="number" name="sortOrder" [(ngModel)]="model.sortOrder" /></label>
+                    <label class="ac-admin-wide"><span>{{ t('Administration.Designation.Fields.DescriptionKey') }}</span><input name="descriptionKey" [(ngModel)]="model.descriptionKey" /></label>
+                  </div>
+                </section>
               </div>
-              <button class="icon-btn" type="button" (click)="closeDrawer()" title="Close editor"><span class="material-symbols-rounded">close</span></button>
-            </div>
-            <div class="ac-admin-drawer-summary">
-              <span class="ac-admin-pill"><span class="material-symbols-rounded">tag</span>{{ model.designationCode || 'NEW' }}</span>
-              <span class="ac-admin-pill"><span class="material-symbols-rounded">stairs</span>Level {{ model.levelNo }}</span>
-              @if (model.isActive) { <span class="ac-admin-pill featured"><span class="material-symbols-rounded">check_circle</span>{{ t('Administration.UserManagement.Status.Active') }}</span> }
-            </div>
-            <div class="ac-admin-drawer-body">
-              <section class="ac-admin-form-section">
-                <div class="ac-admin-section-title"><span class="material-symbols-rounded">workspace_premium</span><h3>{{ t('Administration.Designation.Title') }}</h3></div>
-                <div class="ac-admin-form-grid">
-                  <label><span>{{ t('Administration.Designation.Fields.DesignationCode') }}</span><input name="designationCode" [(ngModel)]="model.designationCode" /></label>
-                  <label><span>{{ t('Administration.Designation.Fields.DesignationName') }}</span><input name="designationName" [(ngModel)]="model.designationName" /></label>
-                  <label><span>{{ t('Administration.Designation.Fields.ParentDesignationGuid') }}</span><input name="parentDesignationGuid" [(ngModel)]="model.parentDesignationGuid" /></label>
-                  <label><span>{{ t('Administration.Designation.Fields.LevelNo') }}</span><input type="number" name="levelNo" [(ngModel)]="model.levelNo" /></label>
-                  <label><span>{{ t('Administration.Designation.Fields.SortOrder') }}</span><input type="number" name="sortOrder" [(ngModel)]="model.sortOrder" /></label>
-                  <label class="ac-admin-wide"><span>{{ t('Administration.Designation.Fields.DescriptionKey') }}</span><input name="descriptionKey" [(ngModel)]="model.descriptionKey" /></label>
-                </div>
-              </section>
-            </div>
-            <div class="ac-admin-drawer-actions">
-              <button class="ac-btn ac-btn-secondary" type="button" (click)="closeDrawer()">{{ t('Common.Actions.Cancel') }}</button>
-              <button class="ac-btn ac-btn-primary" type="button" (click)="save()" [disabled]="saving() || !canSave(model)"><span class="material-symbols-rounded">save</span>{{ t('Administration.Designation.Actions.Save') }}</button>
-            </div>
+              <button drawer-actions class="ac-btn ac-btn-secondary" type="button" (click)="closeDrawer()">{{ t('Common.Actions.Cancel') }}</button>
+              <button drawer-actions class="ac-btn ac-btn-primary" type="button" (click)="save()" [disabled]="saving() || !canSave(model)"><span class="material-symbols-rounded">save</span>{{ t('Administration.Designation.Actions.Save') }}</button>
+            </ac-admin-drawer>
           }
-        </aside>
         }
       </section>
     </section>

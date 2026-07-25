@@ -5,6 +5,7 @@ import { AuthStore } from '../../../core/auth/auth.store';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
 import { AcDropdownComponent } from '../../../shared/ui/dropdown/dropdown.component';
+import { AcAdminDrawerComponent } from '../../../shared/ui/admin-drawer/admin-drawer.component';
 import { FiscalYear, NotificationTemplate, NumberSeries, SystemConfigurationSetting } from './system-configuration.models';
 import { SystemConfigurationService } from './system-configuration.service';
 
@@ -25,7 +26,7 @@ type ConfigEditorMode = 'number-series' | 'fiscal-year' | 'template';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcDropdownComponent],
+  imports: [CommonModule, FormsModule, AcDropdownComponent, AcAdminDrawerComponent],
   template: `
     <section class="config-page">
       <header class="page-head">
@@ -196,84 +197,81 @@ type ConfigEditorMode = 'number-series' | 'fiscal-year' | 'template';
       </section>
 
       @if (editorMode(); as mode) {
-        <aside class="ac-admin-drawer">
-          <div class="ac-admin-drawer-head">
-            <div class="ac-admin-drawer-title">
-              <span class="ac-admin-drawer-icon material-symbols-rounded">{{ editorIcon(mode) }}</span>
-              <div>
-                <p>{{ t('Administration.SystemConfiguration.Title') }}</p>
-                <h2>{{ editorTitle(mode) }}</h2>
+        <ac-admin-drawer
+          [open]="!!editorMode()"
+          [icon]="editorIcon(mode)"
+          [eyebrow]="t('Administration.SystemConfiguration.Title')"
+          [title]="editorTitle(mode)"
+          (closed)="closeEditor()">
+            @if (mode === 'number-series') {
+              <div drawer-summary class="ac-admin-drawer-summary-group">
+                <span class="ac-admin-pill"><span class="material-symbols-rounded">tag</span>{{ numberSeriesForm().seriesCode || 'NEW' }}</span>
+                <span class="ac-admin-pill"><span class="material-symbols-rounded">pin</span>{{ numberSeriesForm().nextNumber }}</span>
               </div>
+            }
+            @if (mode === 'fiscal-year') {
+              <div drawer-summary class="ac-admin-drawer-summary-group">
+                <span class="ac-admin-pill"><span class="material-symbols-rounded">event</span>{{ fiscalYearForm().fiscalYearCode || 'NEW' }}</span>
+                @if (fiscalYearForm().isCurrent) { <span class="ac-admin-pill featured"><span class="material-symbols-rounded">check_circle</span>{{ t('Administration.SystemConfiguration.Fields.Current') }}</span> }
+              </div>
+            }
+            @if (mode === 'template') {
+              <div drawer-summary class="ac-admin-drawer-summary-group">
+                <span class="ac-admin-pill"><span class="material-symbols-rounded">draft</span>{{ templateForm().templateCode || 'NEW' }}</span>
+                <span class="ac-admin-pill"><span class="material-symbols-rounded">language</span>{{ templateForm().languageCode }}</span>
+              </div>
+            }
+            <div drawer-body class="ac-admin-drawer-content">
+              @if (mode === 'number-series') {
+                <section class="ac-admin-form-section">
+                  <div class="ac-admin-section-title"><span class="material-symbols-rounded">format_list_numbered</span><h3>{{ t('Administration.SystemConfiguration.Section.NumberSeries') }}</h3></div>
+                  <div class="ac-admin-form-grid">
+                    <label><span>{{ t('Administration.SystemConfiguration.Fields.SeriesCode') }}</span><input name="seriesCode" [(ngModel)]="numberSeriesForm().seriesCode" /></label>
+                    <label><span>{{ t('Administration.SystemConfiguration.Fields.SeriesNameKey') }}</span><input name="seriesNameKey" [(ngModel)]="numberSeriesForm().seriesNameKey" /></label>
+                    <label><span>{{ t('Administration.SystemConfiguration.Fields.Prefix') }}</span><input name="prefix" [(ngModel)]="numberSeriesForm().prefix" /></label>
+                    <label><span>{{ t('Administration.SystemConfiguration.Fields.Suffix') }}</span><input name="suffix" [(ngModel)]="numberSeriesForm().suffix" /></label>
+                    <label><span>{{ t('Administration.SystemConfiguration.Fields.NextNumber') }}</span><input type="number" name="nextNumber" [(ngModel)]="numberSeriesForm().nextNumber" /></label>
+                    <label><span>{{ t('Administration.SystemConfiguration.Fields.PaddingLength') }}</span><input type="number" name="paddingLength" [(ngModel)]="numberSeriesForm().paddingLength" /></label>
+                    <label class="ac-admin-wide"><span>{{ t('Administration.SystemConfiguration.Fields.ResetFrequency') }}</span><ac-dropdown name="resetFrequency" [(ngModel)]="numberSeriesForm().resetFrequencyCode" [options]="resetFrequencyOptions()" /></label>
+                  </div>
+                </section>
+              }
+              @if (mode === 'fiscal-year') {
+                <section class="ac-admin-form-section">
+                  <div class="ac-admin-section-title"><span class="material-symbols-rounded">event_available</span><h3>{{ t('Administration.SystemConfiguration.Section.FiscalYear') }}</h3></div>
+                  <div class="ac-admin-form-grid">
+                    <label><span>{{ t('Administration.SystemConfiguration.Fields.FiscalYearCode') }}</span><input name="fiscalYearCode" [(ngModel)]="fiscalYearForm().fiscalYearCode" /></label>
+                    <label><span>{{ t('Administration.SystemConfiguration.Fields.StartDate') }}</span><input type="date" name="startDate" [(ngModel)]="fiscalYearForm().startDate" /></label>
+                    <label><span>{{ t('Administration.SystemConfiguration.Fields.EndDate') }}</span><input type="date" name="endDate" [(ngModel)]="fiscalYearForm().endDate" /></label>
+                    <label class="ac-admin-switch-row"><input type="checkbox" name="isCurrent" [(ngModel)]="fiscalYearForm().isCurrent" /><span>{{ t('Administration.SystemConfiguration.Fields.Current') }}</span></label>
+                    <label class="ac-admin-switch-row"><input type="checkbox" name="isClosed" [(ngModel)]="fiscalYearForm().isClosed" /><span>{{ t('Administration.SystemConfiguration.Fields.Closed') }}</span></label>
+                  </div>
+                </section>
+              }
+              @if (mode === 'template') {
+                <section class="ac-admin-form-section">
+                  <div class="ac-admin-section-title"><span class="material-symbols-rounded">notifications</span><h3>{{ t('Administration.SystemConfiguration.Section.NotificationTemplates') }}</h3></div>
+                  <div class="ac-admin-form-grid">
+                    <label><span>{{ t('Administration.SystemConfiguration.Fields.TemplateCode') }}</span><input name="templateCode" [(ngModel)]="templateForm().templateCode" /></label>
+                    <label><span>{{ t('Administration.SystemConfiguration.Fields.Channel') }}</span><ac-dropdown name="channelCode" [(ngModel)]="templateForm().channelCode" [options]="channelOptions()" /></label>
+                    <label><span>{{ t('Administration.SystemConfiguration.Fields.Language') }}</span><ac-dropdown name="languageCode" [(ngModel)]="templateForm().languageCode" [options]="templateLanguageOptions()" /></label>
+                    <label class="ac-admin-wide"><span>{{ t('Administration.SystemConfiguration.Fields.Subject') }}</span><input name="subjectTemplate" [(ngModel)]="templateForm().subjectTemplate" /></label>
+                    <label class="ac-admin-wide"><span>{{ t('Administration.SystemConfiguration.Fields.Body') }}</span><textarea name="bodyTemplate" [(ngModel)]="templateForm().bodyTemplate"></textarea></label>
+                  </div>
+                </section>
+              }
             </div>
-            <button class="icon-btn" type="button" (click)="closeEditor()" title="Close editor"><span class="material-symbols-rounded">close</span></button>
-          </div>
-          <div class="ac-admin-drawer-summary">
+            <button drawer-actions class="ac-btn ac-btn-secondary" type="button" (click)="closeEditor()">{{ t('Common.Actions.Cancel') }}</button>
             @if (mode === 'number-series') {
-              <span class="ac-admin-pill"><span class="material-symbols-rounded">tag</span>{{ numberSeriesForm().seriesCode || 'NEW' }}</span>
-              <span class="ac-admin-pill"><span class="material-symbols-rounded">pin</span>{{ numberSeriesForm().nextNumber }}</span>
+              <button drawer-actions class="ac-btn ac-btn-primary" type="button" (click)="saveNumberSeries()" [disabled]="saving()"><span class="material-symbols-rounded">save</span>{{ t('Administration.SystemConfiguration.Actions.SaveNumberSeries') }}</button>
             }
             @if (mode === 'fiscal-year') {
-              <span class="ac-admin-pill"><span class="material-symbols-rounded">event</span>{{ fiscalYearForm().fiscalYearCode || 'NEW' }}</span>
-              @if (fiscalYearForm().isCurrent) { <span class="ac-admin-pill featured"><span class="material-symbols-rounded">check_circle</span>{{ t('Administration.SystemConfiguration.Fields.Current') }}</span> }
+              <button drawer-actions class="ac-btn ac-btn-primary" type="button" (click)="saveFiscalYear()" [disabled]="saving()"><span class="material-symbols-rounded">save</span>{{ t('Administration.SystemConfiguration.Actions.SaveFiscalYear') }}</button>
             }
             @if (mode === 'template') {
-              <span class="ac-admin-pill"><span class="material-symbols-rounded">draft</span>{{ templateForm().templateCode || 'NEW' }}</span>
-              <span class="ac-admin-pill"><span class="material-symbols-rounded">language</span>{{ templateForm().languageCode }}</span>
+              <button drawer-actions class="ac-btn ac-btn-primary" type="button" (click)="saveTemplate()" [disabled]="saving()"><span class="material-symbols-rounded">save</span>{{ t('Administration.SystemConfiguration.Actions.SaveTemplate') }}</button>
             }
-          </div>
-          <div class="ac-admin-drawer-body">
-            @if (mode === 'number-series') {
-              <section class="ac-admin-form-section">
-                <div class="ac-admin-section-title"><span class="material-symbols-rounded">format_list_numbered</span><h3>{{ t('Administration.SystemConfiguration.Section.NumberSeries') }}</h3></div>
-                <div class="ac-admin-form-grid">
-                  <label><span>{{ t('Administration.SystemConfiguration.Fields.SeriesCode') }}</span><input name="seriesCode" [(ngModel)]="numberSeriesForm().seriesCode" /></label>
-                  <label><span>{{ t('Administration.SystemConfiguration.Fields.SeriesNameKey') }}</span><input name="seriesNameKey" [(ngModel)]="numberSeriesForm().seriesNameKey" /></label>
-                  <label><span>{{ t('Administration.SystemConfiguration.Fields.Prefix') }}</span><input name="prefix" [(ngModel)]="numberSeriesForm().prefix" /></label>
-                  <label><span>{{ t('Administration.SystemConfiguration.Fields.Suffix') }}</span><input name="suffix" [(ngModel)]="numberSeriesForm().suffix" /></label>
-                  <label><span>{{ t('Administration.SystemConfiguration.Fields.NextNumber') }}</span><input type="number" name="nextNumber" [(ngModel)]="numberSeriesForm().nextNumber" /></label>
-                  <label><span>{{ t('Administration.SystemConfiguration.Fields.PaddingLength') }}</span><input type="number" name="paddingLength" [(ngModel)]="numberSeriesForm().paddingLength" /></label>
-                  <label class="ac-admin-wide"><span>{{ t('Administration.SystemConfiguration.Fields.ResetFrequency') }}</span><ac-dropdown name="resetFrequency" [(ngModel)]="numberSeriesForm().resetFrequencyCode" [options]="resetFrequencyOptions()" /></label>
-                </div>
-              </section>
-            }
-            @if (mode === 'fiscal-year') {
-              <section class="ac-admin-form-section">
-                <div class="ac-admin-section-title"><span class="material-symbols-rounded">event_available</span><h3>{{ t('Administration.SystemConfiguration.Section.FiscalYear') }}</h3></div>
-                <div class="ac-admin-form-grid">
-                  <label><span>{{ t('Administration.SystemConfiguration.Fields.FiscalYearCode') }}</span><input name="fiscalYearCode" [(ngModel)]="fiscalYearForm().fiscalYearCode" /></label>
-                  <label><span>{{ t('Administration.SystemConfiguration.Fields.StartDate') }}</span><input type="date" name="startDate" [(ngModel)]="fiscalYearForm().startDate" /></label>
-                  <label><span>{{ t('Administration.SystemConfiguration.Fields.EndDate') }}</span><input type="date" name="endDate" [(ngModel)]="fiscalYearForm().endDate" /></label>
-                  <label class="ac-admin-switch-row"><input type="checkbox" name="isCurrent" [(ngModel)]="fiscalYearForm().isCurrent" /><span>{{ t('Administration.SystemConfiguration.Fields.Current') }}</span></label>
-                  <label class="ac-admin-switch-row"><input type="checkbox" name="isClosed" [(ngModel)]="fiscalYearForm().isClosed" /><span>{{ t('Administration.SystemConfiguration.Fields.Closed') }}</span></label>
-                </div>
-              </section>
-            }
-            @if (mode === 'template') {
-              <section class="ac-admin-form-section">
-                <div class="ac-admin-section-title"><span class="material-symbols-rounded">notifications</span><h3>{{ t('Administration.SystemConfiguration.Section.NotificationTemplates') }}</h3></div>
-                <div class="ac-admin-form-grid">
-                  <label><span>{{ t('Administration.SystemConfiguration.Fields.TemplateCode') }}</span><input name="templateCode" [(ngModel)]="templateForm().templateCode" /></label>
-                  <label><span>{{ t('Administration.SystemConfiguration.Fields.Channel') }}</span><ac-dropdown name="channelCode" [(ngModel)]="templateForm().channelCode" [options]="channelOptions()" /></label>
-                  <label><span>{{ t('Administration.SystemConfiguration.Fields.Language') }}</span><ac-dropdown name="languageCode" [(ngModel)]="templateForm().languageCode" [options]="templateLanguageOptions()" /></label>
-                  <label class="ac-admin-wide"><span>{{ t('Administration.SystemConfiguration.Fields.Subject') }}</span><input name="subjectTemplate" [(ngModel)]="templateForm().subjectTemplate" /></label>
-                  <label class="ac-admin-wide"><span>{{ t('Administration.SystemConfiguration.Fields.Body') }}</span><textarea name="bodyTemplate" [(ngModel)]="templateForm().bodyTemplate"></textarea></label>
-                </div>
-              </section>
-            }
-          </div>
-          <div class="ac-admin-drawer-actions">
-            <button class="ac-btn ac-btn-secondary" type="button" (click)="closeEditor()">{{ t('Common.Actions.Cancel') }}</button>
-            @if (mode === 'number-series') {
-              <button class="ac-btn ac-btn-primary" type="button" (click)="saveNumberSeries()" [disabled]="saving()"><span class="material-symbols-rounded">save</span>{{ t('Administration.SystemConfiguration.Actions.SaveNumberSeries') }}</button>
-            }
-            @if (mode === 'fiscal-year') {
-              <button class="ac-btn ac-btn-primary" type="button" (click)="saveFiscalYear()" [disabled]="saving()"><span class="material-symbols-rounded">save</span>{{ t('Administration.SystemConfiguration.Actions.SaveFiscalYear') }}</button>
-            }
-            @if (mode === 'template') {
-              <button class="ac-btn ac-btn-primary" type="button" (click)="saveTemplate()" [disabled]="saving()"><span class="material-symbols-rounded">save</span>{{ t('Administration.SystemConfiguration.Actions.SaveTemplate') }}</button>
-            }
-          </div>
-        </aside>
+        </ac-admin-drawer>
       }
     </section>
   `,

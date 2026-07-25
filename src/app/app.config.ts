@@ -5,13 +5,14 @@ import { provideAnimations } from '@angular/platform-browser/animations';
 import { routes } from './app.routes';
 import { tenantInterceptor } from './core/interceptors/tenant.interceptor';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
+import { loaderInterceptor } from './core/interceptors/loader.interceptor';
 import { I18nService } from './core/i18n/i18n.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideAnimations(),
     provideRouter(routes),
-    provideHttpClient(withInterceptors([tenantInterceptor, authInterceptor])),
+    provideHttpClient(withInterceptors([tenantInterceptor, authInterceptor, loaderInterceptor])),
     provideAppInitializer(() => {
       void inject(I18nService).loadCatalog();
     })
