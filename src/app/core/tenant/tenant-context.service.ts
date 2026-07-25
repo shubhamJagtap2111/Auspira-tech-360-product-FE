@@ -1,5 +1,15 @@
 import { Injectable, signal } from '@angular/core';
 
+const DEFAULT_TENANT_CODE = 'auspira-demo';
+const RESERVED_HOSTNAMES = new Set([
+  'localhost',
+  '127.0.0.1',
+  'auspira-tech-360-product-fe.vercel.app'
+]);
+const RESERVED_TENANT_CODES = new Set([
+  'auspira-tech-360-product-fe'
+]);
+
 @Injectable({ providedIn: 'root' })
 export class TenantContextService {
   readonly tenantCode = signal(resolveTenantCode());
@@ -27,11 +37,14 @@ export class TenantContextService {
 }
 
 function resolveTenantCode(): string {
-  const queryTenantCode = new URLSearchParams(window.location.search).get('tenantCode');
-  const storedTenantCode = window.localStorage.getItem('care360.tenantCode');
+  const queryTenantCode = new URLSearchParams(window.location.search).get('tenantCode')?.trim();
+  const storedTenantCode = window.localStorage.getItem('care360.tenantCode')?.trim();
+  const usableStoredTenantCode = storedTenantCode && !isReservedTenantCode(storedTenantCode)
+    ? storedTenantCode
+    : null;
   const subdomainTenantCode = resolveSubdomainTenantCode(window.location.hostname);
 
-  return queryTenantCode ?? storedTenantCode ?? subdomainTenantCode ?? 'auspira-demo';
+  return queryTenantCode || usableStoredTenantCode || subdomainTenantCode || DEFAULT_TENANT_CODE;
 }
 
 function resolveCultureCode(): string {
@@ -39,10 +52,15 @@ function resolveCultureCode(): string {
 }
 
 function resolveSubdomainTenantCode(hostname: string): string | null {
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+  const normalizedHostname = hostname.toLowerCase();
+  if (RESERVED_HOSTNAMES.has(normalizedHostname) || normalizedHostname.endsWith('.vercel.app')) {
     return null;
   }
 
-  const [firstSegment] = hostname.split('.');
+  const [firstSegment] = normalizedHostname.split('.');
   return firstSegment || null;
+}
+
+function isReservedTenantCode(tenantCode: string): boolean {
+  return RESERVED_TENANT_CODES.has(tenantCode.toLowerCase());
 }
