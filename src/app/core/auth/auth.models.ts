@@ -12,6 +12,8 @@ export interface LoginRequest {
   email: string;
   password: string;
   rememberMe: boolean;
+  tenantCode?: string | null;
+  hospitalName?: string | null;
 }
 
 export interface RegisterTenantRequest {
@@ -85,6 +87,8 @@ export interface AuthResponse {
   permissions: string[];
   roleCodes?: string[];
   menuItems: AuthMenuItem[];
+  tenantCode?: string | null;
+  hospitalName?: string | null;
 }
 
 export interface CurrentUserProfile {

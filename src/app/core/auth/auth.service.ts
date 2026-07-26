@@ -38,6 +38,7 @@ export class AuthService {
   startGoogleLogin(tenantCode: string, rememberMe = true): void {
     const params = new URLSearchParams({
       tenantCode,
+      hospitalName: tenantCode,
       rememberMe: String(rememberMe),
       redirectUri: `${window.location.origin}/auth/google-callback`
     });

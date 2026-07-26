@@ -94,6 +94,14 @@ import { TenantContextService } from '../../core/tenant/tenant-context.service';
           }
 
           <label class="field">
+            <span class="field-label">Hospital name or code</span>
+            <span class="input-shell">
+              <span class="material-symbols-rounded">local_hospital</span>
+              <input type="text" name="hospitalCode" [(ngModel)]="hospitalCode" placeholder="Auspira Demo Hospital" autocomplete="organization" required />
+            </span>
+          </label>
+
+          <label class="field">
             <span class="field-label">{{ t('Auth.Login.Email.Label') }}</span>
             <span class="input-shell">
               <span class="material-symbols-rounded">mail</span>
@@ -268,13 +276,25 @@ export class LoginPageComponent {
     this.errorKey.set(null);
 
     try {
-      this.tenantContext.setTenantCode(this.hospitalCode);
-      const response = await this.authService.login({ email: this.email, password: this.password, rememberMe: this.rememberMe });
+      const hospitalIdentifier = this.hospitalCode.trim();
+      if (!hospitalIdentifier) {
+        this.errorKey.set('Hospital name or code is required.');
+        return;
+      }
+
+      const response = await this.authService.login({
+        email: this.email,
+        password: this.password,
+        rememberMe: this.rememberMe,
+        tenantCode: hospitalIdentifier,
+        hospitalName: hospitalIdentifier
+      });
       if (!response.success || !response.data) {
         this.errorKey.set(response.message);
         return;
       }
 
+      this.tenantContext.setTenantCode(response.data.tenantCode?.trim() || hospitalIdentifier);
       this.authStore.setSession(response.data);
       await this.router.navigateByUrl('/');
     } catch {
@@ -289,7 +309,13 @@ export class LoginPageComponent {
   }
 
   protected onGoogleLogin(): void {
-    this.authService.startGoogleLogin(this.tenantContext.tenantCode(), this.rememberMe);
+    const hospitalIdentifier = this.hospitalCode.trim();
+    if (!hospitalIdentifier) {
+      this.errorKey.set('Hospital name or code is required.');
+      return;
+    }
+
+    this.authService.startGoogleLogin(hospitalIdentifier, this.rememberMe);
   }
 
   private resolveInitialHospitalCode(): string {
