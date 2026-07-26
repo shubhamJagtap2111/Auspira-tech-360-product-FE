@@ -6,5 +6,5 @@ export const authGuard: CanActivateFn = () => {
   const auth = inject(AuthStore);
   const router = inject(Router);
 
-  return auth.isAuthenticated() ? true : router.createUrlTree(['/auth/login']);
+  return auth.ensureValidSession() ? true : router.createUrlTree(['/auth/login']);
 };

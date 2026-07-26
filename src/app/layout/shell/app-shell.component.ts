@@ -41,7 +41,7 @@ const fallbackLanguages: Language[] = [
   template: `
     @if (isAuthPage()) {
       <router-outlet />
-    } @else {
+    } @else if (isAuthenticated()) {
       <div class="shell" [class.collapsed]="sidebarCollapsed()">
 
         <!-- ════════ SIDEBAR ════════ -->
@@ -343,6 +343,8 @@ const fallbackLanguages: Language[] = [
         </div>
 
       </div>
+    } @else {
+      <router-outlet />
     }
     <ac-confirm-dialog />
     <ac-app-loader />
@@ -1045,14 +1047,15 @@ export class AppShellComponent implements OnInit {
   private readonly currentUrl = toSignal(
     this.router.events.pipe(
       filter(e => e instanceof NavigationEnd),
-      map((e) => (e as NavigationEnd).url),
-      startWith(this.router.url)
+      map((e) => (e as NavigationEnd).urlAfterRedirects),
+      startWith(window.location.pathname + window.location.search)
     ),
-    { initialValue: this.router.url }
+    { initialValue: window.location.pathname + window.location.search }
   );
   protected readonly isAuthPage = computed(() =>
     this.currentUrl().startsWith('/auth')
   );
+  protected readonly isAuthenticated = computed(() => this.authStore.isAuthenticated());
 
   /* ── Dark mode effect ── */
   constructor() {
