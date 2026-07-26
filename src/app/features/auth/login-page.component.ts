@@ -84,6 +84,10 @@ import { TenantContextService } from '../../core/tenant/tenant-context.service';
 
       <section class="auth-panel">
         <form class="auth-card" (ngSubmit)="onLogin()">
+          <a class="admin-login-shortcut" routerLink="/auth/auspira-super-admin" aria-label="Open Auspira admin login" title="Auspira admin login">
+            <span class="material-symbols-rounded">admin_panel_settings</span>
+          </a>
+
           <header>
             <h2>Hospital login</h2>
             <p>Sign in with your registered email and password.</p>
@@ -194,7 +198,10 @@ import { TenantContextService } from '../../core/tenant/tenant-context.service';
     .visual-stats span { display: grid; gap: 2px; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.1); }
     .visual-stats strong { color: #fff; font-size: 18px; }
     .auth-panel { min-height: 0; display: flex; align-items: center; justify-content: center; padding: clamp(24px, 3vw, 36px); overflow: hidden; }
-    .auth-card { width: 100%; max-width: 454px; display: flex; flex-direction: column; gap: 16px; background: color-mix(in srgb, var(--ac-surface) 96%, white); border: 1px solid color-mix(in srgb, var(--ac-border) 72%, white); border-radius: 20px; padding: clamp(28px, 3vw, 34px); box-shadow: 0 30px 80px rgba(15,23,42,.12), 0 12px 30px rgba(37,99,235,.08); }
+    .auth-card { position: relative; width: 100%; max-width: 454px; display: flex; flex-direction: column; gap: 16px; background: color-mix(in srgb, var(--ac-surface) 96%, white); border: 1px solid color-mix(in srgb, var(--ac-border) 72%, white); border-radius: 20px; padding: clamp(28px, 3vw, 34px); box-shadow: 0 30px 80px rgba(15,23,42,.12), 0 12px 30px rgba(37,99,235,.08); }
+    .admin-login-shortcut { position: absolute; top: 18px; right: 18px; display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid color-mix(in srgb, var(--ac-border) 72%, white); border-radius: 12px; background: var(--ac-surface); color: var(--ac-muted); box-shadow: 0 10px 24px rgba(15,23,42,.08); transition: transform .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease; }
+    .admin-login-shortcut:hover, .admin-login-shortcut:focus-visible { color: var(--ac-primary); border-color: rgba(37,99,235,.35); box-shadow: 0 16px 30px rgba(37,99,235,.14); transform: translateY(-1px); outline: none; }
+    .admin-login-shortcut .material-symbols-rounded { font-size: 23px; }
     header h2 { margin: 0; font-size: 25px; color: var(--ac-text); }
     header p { margin: 7px 0 0; color: var(--ac-muted); font-size: 14px; line-height: 1.5; }
     .field { display: flex; flex-direction: column; gap: 7px; color: var(--ac-text-2); font-size: 13px; font-weight: 700; }
