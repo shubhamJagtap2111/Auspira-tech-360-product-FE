@@ -101,7 +101,7 @@ import { TenantContextService } from '../../core/tenant/tenant-context.service';
             <span class="field-label">Hospital name or code</span>
             <span class="input-shell">
               <span class="material-symbols-rounded">local_hospital</span>
-              <input type="text" name="hospitalCode" [(ngModel)]="hospitalCode" placeholder="Auspira Demo Hospital" autocomplete="organization" required />
+              <input type="text" name="hospitalCode" [(ngModel)]="hospitalCode" placeholder="Hospital name or code" autocomplete="organization" required />
             </span>
           </label>
 
@@ -354,12 +354,6 @@ export class LoginPageComponent {
   }
 
   private resolveInitialHospitalCode(): string {
-    const queryTenantCode = new URLSearchParams(window.location.search).get('tenantCode')?.trim();
-    if (queryTenantCode) {
-      return queryTenantCode;
-    }
-
-    const storedTenantCode = window.localStorage.getItem('care360.tenantCode')?.trim();
-    return storedTenantCode && storedTenantCode !== 'auspira-demo' ? storedTenantCode : '';
+    return this.tenantContext.tenantCode().trim();
   }
 }

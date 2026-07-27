@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 
-const DEFAULT_TENANT_CODE = 'auspira-demo';
+const DEFAULT_TENANT_CODE = '';
 const RESERVED_HOSTNAMES = new Set([
   'localhost',
   '127.0.0.1',
@@ -9,7 +9,8 @@ const RESERVED_HOSTNAMES = new Set([
 ]);
 const RESERVED_TENANT_CODES = new Set([
   'auspira-tech-360-product-fe',
-  'app'
+  'app',
+  'auspira-demo'
 ]);
 
 @Injectable({ providedIn: 'root' })
@@ -46,7 +47,11 @@ function resolveTenantCode(): string {
     : null;
   const subdomainTenantCode = resolveSubdomainTenantCode(window.location.hostname);
 
-  return queryTenantCode || usableStoredTenantCode || subdomainTenantCode || DEFAULT_TENANT_CODE;
+  const usableQueryTenantCode = queryTenantCode && !isReservedTenantCode(queryTenantCode)
+    ? queryTenantCode
+    : null;
+
+  return usableQueryTenantCode || usableStoredTenantCode || subdomainTenantCode || DEFAULT_TENANT_CODE;
 }
 
 function resolveCultureCode(): string {
