@@ -4,10 +4,12 @@ const DEFAULT_TENANT_CODE = 'auspira-demo';
 const RESERVED_HOSTNAMES = new Set([
   'localhost',
   '127.0.0.1',
-  'auspira-tech-360-product-fe.vercel.app'
+  'auspira-tech-360-product-fe.vercel.app',
+  'app.auspiratech.com'
 ]);
 const RESERVED_TENANT_CODES = new Set([
-  'auspira-tech-360-product-fe'
+  'auspira-tech-360-product-fe',
+  'app'
 ]);
 
 @Injectable({ providedIn: 'root' })
