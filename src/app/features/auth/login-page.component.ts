@@ -202,6 +202,7 @@ import { TenantContextService } from '../../core/tenant/tenant-context.service';
     .admin-login-shortcut { position: absolute; top: 18px; right: 18px; display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid color-mix(in srgb, var(--ac-border) 72%, white); border-radius: 12px; background: var(--ac-surface); color: var(--ac-muted); box-shadow: 0 10px 24px rgba(15,23,42,.08); transition: transform .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease; }
     .admin-login-shortcut:hover, .admin-login-shortcut:focus-visible { color: var(--ac-primary); border-color: rgba(37,99,235,.35); box-shadow: 0 16px 30px rgba(37,99,235,.14); transform: translateY(-1px); outline: none; }
     .admin-login-shortcut .material-symbols-rounded { font-size: 23px; }
+    header { padding-right: 54px; }
     header h2 { margin: 0; font-size: 25px; color: var(--ac-text); }
     header p { margin: 7px 0 0; color: var(--ac-muted); font-size: 14px; line-height: 1.5; }
     .field { display: flex; flex-direction: column; gap: 7px; color: var(--ac-text-2); font-size: 13px; font-weight: 700; }
@@ -246,7 +247,34 @@ import { TenantContextService } from '../../core/tenant/tenant-context.service';
     @keyframes dashPulse { 72.5% { opacity: 0; } to { stroke-dashoffset: 0; } }
     @media (max-width: 1280px) { .hospital-visual { display: none; } }
     @media (max-height: 820px) { .hospital-visual { transform: scale(.9); transform-origin: left center; } .auth-card { gap: 13px; } .auth-footer { padding-top: 12px; } }
-    @media (max-width: 900px) { .auth-page { grid-template-columns: 1fr; } .auth-brand { display: none; } .auth-panel { padding: 24px; } .auth-card { padding: 28px; } }
+    @media (max-width: 900px) {
+      .auth-page { min-height: 100dvh; height: auto; grid-template-columns: 1fr; overflow: auto; }
+      .auth-brand { display: none; }
+      .auth-panel { min-height: 100dvh; padding: 24px; overflow: visible; }
+      .auth-card { padding: 28px; }
+    }
+    @media (max-width: 520px) {
+      .auth-page { background: var(--ac-bg); }
+      .auth-panel { align-items: flex-start; padding: 16px; }
+      .auth-card { max-width: none; gap: 14px; border-radius: 16px; padding: 22px 18px; box-shadow: 0 16px 40px rgba(15,23,42,.1); }
+      .admin-login-shortcut { top: 14px; right: 14px; width: 38px; height: 38px; border-radius: 10px; }
+      header { padding-right: 46px; }
+      header h2 { font-size: 22px; line-height: 1.2; }
+      header p { font-size: 13px; }
+      .input-shell { min-height: 46px; border-radius: 11px; }
+      input { height: 44px; font-size: 16px; }
+      .primary, .google-button { width: 100%; height: 46px; border-radius: 11px; }
+      .form-row { align-items: flex-start; flex-direction: column; gap: 10px; }
+      .check { align-items: flex-start; line-height: 1.35; }
+      .footer-links { gap: 10px 14px; }
+      .footer-links > * + *::before { display: none; }
+    }
+    @media (max-width: 360px) {
+      .auth-panel { padding: 12px; }
+      .auth-card { padding: 20px 14px; }
+      .input-shell > .material-symbols-rounded { width: 38px; }
+      .field-icon-button { width: 38px; min-width: 38px; }
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })

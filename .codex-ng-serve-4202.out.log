@@ -1,0 +1,47 @@
+
+> auspira-care360-web@0.1.0 start
+> ng serve --host 127.0.0.1 --port 4202
+
+[33m>[39m Building...
+[32m√[39m Building...
+[1mInitial chunk files[22m[2m | [22m[1mNames[22m                                 [2m | [22m [1mRaw size[22m[2m | [22m[1mEstimated transfer size[22m
+[32mchunk-2L5TIE6P.js[39m  [2m | [22m[2m-[22m                                     [2m | [22m[36m220.52 kB[39m[2m | [22m               [36m61.86 kB[39m
+[32mmain.js[39m            [2m | [22m[2mmain[22m                                  [2m | [22m[36m126.34 kB[39m[2m | [22m               [36m30.15 kB[39m
+[32mchunk-ZMR2RNX4.js[39m  [2m | [22m[2m-[22m                                     [2m | [22m [36m84.03 kB[39m[2m | [22m               [36m21.30 kB[39m
+[32mchunk-L3TQITGV.js[39m  [2m | [22m[2m-[22m                                     [2m | [22m [36m44.08 kB[39m[2m | [22m                [36m8.80 kB[39m
+[32mpolyfills.js[39m       [2m | [22m[2mpolyfills[22m                             [2m | [22m [36m34.59 kB[39m[2m | [22m               [36m11.33 kB[39m
+[32mstyles.css[39m         [2m | [22m[2mstyles[22m                                [2m | [22m [36m13.02 kB[39m[2m | [22m                [36m2.95 kB[39m
+[32mchunk-WQ56VPZJ.js[39m  [2m | [22m[2m-[22m                                     [2m | [22m  [36m2.25 kB[39m[2m | [22m              [36m846 bytes[39m
+[32mchunk-6WLCEAIQ.js[39m  [2m | [22m[2m-[22m                                     [2m | [22m  [36m1.75 kB[39m[2m | [22m              [36m576 bytes[39m
+[32mchunk-GO7BI7C2.js[39m  [2m | [22m[2m-[22m                                     [2m | [22m  [36m1.67 kB[39m[2m | [22m              [36m624 bytes[39m
+[32mchunk-BTCJMJDQ.js[39m  [2m | [22m[2m-[22m                                     [2m | [22m  [36m1.19 kB[39m[2m | [22m              [36m492 bytes[39m
+[32mchunk-7ELIYME6.js[39m  [2m | [22m[2m-[22m                                     [2m | [22m  [36m1.19 kB[39m[2m | [22m              [36m534 bytes[39m
+[32mchunk-A32H3C5E.js[39m  [2m | [22m[2m-[22m                                     [2m | [22m  [36m1.08 kB[39m[2m | [22m              [36m475 bytes[39m
+[32mchunk-5XNW4A4K.js[39m  [2m | [22m[2m-[22m                                     [2m | [22m[36m637 bytes[39m[2m | [22m              [36m637 bytes[39m
+[32mchunk-AF47L3HL.js[39m  [2m | [22m[2m-[22m                                     [2m | [22m[36m538 bytes[39m[2m | [22m              [36m538 bytes[39m
+
+[1m [22m                  [2m | [22m[1mInitial total[22m                         [2m | [22m[1m532.88 kB[22m[2m | [22m              [1m141.12 kB[22m
+
+[1mLazy chunk files[22m   [2m | [22m[1mNames[22m                                 [2m | [22m [1mRaw size[22m[2m | [22m[1mEstimated transfer size[22m
+[32mchunk-FSXFBZ2V.js[39m  [2m | [22m[2msubscription-management-page-component[22m[2m | [22m [36m35.68 kB[39m[2m | [22m                [36m7.52 kB[39m
+[32mchunk-CCLNFDB5.js[39m  [2m | [22m[2mdashboard-page-component[22m              [2m | [22m [36m35.18 kB[39m[2m | [22m                [36m6.87 kB[39m
+[32mchunk-KUO4XHCN.js[39m  [2m | [22m[2mtenant-management-page-component[22m      [2m | [22m [36m33.87 kB[39m[2m | [22m                [36m7.51 kB[39m
+[32mchunk-G6IAGOKM.js[39m  [2m | [22m[2msystem-configuration-page-component[22m   [2m | [22m [36m32.38 kB[39m[2m | [22m                [36m5.96 kB[39m
+[32mchunk-YSASIN2C.js[39m  [2m | [22m[2muser-list-page-component[22m              [2m | [22m [36m32.13 kB[39m[2m | [22m                [36m6.90 kB[39m
+[32mchunk-FTBMPYLJ.js[39m  [2m | [22m[2mprofile-page-component[22m                [2m | [22m [36m28.40 kB[39m[2m | [22m                [36m7.07 kB[39m
+[32mchunk-LMOEWNMH.js[39m  [2m | [22m[2mhospital-management-page-component[22m    [2m | [22m [36m26.38 kB[39m[2m | [22m                [36m4.76 kB[39m
+[32mchunk-WBMIE3FX.js[39m  [2m | [22m[2mbilling-management-page-component[22m     [2m | [22m [36m26.34 kB[39m[2m | [22m                [36m5.49 kB[39m
+[32mchunk-MGLL2T6S.js[39m  [2m | [22m[2mplan-management-page-component[22m        [2m | [22m [36m26.22 kB[39m[2m | [22m                [36m5.79 kB[39m
+[32mchunk-D6LAX4E2.js[39m  [2m | [22m[2mtenant-provisioning-page-component[22m    [2m | [22m [36m26.02 kB[39m[2m | [22m                [36m6.03 kB[39m
+[32mchunk-J57KBNQF.js[39m  [2m | [22m[2mbranch-management-page-component[22m      [2m | [22m [36m24.53 kB[39m[2m | [22m                [36m5.57 kB[39m
+[32mchunk-6UBPWLL7.js[39m  [2m | [22m[2mnotification-center-page-component[22m    [2m | [22m [36m23.89 kB[39m[2m | [22m                [36m5.56 kB[39m
+[32mchunk-YRB5TN45.js[39m  [2m | [22m[2mlogin-page-component[22m                  [2m | [22m [36m22.26 kB[39m[2m | [22m                [36m5.50 kB[39m
+[32mchunk-4FLSPV5I.js[39m  [2m | [22m[2mregister-page-component[22m               [2m | [22m [36m20.08 kB[39m[2m | [22m                [36m5.07 kB[39m
+[32mchunk-2JRU6A76.js[39m  [2m | [22m[2mprofile-action-page-component[22m         [2m | [22m [36m17.02 kB[39m[2m | [22m                [36m4.27 kB[39m
+[2m...and 24 more lazy chunks files. Use "--verbose" to show all the files.[22m
+
+Application bundle generation complete. [14.684 seconds] - 2026-07-27T06:27:07.265Z
+
+Watch mode enabled. Watching for file changes...
+NOTE: Raw file sizes do not reflect development server per-request transformations.
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m4202[22m/[39m
