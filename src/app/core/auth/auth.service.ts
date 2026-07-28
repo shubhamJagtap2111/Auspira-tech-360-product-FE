@@ -9,6 +9,7 @@ import {
   ChangePasswordRequest,
   CurrentUserProfile,
   ForgotPasswordRequest,
+  LoginTenantOptionsResponse,
   LoginRequest,
   RegisterTenantRequest,
   RefreshTokenRequest,
@@ -25,6 +26,14 @@ export class AuthService {
 
   login(request: LoginRequest): Promise<ApiResponse<AuthResponse>> {
     return firstValueFrom(this.api.post<ApiResponse<AuthResponse>>('/auth/login', request));
+  }
+
+  getLoginTenantOptions(email: string): Promise<ApiResponse<LoginTenantOptionsResponse>> {
+    const query = email.trim()
+      ? `?email=${encodeURIComponent(email.trim())}`
+      : '';
+
+    return firstValueFrom(this.api.get<ApiResponse<LoginTenantOptionsResponse>>(`/auth/login/tenants${query}`));
   }
 
   auspiraSuperAdminLogin(request: LoginRequest): Promise<ApiResponse<AuthResponse>> {

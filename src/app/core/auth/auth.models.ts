@@ -12,9 +12,21 @@ export interface LoginRequest {
   email: string;
   password: string;
   rememberMe: boolean;
-  /** Tenant hint is required for hospital login when the app is not running on a tenant subdomain. */
+  /** Optional when one email belongs to multiple hospitals. */
+  tenantId?: string | null;
   tenantCode?: string | null;
   hospitalName?: string | null;
+}
+
+export interface LoginTenantOption {
+  tenantId: string;
+  tenantCode: string;
+  hospitalName: string;
+  tenantStatus: string;
+}
+
+export interface LoginTenantOptionsResponse {
+  items: LoginTenantOption[];
 }
 
 export interface RegisterTenantRequest {

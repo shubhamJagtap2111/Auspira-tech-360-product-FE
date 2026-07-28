@@ -1,14 +1,16 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { LoginTenantOption } from '../../core/auth/auth.models';
 import { AuthService } from '../../core/auth/auth.service';
 import { AuthStore } from '../../core/auth/auth.store';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TenantContextService } from '../../core/tenant/tenant-context.service';
+import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dropdown.component';
 
 @Component({
   standalone: true,
-  imports: [RouterLink, FormsModule],
+  imports: [RouterLink, FormsModule, AcDropdownComponent],
   template: `
     <div class="auth-page">
       <section class="auth-brand">
@@ -98,20 +100,29 @@ import { TenantContextService } from '../../core/tenant/tenant-context.service';
           }
 
           <label class="field">
-            <span class="field-label">{{ t('Auth.Login.Tenant.Label') }}</span>
-            <span class="input-shell">
-              <span class="material-symbols-rounded">domain</span>
-              <input type="text" name="tenantCode" [(ngModel)]="tenantCode" [placeholder]="t('Auth.Login.Tenant.Placeholder')" required />
-            </span>
-          </label>
-
-          <label class="field">
             <span class="field-label">{{ t('Auth.Login.Email.Label') }}</span>
             <span class="input-shell">
               <span class="material-symbols-rounded">mail</span>
-              <input type="email" name="email" [(ngModel)]="email" [placeholder]="t('Auth.Login.Email.Placeholder')" required />
+              <input type="email" name="email" [(ngModel)]="email" (blur)="loadTenantOptionsForEmail()" [placeholder]="t('Auth.Login.Email.Placeholder')" required />
             </span>
           </label>
+
+          @if (tenantOptions().length > 1) {
+            <label class="field">
+              <span class="field-label">{{ t('Auth.Login.Tenant.Label') }}</span>
+              <span class="input-shell dropdown-shell">
+                <span class="material-symbols-rounded">domain</span>
+                <ac-dropdown
+                  name="tenantId"
+                  [(ngModel)]="selectedTenantId"
+                  [options]="tenantDropdownOptions()"
+                  [placeholder]="t('Auth.Login.Tenant.Placeholder')"
+                  emptyText="No hospitals found"
+                  ariaLabel="Select hospital"
+                  (selectionChange)="onTenantChoiceChanged($event)" />
+              </span>
+            </label>
+          }
 
           <label class="field">
             <span class="field-label">{{ t('Auth.Login.Password.Label') }}</span>
@@ -212,6 +223,10 @@ import { TenantContextService } from '../../core/tenant/tenant-context.service';
     .input-shell > .material-symbols-rounded { width: 44px; color: var(--ac-muted); font-size: 20px; text-align: center; }
     input { width: 100%; height: 46px; min-width: 0; border: 0; border-radius: 13px; padding: 0 12px 0 0; background: transparent; color: var(--ac-text); font: inherit; font-weight: 600; }
     input:focus { outline: none; }
+    .dropdown-shell { padding-right: 4px; }
+    .dropdown-shell ac-dropdown { flex: 1; min-width: 0; }
+    .dropdown-shell ::ng-deep .ac-dropdown-trigger { min-height: 46px; border: 0; background: transparent; padding-left: 0; border-radius: 13px; box-shadow: none; }
+    .dropdown-shell ::ng-deep .open .ac-dropdown-trigger { box-shadow: none; }
     .field-icon-button { display: grid; place-items: center; width: 42px; height: 42px; margin-right: 3px; border: 0; border-radius: 10px; background: transparent; color: var(--ac-muted); cursor: pointer; }
     .field-icon-button:hover { background: var(--ac-surface-2); color: var(--ac-primary); }
     .field-icon-button .material-symbols-rounded { font-size: 20px; }
@@ -296,44 +311,53 @@ export class LoginPageComponent {
 
   protected email = '';
   protected password = '';
-  protected tenantCode = this.tenantContext.tenantCode();
+  protected selectedTenantId: string | null = null;
   protected rememberMe = false;
+  protected readonly tenantOptions = signal<LoginTenantOption[]>([]);
   protected readonly loading = signal(false);
   protected readonly showPassword = signal(false);
   protected readonly errorKey = signal<string | null>(null);
-
-  constructor() {
-    if (!this.authStore.isAuthenticated() && !hasExplicitTenantHint()) {
-      this.tenantContext.clearTenantCode();
-      this.tenantCode = '';
-    }
-  }
 
   protected t(key: string): string {
     return this.i18n.translate(key);
   }
 
+  protected tenantDropdownOptions(): DropdownOption<string>[] {
+    return this.tenantOptions().map(tenant => ({
+      label: `${tenant.hospitalName} (${tenant.tenantCode})`,
+      value: tenant.tenantId
+    }));
+  }
+
+  protected onTenantChoiceChanged(tenantId: string | null): void {
+    const selected = this.tenantOptions().find(tenant => tenant.tenantId === tenantId);
+    if (selected) {
+      this.tenantContext.setTenantCode(selected.tenantCode);
+    }
+  }
+
   protected async onLogin(): Promise<void> {
     this.loading.set(true);
     this.errorKey.set(null);
-    const tenantCode = this.tenantCode.trim();
 
-    if (!tenantCode) {
+    if (this.tenantOptions().length > 1 && !this.selectedTenantId) {
       this.errorKey.set('Common.Errors.TenantRequired');
       this.loading.set(false);
       return;
     }
-
-    this.tenantContext.setTenantCode(tenantCode);
 
     try {
       const response = await this.authService.login({
         email: this.email,
         password: this.password,
         rememberMe: this.rememberMe,
-        tenantCode
+        tenantId: this.selectedTenantId
       });
       if (!response.success || !response.data) {
+        if (response.message === 'Auth.Errors.TenantSelectionRequired') {
+          await this.loadTenantOptionsForEmail();
+        }
+
         this.errorKey.set(response.message);
         return;
       }
@@ -357,33 +381,50 @@ export class LoginPageComponent {
   }
 
   protected onGoogleLogin(): void {
-    const tenantCode = this.tenantCode.trim();
-    if (!tenantCode) {
+    if (this.tenantOptions().length > 1 && !this.selectedTenantId) {
       this.errorKey.set('Common.Errors.TenantRequired');
       return;
     }
 
-    this.tenantContext.setTenantCode(tenantCode);
-    this.authService.startGoogleLogin(this.rememberMe, tenantCode);
-  }
-}
-
-function hasExplicitTenantHint(): boolean {
-  const queryTenantCode = new URLSearchParams(window.location.search).get('tenantCode')?.trim();
-  if (queryTenantCode) {
-    return true;
+    const selected = this.tenantOptions().find(tenant => tenant.tenantId === this.selectedTenantId);
+    this.authService.startGoogleLogin(this.rememberMe, selected?.tenantCode);
   }
 
-  const hostname = window.location.hostname.toLowerCase();
-  if (
-    hostname === 'localhost' ||
-    hostname === '127.0.0.1' ||
-    hostname === '::1' ||
-    hostname === 'app.auspiratech.com' ||
-    hostname.endsWith('.vercel.app')
-  ) {
-    return false;
+  protected async loadTenantOptionsForEmail(): Promise<void> {
+    const email = this.email.trim();
+    if (!email || !email.includes('@', 1)) {
+      this.tenantOptions.set([]);
+      this.selectedTenantId = null;
+      return;
+    }
+
+    try {
+      const response = await this.authService.getLoginTenantOptions(email);
+      const tenants = response.success && response.data
+        ? response.data.items
+        : [];
+
+      this.tenantOptions.set(tenants);
+      this.syncSelectedTenant(tenants);
+    } catch {
+      this.tenantOptions.set([]);
+      this.selectedTenantId = null;
+    }
   }
 
-  return hostname.split('.').filter(Boolean).length > 1;
+  private syncSelectedTenant(tenants: LoginTenantOption[]): void {
+    const currentTenantExists = tenants.some(tenant => tenant.tenantId === this.selectedTenantId);
+
+    if (this.selectedTenantId && currentTenantExists) {
+      return;
+    }
+
+    if (tenants.length === 1) {
+      this.selectedTenantId = tenants[0].tenantId;
+      this.tenantContext.setTenantCode(tenants[0].tenantCode);
+      return;
+    }
+
+    this.selectedTenantId = null;
+  }
 }

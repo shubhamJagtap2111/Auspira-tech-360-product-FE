@@ -69,6 +69,10 @@ export interface UserCommandResponse {
   succeeded: boolean;
 }
 
+export interface ResetManagedUserPasswordRequest {
+  password: string;
+}
+
 export interface UserReferenceDataResponse {
   languages: UserLanguageOption[];
   timeZones: UserTimeZoneOption[];

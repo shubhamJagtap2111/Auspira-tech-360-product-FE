@@ -146,8 +146,8 @@ function createFallbackCatalog(cultureCode: string): LocalizationCatalog {
 }
 
 const FALLBACK_RESOURCES: Record<string, string> = {
-  'Auth.Login.Tenant.Label': 'Hospital code',
-  'Auth.Login.Tenant.Placeholder': 'Enter hospital code',
+  'Auth.Login.Tenant.Label': 'Hospital',
+  'Auth.Login.Tenant.Placeholder': 'Select hospital',
   'Auth.Login.Email.Label': 'Email',
   'Auth.Login.Email.Placeholder': 'Enter your email',
   'Auth.Login.Password.Label': 'Password',
@@ -170,7 +170,8 @@ const FALLBACK_RESOURCES: Record<string, string> = {
   'Auth.Errors.InactiveAccount': 'This account is inactive.',
   'Auth.Errors.EmailNotVerified': 'Email is not verified.',
   'Auth.Errors.MembershipNotFound': 'No active hospital membership was found for this email.',
-  'Common.Errors.TenantRequired': 'Tenant is required.',
+  'Auth.Errors.TenantSelectionRequired': 'Choose the hospital for this email.',
+  'Common.Errors.TenantRequired': 'Choose a hospital for this email.',
   'Common.Errors.TenantNotFound': 'Hospital tenant was not found.',
   'Common.Errors.TenantInactive': 'Hospital tenant is inactive.',
   'Common.Errors.LicenseExpired': 'Hospital license is expired.',

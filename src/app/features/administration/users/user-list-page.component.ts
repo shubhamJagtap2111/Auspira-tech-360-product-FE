@@ -24,6 +24,8 @@ const permissions = {
   viewAudit: 'Administration.UserManagement.ViewAudit'
 };
 
+const defaultResetPassword = 'Reset@123';
+
 @Component({
   standalone: true,
   imports: [CommonModule, FormsModule, AcDropdownComponent, AcAdminDrawerComponent],
@@ -487,9 +489,9 @@ export class UserListPageComponent implements OnInit {
   }
 
   protected async resetPassword(user: ManagedUser): Promise<void> {
-    const response = await this.service.initiatePasswordReset(user.userGuid);
+    const response = await this.service.initiatePasswordReset(user.userGuid, { password: defaultResetPassword });
     response.success
-      ? this.toast.success(this.t('Auth.Messages.ForgotPasswordAccepted'))
+      ? this.toast.success(this.t('Auth.Messages.ResetPasswordSuccessful'))
       : this.toast.error(this.t(response.message));
   }
 

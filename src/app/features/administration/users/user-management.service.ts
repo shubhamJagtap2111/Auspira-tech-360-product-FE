@@ -6,6 +6,7 @@ import {
   AssignableRole,
   ImportUserRow,
   ManagedUser,
+  ResetManagedUserPasswordRequest,
   UserAuditHistoryItem,
   UserCommandResponse,
   UserExportResponse,
@@ -86,8 +87,8 @@ export class UserManagementService {
     return firstValueFrom(this.api.put<AdministrationApiResponse<ManagedUser>>(`/administration/users/${userGuid}/roles`, { roleCodes }));
   }
 
-  initiatePasswordReset(userGuid: string): Promise<AdministrationApiResponse<UserCommandResponse>> {
-    return firstValueFrom(this.api.post<AdministrationApiResponse<UserCommandResponse>>(`/administration/users/${userGuid}/password-reset`, {}));
+  initiatePasswordReset(userGuid: string, request: ResetManagedUserPasswordRequest): Promise<AdministrationApiResponse<UserCommandResponse>> {
+    return firstValueFrom(this.api.post<AdministrationApiResponse<UserCommandResponse>>(`/administration/users/${userGuid}/password-reset`, request));
   }
 
   deleteUser(userGuid: string): Promise<AdministrationApiResponse<UserCommandResponse>> {
