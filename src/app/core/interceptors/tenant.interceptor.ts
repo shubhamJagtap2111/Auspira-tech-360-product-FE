@@ -1,10 +1,12 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
+import { AuthStore } from '../auth/auth.store';
 import { API_BASE_URL } from '../http/api-endpoints';
 import { TenantContextService } from '../tenant/tenant-context.service';
 
 export const tenantInterceptor: HttpInterceptorFn = (request, next) => {
   const tenant = inject(TenantContextService);
+  const authStore = inject(AuthStore);
   const apiBaseUrl = inject(API_BASE_URL);
   const isExternalRequest = /^https?:\/\//i.test(request.url) && !request.url.startsWith(apiBaseUrl);
   if (isExternalRequest) {
@@ -16,6 +18,10 @@ export const tenantInterceptor: HttpInterceptorFn = (request, next) => {
   };
 
   if (isAnonymousAuthRequest(request.url)) {
+    return next(request.clone({ setHeaders: headers }));
+  }
+
+  if (authStore.accessToken()) {
     return next(request.clone({ setHeaders: headers }));
   }
 
