@@ -35,10 +35,8 @@ export class AuthService {
     return firstValueFrom(this.api.post<ApiResponse<TenantRegistrationResponse>>('/auth/register', request));
   }
 
-  startGoogleLogin(tenantCode: string, rememberMe = true): void {
+  startGoogleLogin(rememberMe = true): void {
     const params = new URLSearchParams({
-      tenantCode,
-      hospitalName: tenantCode,
       rememberMe: String(rememberMe),
       redirectUri: `${window.location.origin}/auth/google-callback`
     });

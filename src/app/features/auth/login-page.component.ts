@@ -98,14 +98,6 @@ import { TenantContextService } from '../../core/tenant/tenant-context.service';
           }
 
           <label class="field">
-            <span class="field-label">Hospital name or code</span>
-            <span class="input-shell">
-              <span class="material-symbols-rounded">local_hospital</span>
-              <input type="text" name="hospitalCode" [(ngModel)]="hospitalCode" placeholder="Hospital name or code" autocomplete="organization" required />
-            </span>
-          </label>
-
-          <label class="field">
             <span class="field-label">{{ t('Auth.Login.Email.Label') }}</span>
             <span class="input-shell">
               <span class="material-symbols-rounded">mail</span>
@@ -296,7 +288,6 @@ export class LoginPageComponent {
 
   protected email = '';
   protected password = '';
-  protected hospitalCode = this.resolveInitialHospitalCode();
   protected rememberMe = false;
   protected readonly loading = signal(false);
   protected readonly showPassword = signal(false);
@@ -311,25 +302,20 @@ export class LoginPageComponent {
     this.errorKey.set(null);
 
     try {
-      const hospitalIdentifier = this.hospitalCode.trim();
-      if (!hospitalIdentifier) {
-        this.errorKey.set('Hospital name or code is required.');
-        return;
-      }
-
       const response = await this.authService.login({
         email: this.email,
         password: this.password,
-        rememberMe: this.rememberMe,
-        tenantCode: hospitalIdentifier,
-        hospitalName: hospitalIdentifier
+        rememberMe: this.rememberMe
       });
       if (!response.success || !response.data) {
         this.errorKey.set(response.message);
         return;
       }
 
-      this.tenantContext.setTenantCode(response.data.tenantCode?.trim() || hospitalIdentifier);
+      if (response.data.tenantCode?.trim()) {
+        this.tenantContext.setTenantCode(response.data.tenantCode);
+      }
+
       this.authStore.setSession(response.data);
       await this.router.navigateByUrl('/');
     } catch {
@@ -344,16 +330,6 @@ export class LoginPageComponent {
   }
 
   protected onGoogleLogin(): void {
-    const hospitalIdentifier = this.hospitalCode.trim();
-    if (!hospitalIdentifier) {
-      this.errorKey.set('Hospital name or code is required.');
-      return;
-    }
-
-    this.authService.startGoogleLogin(hospitalIdentifier, this.rememberMe);
-  }
-
-  private resolveInitialHospitalCode(): string {
-    return this.tenantContext.tenantCode().trim();
+    this.authService.startGoogleLogin(this.rememberMe);
   }
 }
