@@ -314,6 +314,7 @@ export class LoginPageComponent {
 
       if (response.data.tenantCode?.trim()) {
         this.tenantContext.setTenantCode(response.data.tenantCode);
+        await this.i18n.loadCatalog();
       }
 
       this.authStore.setSession(response.data);

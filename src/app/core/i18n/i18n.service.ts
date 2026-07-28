@@ -17,6 +17,11 @@ export class I18nService {
 
   async loadCatalog(cultureCode = this.tenant.cultureCode()): Promise<void> {
     this.tenant.setCulture(cultureCode);
+    if (!this.tenant.tenantCode().trim()) {
+      this.catalogSignal.set(createFallbackCatalog(cultureCode));
+      return;
+    }
+
     const cached = this.getCachedCatalog(cultureCode);
     if (cached) {
       this.catalogSignal.set(cached);
@@ -36,7 +41,7 @@ export class I18nService {
   }
 
   translate(resourceKey: string): string {
-    return this.resources()[resourceKey] ?? resourceKey;
+    return this.resources()[resourceKey] ?? FALLBACK_RESOURCES[resourceKey] ?? resourceKey;
   }
 
   seedItems(module: string, name: string): SeedDataItem[] {
@@ -131,8 +136,39 @@ function createFallbackCatalog(cultureCode: string): LocalizationCatalog {
     requestedCulture: cultureCode,
     effectiveCulture: cultureCode,
     languages: [],
-    resources: {},
+    resources: FALLBACK_RESOURCES,
     seedDataSets: [],
     version: 0
   };
 }
+
+const FALLBACK_RESOURCES: Record<string, string> = {
+  'Auth.Login.Email.Label': 'Email',
+  'Auth.Login.Email.Placeholder': 'Enter your email',
+  'Auth.Login.Password.Label': 'Password',
+  'Auth.Login.Password.Placeholder': 'Enter your password',
+  'Auth.Login.RememberMe.Label': 'Remember me',
+  'Auth.Login.ShowPassword': 'Show password',
+  'Auth.Login.HidePassword': 'Hide password',
+  'Auth.Login.Submit': 'Sign in',
+  'Auth.Login.SigningIn': 'Signing in',
+  'Auth.ForgotPassword.Link': 'Forgot password?',
+  'Auth.ForgotPassword.Title': 'Forgot password',
+  'Auth.ForgotPassword.Description': 'Enter your email and we will send reset instructions.',
+  'Auth.ForgotPassword.Submit': 'Send reset link',
+  'Auth.Messages.ForgotPasswordAccepted': 'If the email exists, password reset instructions have been sent.',
+  'Auth.Messages.LoginSuccessful': 'Login successful.',
+  'Auth.Errors.InvalidCredentials': 'Invalid email or password.',
+  'Auth.Errors.EmailNotFound': 'Email not found.',
+  'Auth.Errors.InvalidPassword': 'Invalid password.',
+  'Auth.Errors.AccountLocked': 'Account locked. Please try again later.',
+  'Auth.Errors.InactiveAccount': 'This account is inactive.',
+  'Auth.Errors.EmailNotVerified': 'Email is not verified.',
+  'Auth.Errors.MembershipNotFound': 'No active hospital membership was found for this email.',
+  'Common.Errors.TenantRequired': 'Tenant is required.',
+  'Common.Errors.TenantNotFound': 'Hospital tenant was not found.',
+  'Common.Errors.TenantInactive': 'Hospital tenant is inactive.',
+  'Common.Errors.LicenseExpired': 'Hospital license is expired.',
+  'Common.Errors.UnhandledException': 'Something went wrong. Please try again.',
+  'Common.Actions.Sending': 'Sending'
+};
