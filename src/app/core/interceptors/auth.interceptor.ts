@@ -11,8 +11,9 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const http = inject(HttpClient);
   const apiBaseUrl = inject(API_BASE_URL);
   const token = authStore.accessToken();
+  const isExternalRequest = /^https?:\/\//i.test(request.url) && !request.url.startsWith(apiBaseUrl);
 
-  if (!token || request.url.includes('/auth/refresh')) {
+  if (isExternalRequest || !token || request.url.includes('/auth/refresh')) {
     return next(request);
   }
 
