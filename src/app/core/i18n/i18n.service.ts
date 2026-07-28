@@ -1,5 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { AuthStore } from '../auth/auth.store';
 import { ApiResponse } from '../auth/auth.models';
 import { ApiClientService } from '../http/api-client.service';
 import { TenantContextService } from '../tenant/tenant-context.service';
@@ -8,6 +9,7 @@ import { LocalizationCatalog, LocalizationVersion, SeedDataItem } from './i18n.m
 @Injectable({ providedIn: 'root' })
 export class I18nService {
   private readonly api = inject(ApiClientService);
+  private readonly authStore = inject(AuthStore);
   private readonly tenant = inject(TenantContextService);
   private readonly catalogSignal = signal<LocalizationCatalog | null>(null);
 
@@ -17,7 +19,8 @@ export class I18nService {
 
   async loadCatalog(cultureCode = this.tenant.cultureCode()): Promise<void> {
     this.tenant.setCulture(cultureCode);
-    if (!this.tenant.tenantCode().trim()) {
+    const tenantCode = this.tenant.tenantCode().trim();
+    if (!tenantCode || !this.authStore.isAuthenticated()) {
       this.catalogSignal.set(createFallbackCatalog(cultureCode));
       return;
     }
@@ -143,6 +146,8 @@ function createFallbackCatalog(cultureCode: string): LocalizationCatalog {
 }
 
 const FALLBACK_RESOURCES: Record<string, string> = {
+  'Auth.Login.Tenant.Label': 'Hospital code',
+  'Auth.Login.Tenant.Placeholder': 'Enter hospital code',
   'Auth.Login.Email.Label': 'Email',
   'Auth.Login.Email.Placeholder': 'Enter your email',
   'Auth.Login.Password.Label': 'Password',

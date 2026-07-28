@@ -12,7 +12,7 @@ export interface LoginRequest {
   email: string;
   password: string;
   rememberMe: boolean;
-  /** Optional legacy hints; hospital login resolves the tenant from the email address. */
+  /** Tenant hint is required for hospital login when the app is not running on a tenant subdomain. */
   tenantCode?: string | null;
   hospitalName?: string | null;
 }

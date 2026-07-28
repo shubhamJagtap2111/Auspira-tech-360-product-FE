@@ -98,6 +98,14 @@ import { TenantContextService } from '../../core/tenant/tenant-context.service';
           }
 
           <label class="field">
+            <span class="field-label">{{ t('Auth.Login.Tenant.Label') }}</span>
+            <span class="input-shell">
+              <span class="material-symbols-rounded">domain</span>
+              <input type="text" name="tenantCode" [(ngModel)]="tenantCode" [placeholder]="t('Auth.Login.Tenant.Placeholder')" required />
+            </span>
+          </label>
+
+          <label class="field">
             <span class="field-label">{{ t('Auth.Login.Email.Label') }}</span>
             <span class="input-shell">
               <span class="material-symbols-rounded">mail</span>
@@ -288,10 +296,18 @@ export class LoginPageComponent {
 
   protected email = '';
   protected password = '';
+  protected tenantCode = this.tenantContext.tenantCode();
   protected rememberMe = false;
   protected readonly loading = signal(false);
   protected readonly showPassword = signal(false);
   protected readonly errorKey = signal<string | null>(null);
+
+  constructor() {
+    if (!this.authStore.isAuthenticated() && !hasExplicitTenantHint()) {
+      this.tenantContext.clearTenantCode();
+      this.tenantCode = '';
+    }
+  }
 
   protected t(key: string): string {
     return this.i18n.translate(key);
@@ -300,24 +316,34 @@ export class LoginPageComponent {
   protected async onLogin(): Promise<void> {
     this.loading.set(true);
     this.errorKey.set(null);
+    const tenantCode = this.tenantCode.trim();
+
+    if (!tenantCode) {
+      this.errorKey.set('Common.Errors.TenantRequired');
+      this.loading.set(false);
+      return;
+    }
+
+    this.tenantContext.setTenantCode(tenantCode);
 
     try {
       const response = await this.authService.login({
         email: this.email,
         password: this.password,
-        rememberMe: this.rememberMe
+        rememberMe: this.rememberMe,
+        tenantCode
       });
       if (!response.success || !response.data) {
         this.errorKey.set(response.message);
         return;
       }
 
+      this.authStore.setSession(response.data);
       if (response.data.tenantCode?.trim()) {
         this.tenantContext.setTenantCode(response.data.tenantCode);
         await this.i18n.loadCatalog();
       }
 
-      this.authStore.setSession(response.data);
       await this.router.navigateByUrl('/');
     } catch {
       this.errorKey.set('Auth.Errors.InvalidCredentials');
@@ -331,6 +357,33 @@ export class LoginPageComponent {
   }
 
   protected onGoogleLogin(): void {
-    this.authService.startGoogleLogin(this.rememberMe);
+    const tenantCode = this.tenantCode.trim();
+    if (!tenantCode) {
+      this.errorKey.set('Common.Errors.TenantRequired');
+      return;
+    }
+
+    this.tenantContext.setTenantCode(tenantCode);
+    this.authService.startGoogleLogin(this.rememberMe, tenantCode);
   }
+}
+
+function hasExplicitTenantHint(): boolean {
+  const queryTenantCode = new URLSearchParams(window.location.search).get('tenantCode')?.trim();
+  if (queryTenantCode) {
+    return true;
+  }
+
+  const hostname = window.location.hostname.toLowerCase();
+  if (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '::1' ||
+    hostname === 'app.auspiratech.com' ||
+    hostname.endsWith('.vercel.app')
+  ) {
+    return false;
+  }
+
+  return hostname.split('.').filter(Boolean).length > 1;
 }

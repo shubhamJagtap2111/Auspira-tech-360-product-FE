@@ -21,7 +21,7 @@ export const tenantInterceptor: HttpInterceptorFn = (request, next) => {
     return next(request.clone({ setHeaders: headers }));
   }
 
-  if (authStore.accessToken()) {
+  if (authStore.accessToken() || !shouldSendTenantHintBeforeAuth(request.url)) {
     return next(request.clone({ setHeaders: headers }));
   }
 
@@ -38,7 +38,13 @@ function isAnonymousAuthRequest(url: string): boolean {
     '/auth/login',
     '/auth/register',
     '/auth/auspira-super-admin/login',
-    '/auth/external/google',
+    '/auth/external/google'
+  ].some(path => url.includes(path));
+}
+
+function shouldSendTenantHintBeforeAuth(url: string): boolean {
+  return [
+    '/auth/refresh',
     '/auth/forgot-password',
     '/auth/reset-password',
     '/auth/verify-email'

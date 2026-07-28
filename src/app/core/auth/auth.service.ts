@@ -35,11 +35,15 @@ export class AuthService {
     return firstValueFrom(this.api.post<ApiResponse<TenantRegistrationResponse>>('/auth/register', request));
   }
 
-  startGoogleLogin(rememberMe = true): void {
+  startGoogleLogin(rememberMe = true, tenantCode?: string | null): void {
     const params = new URLSearchParams({
       rememberMe: String(rememberMe),
       redirectUri: `${window.location.origin}/auth/google-callback`
     });
+    if (tenantCode?.trim()) {
+      params.set('tenantCode', tenantCode.trim());
+    }
+
     window.location.href = `${this.apiBaseUrl}/auth/external/google/login?${params.toString()}`;
   }
 

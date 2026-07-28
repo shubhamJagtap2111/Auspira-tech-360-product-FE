@@ -28,6 +28,11 @@ export class TenantContextService {
     this.tenantCode.set(normalizedTenantCode);
   }
 
+  clearTenantCode(): void {
+    window.localStorage.removeItem('care360.tenantCode');
+    this.tenantCode.set(DEFAULT_TENANT_CODE);
+  }
+
   setCulture(cultureCode: string): void {
     const normalizedCultureCode = cultureCode.trim();
     if (!normalizedCultureCode) {
