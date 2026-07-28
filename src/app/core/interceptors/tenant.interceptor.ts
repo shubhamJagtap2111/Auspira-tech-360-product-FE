@@ -11,12 +11,11 @@ export const tenantInterceptor: HttpInterceptorFn = (request, next) => {
     return next(request);
   }
 
-  const isAuspiraSuperAdminLogin = request.url.includes('/auth/auspira-super-admin/login');
   const headers: Record<string, string> = {
     'Accept-Language': tenant.cultureCode()
   };
 
-  if (isAuspiraSuperAdminLogin) {
+  if (isAnonymousAuthRequest(request.url)) {
     return next(request.clone({ setHeaders: headers }));
   }
 
@@ -27,3 +26,15 @@ export const tenantInterceptor: HttpInterceptorFn = (request, next) => {
 
   return next(request.clone({ setHeaders: headers }));
 };
+
+function isAnonymousAuthRequest(url: string): boolean {
+  return [
+    '/auth/login',
+    '/auth/register',
+    '/auth/auspira-super-admin/login',
+    '/auth/external/google',
+    '/auth/forgot-password',
+    '/auth/reset-password',
+    '/auth/verify-email'
+  ].some(path => url.includes(path));
+}

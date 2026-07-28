@@ -13,7 +13,7 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const token = authStore.accessToken();
   const isExternalRequest = /^https?:\/\//i.test(request.url) && !request.url.startsWith(apiBaseUrl);
 
-  if (isExternalRequest || !token || request.url.includes('/auth/refresh')) {
+  if (isExternalRequest || !token || isAnonymousAuthRequest(request.url) || request.url.includes('/auth/refresh')) {
     return next(request);
   }
 
@@ -53,3 +53,15 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
     })
   );
 };
+
+function isAnonymousAuthRequest(url: string): boolean {
+  return [
+    '/auth/login',
+    '/auth/register',
+    '/auth/auspira-super-admin/login',
+    '/auth/external/google',
+    '/auth/forgot-password',
+    '/auth/reset-password',
+    '/auth/verify-email'
+  ].some(path => url.includes(path));
+}
