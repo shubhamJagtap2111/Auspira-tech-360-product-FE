@@ -12,6 +12,7 @@ export interface LoginRequest {
   email: string;
   password: string;
   rememberMe: boolean;
+  tenantCode?: string | null;
 }
 
 export interface RefreshTokenRequest {

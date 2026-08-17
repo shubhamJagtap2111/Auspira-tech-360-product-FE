@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ApiClientService } from '../http/api-client.service';
 import { API_BASE_URL } from '../http/api-endpoints';
+import { TenantContextService } from '../tenant/tenant-context.service';
 import {
   ApiResponse,
   AuthenticationSession,
@@ -20,9 +21,13 @@ import {
 export class AuthService {
   private readonly api = inject(ApiClientService);
   private readonly apiBaseUrl = inject(API_BASE_URL);
+  private readonly tenantContext = inject(TenantContextService);
 
   login(request: LoginRequest): Promise<ApiResponse<AuthResponse>> {
-    return firstValueFrom(this.api.post<ApiResponse<AuthResponse>>('/auth/login', request));
+    return firstValueFrom(this.api.post<ApiResponse<AuthResponse>>('/auth/login', {
+      ...request,
+      tenantCode: request.tenantCode ?? (this.tenantContext.tenantCode() || null)
+    }));
   }
 
   startGoogleLogin(rememberMe = true): void {
@@ -30,6 +35,10 @@ export class AuthService {
       rememberMe: String(rememberMe),
       redirectUri: `${window.location.origin}/auth/google-callback`
     });
+    const tenantCode = this.tenantContext.tenantCode();
+    if (tenantCode) {
+      params.set('tenantCode', tenantCode);
+    }
     window.location.href = `${this.apiBaseUrl}/auth/external/google/login?${params.toString()}`;
   }
 
