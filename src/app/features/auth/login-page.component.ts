@@ -1,16 +1,13 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { LoginTenantOption } from '../../core/auth/auth.models';
 import { AuthService } from '../../core/auth/auth.service';
 import { AuthStore } from '../../core/auth/auth.store';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { TenantContextService } from '../../core/tenant/tenant-context.service';
-import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dropdown.component';
 
 @Component({
   standalone: true,
-  imports: [RouterLink, FormsModule, AcDropdownComponent],
+  imports: [RouterLink, FormsModule],
   template: `
     <div class="auth-page">
       <section class="auth-brand">
@@ -86,10 +83,6 @@ import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dr
 
       <section class="auth-panel">
         <form class="auth-card" (ngSubmit)="onLogin()">
-          <a class="admin-login-shortcut" routerLink="/auth/auspira-super-admin" aria-label="Open Auspira admin login" title="Auspira admin login">
-            <span class="material-symbols-rounded">admin_panel_settings</span>
-          </a>
-
           <header>
             <h2>Hospital login</h2>
             <p>Sign in with your registered email and password.</p>
@@ -103,26 +96,9 @@ import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dr
             <span class="field-label">{{ t('Auth.Login.Email.Label') }}</span>
             <span class="input-shell">
               <span class="material-symbols-rounded">mail</span>
-              <input type="email" name="email" [(ngModel)]="email" (blur)="loadTenantOptionsForEmail()" [placeholder]="t('Auth.Login.Email.Placeholder')" required />
+              <input type="email" name="email" [(ngModel)]="email" [placeholder]="t('Auth.Login.Email.Placeholder')" required />
             </span>
           </label>
-
-          @if (tenantOptions().length > 1) {
-            <label class="field">
-              <span class="field-label">{{ t('Auth.Login.Tenant.Label') }}</span>
-              <span class="input-shell dropdown-shell">
-                <span class="material-symbols-rounded">domain</span>
-                <ac-dropdown
-                  name="tenantId"
-                  [(ngModel)]="selectedTenantId"
-                  [options]="tenantDropdownOptions()"
-                  [placeholder]="t('Auth.Login.Tenant.Placeholder')"
-                  emptyText="No hospitals found"
-                  ariaLabel="Select hospital"
-                  (selectionChange)="onTenantChoiceChanged($event)" />
-              </span>
-            </label>
-          }
 
           <label class="field">
             <span class="field-label">{{ t('Auth.Login.Password.Label') }}</span>
@@ -159,10 +135,6 @@ import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dr
             <span class="google-mark">G</span>
             Continue with Google
           </button>
-
-          <div class="auth-actions">
-            <a class="register-button" routerLink="/auth/register">Register hospital</a>
-          </div>
 
           <footer class="auth-footer">
             <div class="footer-links">
@@ -298,7 +270,6 @@ export class LoginPageComponent {
   private readonly authStore = inject(AuthStore);
   private readonly i18n = inject(I18nService);
   private readonly router = inject(Router);
-  private readonly tenantContext = inject(TenantContextService);
 
   protected readonly featureHighlights = [
     { icon: 'groups', label: 'Patient Management' },
@@ -306,14 +277,12 @@ export class LoginPageComponent {
     { icon: 'medication', label: 'Pharmacy' },
     { icon: 'biotech', label: 'Laboratory' },
     { icon: 'event_available', label: 'Appointment Scheduling' },
-    { icon: 'domain', label: 'Multi Hospital SaaS' }
+    { icon: 'domain', label: 'Isolated Hospital Workspace' }
   ];
 
   protected email = '';
   protected password = '';
-  protected selectedTenantId: string | null = null;
   protected rememberMe = false;
-  protected readonly tenantOptions = signal<LoginTenantOption[]>([]);
   protected readonly loading = signal(false);
   protected readonly showPassword = signal(false);
   protected readonly errorKey = signal<string | null>(null);
@@ -322,51 +291,23 @@ export class LoginPageComponent {
     return this.i18n.translate(key);
   }
 
-  protected tenantDropdownOptions(): DropdownOption<string>[] {
-    return this.tenantOptions().map(tenant => ({
-      label: `${tenant.hospitalName} (${tenant.tenantCode})`,
-      value: tenant.tenantId
-    }));
-  }
-
-  protected onTenantChoiceChanged(tenantId: string | null): void {
-    const selected = this.tenantOptions().find(tenant => tenant.tenantId === tenantId);
-    if (selected) {
-      this.tenantContext.setTenantCode(selected.tenantCode);
-    }
-  }
-
   protected async onLogin(): Promise<void> {
     this.loading.set(true);
     this.errorKey.set(null);
-
-    if (this.tenantOptions().length > 1 && !this.selectedTenantId) {
-      this.errorKey.set('Common.Errors.TenantRequired');
-      this.loading.set(false);
-      return;
-    }
 
     try {
       const response = await this.authService.login({
         email: this.email,
         password: this.password,
-        rememberMe: this.rememberMe,
-        tenantId: this.selectedTenantId
+        rememberMe: this.rememberMe
       });
       if (!response.success || !response.data) {
-        if (response.message === 'Auth.Errors.TenantSelectionRequired') {
-          await this.loadTenantOptionsForEmail();
-        }
-
         this.errorKey.set(response.message);
         return;
       }
 
       this.authStore.setSession(response.data);
-      if (response.data.tenantCode?.trim()) {
-        this.tenantContext.setTenantCode(response.data.tenantCode);
-        await this.i18n.loadCatalog();
-      }
+      await this.i18n.loadCatalog();
 
       await this.router.navigateByUrl('/');
     } catch {
@@ -381,50 +322,6 @@ export class LoginPageComponent {
   }
 
   protected onGoogleLogin(): void {
-    if (this.tenantOptions().length > 1 && !this.selectedTenantId) {
-      this.errorKey.set('Common.Errors.TenantRequired');
-      return;
-    }
-
-    const selected = this.tenantOptions().find(tenant => tenant.tenantId === this.selectedTenantId);
-    this.authService.startGoogleLogin(this.rememberMe, selected?.tenantCode);
-  }
-
-  protected async loadTenantOptionsForEmail(): Promise<void> {
-    const email = this.email.trim();
-    if (!email || !email.includes('@', 1)) {
-      this.tenantOptions.set([]);
-      this.selectedTenantId = null;
-      return;
-    }
-
-    try {
-      const response = await this.authService.getLoginTenantOptions(email);
-      const tenants = response.success && response.data
-        ? response.data.items
-        : [];
-
-      this.tenantOptions.set(tenants);
-      this.syncSelectedTenant(tenants);
-    } catch {
-      this.tenantOptions.set([]);
-      this.selectedTenantId = null;
-    }
-  }
-
-  private syncSelectedTenant(tenants: LoginTenantOption[]): void {
-    const currentTenantExists = tenants.some(tenant => tenant.tenantId === this.selectedTenantId);
-
-    if (this.selectedTenantId && currentTenantExists) {
-      return;
-    }
-
-    if (tenants.length === 1) {
-      this.selectedTenantId = tenants[0].tenantId;
-      this.tenantContext.setTenantCode(tenants[0].tenantCode);
-      return;
-    }
-
-    this.selectedTenantId = null;
+    this.authService.startGoogleLogin(this.rememberMe);
   }
 }

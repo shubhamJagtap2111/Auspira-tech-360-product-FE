@@ -1,6 +1,6 @@
 {
   "/api": {
-    "target": "https://auspira-tech-360-product-api.onrender.com",
+    "target": "https://localhost:44392",
     "secure": false,
     "changeOrigin": true,
     "logLevel": "debug"

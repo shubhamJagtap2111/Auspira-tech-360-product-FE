@@ -3,24 +3,23 @@ import { firstValueFrom } from 'rxjs';
 import { AuthStore } from '../auth/auth.store';
 import { ApiResponse } from '../auth/auth.models';
 import { ApiClientService } from '../http/api-client.service';
-import { TenantContextService } from '../tenant/tenant-context.service';
+import { LocaleContextService } from './locale-context.service';
 import { LocalizationCatalog, LocalizationVersion, SeedDataItem } from './i18n.models';
 
 @Injectable({ providedIn: 'root' })
 export class I18nService {
   private readonly api = inject(ApiClientService);
   private readonly authStore = inject(AuthStore);
-  private readonly tenant = inject(TenantContextService);
+  private readonly locale = inject(LocaleContextService);
   private readonly catalogSignal = signal<LocalizationCatalog | null>(null);
 
   readonly catalog = this.catalogSignal.asReadonly();
   readonly languages = computed(() => this.catalog()?.languages ?? []);
   readonly resources = computed(() => this.catalog()?.resources ?? {});
 
-  async loadCatalog(cultureCode = this.tenant.cultureCode()): Promise<void> {
-    this.tenant.setCulture(cultureCode);
-    const tenantCode = this.tenant.tenantCode().trim();
-    if (!tenantCode || !this.authStore.isAuthenticated()) {
+  async loadCatalog(cultureCode = this.locale.cultureCode()): Promise<void> {
+    this.locale.setCulture(cultureCode);
+    if (!this.authStore.isAuthenticated()) {
       this.catalogSignal.set(createFallbackCatalog(cultureCode));
       return;
     }
@@ -105,7 +104,7 @@ export class I18nService {
   }
 
   private getCacheKey(cultureCode: string): string {
-    return `care360.localization.${this.tenant.tenantCode()}.${cultureCode}`;
+    return `care360.localization.${cultureCode}`;
   }
 }
 

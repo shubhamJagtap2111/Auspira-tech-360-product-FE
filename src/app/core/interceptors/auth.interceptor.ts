@@ -13,25 +13,26 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const token = authStore.accessToken();
   const isExternalRequest = /^https?:\/\//i.test(request.url) && !request.url.startsWith(apiBaseUrl);
 
-  if (isExternalRequest || !token || isAnonymousAuthRequest(request.url) || request.url.includes('/auth/refresh')) {
+  if (isExternalRequest || isAnonymousAuthRequest(request.url) || request.url.includes('/auth/refresh')) {
     return next(request);
   }
 
-  const authorizedRequest = request.clone({
-    setHeaders: {
-      Authorization: `Bearer ${token}`
-    }
-  });
+  const authorizedRequest = token
+    ? request.clone({
+        setHeaders: {
+          Authorization: `Bearer ${token}`
+        },
+        withCredentials: true
+      })
+    : request.clone({ withCredentials: true });
 
   return next(authorizedRequest).pipe(
     catchError(error => {
-      const refreshToken = authStore.refreshToken();
-
-      if (error.status !== 401 || !refreshToken) {
+      if (error.status !== 401) {
         return throwError(() => error);
       }
 
-      return http.post<ApiResponse<AuthResponse>>(`${apiBaseUrl}/auth/refresh`, { refreshToken }).pipe(
+      return http.post<ApiResponse<AuthResponse>>(`${apiBaseUrl}/auth/refresh`, { refreshToken: authStore.refreshToken() ?? '' }, { withCredentials: true }).pipe(
         switchMap(response => {
           if (!response.success || !response.data) {
             authStore.clearSession();
@@ -39,11 +40,14 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
           }
 
           authStore.setSession(response.data);
-          return next(request.clone({
-            setHeaders: {
-              Authorization: `Bearer ${response.data.accessToken}`
-            }
-          }));
+          return next(response.data.accessToken
+            ? request.clone({
+                setHeaders: {
+                  Authorization: `Bearer ${response.data.accessToken}`
+                },
+                withCredentials: true
+              })
+            : request.clone({ withCredentials: true }));
         }),
         catchError(refreshError => {
           authStore.clearSession();
@@ -57,8 +61,6 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
 function isAnonymousAuthRequest(url: string): boolean {
   return [
     '/auth/login',
-    '/auth/register',
-    '/auth/auspira-super-admin/login',
     '/auth/external/google',
     '/auth/forgot-password',
     '/auth/reset-password',

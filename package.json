@@ -9,15 +9,15 @@
     "lint": "ng lint"
   },
   "dependencies": {
-    "@angular/animations": "^20.0.0",
+    "@angular/animations": "^20.3.26",
     "@angular/cdk": "^20.0.0",
-    "@angular/common": "^20.0.0",
-    "@angular/compiler": "^20.0.0",
-    "@angular/core": "^20.0.0",
-    "@angular/forms": "^20.0.0",
+    "@angular/common": "^20.3.26",
+    "@angular/compiler": "^20.3.26",
+    "@angular/core": "^20.3.26",
+    "@angular/forms": "^20.3.26",
     "@angular/material": "^20.0.0",
-    "@angular/platform-browser": "^20.0.0",
-    "@angular/router": "^20.0.0",
+    "@angular/platform-browser": "^20.3.26",
+    "@angular/router": "^20.3.26",
     "@ngrx/effects": "^20.0.0",
     "@ngrx/store": "^20.0.0",
     "chart.js": "^4.4.9",
@@ -28,7 +28,7 @@
   "devDependencies": {
     "@angular/build": "^20.0.0",
     "@angular/cli": "^20.0.0",
-    "@angular/compiler-cli": "^20.0.0",
+    "@angular/compiler-cli": "^20.3.26",
     "tailwindcss": "^4.0.0",
     "typescript": "~5.8.0"
   }

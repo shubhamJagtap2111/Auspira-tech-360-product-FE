@@ -9,12 +9,9 @@ import {
   ChangePasswordRequest,
   CurrentUserProfile,
   ForgotPasswordRequest,
-  LoginTenantOptionsResponse,
   LoginRequest,
-  RegisterTenantRequest,
   RefreshTokenRequest,
   ResetPasswordRequest,
-  TenantRegistrationResponse,
   UpdateCurrentUserRequest,
   VerifyEmailRequest
 } from './auth.models';
@@ -28,41 +25,12 @@ export class AuthService {
     return firstValueFrom(this.api.post<ApiResponse<AuthResponse>>('/auth/login', request));
   }
 
-  getLoginTenantOptions(email: string): Promise<ApiResponse<LoginTenantOptionsResponse>> {
-    const query = email.trim()
-      ? `?email=${encodeURIComponent(email.trim())}`
-      : '';
-
-    return firstValueFrom(this.api.get<ApiResponse<LoginTenantOptionsResponse>>(`/auth/login/tenants${query}`));
-  }
-
-  auspiraSuperAdminLogin(request: LoginRequest): Promise<ApiResponse<AuthResponse>> {
-    return firstValueFrom(this.api.post<ApiResponse<AuthResponse>>('/auth/auspira-super-admin/login', request));
-  }
-
-  register(request: RegisterTenantRequest): Promise<ApiResponse<TenantRegistrationResponse>> {
-    return firstValueFrom(this.api.post<ApiResponse<TenantRegistrationResponse>>('/auth/register', request));
-  }
-
-  startGoogleLogin(rememberMe = true, tenantCode?: string | null): void {
+  startGoogleLogin(rememberMe = true): void {
     const params = new URLSearchParams({
       rememberMe: String(rememberMe),
       redirectUri: `${window.location.origin}/auth/google-callback`
     });
-    if (tenantCode?.trim()) {
-      params.set('tenantCode', tenantCode.trim());
-    }
-
     window.location.href = `${this.apiBaseUrl}/auth/external/google/login?${params.toString()}`;
-  }
-
-  startGoogleRegistration(request: Pick<RegisterTenantRequest, 'hospitalName' | 'timeZone'>): void {
-    const params = new URLSearchParams({
-      hospitalName: request.hospitalName,
-      timeZone: request.timeZone ?? 'Asia/Kolkata',
-      redirectUri: `${window.location.origin}/auth/google-callback`
-    });
-    window.location.href = `${this.apiBaseUrl}/auth/external/google/register?${params.toString()}`;
   }
 
   refresh(request: RefreshTokenRequest): Promise<ApiResponse<AuthResponse>> {

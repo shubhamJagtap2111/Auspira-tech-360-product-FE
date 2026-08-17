@@ -1,25 +1,31 @@
 import { Injectable, computed, signal } from '@angular/core';
-import { AuthResponse } from './auth.models';
+import { AuthResponse, CurrentUserProfile } from './auth.models';
 
-const storageKey = 'care360.auth';
 const tokenExpiryBufferMs = 30_000;
 
 @Injectable({ providedIn: 'root' })
 export class AuthStore {
-  private readonly sessionSignal = signal<AuthResponse | null>(readSession());
+  private readonly sessionSignal = signal<AuthResponse | null>(null);
+  private readonly profileSignal = signal<CurrentUserProfile | null>(null);
 
   readonly session = this.sessionSignal.asReadonly();
-  readonly isAuthenticated = computed(() => isSessionUsable(this.sessionSignal()));
-  readonly permissions = computed(() => this.sessionSignal()?.permissions ?? []);
+  readonly profile = this.profileSignal.asReadonly();
+  readonly isAuthenticated = computed(() => isSessionUsable(this.sessionSignal()) || this.profileSignal() !== null);
+  readonly permissions = computed(() => this.sessionSignal()?.permissions ?? this.profileSignal()?.permissions ?? []);
 
   setSession(session: AuthResponse): void {
-    window.localStorage.setItem(storageKey, JSON.stringify(session));
     this.sessionSignal.set(session);
+    this.profileSignal.set(null);
+  }
+
+  setProfile(profile: CurrentUserProfile): void {
+    this.profileSignal.set(profile);
+    this.sessionSignal.set(null);
   }
 
   clearSession(): void {
-    window.localStorage.removeItem(storageKey);
     this.sessionSignal.set(null);
+    this.profileSignal.set(null);
   }
 
   accessToken(): string | null {
@@ -36,35 +42,7 @@ export class AuthStore {
   }
 
   ensureValidSession(): boolean {
-    if (this.isAuthenticated()) {
-      return true;
-    }
-
-    if (this.sessionSignal()) {
-      this.clearSession();
-    }
-
-    return false;
-  }
-}
-
-function readSession(): AuthResponse | null {
-  const value = window.localStorage.getItem(storageKey);
-  if (!value) {
-    return null;
-  }
-
-  try {
-    const session = JSON.parse(value) as AuthResponse;
-    if (!isSessionUsable(session)) {
-      window.localStorage.removeItem(storageKey);
-      return null;
-    }
-
-    return session;
-  } catch {
-    window.localStorage.removeItem(storageKey);
-    return null;
+    return this.isAuthenticated();
   }
 }
 

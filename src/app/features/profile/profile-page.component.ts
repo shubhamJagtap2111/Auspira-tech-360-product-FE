@@ -3,8 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/auth/auth.service';
 import { AuthStore } from '../../core/auth/auth.store';
 import { AuthenticationSession, AuthResponse, CurrentUserProfile } from '../../core/auth/auth.models';
-import { getUserRoleLabel, isPlatformUser as isPlatformSession } from '../../core/auth/user-access';
-import { TenantContextService } from '../../core/tenant/tenant-context.service';
+import { getUserRoleLabel } from '../../core/auth/user-access';
 import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { AdministrationDashboard } from '../dashboard/administration-dashboard.models';
@@ -469,7 +468,6 @@ export class ProfilePageComponent implements OnInit {
   private readonly authStore = inject(AuthStore);
   private readonly authService = inject(AuthService);
   private readonly dashboardService = inject(AdministrationDashboardService);
-  private readonly tenantContext = inject(TenantContextService);
   private readonly toast = inject(ToastService);
 
   protected readonly activeTab = signal<ProfileTab>('personal');
@@ -489,9 +487,7 @@ export class ProfilePageComponent implements OnInit {
   protected readonly organizationLabel = computed(() => {
     const session = this.profileSession();
     const profile = this.profile();
-    return isPlatformSession(session)
-      ? 'Auspira Care360'
-      : profile?.hospitalName?.trim() || formatTenantName(profile?.tenantCode || this.tenantContext.tenantCode());
+    return profile?.hospitalName?.trim() || session?.hospitalName?.trim() || 'Auspira Care360';
   });
   protected readonly isAccountActive = computed(() => this.profile()?.isActive ?? true);
   protected readonly userInitials = computed(() => getInitials(this.displayName(), this.displayEmail()));

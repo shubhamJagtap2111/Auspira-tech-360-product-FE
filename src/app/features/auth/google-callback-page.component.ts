@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@ang
 import { Router, RouterLink } from '@angular/router';
 import { AuthResponse } from '../../core/auth/auth.models';
 import { AuthStore } from '../../core/auth/auth.store';
-import { TenantContextService } from '../../core/tenant/tenant-context.service';
 
 @Component({
   standalone: true,
@@ -37,7 +36,6 @@ import { TenantContextService } from '../../core/tenant/tenant-context.service';
 })
 export class GoogleCallbackPageComponent implements OnInit {
   private readonly authStore = inject(AuthStore);
-  private readonly tenantContext = inject(TenantContextService);
   private readonly router = inject(Router);
 
   protected readonly errorMessage = signal<string | null>(null);
@@ -46,7 +44,6 @@ export class GoogleCallbackPageComponent implements OnInit {
     const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
     const success = params.get('success') === 'true';
     const message = params.get('message') ?? 'Auth.Google.AuthenticationFailed';
-    const tenantCode = params.get('tenantCode');
     const payload = params.get('payload');
 
     if (!success || !payload) {
@@ -56,10 +53,6 @@ export class GoogleCallbackPageComponent implements OnInit {
 
     try {
       const session = JSON.parse(atob(payload)) as AuthResponse;
-      if (tenantCode) {
-        this.tenantContext.setTenantCode(tenantCode);
-      }
-
       this.authStore.setSession(session);
       await this.router.navigateByUrl('/');
     } catch {

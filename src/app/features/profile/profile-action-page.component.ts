@@ -6,7 +6,7 @@ import { AuthStore } from '../../core/auth/auth.store';
 import { getUserRoleLabel } from '../../core/auth/user-access';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { Language } from '../../core/i18n/i18n.models';
-import { TenantContextService } from '../../core/tenant/tenant-context.service';
+import { LocaleContextService } from '../../core/i18n/locale-context.service';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
 
@@ -257,7 +257,7 @@ export class ProfileActionPageComponent {
   private readonly authService = inject(AuthService);
   private readonly toast = inject(ToastService);
   private readonly i18n = inject(I18nService);
-  private readonly tenant = inject(TenantContextService);
+  private readonly locale = inject(LocaleContextService);
 
   protected readonly mode = computed(() => this.route.snapshot.data['mode'] as ProfileActionMode);
   protected readonly email = computed(() => this.authStore.session()?.email ?? '');
@@ -268,7 +268,7 @@ export class ProfileActionPageComponent {
   protected account = readJson(accountStorageKey, {
     displayName: this.authStore.session()?.fullName ?? '',
     email: this.authStore.session()?.email ?? '',
-    language: this.tenant.cultureCode(),
+    language: this.locale.cultureCode(),
     timeZone: 'Asia/Kolkata',
     emailDigest: true,
     compactMode: false
@@ -337,7 +337,7 @@ export class ProfileActionPageComponent {
     this.account = {
       displayName: this.authStore.session()?.fullName ?? '',
       email: this.authStore.session()?.email ?? '',
-      language: this.tenant.cultureCode(),
+      language: this.locale.cultureCode(),
       timeZone: 'Asia/Kolkata',
       emailDigest: true,
       compactMode: false

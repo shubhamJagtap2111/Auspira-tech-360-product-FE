@@ -1,24 +1,13 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
-import { permissionGuard } from './core/guards/permission.guard';
 import { pendingChangesGuard } from './core/guards/pending-changes.guard';
+import { permissionGuard } from './core/guards/permission.guard';
 
 export const routes: Routes = [
-  /* ── Auth (no shell) ── */
   {
     path: 'auth/login',
     loadComponent: () =>
       import('./features/auth/login-page.component').then(m => m.LoginPageComponent)
-  },
-  {
-    path: 'auth/auspira-super-admin',
-    loadComponent: () =>
-      import('./features/auth/auspira-super-admin-login-page.component').then(m => m.AuspiraSuperAdminLoginPageComponent)
-  },
-  {
-    path: 'auth/register',
-    loadComponent: () =>
-      import('./features/auth/register-page.component').then(m => m.RegisterPageComponent)
   },
   {
     path: 'auth/google-callback',
@@ -46,8 +35,6 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/auth/change-password-page.component').then(m => m.ChangePasswordPageComponent)
   },
-
-  /* ── App (wrapped in shell) ── */
   {
     path: '',
     canActivate: [authGuard, permissionGuard],
@@ -61,139 +48,14 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/profile/profile-page.component').then(m => m.ProfilePageComponent)
   },
-  {
-    path: 'profile/account-settings',
-    canActivate: [authGuard],
-    data: { mode: 'account' },
-    loadComponent: () =>
-      import('./features/profile/profile-action-page.component').then(m => m.ProfileActionPageComponent)
-  },
-  {
-    path: 'profile/security-settings',
-    canActivate: [authGuard],
-    data: { mode: 'security' },
-    loadComponent: () =>
-      import('./features/profile/profile-action-page.component').then(m => m.ProfileActionPageComponent)
-  },
-  {
-    path: 'profile/activity-logs',
-    canActivate: [authGuard],
-    data: { mode: 'activity' },
-    loadComponent: () =>
-      import('./features/profile/profile-action-page.component').then(m => m.ProfileActionPageComponent)
-  },
-  {
-    path: 'profile/change-password',
-    canActivate: [authGuard],
-    data: { mode: 'password' },
-    loadComponent: () =>
-      import('./features/profile/profile-action-page.component').then(m => m.ProfileActionPageComponent)
-  },
-  {
-    path: 'super-admin',
-    canActivate: [authGuard, permissionGuard],
-    data: { permission: 'SuperAdmin.Dashboard.View' },
-    loadComponent: () =>
-      import('./features/super-admin/super-admin-dashboard-page.component').then(m => m.SuperAdminDashboardPageComponent)
-  },
-  {
-    path: 'super-admin/tenants',
-    canActivate: [authGuard, permissionGuard],
-    canDeactivate: [pendingChangesGuard],
-    data: { permission: 'SuperAdmin.Tenants.View' },
-    loadComponent: () =>
-      import('./features/super-admin/tenant-management-page.component').then(m => m.TenantManagementPageComponent)
-  },
-  {
-    path: 'super-admin/plans',
-    canActivate: [authGuard, permissionGuard],
-    canDeactivate: [pendingChangesGuard],
-    data: { permission: 'SuperAdmin.Plans.View' },
-    loadComponent: () =>
-      import('./features/super-admin/plan-management-page.component').then(m => m.PlanManagementPageComponent)
-  },
-  {
-    path: 'super-admin/provisioning',
-    canActivate: [authGuard, permissionGuard],
-    data: { permission: 'SuperAdmin.Provisioning.View' },
-    loadComponent: () =>
-      import('./features/super-admin/tenant-provisioning-page.component').then(m => m.TenantProvisioningPageComponent)
-  },
-  {
-    path: 'super-admin/features',
-    canActivate: [authGuard, permissionGuard],
-    data: { permission: 'SuperAdmin.Features.View' },
-    loadComponent: () =>
-      import('./features/super-admin/feature-catalog-page.component').then(m => m.FeatureCatalogPageComponent)
-  },
-  {
-    path: 'super-admin/subscriptions',
-    canActivate: [authGuard, permissionGuard],
-    data: { permission: 'SuperAdmin.Subscriptions.View' },
-    loadComponent: () =>
-      import('./features/super-admin/subscription-management-page.component').then(m => m.SubscriptionManagementPageComponent)
-  },
-  {
-    path: 'super-admin/billing',
-    canActivate: [authGuard, permissionGuard],
-    data: { permission: 'SuperAdmin.Billing.View' },
-    loadComponent: () =>
-      import('./features/super-admin/billing-management-page.component').then(m => m.BillingManagementPageComponent)
-  },
-  {
-    path: 'super-admin/databases',
-    canActivate: [authGuard, permissionGuard],
-    data: { permission: 'SuperAdmin.Database.View' },
-    loadComponent: () =>
-      import('./features/super-admin/database-management-page.component').then(m => m.DatabaseManagementPageComponent)
-  },
-  {
-    path: 'super-admin/monitoring',
-    canActivate: [authGuard, permissionGuard],
-    data: { permission: 'SuperAdmin.Monitoring.View' },
-    loadComponent: () =>
-      import('./features/super-admin/monitoring-page.component').then(m => m.MonitoringPageComponent)
-  },
-  {
-    path: 'super-admin/support',
-    canActivate: [authGuard, permissionGuard],
-    data: { permission: 'SuperAdmin.Support.View' },
-    loadComponent: () =>
-      import('./features/super-admin/support-center-page.component').then(m => m.SupportCenterPageComponent)
-  },
-  {
-    path: 'super-admin/notifications',
-    canActivate: [authGuard, permissionGuard],
-    data: { permission: 'SuperAdmin.Notifications.View' },
-    loadComponent: () =>
-      import('./features/super-admin/notification-center-page.component').then(m => m.NotificationCenterPageComponent)
-  },
-  {
-    path: 'super-admin/settings',
-    canActivate: [authGuard, permissionGuard],
-    data: { permission: 'SuperAdmin.Settings.View' },
-    loadComponent: () =>
-      import('./features/super-admin/global-settings-page.component').then(m => m.GlobalSettingsPageComponent)
-  },
-  moduleRoute('super-admin/announcements', 'Announcements', ['Application Updates', 'Maintenance', 'Renewal Reminders', 'Email', 'SMS', 'Push', 'WhatsApp'], 'SuperAdmin.Notifications.View'),
-  moduleRoute('super-admin/domains', 'Tenant Domains', ['Primary Domain', 'Custom Domains', 'Verification', 'SSL Status'], 'SuperAdmin.Tenants.View'),
-  moduleRoute('super-admin/database-servers', 'Database Servers', ['Provider', 'Region', 'Capacity', 'Health'], 'SuperAdmin.Database.View'),
-  moduleRoute('super-admin/database-versions', 'Database Versions', ['Schema Version', 'Migration Status', 'Backup Version'], 'SuperAdmin.Database.View'),
-  moduleRoute('super-admin/deployments/releases', 'Deployment Releases', ['Release Notes', 'Artifacts', 'Versions'], 'SuperAdmin.Provisioning.View'),
-  moduleRoute('super-admin/deployments/rollouts', 'Deployment Rollouts', ['Phased Rollout', 'Tenant Selection', 'Progress'], 'SuperAdmin.Provisioning.View'),
-  moduleRoute('super-admin/deployments/rollbacks', 'Deployment Rollbacks', ['Rollback Plan', 'Previous Version', 'Audit'], 'SuperAdmin.Provisioning.View'),
-  moduleRoute('super-admin/security/api-keys', 'API Keys', ['Key Registry', 'Scopes', 'Rotation'], 'SuperAdmin.Settings.View'),
-  moduleRoute('super-admin/security/sessions', 'Sessions', ['Active Sessions', 'Revocation', 'Device Tracking'], 'SuperAdmin.Audit.View'),
-  moduleRoute('super-admin/security/audit-logs', 'Audit Logs', ['Actor', 'Entity', 'Action', 'Timeline'], 'SuperAdmin.Audit.View'),
-  moduleRoute('super-admin/support/feedback', 'Feedback', ['Hospitals', 'Sentiment', 'Priority', 'Follow Up'], 'SuperAdmin.Support.View'),
-  moduleRoute('super-admin/reports/revenue', 'Revenue Reports', ['MRR', 'Invoices', 'Payments', 'Growth'], 'SuperAdmin.Billing.View'),
-  moduleRoute('super-admin/reports/hospitals', 'Hospital Reports', ['Registrations', 'Status', 'Plan Mix'], 'SuperAdmin.Tenants.View'),
-  moduleRoute('super-admin/reports/growth', 'Growth Reports', ['New Hospitals', 'Trials', 'Conversions'], 'SuperAdmin.Tenants.View'),
-  moduleRoute('super-admin/reports/usage', 'Usage Reports', ['Users', 'Storage', 'Requests'], 'SuperAdmin.Monitoring.View'),
-  moduleRoute('super-admin/reports/ai-consumption', 'AI Consumption Reports', ['AI Credits', 'Requests', 'Cost'], 'SuperAdmin.Monitoring.View'),
+  profileActionRoute('profile/account-settings', 'account'),
+  profileActionRoute('profile/security-settings', 'security'),
+  profileActionRoute('profile/activity-logs', 'activity'),
+  profileActionRoute('profile/change-password', 'password'),
   {
     path: 'patients',
-    canActivate: [authGuard],
+    canActivate: [authGuard, permissionGuard],
+    data: { permission: 'Patients.View' },
     loadComponent: () =>
       import('./features/patients/patient-list-page.component').then(m => m.PatientListPageComponent)
   },
@@ -254,23 +116,34 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/administration/system-configuration/system-configuration-page.component').then(m => m.SystemConfigurationPageComponent)
   },
-  moduleRoute('administration', 'Administration', ['Hospital Management', 'User Management', 'Role Management', 'Permission Management', 'Branch Management', 'Multilingual Seed Data']),
-  moduleRoute('doctors',        'Doctor Management',    ['Doctor Profiles', 'Availability', 'Specialization', 'Schedule', 'Performance Dashboard']),
-  moduleRoute('appointments',   'Appointment Management', ['Calendar View', 'Slot Booking', 'Walk-In Registration', 'Follow-Ups', 'Queue Management']),
-  moduleRoute('opd',            'OPD',                  ['Symptoms', 'Diagnosis', 'Prescription', 'Consultation Notes', 'Attachments', 'Follow-Up Plan']),
-  moduleRoute('ipd',            'IPD',                  ['Admission', 'Discharge', 'Ward Allocation', 'Bed Tracking', 'Nursing Notes', 'Treatment Plans']),
-  moduleRoute('laboratory',     'Laboratory',           ['Test Master', 'Sample Collection', 'Result Entry', 'PDF Reports']),
-  moduleRoute('pharmacy',       'Pharmacy',             ['Medicine Catalog', 'Stock Management', 'Purchase Entry', 'Sales Entry', 'Expiry Tracking', 'Low Stock Alerts']),
-  moduleRoute('billing',        'Billing',              ['Invoices', 'Payments', 'Refunds', 'Insurance', 'Discounts']),
-  moduleRoute('inventory',      'Inventory',            ['Assets', 'Medical Equipment', 'Consumables', 'Purchase Orders', 'Vendor Management']),
-  moduleRoute('reports',        'Reports & Insights',   ['Dashboards', 'Revenue Insights', 'Appointment Reports', 'Inventory Reports', 'Doctor Performance'])
+  moduleRoute('administration', 'Administration', ['Hospital Management', 'User Management', 'Role Management', 'Permission Management', 'Branch Management', 'Localization']),
+  moduleRoute('doctors', 'Doctor Management', ['Doctor Profiles', 'Availability', 'Specialization', 'Schedule', 'Performance Dashboard']),
+  moduleRoute('appointments', 'Appointment Management', ['Calendar View', 'Slot Booking', 'Walk-In Registration', 'Follow-Ups', 'Queue Management']),
+  moduleRoute('opd', 'OPD', ['Symptoms', 'Diagnosis', 'Prescription', 'Consultation Notes', 'Attachments', 'Follow-Up Plan']),
+  moduleRoute('ipd', 'IPD', ['Admission', 'Discharge', 'Ward Allocation', 'Bed Tracking', 'Nursing Notes', 'Treatment Plans']),
+  moduleRoute('laboratory', 'Laboratory', ['Test Master', 'Sample Collection', 'Result Entry', 'PDF Reports']),
+  moduleRoute('pharmacy', 'Pharmacy', ['Medicine Catalog', 'Stock Management', 'Purchase Entry', 'Sales Entry', 'Expiry Tracking', 'Low Stock Alerts']),
+  moduleRoute('billing', 'Billing', ['Invoices', 'Payments', 'Refunds', 'Insurance', 'Discounts']),
+  moduleRoute('inventory', 'Inventory', ['Assets', 'Medical Equipment', 'Consumables', 'Purchase Orders', 'Vendor Management']),
+  moduleRoute('reports', 'Reports & Insights', ['Dashboards', 'Revenue Insights', 'Appointment Reports', 'Inventory Reports', 'Doctor Performance']),
+  { path: '**', redirectTo: '' }
 ];
 
-function moduleRoute(path: string, title: string, capabilities: string[], permission?: string): Routes[number] {
+function profileActionRoute(path: string, mode: string): Routes[number] {
   return {
     path,
-    canActivate: permission ? [authGuard, permissionGuard] : [authGuard],
-    data: permission ? { title, capabilities, permission } : { title, capabilities },
+    canActivate: [authGuard],
+    data: { mode },
+    loadComponent: () =>
+      import('./features/profile/profile-action-page.component').then(m => m.ProfileActionPageComponent)
+  };
+}
+
+function moduleRoute(path: string, title: string, capabilities: string[]): Routes[number] {
+  return {
+    path,
+    canActivate: [authGuard],
+    data: { title, capabilities },
     loadComponent: () =>
       import('./features/workspace/module-workspace-page.component').then(m => m.ModuleWorkspacePageComponent)
   };

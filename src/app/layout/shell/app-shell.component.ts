@@ -8,8 +8,7 @@ import { ToastService } from '../../shared/ui/toast/toast.service';
 import { ConfirmDialogComponent } from '../../shared/ui/dialog/confirm-dialog.component';
 import { AuthService } from '../../core/auth/auth.service';
 import { AuthStore } from '../../core/auth/auth.store';
-import { getUserRoleLabel, isHospitalAdminUser as isHospitalAdminSession, isPlatformUser as isPlatformSession } from '../../core/auth/user-access';
-import { TenantContextService } from '../../core/tenant/tenant-context.service';
+import { getUserRoleLabel, isHospitalAdminUser as isHospitalAdminSession } from '../../core/auth/user-access';
 import { Language } from '../../core/i18n/i18n.models';
 import { AppLoaderComponent } from '../../shared/ui/app-loader/app-loader.component';
 
@@ -148,7 +147,7 @@ const fallbackLanguages: Language[] = [
             <div class="header-center">
               <div class="tenant-chip">
                 <span class="tenant-dot"></span>
-                <span class="tenant-name">{{ tenantHeaderLabel() }}</span>
+                <span class="tenant-name">{{ hospitalHeaderLabel() }}</span>
               </div>
               <button class="branch-btn">
                 <span class="material-symbols-rounded" style="font-size:16px">account_tree</span>
@@ -1028,7 +1027,6 @@ export class AppShellComponent implements OnInit {
   private   readonly router  = inject(Router);
   private   readonly authService = inject(AuthService);
   private   readonly authStore = inject(AuthStore);
-  private   readonly tenantContext = inject(TenantContextService);
 
   /* ── State ── */
   protected readonly sidebarCollapsed = signal<boolean>(
@@ -1073,7 +1071,7 @@ export class AppShellComponent implements OnInit {
     (this.i18n.catalog()?.effectiveCulture ?? 'en-US').split('-')[0].toUpperCase()
   );
   protected readonly activeCulture = computed(() =>
-    this.i18n.catalog()?.effectiveCulture ?? this.tenantContext.cultureCode()
+    this.i18n.catalog()?.effectiveCulture ?? 'en-US'
   );
   protected readonly availableLanguages = computed<Language[]>(() => {
     const languages = this.i18n.languages();
@@ -1085,24 +1083,15 @@ export class AppShellComponent implements OnInit {
     return session?.fullName?.trim() || session?.email || 'User';
   });
   protected readonly displayEmail = computed(() => this.authStore.session()?.email ?? '');
-  protected readonly isPlatformUser = computed(() =>
-    isPlatformSession(this.authStore.session())
-  );
   protected readonly isHospitalAdminUser = computed(() =>
     isHospitalAdminSession(this.authStore.session())
   );
   protected readonly roleLabel = computed(() => getUserRoleLabel(this.authStore.session()));
   protected readonly organizationLabel = computed(() =>
-    this.isPlatformUser()
-      ? 'Auspira Care360'
-      : formatTenantName(this.tenantContext.tenantCode())
+    this.authStore.session()?.hospitalName?.trim() || 'Auspira Care360'
   );
-  protected readonly tenantHeaderLabel = computed(() =>
-    this.isPlatformUser() ? 'Auspira Platform' : this.organizationLabel()
-  );
-  protected readonly branchHeaderLabel = computed(() =>
-    this.isPlatformUser() ? 'Control Plane' : 'Main Branch'
-  );
+  protected readonly hospitalHeaderLabel = computed(() => this.organizationLabel());
+  protected readonly branchHeaderLabel = computed(() => 'Main Branch');
   protected readonly userInitials = computed(() => getInitials(this.displayName(), this.displayEmail()));
 
   /* ── Navigation Groups ── */
@@ -1111,145 +1100,6 @@ export class AppShellComponent implements OnInit {
       label: 'Dashboard',
       items: [
         { path: '/', label: 'Dashboard', icon: 'dashboard' }
-      ]
-    },
-    {
-      label: 'Super Admin',
-      requiredPermissionPrefix: 'SuperAdmin.',
-      items: [
-        {
-          path: '/super-admin',
-          label: 'Platform',
-          icon: 'admin_panel_settings',
-          children: [
-            { path: '/super-admin', label: 'Overview', icon: 'dashboard' },
-            { path: '/super-admin/announcements', label: 'Announcements', icon: 'campaign' },
-            { path: '/super-admin/settings', label: 'Global Settings', icon: 'settings' }
-          ]
-        },
-        {
-          path: '/super-admin/tenants',
-          label: 'Tenant Management',
-          icon: 'corporate_fare',
-          children: [
-            { path: '/super-admin/tenants', label: 'Hospitals', icon: 'local_hospital' },
-            { path: '/super-admin/provisioning', label: 'Provisioning', icon: 'deployed_code' },
-            { path: '/super-admin/domains', label: 'Domains', icon: 'dns' },
-            { path: '/super-admin/database-servers', label: 'Database Servers', icon: 'database' },
-            { path: '/super-admin/database-versions', label: 'Database Versions', icon: 'history' }
-          ]
-        },
-        {
-          path: '/super-admin/plans',
-          label: 'Plans',
-          icon: 'workspace_premium',
-          children: [
-            { path: '/super-admin/plans', label: 'Plans', icon: 'workspace_premium' },
-            { path: '/super-admin/features', label: 'Features', icon: 'toggle_on' },
-            { path: '/super-admin/plans', label: 'Limits', icon: 'speed' },
-            { path: '/super-admin/plans', label: 'Pricing', icon: 'sell' }
-          ]
-        },
-        {
-          path: '/super-admin/subscriptions',
-          label: 'Subscriptions',
-          icon: 'autorenew',
-          children: [
-            { path: '/super-admin/subscriptions', label: 'Active', icon: 'check_circle' },
-            { path: '/super-admin/subscriptions', label: 'Trial', icon: 'hourglass_top' },
-            { path: '/super-admin/subscriptions', label: 'Expired', icon: 'event_busy' },
-            { path: '/super-admin/subscriptions', label: 'Renewals', icon: 'published_with_changes' }
-          ]
-        },
-        {
-          path: '/super-admin/billing',
-          label: 'Billing',
-          icon: 'receipt_long',
-          children: [
-            { path: '/super-admin/billing', label: 'Payments', icon: 'payments' },
-            { path: '/super-admin/billing', label: 'Invoices', icon: 'request_quote' },
-            { path: '/super-admin/billing', label: 'GST', icon: 'percent' },
-            { path: '/super-admin/billing', label: 'Coupons', icon: 'confirmation_number' }
-          ]
-        },
-        {
-          path: '/super-admin/databases',
-          label: 'Database',
-          icon: 'database',
-          children: [
-            { path: '/super-admin/databases', label: 'Databases', icon: 'database' },
-            { path: '/super-admin/databases', label: 'Backups', icon: 'backup' },
-            { path: '/super-admin/databases', label: 'Restores', icon: 'restore' },
-            { path: '/super-admin/databases', label: 'Migrations', icon: 'schema' }
-          ]
-        },
-        {
-          path: '/super-admin/deployments/releases',
-          label: 'Deployments',
-          icon: 'rocket_launch',
-          children: [
-            { path: '/super-admin/deployments/releases', label: 'Releases', icon: 'new_releases' },
-            { path: '/super-admin/deployments/rollouts', label: 'Rollouts', icon: 'conversion_path' },
-            { path: '/super-admin/deployments/rollbacks', label: 'Rollbacks', icon: 'settings_backup_restore' }
-          ]
-        },
-        {
-          path: '/super-admin/monitoring',
-          label: 'Monitoring',
-          icon: 'monitoring',
-          children: [
-            { path: '/super-admin/monitoring', label: 'Health', icon: 'health_and_safety' },
-            { path: '/super-admin/monitoring', label: 'Logs', icon: 'receipt_long' },
-            { path: '/super-admin/monitoring', label: 'Performance', icon: 'speed' }
-          ]
-        },
-        {
-          path: '/administration/users',
-          label: 'Security',
-          icon: 'security',
-          children: [
-            { path: '/administration/users', label: 'Users', icon: 'manage_accounts' },
-            { path: '/administration/roles', label: 'Roles', icon: 'admin_panel_settings' },
-            { path: '/administration/permissions', label: 'Permissions', icon: 'rule' },
-            { path: '/super-admin/security/api-keys', label: 'API Keys', icon: 'key' },
-            { path: '/super-admin/security/sessions', label: 'Sessions', icon: 'devices' },
-            { path: '/super-admin/security/audit-logs', label: 'Audit Logs', icon: 'history_edu' }
-          ]
-        },
-        {
-          path: '/super-admin/support',
-          label: 'Support',
-          icon: 'support_agent',
-          children: [
-            { path: '/super-admin/support', label: 'Tickets', icon: 'confirmation_number' },
-            { path: '/super-admin/support/feedback', label: 'Feedback', icon: 'reviews' },
-            { path: '/super-admin/announcements', label: 'Announcements', icon: 'campaign' }
-          ]
-        },
-        {
-          path: '/super-admin/reports/revenue',
-          label: 'Reports',
-          icon: 'analytics',
-          children: [
-            { path: '/super-admin/reports/revenue', label: 'Revenue', icon: 'trending_up' },
-            { path: '/super-admin/reports/hospitals', label: 'Hospitals', icon: 'local_hospital' },
-            { path: '/super-admin/reports/growth', label: 'Growth', icon: 'show_chart' },
-            { path: '/super-admin/reports/usage', label: 'Usage', icon: 'query_stats' },
-            { path: '/super-admin/reports/ai-consumption', label: 'AI Consumption', icon: 'psychology' }
-          ]
-        },
-        {
-          path: '/super-admin/settings',
-          label: 'Settings',
-          icon: 'settings',
-          children: [
-            { path: '/super-admin/settings', label: 'SMTP', icon: 'outgoing_mail' },
-            { path: '/super-admin/settings', label: 'Storage', icon: 'storage' },
-            { path: '/super-admin/settings', label: 'Integrations', icon: 'hub' },
-            { path: '/super-admin/settings', label: 'Branding', icon: 'palette' },
-            { path: '/super-admin/settings', label: 'Localization', icon: 'language' }
-          ]
-        }
       ]
     },
     {

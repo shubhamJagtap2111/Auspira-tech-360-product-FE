@@ -12,41 +12,6 @@ export interface LoginRequest {
   email: string;
   password: string;
   rememberMe: boolean;
-  /** Optional when one email belongs to multiple hospitals. */
-  tenantId?: string | null;
-  tenantCode?: string | null;
-  hospitalName?: string | null;
-}
-
-export interface LoginTenantOption {
-  tenantId: string;
-  tenantCode: string;
-  hospitalName: string;
-  tenantStatus: string;
-}
-
-export interface LoginTenantOptionsResponse {
-  items: LoginTenantOption[];
-}
-
-export interface RegisterTenantRequest {
-  hospitalName: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  password: string;
-  tenantCode?: string | null;
-  mobileNo?: string | null;
-  timeZone?: string | null;
-}
-
-export interface TenantRegistrationResponse {
-  tenantId: string;
-  hospitalId: string;
-  tenantCode: string;
-  hospitalName: string;
-  databaseName: string;
-  adminEmail: string;
 }
 
 export interface RefreshTokenRequest {
