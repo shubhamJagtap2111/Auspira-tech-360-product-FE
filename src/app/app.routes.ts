@@ -53,6 +53,13 @@ export const routes: Routes = [
   profileActionRoute('profile/activity-logs', 'activity'),
   profileActionRoute('profile/change-password', 'password'),
   {
+    path: 'patients/:patientGuid',
+    canActivate: [authGuard, permissionGuard],
+    data: { permission: 'Patients.View' },
+    loadComponent: () =>
+      import('./features/patients/patient-profile-page.component').then(m => m.PatientProfilePageComponent)
+  },
+  {
     path: 'patients',
     canActivate: [authGuard, permissionGuard],
     data: { permission: 'Patients.View' },

@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ApiClientService } from '../../core/http/api-client.service';
-import { PatientApiResponse, PatientForm, PatientNextMedicalRecordNo, PatientProfile, PatientRegistry, UpsertPatientPayload } from './patient-management.models';
+import { PatientApiResponse, PatientDuplicateCheck, PatientForm, PatientNextMedicalRecordNo, PatientProfile, PatientRegistry, UpsertPatientPayload } from './patient-management.models';
 
 @Injectable({ providedIn: 'root' })
 export class PatientManagementService {
@@ -34,6 +34,17 @@ export class PatientManagementService {
 
   get(patientGuid: string): Promise<PatientApiResponse<PatientProfile>> {
     return firstValueFrom(this.api.get<PatientApiResponse<PatientProfile>>(`/patients/${patientGuid}`));
+  }
+
+  checkDuplicates(patient: PatientForm): Promise<PatientApiResponse<PatientDuplicateCheck>> {
+    return firstValueFrom(this.api.post<PatientApiResponse<PatientDuplicateCheck>>('/patients/duplicates/check', {
+      firstName: patient.firstName.trim(),
+      lastName: patient.lastName.trim(),
+      mobileNo: `${patient.countryDialCode} ${patient.mobileNumber}`.trim(),
+      dateOfBirth: patient.dateOfBirth || null,
+      email: null,
+      governmentId: null
+    }));
   }
 
   create(patient: PatientForm): Promise<PatientApiResponse<PatientProfile>> {

@@ -1,13 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, HostListener, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { AcAdminDrawerComponent } from '../../shared/ui/admin-drawer/admin-drawer.component';
 import { DialogService } from '../../shared/ui/dialog/dialog.service';
 import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
 import { AcPaginationComponent } from '../../shared/ui/pagination/pagination.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { getApiErrorMessage } from '../../core/http/api-error-message';
-import { PatientForm, PatientRegistryStats, PatientSummary } from './patient-management.models';
+import { PatientDuplicate, PatientForm, PatientRegistryStats, PatientSummary } from './patient-management.models';
 import { PatientManagementService } from './patient-management.service';
 
 type PatientDrawerMode = 'view' | 'edit' | 'create';
@@ -104,7 +105,7 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
                     <td><span class="status-badge" [class]="statusClass(patient.statusCode)">{{ patient.statusName }}</span></td>
                     <td>
                       <div class="row-actions">
-                        <button class="tbl-btn" type="button" title="View profile" (click)="openPatient(patient, 'view')">
+                        <button class="tbl-btn" type="button" title="View profile" (click)="openPatientProfile(patient)">
                           <span class="material-symbols-rounded">visibility</span>
                         </button>
                         <button class="tbl-btn" type="button" title="Edit" (click)="openPatient(patient, 'edit')">
@@ -140,7 +141,7 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
                   <span><small>Last visit</small><strong>{{ formatVisit(patient.lastVisitDate) }}</strong></span>
                 </div>
                 <div class="mobile-card-actions">
-                  <button class="tbl-btn" type="button" title="View profile" (click)="openPatient(patient, 'view')">
+                  <button class="tbl-btn" type="button" title="View profile" (click)="openPatientProfile(patient)">
                     <span class="material-symbols-rounded">visibility</span>
                   </button>
                   <button class="tbl-btn" type="button" title="Edit" (click)="openPatient(patient, 'edit')">
@@ -253,6 +254,30 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
                     </label>
                   </div>
                 </section>
+
+                @if (drawerMode() === 'create' && duplicateMatches().length > 0) {
+                  <section class="duplicate-panel">
+                    <div class="duplicate-head">
+                      <span class="material-symbols-rounded">patient_list</span>
+                      <div>
+                        <h3>Possible existing patient</h3>
+                        <p>Review these matches before creating a new record.</p>
+                      </div>
+                    </div>
+                    <div class="duplicate-list">
+                      @for (match of duplicateMatches(); track match.patientGuid) {
+                        <button class="duplicate-card" type="button" (click)="openDuplicate(match)">
+                          <span class="mrn-chip">{{ match.medicalRecordNo }}</span>
+                          <span class="duplicate-name">{{ match.fullName }}</span>
+                          <span class="duplicate-meta">{{ match.maskedMobileNo }} · {{ match.matchReason }}</span>
+                        </button>
+                      }
+                    </div>
+                    <button class="continue-btn" type="button" (click)="continueRegistration()">
+                      Continue as new patient
+                    </button>
+                  </section>
+                }
 
                 <section class="ac-admin-form-section">
                   <div class="ac-admin-section-title">
@@ -435,6 +460,18 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
     }
     .country-option .material-symbols-rounded { font-size: 19px; }
     .mobile-number-input { min-width: 0; }
+    .duplicate-panel { display: grid; gap: 12px; padding: 14px; border: 1px solid rgba(245,158,11,0.28); border-radius: var(--ac-r); background: linear-gradient(135deg, rgba(255,251,235,0.92), rgba(255,255,255,0.86)); }
+    :host-context([data-theme='dark']) .duplicate-panel { background: linear-gradient(135deg, rgba(69,43,9,0.42), rgba(17,24,39,0.92)); border-color: rgba(245,158,11,0.36); }
+    .duplicate-head { display: flex; gap: 10px; align-items: flex-start; }
+    .duplicate-head > .material-symbols-rounded { width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--ac-r-sm); color: #d97706; background: rgba(245,158,11,0.12); }
+    .duplicate-head h3 { font-size: 15px; color: var(--ac-text); margin: 0; }
+    .duplicate-head p { margin: 3px 0 0; color: var(--ac-muted); font-size: 12.5px; }
+    .duplicate-list { display: grid; gap: 8px; }
+    .duplicate-card { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4px 10px; width: 100%; padding: 10px; border: 1px solid var(--ac-border); border-radius: var(--ac-r-sm); background: var(--ac-surface); text-align: left; cursor: pointer; }
+    .duplicate-card:hover { border-color: color-mix(in srgb, var(--ac-primary) 38%, var(--ac-border)); box-shadow: var(--ac-sh-sm); }
+    .duplicate-name { color: var(--ac-text); font-weight: 800; }
+    .duplicate-meta { grid-column: 2; color: var(--ac-muted); font-size: 12px; }
+    .continue-btn { justify-self: end; color: var(--ac-primary); font-weight: 800; font-size: 12.5px; }
     @media (max-width: 900px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 760px) {
       :host { height: auto; min-height: 100%; }
@@ -493,6 +530,8 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
   protected readonly drawerOpen = signal(false);
   protected readonly drawerMode = signal<PatientDrawerMode>('view');
   protected readonly countryDropdownOpen = signal(false);
+  protected readonly duplicateMatches = signal<PatientDuplicate[]>([]);
+  private readonly duplicateOverride = signal(false);
   protected readonly form = signal<PatientForm>(createEmptyPatient());
   protected searchQuery = '';
   protected genderFilter = '';
@@ -530,6 +569,7 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
   private readonly service = inject(PatientManagementService);
   private readonly toast = inject(ToastService);
   private readonly dialog = inject(DialogService);
+  private readonly router = inject(Router);
   private searchDebounceId: ReturnType<typeof setTimeout> | undefined;
   private patientRequestId = 0;
 
@@ -593,6 +633,8 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
 
   protected async startCreate(): Promise<void> {
     const emptyPatient = createEmptyPatient();
+    this.duplicateMatches.set([]);
+    this.duplicateOverride.set(false);
     this.form.set(emptyPatient);
     this.drawerMode.set('create');
     this.drawerOpen.set(true);
@@ -604,6 +646,10 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
     }
 
     this.toast.warning('MRN preview unavailable', 'MRN will still be generated when the patient is saved.');
+  }
+
+  protected async openPatientProfile(patient: PatientSummary): Promise<void> {
+    await this.router.navigate(['/patients', patient.patientGuid]);
   }
 
   protected async openPatient(patient: PatientSummary, mode: PatientDrawerMode): Promise<void> {
@@ -620,6 +666,8 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
 
   protected closeDrawer(): void {
     this.countryDropdownOpen.set(false);
+    this.duplicateMatches.set([]);
+    this.duplicateOverride.set(false);
     this.drawerOpen.set(false);
   }
 
@@ -652,6 +700,15 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
     this.saving.set(true);
     try {
       const patient = this.form();
+      if (!patient.patientGuid && !this.duplicateOverride()) {
+        const duplicateResponse = await this.service.checkDuplicates(patient);
+        if (duplicateResponse.success && duplicateResponse.data?.matches.length) {
+          this.duplicateMatches.set(duplicateResponse.data.matches);
+          this.toast.warning('Possible duplicate found', 'Review existing patients before continuing.');
+          return;
+        }
+      }
+
       const response = patient.patientGuid
         ? await this.service.update(patient)
         : await this.service.create(patient);
@@ -668,6 +725,17 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
     } finally {
       this.saving.set(false);
     }
+  }
+
+  protected async openDuplicate(match: PatientDuplicate): Promise<void> {
+    this.closeDrawer();
+    await this.router.navigate(['/patients', match.patientGuid]);
+  }
+
+  protected async continueRegistration(): Promise<void> {
+    this.duplicateOverride.set(true);
+    this.duplicateMatches.set([]);
+    await this.save();
   }
 
   protected async deletePatient(patient: PatientSummary): Promise<void> {
