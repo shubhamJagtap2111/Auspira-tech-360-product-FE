@@ -28,7 +28,7 @@ export class AiraChatService {
     }, {
       context: new HttpContext()
         .set(SKIP_GLOBAL_LOADER, true)
-        .set(REQUEST_TIMEOUT_MS, 60_000)
+        .set(REQUEST_TIMEOUT_MS, 22_000)
     }));
   }
 }

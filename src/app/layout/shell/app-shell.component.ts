@@ -370,7 +370,7 @@ const fallbackLanguages: Language[] = [
               </div>
               @for (message of aiMessages(); track message.role + message.text) {
                 <div class="ai-message" [class.user]="message.role === 'user'" [class.bot]="message.role === 'assistant'" [class.pending]="message.pending">
-                  <p>{{ message.text }}</p>
+                  <p [innerHTML]="formatAiMessage(message.text)"></p>
                 </div>
               }
             </div>
@@ -1330,6 +1330,10 @@ const fallbackLanguages: Language[] = [
     }
     .dark .ai-message.bot { color: var(--ac-text-2); background: rgba(37,99,235,.14); }
     .ai-message p { margin: 0; }
+    .ai-message p strong { font-weight: 900; color: inherit; }
+    .ai-message p em { font-style: normal; font-weight: 800; color: inherit; }
+    .ai-message p .ai-bullet { position: relative; display: block; padding-left: 14px; margin-top: 5px; }
+    .ai-message p .ai-bullet::before { content: ''; position: absolute; left: 2px; top: .72em; width: 5px; height: 5px; border-radius: 999px; background: currentColor; opacity: .55; }
     .ai-welcome > .ai-message { max-width: 100%; }
     .ai-chat-body > .ai-message { width: fit-content; }
     .ai-chat-body > .ai-message.user { justify-self: end; }
@@ -1865,13 +1869,13 @@ export class AppShellComponent implements OnInit {
     this.aiPrompt = '';
     const history = this.aiMessages()
       .filter(message => !message.pending)
-      .slice(-10)
+      .slice(-6)
       .map(message => ({ role: message.role, content: message.text }));
 
     this.aiMessages.update(messages => [
       ...messages,
       { role: 'user', text: prompt },
-      { role: 'assistant', text: 'AIRA is thinking...', pending: true }
+      { role: 'assistant', text: 'Checking with AIRA...', pending: true }
     ]);
     this.aiSending.set(true);
 
@@ -1888,7 +1892,7 @@ export class AppShellComponent implements OnInit {
     } catch {
       this.aiMessages.update(messages => [
         ...messages.filter(message => !message.pending),
-        { role: 'assistant', text: 'AIRA could not reach the AI service right now. Please try again in a moment.' }
+        { role: 'assistant', text: 'AIRA is busy right now. Please try again in a moment.' }
       ]);
     } finally {
       this.aiSending.set(false);
@@ -1925,18 +1929,37 @@ export class AppShellComponent implements OnInit {
 
   private aiErrorMessage(messageKey: string): string {
     if (messageKey.startsWith('Ai.Chat.Errors.ProviderUnavailable:')) {
-      return messageKey.replace('Ai.Chat.Errors.ProviderUnavailable: ', '');
+      if (messageKey.includes('Gemini HTTP 503') || messageKey.includes('ServiceUnavailable') || messageKey.includes('high demand')) {
+        return 'AIRA is experiencing high demand right now. Please retry in a few seconds.';
+      }
+
+      return 'AIRA could not complete the request right now. Please retry in a moment.';
     }
 
     const messages: Record<string, string> = {
-      'Ai.Chat.Errors.ProviderNotConfigured': 'AIRA is not configured yet. Please set the Grok API key on the API server.',
-      'Ai.Chat.Errors.ProviderUnavailable': 'AIRA could not reach Grok right now. Please try again in a moment.',
+      'Ai.Chat.Errors.ProviderNotConfigured': 'AIRA is not configured yet. Please set the AI provider key on the API server.',
+      'Ai.Chat.Errors.ProviderUnavailable': 'AIRA could not reach the AI provider right now. Please try again in a moment.',
       'Ai.Chat.Errors.ProviderTimeout': 'AIRA took too long to respond. Please try a shorter question.',
       'Ai.Chat.Validation.MessageRequired': 'Please type a question for AIRA.',
       'Ai.Chat.Validation.MessageTooLong': 'Please shorten your question and try again.'
     };
 
     return messages[messageKey] ?? 'AIRA could not answer that request right now.';
+  }
+
+  protected formatAiMessage(text: string): string {
+    const escaped = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+    return escaped
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/(?:^|\n)[*-]\s+(.+?)(?=\n|$)/g, '<br><span class="ai-bullet">$1</span>')
+      .replace(/\n/g, '<br>');
   }
 
   /* ── Toast helpers ── */
