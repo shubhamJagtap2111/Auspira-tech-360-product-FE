@@ -298,17 +298,18 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
     </section>
   `,
   styles: `
-    .patients { min-height: calc(100dvh - var(--ac-header-h) - 56px); display: flex; flex-direction: column; gap: 20px; animation: slideUp 0.3s ease; }
-    .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    :host { display: block; height: 100%; min-height: 0; }
+    .patients { height: 100%; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 20px; animation: slideUp 0.3s ease; }
+    .page-header { flex: 0 0 auto; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
     .page-desc { font-size: 13.5px; color: var(--ac-muted); margin-top: 5px; max-width: 560px; }
     .header-actions { display: flex; gap: 10px; flex-shrink: 0; }
-    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .stats-row { flex: 0 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
     .stat-card { display: flex; align-items: center; gap: 14px; padding: 16px; }
     .stat-icon { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: var(--ac-r-sm); flex-shrink: 0; }
     .stat-icon .material-symbols-rounded { font-size: 18px; }
     .stat-value { font-size: 20px; font-weight: 800; color: var(--ac-text); letter-spacing: -0.01em; }
     .stat-label { font-size: 12px; color: var(--ac-muted); margin-top: 1px; }
-    .toolbar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; flex-wrap: wrap; }
+    .toolbar { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 12px 16px; flex-wrap: wrap; }
     .search-field { position: relative; display: flex; align-items: center; flex: 1; min-width: 240px; }
     .search-icon { position: absolute; left: 12px; color: var(--ac-muted); pointer-events: none; font-size: 18px; }
     .toolbar-input { width: 100%; height: 38px; padding: 0 36px; border: 1px solid var(--ac-border); border-radius: var(--ac-r-sm); background: var(--ac-surface-2); color: var(--ac-text); font-size: 13.5px; outline: none; transition: all var(--ac-t); }
@@ -319,7 +320,7 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
     .toolbar-count { font-size: 12.5px; color: var(--ac-muted); padding: 0 4px; white-space: nowrap; }
     .icon-btn { width: 38px; height: 38px; border: 1px solid var(--ac-border); border-radius: var(--ac-r-sm); background: var(--ac-surface); color: var(--ac-muted); display: inline-grid; place-items: center; }
     .icon-btn:hover { border-color: var(--ac-primary); color: var(--ac-primary); }
-    .table-card { flex: 1 1 auto; min-height: 320px; overflow: hidden; position: relative; display: flex; flex-direction: column; }
+    .table-card { flex: 1 1 auto; min-height: 0; overflow: hidden; position: relative; display: flex; flex-direction: column; }
     .table-scroll { flex: 1 1 auto; width: 100%; min-height: 0; overflow: auto; }
     .table-scroll .ac-table { width: 100%; min-width: 980px; table-layout: fixed; }
     .table-scroll .ac-table th:nth-child(1), .table-scroll .ac-table td:nth-child(1) { width: 120px; }
@@ -436,7 +437,8 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
     .mobile-number-input { min-width: 0; }
     @media (max-width: 900px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 760px) {
-      .patients { min-height: auto; gap: 14px; }
+      :host { height: auto; min-height: 100%; }
+      .patients { height: auto; min-height: auto; overflow: visible; gap: 14px; }
       .page-header { align-items: stretch; }
       .page-header > div:first-child { min-width: 0; }
       .ac-page-title { font-size: 25px; line-height: 1.12; }
