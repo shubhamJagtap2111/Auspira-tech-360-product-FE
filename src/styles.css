@@ -128,6 +128,16 @@ button { font: inherit; cursor: pointer; border: none; background: none; }
 input, select, textarea { font: inherit; color-scheme: light; }
 img { display: block; max-width: 100%; }
 
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px var(--ac-surface) inset !important;
+  -webkit-text-fill-color: var(--ac-text) !important;
+  caret-color: var(--ac-text);
+  transition: background-color 9999s ease-out, color 9999s ease-out;
+}
+
 html.dark input,
 html.dark select,
 html.dark textarea,
@@ -176,8 +186,8 @@ html.dark input:-webkit-autofill:focus,
 body.dark input:-webkit-autofill,
 body.dark input:-webkit-autofill:hover,
 body.dark input:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0 1000px var(--ac-surface) inset;
-  -webkit-text-fill-color: var(--ac-text);
+  -webkit-box-shadow: 0 0 0 1000px var(--ac-surface) inset !important;
+  -webkit-text-fill-color: var(--ac-text) !important;
   caret-color: var(--ac-text);
 }
 

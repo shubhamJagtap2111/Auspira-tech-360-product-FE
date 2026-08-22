@@ -167,6 +167,23 @@ interface HospitalPulseItem {
             </article>
 
             <div class="dashboard-side-stack">
+              <div class="status-stack">
+                <div class="status-block compact">
+                  <span class="material-symbols-rounded">verified</span>
+                  <p>{{ t('Administration.Dashboard.Widgets.LicenseStatus') }}</p>
+                  <strong class="status-value" [class]="statusToneClass(model.summary.licenseStatusCode)">
+                    <i></i>{{ t('Administration.Dashboard.License.' + model.summary.licenseStatusCode) }}
+                  </strong>
+                </div>
+                <div class="status-block compact">
+                  <span class="material-symbols-rounded">workspace_premium</span>
+                  <p>{{ t('Administration.Dashboard.Widgets.SubscriptionStatus') }}</p>
+                  <strong class="status-value" [class]="statusToneClass(model.summary.subscriptionStatusCode)">
+                    <i></i>{{ t('Hospital.Subscription.Status.' + model.summary.subscriptionStatusCode) }}
+                  </strong>
+                </div>
+              </div>
+
               <article class="panel">
                 <div class="section-head">
                   <h2>{{ t('Administration.Dashboard.Widgets.Notifications') }}</h2>
@@ -188,23 +205,6 @@ interface HospitalPulseItem {
                   }
                 </div>
               </article>
-
-              <div class="status-stack">
-                <div class="status-block compact">
-                  <span class="material-symbols-rounded">verified</span>
-                  <p>{{ t('Administration.Dashboard.Widgets.LicenseStatus') }}</p>
-                  <strong class="status-value" [class]="statusToneClass(model.summary.licenseStatusCode)">
-                    <i></i>{{ t('Administration.Dashboard.License.' + model.summary.licenseStatusCode) }}
-                  </strong>
-                </div>
-                <div class="status-block compact">
-                  <span class="material-symbols-rounded">workspace_premium</span>
-                  <p>{{ t('Administration.Dashboard.Widgets.SubscriptionStatus') }}</p>
-                  <strong class="status-value" [class]="statusToneClass(model.summary.subscriptionStatusCode)">
-                    <i></i>{{ t('Hospital.Subscription.Status.' + model.summary.subscriptionStatusCode) }}
-                  </strong>
-                </div>
-              </div>
             </div>
 
             <article class="panel intelligence-panel">
@@ -218,7 +218,10 @@ interface HospitalPulseItem {
                 </button>
               </div>
               <div class="ai-insight-card">
-                <span class="ai-orb"><i></i></span>
+                <span class="ai-orb" aria-hidden="true">
+                  <span class="aira-message-icon"></span>
+                  <i></i>
+                </span>
                 <div>
                   <div class="ai-card-head">
                     <div>
@@ -396,7 +399,7 @@ interface HospitalPulseItem {
     .metric-card span { color: var(--ac-muted); font-size: 12px; }
     .main-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(360px, .7fr); gap: 16px; }
     .lower-grid { display: grid; grid-template-columns: minmax(360px, 1.08fr) minmax(320px, .92fr) minmax(320px, .86fr); gap: 16px; align-items: start; }
-    .dashboard-side-stack { display: grid; gap: 14px; min-width: 0; align-content: start; }
+    .dashboard-side-stack { display: grid; gap: 10px; min-width: 0; align-content: start; }
     .staff-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr); gap: 16px; align-items: start; }
     .panel { padding: 16px; min-width: 0; }
     .section-head h2 { margin: 0; font-size: 16px; }
@@ -427,7 +430,7 @@ interface HospitalPulseItem {
     .icon-btn:disabled { opacity: .45; cursor: not-allowed; }
     .template-row { justify-content: space-between; }
     .template-row span { color: var(--ac-muted); font-size: 12px; }
-    .notification-empty { min-height: 184px; display: grid; place-items: center; align-content: center; gap: 8px; text-align: center; border: 1px dashed var(--ac-border); border-radius: 8px; background: linear-gradient(135deg, rgba(37,99,235,.06), rgba(20,184,166,.05)); padding: 18px; margin-top: 14px; }
+    .notification-empty { min-height: 168px; display: grid; place-items: center; align-content: center; gap: 8px; text-align: center; border: 1px dashed var(--ac-border); border-radius: 8px; background: linear-gradient(135deg, rgba(37,99,235,.06), rgba(20,184,166,.05)); padding: 16px; margin-top: 12px; }
     .notification-empty .material-symbols-rounded { width: 54px; height: 54px; display: grid; place-items: center; border-radius: 16px; background: rgba(37,99,235,.1); color: var(--ac-primary); font-size: 28px; }
     .notification-empty strong { color: var(--ac-text); }
     .notification-empty p { max-width: 360px; margin: 0; color: var(--ac-muted); font-size: 13px; line-height: 1.45; }
@@ -435,9 +438,10 @@ interface HospitalPulseItem {
     .intelligence-panel { display: grid; gap: 12px; align-content: start; background: linear-gradient(180deg, color-mix(in srgb, #eff6ff 72%, var(--ac-surface)), var(--ac-surface)); }
     .ai-insight-card { position: relative; display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 14px; padding: 14px; border: 1px solid rgba(37,99,235,.18); border-radius: 8px; overflow: hidden; background: radial-gradient(circle at 0% 0%, rgba(34,211,238,.18), transparent 34%), linear-gradient(135deg, rgba(37,99,235,.12), rgba(124,58,237,.08) 52%, rgba(20,184,166,.08)); box-shadow: 0 16px 36px rgba(37,99,235,.12), inset 0 1px 0 rgba(255,255,255,.62); }
     .ai-insight-card::after { content: ''; position: absolute; inset: auto -38px -58px auto; width: 150px; height: 150px; border-radius: 999px; background: radial-gradient(circle, rgba(37,99,235,.16), transparent 68%); pointer-events: none; }
-    .ai-orb { position: relative; z-index: 1; width: 52px; height: 52px; display: grid; place-items: center; border-radius: 18px; background: radial-gradient(circle at 34% 30%, #ecfeff, #38bdf8 34%, #4f46e5 68%, #312e81); box-shadow: 0 14px 30px rgba(37,99,235,.28), inset 0 1px 0 rgba(255,255,255,.4); }
-    .ai-orb::after { content: ''; position: absolute; inset: 7px; border: 1px solid rgba(255,255,255,.42); border-radius: 14px; }
-    .ai-orb i { width: 15px; height: 15px; border-radius: 999px; background: #67e8f9; box-shadow: 17px 0 0 #bfdbfe, 8px 15px 0 #a78bfa; }
+    .ai-orb { position: relative; z-index: 1; width: 52px; height: 52px; display: grid; place-items: center; border-radius: 14px; color: var(--ac-primary); background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(239,246,255,.94)); border: 1px solid rgba(37,99,235,.16); box-shadow: 0 14px 28px rgba(37,99,235,.14), inset 0 1px 0 rgba(255,255,255,.9); }
+    .ai-orb::before { content: ''; position: absolute; inset: 7px; border-radius: 11px; background: rgba(37,99,235,.08); }
+    .ai-orb .aira-message-icon { position: relative; z-index: 1; width: 26px; height: 26px; background: currentColor; mask: url('/assets/brand/aira-message.png') center / contain no-repeat; -webkit-mask: url('/assets/brand/aira-message.png') center / contain no-repeat; filter: drop-shadow(0 8px 16px rgba(37,99,235,.18)); }
+    .ai-orb i { position: absolute; top: 8px; right: 8px; width: 9px; height: 9px; border-radius: 999px; background: #10b981; border: 2px solid var(--ac-surface); box-shadow: 0 0 0 4px rgba(16,185,129,.14); }
     .ai-insight-card > div { position: relative; z-index: 1; min-width: 0; }
     .ai-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
     .ai-card-head strong { display: block; color: var(--ac-text); font-size: 14.5px; line-height: 1.2; }
@@ -452,10 +456,10 @@ interface HospitalPulseItem {
     .ai-next-actions div { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 8px; align-items: center; padding: 8px; border-radius: 8px; background: rgba(255,255,255,.54); border: 1px solid rgba(37,99,235,.1); }
     .ai-next-actions .material-symbols-rounded { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; color: #2563eb; background: rgba(37,99,235,.1); font-size: 18px; }
     .ai-next-actions p { margin: 0; color: var(--ac-text-2); font-size: 12px; line-height: 1.35; }
-    .status-stack { display: grid; gap: 8px; }
+    .status-stack { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
     .status-panel { display: grid; gap: 10px; }
     .status-block { padding: 12px; border: 1px solid var(--ac-border); border-radius: 8px; display: grid; grid-template-columns: 34px 1fr auto; gap: 8px; align-items: center; }
-    .status-block.compact { min-height: 54px; background: rgba(255,255,255,.62); }
+    .status-block.compact { min-height: 58px; background: rgba(255,255,255,.62); }
     .status-block span { color: #2563eb; }
     .status-block p { margin: 0; color: var(--ac-muted); font-size: 12px; font-weight: 800; }
     .status-value {
