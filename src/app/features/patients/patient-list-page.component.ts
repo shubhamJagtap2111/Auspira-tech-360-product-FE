@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, HostListener, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AcAdminDrawerComponent } from '../../shared/ui/admin-drawer/admin-drawer.component';
 import { DialogService } from '../../shared/ui/dialog/dialog.service';
@@ -8,6 +8,8 @@ import { ToastService } from '../../shared/ui/toast/toast.service';
 import { getApiErrorMessage } from '../../core/http/api-error-message';
 import { PatientForm, PatientRegistryStats, PatientSummary } from './patient-management.models';
 import { PatientManagementService } from './patient-management.service';
+
+type PatientDrawerMode = 'view' | 'edit' | 'create';
 
 @Component({
   standalone: true,
@@ -97,7 +99,7 @@ import { PatientManagementService } from './patient-management.service';
                         <div class="patient-avatar" [style.background]="avatarColor(patient.patientGuid)">{{ initials(patient) }}</div>
                         <div>
                           <p class="patient-name">{{ patient.fullName }}</p>
-                          <p class="patient-meta">{{ patient.age ?? '-' }} yrs · {{ patient.bloodGroupName }}</p>
+                          <p class="patient-meta">{{ displayPatientAge(patient) }} · {{ patient.bloodGroupName }}</p>
                         </div>
                       </div>
                     </td>
@@ -107,10 +109,10 @@ import { PatientManagementService } from './patient-management.service';
                     <td><span class="status-badge" [class]="statusClass(patient.statusCode)">{{ patient.statusName }}</span></td>
                     <td>
                       <div class="row-actions">
-                        <button class="tbl-btn" type="button" title="View profile" (click)="openPatient(patient)">
+                        <button class="tbl-btn" type="button" title="View profile" (click)="openPatient(patient, 'view')">
                           <span class="material-symbols-rounded">visibility</span>
                         </button>
-                        <button class="tbl-btn" type="button" title="Edit" (click)="openPatient(patient)">
+                        <button class="tbl-btn" type="button" title="Edit" (click)="openPatient(patient, 'edit')">
                           <span class="material-symbols-rounded">edit</span>
                         </button>
                         <button class="tbl-btn danger" type="button" title="Delete" (click)="deletePatient(patient)">
@@ -122,6 +124,39 @@ import { PatientManagementService } from './patient-management.service';
                 }
               </tbody>
             </table>
+          </div>
+
+          <div class="mobile-patient-list">
+            @for (patient of patients(); track patient.patientGuid) {
+              <article class="patient-mobile-card">
+                <div class="mobile-card-head">
+                  <div class="patient-cell">
+                    <div class="patient-avatar" [style.background]="avatarColor(patient.patientGuid)">{{ initials(patient) }}</div>
+                    <div>
+                      <p class="patient-name">{{ patient.fullName }}</p>
+                      <p class="patient-meta">{{ patient.medicalRecordNo }} · {{ displayPatientAge(patient) }} · {{ patient.bloodGroupName }}</p>
+                    </div>
+                  </div>
+                  <span class="status-badge" [class]="statusClass(patient.statusCode)">{{ patient.statusName }}</span>
+                </div>
+                <div class="mobile-card-grid">
+                  <span><small>Mobile</small><strong>{{ patient.mobileNo }}</strong></span>
+                  <span><small>Gender</small><strong>{{ patient.genderName || '-' }}</strong></span>
+                  <span><small>Last visit</small><strong>{{ formatVisit(patient.lastVisitDate) }}</strong></span>
+                </div>
+                <div class="mobile-card-actions">
+                  <button class="tbl-btn" type="button" title="View profile" (click)="openPatient(patient, 'view')">
+                    <span class="material-symbols-rounded">visibility</span>
+                  </button>
+                  <button class="tbl-btn" type="button" title="Edit" (click)="openPatient(patient, 'edit')">
+                    <span class="material-symbols-rounded">edit</span>
+                  </button>
+                  <button class="tbl-btn danger" type="button" title="Delete" (click)="deletePatient(patient)">
+                    <span class="material-symbols-rounded">delete</span>
+                  </button>
+                </div>
+              </article>
+            }
           </div>
 
           <footer class="table-footer">
@@ -155,7 +190,7 @@ import { PatientManagementService } from './patient-management.service';
             <ac-admin-drawer
               [open]="drawerOpen()"
               icon="clinical_notes"
-              [eyebrow]="patientForm.patientGuid ? 'Edit patient' : 'New patient'"
+              [eyebrow]="drawerEyebrow()"
               [title]="drawerTitle(patientForm)"
               (closed)="closeDrawer()">
               <span drawer-summary class="ac-admin-pill">
@@ -176,37 +211,55 @@ import { PatientManagementService } from './patient-management.service';
                   <div class="ac-admin-form-grid">
                     <label>
                       <span>MRN</span>
-                      <input name="medicalRecordNo" [(ngModel)]="patientForm.medicalRecordNo" readonly placeholder="Auto generated" />
+                      <input name="medicalRecordNo" [(ngModel)]="patientForm.medicalRecordNo" readonly [disabled]="isViewMode()" placeholder="Auto generated" />
                     </label>
                     <label class="mobile-field">
                       <span>Mobile</span>
                       <div class="mobile-control">
-                        <span class="country-select-shell">
-                          <img
-                            class="country-flag"
-                            [src]="flagUrl(patientForm.countryIsoCode)"
-                            [alt]="selectedCountryName(patientForm.countryIsoCode) + ' flag'"
-                            loading="lazy" />
-                          <select
-                            name="countryIsoCode"
-                            [(ngModel)]="patientForm.countryIsoCode"
-                            (ngModelChange)="setCountry(patientForm, $event)"
-                            aria-label="Country code">
-                            @for (country of countryCodeOptions(); track country.isoCode) {
-                              <option [value]="country.isoCode">{{ country.name }} ({{ country.dialCode }})</option>
-                            }
-                          </select>
-                        </span>
-                        <input class="mobile-number-input" name="mobileNumber" [(ngModel)]="patientForm.mobileNumber" inputmode="tel" placeholder="8230394902" />
+                        <div class="country-select-shell" [class.open]="countryDropdownOpen()" [class.disabled]="isViewMode()">
+                          <button
+                            class="country-trigger"
+                            type="button"
+                            [disabled]="isViewMode()"
+                            [attr.aria-expanded]="countryDropdownOpen()"
+                            aria-label="Country code"
+                            (click)="toggleCountryDropdown($event)">
+                            <img
+                              class="country-flag"
+                              [src]="flagUrl(patientForm.countryIsoCode)"
+                              [alt]="selectedCountryName(patientForm.countryIsoCode) + ' flag'"
+                              loading="lazy" />
+                            <span>{{ selectedCountryName(patientForm.countryIsoCode) }} ({{ patientForm.countryDialCode }})</span>
+                            <span class="material-symbols-rounded">expand_more</span>
+                          </button>
+                          @if (countryDropdownOpen()) {
+                            <div class="country-panel">
+                              @for (country of countryCodeOptions(); track country.isoCode) {
+                                <button
+                                  class="country-option"
+                                  type="button"
+                                  [class.selected]="country.isoCode === patientForm.countryIsoCode"
+                                  (click)="chooseCountry(patientForm, country.isoCode)">
+                                  <img class="country-option-flag" [src]="flagUrl(country.isoCode)" [alt]="country.name + ' flag'" loading="lazy" />
+                                  <span>{{ country.name }} ({{ country.dialCode }})</span>
+                                  @if (country.isoCode === patientForm.countryIsoCode) {
+                                    <span class="material-symbols-rounded">check</span>
+                                  }
+                                </button>
+                              }
+                            </div>
+                          }
+                        </div>
+                        <input class="mobile-number-input" name="mobileNumber" [(ngModel)]="patientForm.mobileNumber" [disabled]="isViewMode()" inputmode="tel" placeholder="8230394902" />
                       </div>
                     </label>
                     <label>
                       <span>First name</span>
-                      <input name="firstName" [(ngModel)]="patientForm.firstName" />
+                      <input name="firstName" [(ngModel)]="patientForm.firstName" [disabled]="isViewMode()" />
                     </label>
                     <label>
                       <span>Last name</span>
-                      <input name="lastName" [(ngModel)]="patientForm.lastName" />
+                      <input name="lastName" [(ngModel)]="patientForm.lastName" [disabled]="isViewMode()" />
                     </label>
                   </div>
                 </section>
@@ -219,7 +272,7 @@ import { PatientManagementService } from './patient-management.service';
                   <div class="ac-admin-form-grid">
                     <label>
                       <span>Gender</span>
-                      <select name="genderCode" [(ngModel)]="patientForm.genderCode">
+                      <select name="genderCode" [(ngModel)]="patientForm.genderCode" [disabled]="isViewMode()">
                         <option [ngValue]="null">Not specified</option>
                         <option value="MALE">Male</option>
                         <option value="FEMALE">Female</option>
@@ -228,7 +281,7 @@ import { PatientManagementService } from './patient-management.service';
                     </label>
                     <label>
                       <span>Blood group</span>
-                      <select name="bloodGroupCode" [(ngModel)]="patientForm.bloodGroupCode">
+                      <select name="bloodGroupCode" [(ngModel)]="patientForm.bloodGroupCode" [disabled]="isViewMode()">
                         <option [ngValue]="null">Not specified</option>
                         @for (blood of bloodGroupOptions; track blood) {
                           <option [value]="blood">{{ blood }}</option>
@@ -237,14 +290,14 @@ import { PatientManagementService } from './patient-management.service';
                     </label>
                     <label>
                       <span>Date of birth</span>
-                      <input type="date" name="dateOfBirth" [(ngModel)]="patientForm.dateOfBirth" />
+                      <input type="date" name="dateOfBirth" [(ngModel)]="patientForm.dateOfBirth" [disabled]="isViewMode()" />
                     </label>
                   </div>
                 </section>
               </div>
 
               <button drawer-actions class="ac-btn ac-btn-secondary" type="button" (click)="closeDrawer()">Cancel</button>
-              <button drawer-actions class="ac-btn ac-btn-primary" type="button" (click)="save()" [disabled]="saving() || !canSave(patientForm)">
+              <button drawer-actions class="ac-btn ac-btn-primary" type="button" (click)="save()" [disabled]="isViewMode() || saving() || !canSave(patientForm)">
                 <span class="material-symbols-rounded">save</span>
                 Save Patient
               </button>
@@ -276,8 +329,17 @@ import { PatientManagementService } from './patient-management.service';
     .toolbar-count { font-size: 12.5px; color: var(--ac-muted); padding: 0 4px; white-space: nowrap; }
     .icon-btn { width: 38px; height: 38px; border: 1px solid var(--ac-border); border-radius: var(--ac-r-sm); background: var(--ac-surface); color: var(--ac-muted); display: inline-grid; place-items: center; }
     .icon-btn:hover { border-color: var(--ac-primary); color: var(--ac-primary); }
-    .table-card { overflow: hidden; position: relative; min-height: clamp(360px, 44vh, 620px); display: flex; flex-direction: column; }
-    .table-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; }
+    .table-card { overflow: hidden; position: relative; display: flex; flex-direction: column; }
+    .table-scroll { width: 100%; overflow-x: auto; overflow-y: hidden; }
+    .table-scroll .ac-table { width: 100%; min-width: 980px; table-layout: fixed; }
+    .table-scroll .ac-table th:nth-child(1), .table-scroll .ac-table td:nth-child(1) { width: 120px; }
+    .table-scroll .ac-table th:nth-child(2), .table-scroll .ac-table td:nth-child(2) { width: 240px; }
+    .table-scroll .ac-table th:nth-child(3), .table-scroll .ac-table td:nth-child(3) { width: 180px; }
+    .table-scroll .ac-table th:nth-child(4), .table-scroll .ac-table td:nth-child(4) { width: 120px; }
+    .table-scroll .ac-table th:nth-child(5), .table-scroll .ac-table td:nth-child(5) { width: 120px; }
+    .table-scroll .ac-table th:nth-child(6), .table-scroll .ac-table td:nth-child(6) { width: 140px; }
+    .table-scroll .ac-table th:nth-child(7), .table-scroll .ac-table td:nth-child(7) { width: 120px; }
+    .mobile-patient-list { display: none; }
     .mrn-chip { font-family: monospace; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: var(--ac-r-sm); background: var(--ac-primary-light); color: var(--ac-primary); }
     .patient-cell { display: flex; align-items: center; gap: 10px; }
     .patient-avatar { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: var(--ac-r-full); font-size: 12px; font-weight: 800; color: #fff; flex-shrink: 0; }
@@ -298,7 +360,7 @@ import { PatientManagementService } from './patient-management.service';
     .tbl-btn .material-symbols-rounded { font-size: 16px; }
     .tbl-btn:hover { background: var(--ac-surface-2); color: var(--ac-text); }
     .tbl-btn.danger:hover { color: var(--ac-error); border-color: color-mix(in srgb, var(--ac-error) 32%, var(--ac-border)); background: var(--ac-error-light); }
-    .table-footer { margin-top: auto; position: sticky; bottom: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-top: 1px solid var(--ac-border); background: color-mix(in srgb, var(--ac-surface) 96%, transparent); backdrop-filter: blur(10px); flex-wrap: wrap; gap: 10px; }
+    .table-footer { z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-top: 1px solid var(--ac-border); background: color-mix(in srgb, var(--ac-surface) 96%, transparent); flex-wrap: wrap; gap: 10px; }
     .table-count { font-size: 12.5px; color: var(--ac-muted); }
     .pagination { display: flex; align-items: center; gap: 4px; }
     .page-btn, .page-num { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: var(--ac-r-sm); font-size: 13px; }
@@ -314,16 +376,128 @@ import { PatientManagementService } from './patient-management.service';
     input[readonly] { background: var(--ac-surface-2); color: var(--ac-text-2); cursor: not-allowed; font-weight: 800; }
     .mobile-field { grid-column: 1 / -1; }
     .mobile-control { display: grid; grid-template-columns: minmax(260px, .9fr) minmax(220px, 1.1fr); gap: 10px; width: 100%; min-width: 0; }
-    .country-select-shell { position: relative; display: flex; align-items: center; min-width: 0; }
-    .country-select-shell select { min-width: 0; width: 100%; padding-left: 46px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .country-flag { position: absolute; left: 14px; z-index: 1; width: 22px; height: 16px; border-radius: 3px; object-fit: cover; box-shadow: 0 0 0 1px rgba(15,23,42,.12); pointer-events: none; }
+    .country-select-shell { position: relative; min-width: 0; }
+    .country-trigger {
+      width: 100%;
+      min-height: 46px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      padding: 0 12px 0 16px;
+      border: 1px solid var(--ac-border);
+      border-radius: var(--ac-r-sm);
+      background: var(--ac-surface);
+      color: var(--ac-text);
+      cursor: pointer;
+      text-align: left;
+      transition: border-color var(--ac-t), box-shadow var(--ac-t), background var(--ac-t);
+    }
+    .country-trigger:hover { border-color: color-mix(in srgb, var(--ac-primary) 45%, var(--ac-border)); }
+    .country-select-shell.open .country-trigger {
+      border-color: var(--ac-primary);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--ac-primary) 14%, transparent);
+    }
+    .country-trigger:disabled { cursor: not-allowed; opacity: .72; }
+    .country-trigger span:not(.material-symbols-rounded) {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 800;
+    }
+    .country-trigger .material-symbols-rounded { font-size: 19px; color: var(--ac-muted); }
+    .country-flag, .country-option-flag { width: 24px; height: 17px; border-radius: 3px; object-fit: cover; box-shadow: 0 0 0 1px rgba(15,23,42,.12); flex-shrink: 0; }
+    .country-panel {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 6px);
+      z-index: 120;
+      max-height: 280px;
+      overflow-y: auto;
+      padding: 7px;
+      border: 1px solid var(--ac-border);
+      border-radius: var(--ac-r);
+      background: var(--ac-surface);
+      box-shadow: 0 18px 38px rgba(15,23,42,.16);
+    }
+    .country-option {
+      width: 100%;
+      min-height: 40px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border: 0;
+      border-radius: var(--ac-r-sm);
+      background: transparent;
+      color: var(--ac-text);
+      cursor: pointer;
+      text-align: left;
+      font: inherit;
+    }
+    .country-option:hover { background: var(--ac-subtle); }
+    .country-option.selected {
+      background: color-mix(in srgb, var(--ac-primary) 18%, transparent);
+      color: var(--ac-primary);
+      font-weight: 800;
+    }
+    .country-option span:not(.material-symbols-rounded) {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .country-option .material-symbols-rounded { font-size: 19px; }
     .mobile-number-input { min-width: 0; }
     @media (max-width: 900px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 760px) {
+      .patients { gap: 14px; }
+      .page-header { align-items: stretch; }
+      .page-header > div:first-child { min-width: 0; }
+      .ac-page-title { font-size: 25px; line-height: 1.12; }
+      .page-desc { font-size: 13px; }
+      .header-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
+      .header-actions .ac-btn { width: 100%; padding-inline: 10px; }
+      .stats-row { grid-template-columns: 1fr; gap: 10px; }
+      .stat-card { padding: 14px; }
+      .toolbar { display: grid; grid-template-columns: 1fr; padding: 12px; }
+      .search-field { min-width: 0; width: 100%; }
+      .toolbar-select, .toolbar ac-dropdown { min-width: 0; width: 100%; }
+      .toolbar .icon-btn, .toolbar-count { width: 100%; }
+      .toolbar-count { min-height: 36px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--ac-border); border-radius: var(--ac-r-sm); background: var(--ac-surface); }
+      .table-card { min-height: 0; border-radius: var(--ac-r-sm); }
+      .table-scroll { display: none; }
+      .mobile-patient-list { display: grid; gap: 10px; padding: 10px; }
+      .patient-mobile-card { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--ac-border); border-radius: var(--ac-r); background: var(--ac-surface); box-shadow: var(--ac-sh-sm); }
+      .mobile-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+      .mobile-card-head .patient-cell { min-width: 0; }
+      .mobile-card-head .patient-name,
+      .mobile-card-head .patient-meta { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .mobile-card-head .status-badge { flex: 0 0 auto; }
+      .mobile-card-grid { display: grid; grid-template-columns: 1fr; gap: 8px; padding: 10px; border-radius: var(--ac-r-sm); background: var(--ac-surface-2); }
+      .mobile-card-grid span { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+      .mobile-card-grid small { color: var(--ac-muted); font-weight: 700; }
+      .mobile-card-grid strong { color: var(--ac-text-2); font-weight: 700; text-align: right; overflow-wrap: anywhere; }
+      .mobile-card-actions { display: flex; justify-content: flex-end; gap: 8px; }
+      .mobile-card-actions .tbl-btn { width: 36px; height: 36px; }
+      .table-footer { position: sticky; bottom: 0; padding: 12px; }
+      .table-count { width: 100%; text-align: center; }
+      .pagination { width: 100%; justify-content: center; }
+    }
     @media (max-width: 620px) {
       .stats-row { grid-template-columns: 1fr; }
       .header-actions, .header-actions .ac-btn { width: 100%; }
       .toolbar-select { min-width: 100%; }
       .mobile-control { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 380px) {
+      .header-actions { grid-template-columns: 1fr; }
+      .patient-mobile-card { padding: 12px; }
+      .mobile-card-head { flex-direction: column; align-items: stretch; }
+      .mobile-card-head .status-badge { width: fit-content; }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -337,6 +511,8 @@ export class PatientListPageComponent implements OnInit {
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly drawerOpen = signal(false);
+  protected readonly drawerMode = signal<PatientDrawerMode>('view');
+  protected readonly countryDropdownOpen = signal(false);
   protected readonly form = signal<PatientForm>(createEmptyPatient());
   protected searchQuery = '';
   protected genderFilter = '';
@@ -374,6 +550,7 @@ export class PatientListPageComponent implements OnInit {
   private readonly service = inject(PatientManagementService);
   private readonly toast = inject(ToastService);
   private readonly dialog = inject(DialogService);
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
 
   async ngOnInit(): Promise<void> {
     await this.loadPatients();
@@ -406,6 +583,7 @@ export class PatientListPageComponent implements OnInit {
   protected async startCreate(): Promise<void> {
     const emptyPatient = createEmptyPatient();
     this.form.set(emptyPatient);
+    this.drawerMode.set('create');
     this.drawerOpen.set(true);
 
     const response = await this.service.nextMedicalRecordNo();
@@ -417,7 +595,7 @@ export class PatientListPageComponent implements OnInit {
     this.toast.warning('MRN preview unavailable', 'MRN will still be generated when the patient is saved.');
   }
 
-  protected async openPatient(patient: PatientSummary): Promise<void> {
+  protected async openPatient(patient: PatientSummary, mode: PatientDrawerMode): Promise<void> {
     const response = await this.service.get(patient.patientGuid);
     if (!response.success || !response.data) {
       this.toast.error('Unable to open patient', getApiErrorMessage(response, 'Patient API failed'));
@@ -425,11 +603,25 @@ export class PatientListPageComponent implements OnInit {
     }
 
     this.form.set(mapProfileToForm(response.data));
+    this.drawerMode.set(mode);
     this.drawerOpen.set(true);
   }
 
   protected closeDrawer(): void {
+    this.countryDropdownOpen.set(false);
     this.drawerOpen.set(false);
+  }
+
+  protected isViewMode(): boolean {
+    return this.drawerMode() === 'view';
+  }
+
+  protected drawerEyebrow(): string {
+    return {
+      view: 'View patient',
+      edit: 'Edit patient',
+      create: 'New patient'
+    }[this.drawerMode()];
   }
 
   protected canSave(patient: PatientForm): boolean {
@@ -437,6 +629,10 @@ export class PatientListPageComponent implements OnInit {
   }
 
   protected async save(): Promise<void> {
+    if (this.isViewMode()) {
+      return;
+    }
+
     if (!this.canSave(this.form())) {
       this.toast.warning('Missing details', 'First name, last name, and mobile number are required.');
       return;
@@ -507,6 +703,19 @@ export class PatientListPageComponent implements OnInit {
     patient.countryDialCode = selectedCountry?.dialCode ?? patient.countryDialCode;
   }
 
+  protected toggleCountryDropdown(event: MouseEvent): void {
+    event.stopPropagation();
+
+    if (!this.isViewMode()) {
+      this.countryDropdownOpen.update(open => !open);
+    }
+  }
+
+  protected chooseCountry(patient: PatientForm, isoCode: string): void {
+    this.setCountry(patient, isoCode);
+    this.countryDropdownOpen.set(false);
+  }
+
   protected flagUrl(isoCode: string | null): string {
     return `https://flagcdn.com/w40/${(isoCode || 'IN').toLowerCase()}.png`;
   }
@@ -542,6 +751,16 @@ export class PatientListPageComponent implements OnInit {
     return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value));
   }
 
+  protected displayPatientAge(patient: PatientSummary): string {
+    const age = calculateAge(patient.dateOfBirth) ?? patient.age;
+
+    if (age === null || age === undefined || age < 0) {
+      return '-';
+    }
+
+    return `${age} ${age === 1 ? 'yr' : 'yrs'}`;
+  }
+
   protected exportCsv(): void {
     const rows = [
       ['MRN', 'First Name', 'Last Name', 'Mobile', 'Gender', 'Date of Birth', 'Blood Group', 'Last Visit', 'Status'],
@@ -565,6 +784,18 @@ export class PatientListPageComponent implements OnInit {
     link.download = `patients-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  @HostListener('document:click', ['$event'])
+  protected closeCountryDropdownFromOutside(event: MouseEvent): void {
+    if (!this.elementRef.nativeElement.contains(event.target as Node)) {
+      this.countryDropdownOpen.set(false);
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  protected closeCountryDropdownWithEscape(): void {
+    this.countryDropdownOpen.set(false);
   }
 }
 
@@ -609,6 +840,46 @@ function emptyStats(): PatientRegistryStats {
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat('en-IN').format(value);
+}
+
+function calculateAge(dateOfBirth: string | null): number | null {
+  const birthDate = parseDateOnly(dateOfBirth);
+
+  if (!birthDate) {
+    return null;
+  }
+
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const hasBirthdayPassed =
+    today.getMonth() > birthDate.getMonth() ||
+    (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
+
+  if (!hasBirthdayPassed) {
+    age -= 1;
+  }
+
+  return Math.max(age, 0);
+}
+
+function parseDateOnly(value: string | null): Date | null {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(trimmed);
+  if (isoMatch) {
+    return new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
+  }
+
+  const shortDateMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(trimmed);
+  if (shortDateMatch) {
+    return new Date(Number(shortDateMatch[3]), Number(shortDateMatch[1]) - 1, Number(shortDateMatch[2]));
+  }
+
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 function escapeCsv(value: string): string {

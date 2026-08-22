@@ -27,6 +27,11 @@ interface NavGroup {
   items: NavItem[];
 }
 
+interface AiChatMessage {
+  role: 'assistant' | 'user';
+  text: string;
+}
+
 const fallbackLanguages: Language[] = [
   { cultureCode: 'en-US', englishName: 'English', nativeName: 'English', isDefault: true, direction: 'LeftToRight' },
   { cultureCode: 'hi-IN', englishName: 'Hindi', nativeName: 'Hindi', isDefault: false, direction: 'LeftToRight' },
@@ -322,6 +327,67 @@ const fallbackLanguages: Language[] = [
             </div>
           </div>
         }
+
+        <!-- ════════ AIRA ASSISTANT ════════ -->
+        @if (aiAssistantOpen()) {
+          <section class="ai-chat-panel" aria-label="AIRA assistant chat">
+            <header class="ai-chat-head">
+              <div class="ai-chat-title">
+                <span class="ai-chat-icon">
+                  <span class="material-symbols-rounded">auto_awesome</span>
+                </span>
+                <div>
+                  <strong>AIRA</strong>
+                  <span>Care360 Ask AI</span>
+                </div>
+              </div>
+              <button class="ai-icon-btn" type="button" title="Close AIRA" (click)="aiAssistantOpen.set(false)">
+                <span class="material-symbols-rounded">close</span>
+              </button>
+            </header>
+            <div class="ai-chat-body">
+              @for (message of aiMessages(); track message.role + message.text) {
+                <div class="ai-message" [class.user]="message.role === 'user'">
+                  <p>{{ message.text }}</p>
+                </div>
+              }
+              <div class="ai-suggestions">
+                @for (suggestion of aiSuggestions; track suggestion) {
+                  <button type="button" (click)="askAiSuggestion(suggestion)">{{ suggestion }}</button>
+                }
+              </div>
+            </div>
+            <form class="ai-chat-input" (submit)="sendAiMessage($event)">
+              <input name="aiPrompt" [(ngModel)]="aiPrompt" placeholder="Ask AIRA anything..." autocomplete="off" />
+              <button type="submit" title="Send message">
+                <span class="material-symbols-rounded">send</span>
+              </button>
+            </form>
+          </section>
+        }
+
+        <button class="ai-bot-launcher" type="button" [class.chat-open]="aiAssistantOpen()" (click)="toggleAiAssistant()" aria-label="Open AIRA Ask AI">
+          <span class="ai-minimize-dot">
+            <span class="material-symbols-rounded">{{ aiAssistantOpen() ? 'remove' : 'add' }}</span>
+          </span>
+          <span class="ai-bot-art" aria-hidden="true">
+            <span class="ai-bot-head">
+              <span class="ai-bot-eye"></span>
+              <span class="ai-bot-eye"></span>
+            </span>
+            <span class="ai-bot-body">
+              <span class="material-symbols-rounded">bolt</span>
+            </span>
+            <span class="ai-bot-arm left"></span>
+            <span class="ai-bot-arm right"></span>
+            <span class="ai-bot-leg left"></span>
+            <span class="ai-bot-leg right"></span>
+          </span>
+          <span class="ai-bot-label">
+            <strong>AIRA</strong>
+            <span>Ask AI</span>
+          </span>
+        </button>
 
         <!-- ════════ TOASTS ════════ -->
         <div class="ac-toast-stack">
@@ -889,6 +955,7 @@ const fallbackLanguages: Language[] = [
     .main-content {
       flex: 1;
       overflow-y: auto;
+      overflow-x: hidden;
       padding: 28px 32px;
     }
 
@@ -997,6 +1064,270 @@ const fallbackLanguages: Language[] = [
       color: var(--ac-muted);
     }
 
+    /* ── AIRA Assistant ── */
+    .ai-bot-launcher {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 250;
+      display: grid;
+      place-items: center;
+      width: 124px;
+      min-height: 152px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      isolation: isolate;
+      filter: drop-shadow(0 18px 28px rgba(37,99,235,.22));
+    }
+    .ai-bot-launcher::before {
+      content: '';
+      position: absolute;
+      inset: 14px 6px 8px;
+      border-radius: 36px;
+      background:
+        radial-gradient(circle at 50% 20%, rgba(255,255,255,.95), rgba(239,246,255,.9) 48%, rgba(219,234,254,.6));
+      box-shadow: inset 0 0 0 1px rgba(191,219,254,.75);
+      z-index: -2;
+    }
+    .ai-bot-launcher:hover .ai-bot-art { transform: translateY(-3px); }
+    .ai-bot-launcher.chat-open { filter: drop-shadow(0 20px 34px rgba(37,99,235,.28)); }
+    .ai-minimize-dot {
+      position: absolute;
+      top: 18px;
+      right: 2px;
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: var(--ac-r-full);
+      border: 1px solid rgba(191,219,254,.9);
+      background: var(--ac-surface);
+      color: var(--ac-primary);
+      box-shadow: var(--ac-sh-md);
+      z-index: 2;
+    }
+    .ai-minimize-dot .material-symbols-rounded { font-size: 20px !important; }
+    .ai-bot-art {
+      position: relative;
+      display: block;
+      width: 76px;
+      height: 92px;
+      margin-top: 12px;
+      transition: transform var(--ac-t);
+    }
+    .ai-bot-head {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      width: 54px;
+      height: 38px;
+      border-radius: 20px 20px 16px 16px;
+      background: linear-gradient(145deg, #f8fafc, #b8c7d9 42%, #101827 44%, #0b1220);
+      border: 2px solid rgba(255,255,255,.9);
+      box-shadow: 0 8px 18px rgba(15,23,42,.22), inset 0 1px 5px rgba(255,255,255,.35);
+      transform: translateX(-50%);
+    }
+    .ai-bot-head::before,
+    .ai-bot-head::after {
+      content: '';
+      position: absolute;
+      top: 13px;
+      width: 9px;
+      height: 9px;
+      border-radius: var(--ac-r-full);
+      background: #dbeafe;
+      box-shadow: 0 0 10px #38bdf8;
+    }
+    .ai-bot-head::before { left: -8px; }
+    .ai-bot-head::after { right: -8px; }
+    .ai-bot-eye {
+      width: 10px;
+      height: 8px;
+      border-radius: var(--ac-r-full);
+      background: #22d3ee;
+      box-shadow: 0 0 13px #22d3ee;
+    }
+    .ai-bot-body {
+      position: absolute;
+      top: 36px;
+      left: 50%;
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 50px;
+      border-radius: 16px 16px 18px 18px;
+      background: linear-gradient(160deg, #ffffff, #dbeafe 56%, #c7d2fe);
+      border: 2px solid rgba(255,255,255,.95);
+      box-shadow: 0 10px 18px rgba(37,99,235,.16);
+      transform: translateX(-50%);
+    }
+    .ai-bot-body .material-symbols-rounded { font-size: 18px !important; color: var(--ac-primary); }
+    .ai-bot-arm,
+    .ai-bot-leg {
+      position: absolute;
+      display: block;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #f8fafc, #9ca3af);
+      border: 1px solid rgba(100,116,139,.35);
+    }
+    .ai-bot-arm { top: 46px; width: 10px; height: 30px; }
+    .ai-bot-arm.left { left: 8px; transform: rotate(16deg); }
+    .ai-bot-arm.right { right: 6px; transform: rotate(-42deg); transform-origin: top center; }
+    .ai-bot-leg { bottom: 0; width: 11px; height: 20px; }
+    .ai-bot-leg.left { left: 28px; }
+    .ai-bot-leg.right { right: 28px; }
+    .ai-bot-label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-width: 106px;
+      min-height: 44px;
+      margin-top: -1px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--ac-surface) 92%, #dbeafe);
+      border: 1px solid rgba(191,219,254,.95);
+      box-shadow: var(--ac-sh-sm);
+      color: var(--ac-primary);
+    }
+    .ai-bot-label strong { font-size: 16px; line-height: 1; font-weight: 900; }
+    .ai-bot-label span { font-size: 12px; line-height: 1.1; font-weight: 800; color: var(--ac-text-3); }
+
+    .ai-chat-panel {
+      position: fixed;
+      right: 28px;
+      bottom: 186px;
+      z-index: 260;
+      display: flex;
+      flex-direction: column;
+      width: min(380px, calc(100vw - 36px));
+      max-height: min(620px, calc(100dvh - 226px));
+      overflow: hidden;
+      border: 1px solid var(--ac-border);
+      border-radius: 20px;
+      background: var(--ac-surface);
+      box-shadow: 0 28px 70px rgba(15,23,42,.22);
+      animation: scaleIn .18s cubic-bezier(.16,1,.3,1);
+    }
+    .ai-chat-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px;
+      border-bottom: 1px solid var(--ac-border);
+      background: linear-gradient(135deg, color-mix(in srgb, var(--ac-primary) 9%, var(--ac-surface)), var(--ac-surface));
+    }
+    .ai-chat-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .ai-chat-title strong { display: block; font-size: 15px; color: var(--ac-text); }
+    .ai-chat-title span:not(.material-symbols-rounded):not(.ai-chat-icon) { display: block; font-size: 12px; color: var(--ac-muted); }
+    .ai-chat-icon {
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      background: var(--ac-primary);
+      color: #fff;
+      box-shadow: 0 12px 22px rgba(37,99,235,.24);
+      flex-shrink: 0;
+    }
+    .ai-chat-icon .material-symbols-rounded { font-size: 21px !important; }
+    .ai-icon-btn {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border: 1px solid var(--ac-border);
+      border-radius: 12px;
+      background: var(--ac-surface);
+      color: var(--ac-muted);
+      cursor: pointer;
+    }
+    .ai-icon-btn:hover { color: var(--ac-primary); border-color: color-mix(in srgb, var(--ac-primary) 30%, var(--ac-border)); }
+    .ai-icon-btn .material-symbols-rounded { font-size: 19px !important; }
+    .ai-chat-body {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 14px;
+      overflow-y: auto;
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--ac-surface-2) 42%, transparent), transparent 52%);
+    }
+    .ai-message {
+      max-width: 86%;
+      padding: 10px 12px;
+      border-radius: 16px 16px 16px 6px;
+      background: var(--ac-surface-2);
+      border: 1px solid var(--ac-border);
+      color: var(--ac-text-2);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .ai-message.user {
+      align-self: flex-end;
+      border-radius: 16px 16px 6px 16px;
+      background: var(--ac-primary);
+      border-color: var(--ac-primary);
+      color: #fff;
+    }
+    .ai-suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 2px;
+    }
+    .ai-suggestions button {
+      border: 1px solid color-mix(in srgb, var(--ac-primary) 20%, var(--ac-border));
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--ac-primary) 8%, var(--ac-surface));
+      color: var(--ac-primary);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 7px 10px;
+      cursor: pointer;
+    }
+    .ai-chat-input {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px;
+      border-top: 1px solid var(--ac-border);
+      background: var(--ac-surface);
+    }
+    .ai-chat-input input {
+      flex: 1;
+      min-width: 0;
+      height: 42px;
+      border: 1px solid var(--ac-border);
+      border-radius: 14px;
+      background: var(--ac-surface-2);
+      color: var(--ac-text);
+      padding: 0 12px;
+      outline: none;
+      font-size: 13px;
+    }
+    .ai-chat-input input:focus { border-color: var(--ac-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ac-primary) 16%, transparent); }
+    .ai-chat-input button {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border: none;
+      border-radius: 14px;
+      background: var(--ac-primary);
+      color: #fff;
+      cursor: pointer;
+      box-shadow: 0 12px 20px rgba(37,99,235,.2);
+    }
+    .ai-chat-input button .material-symbols-rounded { font-size: 19px !important; }
+
     /* ── Toast ── */
     .toast-icon { font-size: 20px !important; }
     .toast-body { flex: 1; min-width: 0; }
@@ -1018,6 +1349,140 @@ const fallbackLanguages: Language[] = [
     /* ── Animations ── */
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+
+    @media (max-width: 980px) {
+      .search-placeholder,
+      .search-kbd,
+      .profile-meta,
+      .profile-btn > .material-symbols-rounded,
+      .hdr-sep { display: none; }
+      .search-btn { width: 40px; padding: 0; justify-content: center; }
+      .tenant-name,
+      .branch-btn span:not(.material-symbols-rounded) {
+        max-width: 140px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+
+    @media (max-width: 760px) {
+      :host { height: 100dvh; overflow: hidden; }
+      .shell { display: block; height: 100dvh; overflow: hidden; }
+      .shell-main { height: calc(100dvh - 68px); min-width: 0; }
+      .header {
+        height: 58px;
+        min-height: 58px;
+        padding: 0 10px;
+        gap: 8px;
+        justify-content: space-between;
+      }
+      .header-left,
+      .branch-btn,
+      .header-right .hdr-btn[title='Messages'],
+      .lang-btn { display: none; }
+      .header-center { flex: 1 1 auto; min-width: 0; justify-content: flex-start; }
+      .tenant-chip { max-width: 100%; min-width: 0; padding-inline: 10px; }
+      .tenant-name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .header-right { flex: 0 0 auto; gap: 2px; }
+      .hdr-btn { width: 34px; height: 34px; }
+      .profile-btn { height: 36px; padding: 0; }
+      .avatar { width: 32px; height: 32px; }
+      .main-content {
+        height: calc(100dvh - 126px);
+        padding: 16px 12px 20px;
+        overflow-x: hidden;
+        overflow-y: auto;
+      }
+
+      .sidebar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        top: auto;
+        width: 100%;
+        min-width: 0;
+        height: 68px;
+        border-right: 0;
+        border-top: 1px solid var(--ac-border);
+        z-index: 80;
+        box-shadow: 0 -12px 30px rgba(15,23,42,.08);
+      }
+      .shell.collapsed .sidebar { width: 100%; min-width: 0; }
+      .brand,
+      .sidebar-footer,
+      .sidebar-toggle,
+      .nav-group-label,
+      .nav-label,
+      .nav-children { display: none; }
+      .nav {
+        height: 100%;
+        padding: 8px 10px;
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+      }
+      .nav::-webkit-scrollbar { display: none; }
+      .nav-group { display: contents; }
+      .nav-item {
+        width: 46px;
+        min-width: 46px;
+        height: 46px;
+        padding: 0;
+        justify-content: center;
+        border-radius: 14px;
+      }
+      .nav-icon { min-width: 0; font-size: 21px !important; }
+      .nav-item.active {
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ac-primary) 18%, transparent);
+      }
+
+      .notif-panel,
+      .lang-drop,
+      .profile-drop {
+        position: fixed;
+        top: 66px;
+        right: 10px;
+        left: 10px;
+        width: auto;
+        max-height: calc(100dvh - 150px);
+        overflow: auto;
+      }
+      .cp-overlay { padding: 10vh 12px 0; }
+      .cp-modal { width: 100%; }
+      .cp-footer { display: none; }
+      .ai-bot-launcher {
+        right: 12px;
+        bottom: 78px;
+        width: 96px;
+        min-height: 118px;
+        transform: scale(.88);
+        transform-origin: bottom right;
+      }
+      .ai-chat-panel {
+        left: 10px;
+        right: 10px;
+        bottom: 192px;
+        width: auto;
+        max-height: calc(100dvh - 262px);
+        border-radius: 18px;
+      }
+      .ai-chat-body { padding: 12px; }
+      .ai-message { max-width: 92%; }
+    }
+
+    @media (max-width: 380px) {
+      .tenant-name { max-width: 118px; }
+      .main-content { padding-inline: 10px; }
+      .nav { gap: 6px; padding-inline: 8px; }
+      .nav-item { width: 43px; min-width: 43px; }
+      .ai-bot-launcher { right: 6px; transform: scale(.8); }
+      .ai-chat-panel { bottom: 176px; max-height: calc(100dvh - 238px); }
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -1039,7 +1504,20 @@ export class AppShellComponent implements OnInit {
   protected readonly notifOpen    = signal(false);
   protected readonly profileOpen  = signal(false);
   protected readonly langOpen     = signal(false);
+  protected readonly aiAssistantOpen = signal(false);
+  protected readonly aiMessages = signal<AiChatMessage[]>([
+    {
+      role: 'assistant',
+      text: 'Hi, I am AIRA. I can help you find pages, review patient workflows, and answer Care360 questions.'
+    }
+  ]);
   protected cpQuery = '';
+  protected aiPrompt = '';
+  protected readonly aiSuggestions = [
+    'How do I register a patient?',
+    'Open hospital admin',
+    'Show today dashboard'
+  ];
 
   /* ── Route detection ── */
   private readonly currentUrl = toSignal(
@@ -1265,6 +1743,32 @@ export class AppShellComponent implements OnInit {
     this.langOpen.set(false);
   }
 
+  toggleAiAssistant(): void {
+    this.aiAssistantOpen.update(open => !open);
+    this.closeDropdowns();
+  }
+
+  askAiSuggestion(prompt: string): void {
+    this.aiPrompt = prompt;
+    this.sendAiMessage();
+  }
+
+  sendAiMessage(event?: Event): void {
+    event?.preventDefault();
+    const prompt = this.aiPrompt.trim();
+
+    if (!prompt) {
+      return;
+    }
+
+    this.aiPrompt = '';
+    this.aiMessages.update(messages => [
+      ...messages,
+      { role: 'user', text: prompt },
+      { role: 'assistant', text: this.createAiReply(prompt) }
+    ]);
+  }
+
   async logout(): Promise<void> {
     this.profileOpen.set(false);
     const refreshToken = this.authStore.refreshToken();
@@ -1289,7 +1793,26 @@ export class AppShellComponent implements OnInit {
       this.notifOpen.set(false);
       this.profileOpen.set(false);
       this.langOpen.set(false);
+      this.aiAssistantOpen.set(false);
     }
+  }
+
+  private createAiReply(prompt: string): string {
+    const normalizedPrompt = prompt.toLowerCase();
+
+    if (normalizedPrompt.includes('patient') || normalizedPrompt.includes('register')) {
+      return 'Go to Patients and click Register Patient. AIRA can guide the workflow here; live AI answers can be connected once the backend assistant API is available.';
+    }
+
+    if (normalizedPrompt.includes('hospital') || normalizedPrompt.includes('admin')) {
+      return 'Open Hospital Admin from the left menu to manage profile, branches, users, roles, and permissions.';
+    }
+
+    if (normalizedPrompt.includes('dashboard')) {
+      return 'The dashboard gives the operational summary for your hospital. Use the Dashboard menu item to return there.';
+    }
+
+    return 'I have noted your question. The AIRA chat shell is ready; connect it to the assistant API to return live answers from your knowledge base.';
   }
 
   /* ── Toast helpers ── */
