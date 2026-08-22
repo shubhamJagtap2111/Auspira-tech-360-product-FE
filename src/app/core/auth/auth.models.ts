@@ -4,8 +4,19 @@ export interface ApiResponse<T> {
   message: string;
   data: T | null;
   errors: { code: string; localizationKey: string; field?: string | null }[];
-  correlationId: string;
+  correlationId: string | null;
   timestamp: string;
+  traceId?: string | null;
+  requestId?: string | null;
+  problem?: ApiProblemDetails | null;
+}
+
+export interface ApiProblemDetails {
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  instance: string;
 }
 
 export interface LoginRequest {

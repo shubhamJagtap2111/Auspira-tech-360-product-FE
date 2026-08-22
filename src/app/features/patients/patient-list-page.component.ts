@@ -7,6 +7,7 @@ import { AcAdminDrawerComponent } from '../../shared/ui/admin-drawer/admin-drawe
 import { DialogService } from '../../shared/ui/dialog/dialog.service';
 import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
+import { getApiErrorMessage } from '../../core/http/api-error-message';
 import { PatientForm, PatientRegistryStats, PatientSummary } from './patient-management.models';
 import { PatientManagementService } from './patient-management.service';
 
@@ -375,7 +376,7 @@ export class PatientListPageComponent implements OnInit {
     try {
       const response = await this.service.search(this.searchQuery, this.genderFilter, this.statusFilter, pageNumber, this.pageSize());
       if (!response.success || !response.data) {
-        this.toast.error('Unable to load patients', response.message);
+        this.toast.error('Unable to load patients', getApiErrorMessage(response, 'Patient API failed'));
         return;
       }
 
@@ -411,7 +412,7 @@ export class PatientListPageComponent implements OnInit {
   protected async openPatient(patient: PatientSummary): Promise<void> {
     const response = await this.service.get(patient.patientGuid);
     if (!response.success || !response.data) {
-      this.toast.error('Unable to open patient', response.message);
+      this.toast.error('Unable to open patient', getApiErrorMessage(response, 'Patient API failed'));
       return;
     }
 
@@ -441,7 +442,7 @@ export class PatientListPageComponent implements OnInit {
         : await this.service.create(patient);
 
       if (!response.success || !response.data) {
-        this.toast.error('Unable to save patient', response.message);
+        this.toast.error('Unable to save patient', getApiErrorMessage(response, 'Patient API failed'));
         return;
       }
 
@@ -471,7 +472,7 @@ export class PatientListPageComponent implements OnInit {
 
     const response = await this.service.delete(patient.patientGuid);
     if (!response.success) {
-      this.toast.error('Unable to delete patient', response.message);
+      this.toast.error('Unable to delete patient', getApiErrorMessage(response, 'Patient API failed'));
       return;
     }
 
