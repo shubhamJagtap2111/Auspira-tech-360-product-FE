@@ -790,57 +790,49 @@ const fallbackLanguages: Language[] = [
       color: inherit;
     }
     :host ::ng-deep .branch-select .ac-dropdown-panel {
-      min-width: 280px;
+      width: calc(100% + 32px);
+      min-width: 0;
+      max-width: 250px;
       right: auto;
-      left: -40px;
-      top: calc(100% + 12px);
-      padding: 8px;
-      border-radius: 16px;
+      left: -32px;
+      top: calc(100% + 8px);
+      padding: 6px;
+      border-radius: 14px;
       border-color: color-mix(in srgb, var(--ac-primary) 18%, var(--ac-border));
       background:
         linear-gradient(180deg, color-mix(in srgb, var(--ac-surface) 96%, transparent), var(--ac-surface)),
         var(--ac-surface);
-      box-shadow: 0 24px 58px rgba(15, 23, 42, .18);
+      box-shadow: 0 18px 42px rgba(15, 23, 42, .16);
       overflow: auto;
       scrollbar-width: thin;
     }
     :host-context(.dark) ::ng-deep .branch-select .ac-dropdown-panel {
-      box-shadow: 0 24px 58px rgba(0, 0, 0, .44);
+      box-shadow: 0 18px 42px rgba(0, 0, 0, .42);
     }
     :host ::ng-deep .branch-select .ac-dropdown-panel::before {
-      content: '';
-      position: absolute;
-      top: -6px;
-      left: 54px;
-      width: 12px;
-      height: 12px;
-      border-left: 1px solid color-mix(in srgb, var(--ac-primary) 18%, var(--ac-border));
-      border-top: 1px solid color-mix(in srgb, var(--ac-primary) 18%, var(--ac-border));
-      background: var(--ac-surface);
-      transform: rotate(45deg);
-      pointer-events: none;
+      display: none;
     }
     :host ::ng-deep .branch-select .ac-dropdown-option {
-      min-height: 44px;
+      min-height: 38px;
       display: grid;
-      grid-template-columns: 30px minmax(0, 1fr) auto;
-      gap: 10px;
-      border-radius: 12px;
-      padding: 8px 10px;
-      font-size: 13px;
+      grid-template-columns: 24px minmax(0, 1fr) auto;
+      gap: 8px;
+      border-radius: 10px;
+      padding: 6px 8px;
+      font-size: 12.5px;
       font-weight: 800;
     }
     :host ::ng-deep .branch-select .ac-dropdown-option::before {
       content: 'account_tree';
-      width: 30px;
-      height: 30px;
+      width: 24px;
+      height: 24px;
       display: grid;
       place-items: center;
-      border-radius: 10px;
+      border-radius: 8px;
       background: color-mix(in srgb, var(--ac-primary) 10%, transparent);
       color: var(--ac-primary);
       font-family: 'Material Symbols Rounded';
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 400;
       font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 24;
     }
