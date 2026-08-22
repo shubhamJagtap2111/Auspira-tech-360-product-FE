@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { BranchContextService } from '../../../core/context/branch-context.service';
@@ -354,15 +354,23 @@ export class UserListPageComponent implements OnInit {
   protected form: UserFormModel = emptyForm();
   private formBaseline = serializeUserForm(this.form);
   private branchReloadReady = false;
+  private lastBranchCode: string | null = null;
   private readonly branchReloadEffect = effect(() => {
-    this.branchContext.selectedBranchCode();
-    if (this.branchReloadReady && !this.branchFilter.trim()) {
-      void this.loadUsers(1);
+    const branchCode = this.branchContext.selectedBranchCode();
+    if (!this.branchReloadReady) {
+      this.lastBranchCode = branchCode;
+      return;
+    }
+
+    if (branchCode !== this.lastBranchCode && !this.branchFilter.trim()) {
+      this.lastBranchCode = branchCode;
+      untracked(() => void this.loadUsers(1));
     }
   });
 
   async ngOnInit(): Promise<void> {
     await Promise.all([this.loadRoles(), this.loadReferenceData(), this.branchContext.loadBranches()]);
+    this.lastBranchCode = this.branchContext.selectedBranchCode();
     this.branchReloadReady = true;
     await this.loadUsers();
   }
