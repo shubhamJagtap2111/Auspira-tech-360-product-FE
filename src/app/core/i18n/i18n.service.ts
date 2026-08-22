@@ -1,8 +1,10 @@
+import { HttpContext } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { AuthStore } from '../auth/auth.store';
 import { ApiResponse } from '../auth/auth.models';
 import { ApiClientService } from '../http/api-client.service';
+import { SKIP_GLOBAL_LOADER } from '../interceptors/loader.interceptor';
 import { LocaleContextService } from './locale-context.service';
 import { LocalizationCatalog, LocalizationVersion, SeedDataItem } from './i18n.models';
 
@@ -61,14 +63,18 @@ export class I18nService {
 
   private async loadVersion(): Promise<number> {
     const response = await firstValueFrom(
-      this.api.get<ApiResponse<LocalizationVersion> | LocalizationVersion>('/localization/version')
+      this.api.get<ApiResponse<LocalizationVersion> | LocalizationVersion>(
+        '/localization/version',
+        { context: backgroundHttpContext() })
     );
     return unwrapApiResponse(response)?.version ?? 0;
   }
 
   private async loadRemoteCatalog(cultureCode: string): Promise<LocalizationCatalog> {
     const response = await firstValueFrom(
-      this.api.get<ApiResponse<LocalizationCatalog> | LocalizationCatalog>(`/localization/catalog?culture=${encodeURIComponent(cultureCode)}`)
+      this.api.get<ApiResponse<LocalizationCatalog> | LocalizationCatalog>(
+        `/localization/catalog?culture=${encodeURIComponent(cultureCode)}`,
+        { context: backgroundHttpContext() })
     );
     const catalog = unwrapApiResponse(response);
 
@@ -106,6 +112,10 @@ export class I18nService {
   private getCacheKey(cultureCode: string): string {
     return `care360.localization.${cultureCode}`;
   }
+}
+
+function backgroundHttpContext(): HttpContext {
+  return new HttpContext().set(SKIP_GLOBAL_LOADER, true);
 }
 
 function unwrapApiResponse<T>(response: ApiResponse<T> | T): T | null {

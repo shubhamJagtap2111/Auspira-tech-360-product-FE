@@ -51,7 +51,19 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
         </div>
       </header>
 
-      @if (profile(); as form) {
+      @if (loadError()) {
+        <section class="panel error-state">
+          <span class="material-symbols-rounded">cloud_off</span>
+          <div>
+            <h2>{{ t('Common.Errors.UnhandledException') }}</h2>
+            <p>{{ loadError() }}</p>
+          </div>
+          <button class="ac-btn ac-btn-primary" type="button" (click)="loadProfile()">
+            <span class="material-symbols-rounded">refresh</span>
+            {{ t('Administration.Rbac.Actions.Refresh') }}
+          </button>
+        </section>
+      } @else if (profile(); as form) {
         <section class="layout">
           <div class="main-form">
             <section class="panel">
@@ -200,6 +212,11 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
     .layout { align-items: flex-start; }
     .main-form { flex: 1 1 auto; display: flex; flex-direction: column; gap: 12px; }
     .panel { border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; padding: 16px; }
+    .error-state { display: flex; align-items: center; gap: 14px; }
+    .error-state > .material-symbols-rounded { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 8px; color: #b45309; background: rgba(217,119,6,.12); }
+    .error-state h2 { margin: 0 0 4px; font-size: 16px; }
+    .error-state p { margin: 0; color: var(--ac-muted); font-size: 13px; }
+    .error-state .ac-btn { margin-left: auto; }
     .panel h2 { margin: 0 0 14px; font-size: 16px; }
     .form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
     .wide { grid-column: span 2; }
@@ -230,6 +247,7 @@ export class HospitalManagementPageComponent implements OnInit {
   protected readonly profile = signal<HospitalProfile | null>(null);
   protected readonly profileDrawer = signal<HospitalProfileDrawer | null>(null);
   protected readonly saving = signal(false);
+  protected readonly loadError = signal<string | null>(null);
 
   async ngOnInit(): Promise<void> {
     await this.loadProfile();
@@ -272,13 +290,24 @@ export class HospitalManagementPageComponent implements OnInit {
   }
 
   protected async loadProfile(): Promise<void> {
-    const response = await this.service.getProfile();
-    if (response.success && response.data) {
-      this.profile.set(response.data);
-      return;
-    }
+    this.loadError.set(null);
+    try {
+      const response = await this.service.getProfile();
+      if (response.success && response.data) {
+        this.profile.set(response.data);
+        return;
+      }
 
-    this.toast.error(this.t(response.message));
+      this.profile.set(null);
+      const message = this.t(response.message);
+      this.loadError.set(message);
+      this.toast.error(message);
+    } catch {
+      this.profile.set(null);
+      const message = 'The hospital profile did not load. Please check the API service and try again.';
+      this.loadError.set(message);
+      this.toast.error(message);
+    }
   }
 
   protected async saveProfile(): Promise<void> {
