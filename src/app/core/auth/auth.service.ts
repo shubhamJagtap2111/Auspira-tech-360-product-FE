@@ -1,7 +1,9 @@
 import { Injectable, inject } from '@angular/core';
+import { HttpContext } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { ApiClientService } from '../http/api-client.service';
 import { API_BASE_URL } from '../http/api-endpoints';
+import { REQUEST_TIMEOUT_MS, SKIP_GLOBAL_LOADER } from '../interceptors/loader.interceptor';
 import { TenantContextService } from '../tenant/tenant-context.service';
 import {
   ApiResponse,
@@ -83,10 +85,18 @@ export class AuthService {
   }
 
   getCurrentUser(): Promise<CurrentUserProfile> {
-    return firstValueFrom(this.api.get<CurrentUserProfile>('/auth/me'));
+    return firstValueFrom(this.api.get<CurrentUserProfile>('/auth/me', {
+      context: authBootstrapContext()
+    }));
   }
 
   updateCurrentUser(request: UpdateCurrentUserRequest): Promise<ApiResponse<CurrentUserProfile>> {
     return firstValueFrom(this.api.put<ApiResponse<CurrentUserProfile>>('/auth/me', request));
   }
+}
+
+function authBootstrapContext(): HttpContext {
+  return new HttpContext()
+    .set(SKIP_GLOBAL_LOADER, true)
+    .set(REQUEST_TIMEOUT_MS, 10_000);
 }

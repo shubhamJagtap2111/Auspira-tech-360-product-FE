@@ -1,10 +1,11 @@
-import { HttpInterceptorFn } from '@angular/common/http';
+import { HttpContext, HttpInterceptorFn } from '@angular/common/http';
 import { HttpClient } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { catchError, switchMap, throwError } from 'rxjs';
 import { ApiResponse, AuthResponse } from '../auth/auth.models';
 import { AuthStore } from '../auth/auth.store';
 import { API_BASE_URL } from '../http/api-endpoints';
+import { REQUEST_TIMEOUT_MS, SKIP_GLOBAL_LOADER } from './loader.interceptor';
 
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const authStore = inject(AuthStore);
@@ -32,7 +33,15 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
         return throwError(() => error);
       }
 
-      return http.post<ApiResponse<AuthResponse>>(`${apiBaseUrl}/auth/refresh`, { refreshToken: authStore.refreshToken() ?? '' }, { withCredentials: true }).pipe(
+      return http.post<ApiResponse<AuthResponse>>(
+        `${apiBaseUrl}/auth/refresh`,
+        { refreshToken: authStore.refreshToken() ?? '' },
+        {
+          withCredentials: true,
+          context: new HttpContext()
+            .set(SKIP_GLOBAL_LOADER, true)
+            .set(REQUEST_TIMEOUT_MS, 10_000)
+        }).pipe(
         switchMap(response => {
           if (!response.success || !response.data) {
             authStore.clearSession();
