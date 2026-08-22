@@ -170,6 +170,14 @@ const fallbackLanguages: Language[] = [
               <button class="hdr-btn" title="Messages">
                 <span class="material-symbols-rounded">chat_bubble</span>
               </button>
+              <button
+                class="hdr-btn aira-toggle"
+                [class.active]="showAiAssistantBot()"
+                type="button"
+                (click)="toggleAiAssistantBot()"
+                [title]="showAiAssistantBot() ? 'Hide AIRA' : 'Show AIRA'">
+                <span class="material-symbols-rounded">auto_awesome</span>
+              </button>
               <button class="hdr-btn" (click)="toggleDark()" [title]="dark() ? 'Light mode' : 'Dark mode'">
                 <span class="material-symbols-rounded">{{ dark() ? 'light_mode' : 'dark_mode' }}</span>
               </button>
@@ -329,7 +337,7 @@ const fallbackLanguages: Language[] = [
         }
 
         <!-- ════════ AIRA ASSISTANT ════════ -->
-        @if (aiAssistantOpen()) {
+        @if (showAiAssistantBot() && aiAssistantOpen()) {
           <section class="ai-chat-panel" aria-label="AIRA assistant chat">
             <header class="ai-chat-head">
               <div class="ai-chat-title">
@@ -373,18 +381,20 @@ const fallbackLanguages: Language[] = [
           </section>
         }
 
-        <button class="ai-bot-launcher" type="button" [class.chat-open]="aiAssistantOpen()" (click)="toggleAiAssistant()" aria-label="Open AIRA Ask AI">
-          <span class="ai-minimize-dot">
-            <span class="material-symbols-rounded">{{ aiAssistantOpen() ? 'remove' : 'add' }}</span>
-          </span>
-          <span class="ai-bot-art" aria-hidden="true">
-            <img src="assets/brand/aira-doctor-bot.png" alt="" loading="lazy" decoding="async" />
-          </span>
-          <span class="ai-bot-label">
-            <strong>AIRA</strong>
-            <small>Ask AI</small>
-          </span>
-        </button>
+        @if (showAiAssistantBot()) {
+          <button class="ai-bot-launcher" type="button" [class.chat-open]="aiAssistantOpen()" (click)="toggleAiAssistant()" aria-label="Open AIRA Ask AI">
+            <span class="ai-minimize-dot">
+              <span class="material-symbols-rounded">{{ aiAssistantOpen() ? 'remove' : 'add' }}</span>
+            </span>
+            <span class="ai-bot-art" aria-hidden="true">
+              <img src="assets/brand/aira-doctor-bot.png" alt="" loading="lazy" decoding="async" />
+            </span>
+            <span class="ai-bot-label">
+              <strong>AIRA</strong>
+              <small>Ask AI</small>
+            </span>
+          </button>
+        }
 
         <!-- ════════ TOASTS ════════ -->
         <div class="ac-toast-stack">
@@ -722,6 +732,41 @@ const fallbackLanguages: Language[] = [
     }
     .hdr-btn:hover { background: var(--ac-surface-2); color: var(--ac-text); }
     .hdr-btn .material-symbols-rounded { font-size: 20px !important; }
+    .aira-toggle {
+      overflow: hidden;
+      color: var(--ac-primary);
+      border: 1px solid color-mix(in srgb, var(--ac-primary) 12%, transparent);
+      background:
+        radial-gradient(circle at 30% 22%, rgba(8,191,255,.18), transparent 42%),
+        color-mix(in srgb, var(--ac-surface) 92%, white);
+      box-shadow: inset 0 0 0 1px rgba(8,191,255,.06);
+    }
+    .aira-toggle::after {
+      content: '';
+      position: absolute;
+      right: 7px;
+      top: 7px;
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--ac-muted-2);
+      box-shadow: 0 0 0 2px var(--ac-header-bg);
+    }
+    .aira-toggle.active {
+      color: #fff;
+      border-color: transparent;
+      background: linear-gradient(135deg, #08bfff, var(--ac-primary) 54%, var(--ac-secondary));
+      box-shadow: 0 10px 24px rgba(37,99,235,.26);
+    }
+    .aira-toggle.active::after {
+      background: var(--ac-success);
+      box-shadow: 0 0 0 2px var(--ac-header-bg), 0 0 14px rgba(34,197,94,.82);
+    }
+    .aira-toggle:hover {
+      color: #fff;
+      border-color: transparent;
+      background: linear-gradient(135deg, #08bfff, var(--ac-primary) 54%, var(--ac-secondary));
+    }
 
     .notif-btn { position: relative; }
     .notif-dot {
@@ -1524,6 +1569,9 @@ export class AppShellComponent implements OnInit {
   protected readonly profileOpen  = signal(false);
   protected readonly langOpen     = signal(false);
   protected readonly aiAssistantOpen = signal(false);
+  protected readonly showAiAssistantBot = signal<boolean>(
+    localStorage.getItem('ac-aira-visible') !== 'false'
+  );
   protected readonly aiMessages = signal<AiChatMessage[]>([]);
   protected cpQuery = '';
   protected aiPrompt = '';
@@ -1759,7 +1807,24 @@ export class AppShellComponent implements OnInit {
   }
 
   toggleAiAssistant(): void {
+    if (!this.showAiAssistantBot()) {
+      this.showAiAssistantBot.set(true);
+      localStorage.setItem('ac-aira-visible', 'true');
+    }
+
     this.aiAssistantOpen.update(open => !open);
+    this.closeDropdowns();
+  }
+
+  toggleAiAssistantBot(): void {
+    const visible = !this.showAiAssistantBot();
+    this.showAiAssistantBot.set(visible);
+    localStorage.setItem('ac-aira-visible', String(visible));
+
+    if (!visible) {
+      this.aiAssistantOpen.set(false);
+    }
+
     this.closeDropdowns();
   }
 

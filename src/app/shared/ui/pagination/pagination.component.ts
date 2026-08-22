@@ -1,10 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { AcDropdownComponent, DropdownOption } from '../dropdown/dropdown.component';
 
 @Component({
   selector: 'ac-pagination',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule, AcDropdownComponent],
   template: `
     <footer class="ac-pagination">
       <div class="ac-pagination-summary">
@@ -18,11 +20,12 @@ import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from 
       <div class="ac-pagination-actions">
         <label class="page-size">
           <span>Rows</span>
-          <select [value]="pageSize" (change)="changePageSize($event)">
-            @for (size of pageSizeOptions; track size) {
-              <option [value]="size">{{ size }}</option>
-            }
-          </select>
+          <ac-dropdown
+            class="page-size-dropdown"
+            [ngModel]="pageSize"
+            [options]="pageSizeDropdownOptions()"
+            ariaLabel="Rows per page"
+            (ngModelChange)="changePageSize($event)" />
         </label>
 
         <div class="page-controls" aria-label="Pagination">
@@ -70,23 +73,7 @@ import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from 
       font-size: 12.5px;
       font-weight: 700;
     }
-    .page-size select {
-      height: 34px;
-      min-width: 76px;
-      border: 1px solid var(--ac-border);
-      border-radius: var(--ac-r-sm);
-      background: var(--ac-surface);
-      color: var(--ac-text);
-      padding: 0 30px 0 10px;
-      font: inherit;
-      font-weight: 800;
-      cursor: pointer;
-    }
-    .page-size select:focus {
-      outline: none;
-      border-color: var(--ac-primary);
-      box-shadow: 0 0 0 3px color-mix(in srgb, var(--ac-primary) 14%, transparent);
-    }
+    .page-size-dropdown { width: 108px; }
     .page-controls {
       display: flex;
       align-items: center;
@@ -146,7 +133,7 @@ import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from 
         flex-direction: column;
       }
       .page-size,
-      .page-size select,
+      .page-size-dropdown,
       .page-controls {
         width: 100%;
       }
@@ -168,6 +155,13 @@ export class AcPaginationComponent {
   @Input() pageSizeOptions: readonly number[] = [10, 50, 100, 500];
   @Output() pageChange = new EventEmitter<number>();
   @Output() pageSizeChange = new EventEmitter<number>();
+
+  protected pageSizeDropdownOptions(): DropdownOption<number>[] {
+    return this.pageSizeOptions.map(size => ({
+      label: String(size),
+      value: size
+    }));
+  }
 
   protected totalPages(): number {
     return Math.max(1, Math.ceil(this.totalCount / Math.max(this.pageSize, 1)));
@@ -196,8 +190,8 @@ export class AcPaginationComponent {
     }
   }
 
-  protected changePageSize(event: Event): void {
-    const value = Number((event.target as HTMLSelectElement).value);
+  protected changePageSize(pageSize: number | null): void {
+    const value = Number(pageSize);
     if (Number.isFinite(value) && value > 0 && value !== this.pageSize) {
       this.pageSizeChange.emit(value);
     }
