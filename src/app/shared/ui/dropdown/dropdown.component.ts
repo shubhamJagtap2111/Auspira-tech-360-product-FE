@@ -153,11 +153,11 @@ export class AcDropdownComponent<T = string> implements ControlValueAccessor {
   @Input() clearable = false;
   @Input() ariaLabel = '';
   @Input() placement: 'bottom' | 'top' = 'bottom';
+  @Input() disabled = false;
   @Output() selectionChange = new EventEmitter<T | null>();
 
   protected readonly open = signal(false);
   protected value: T | null = null;
-  protected disabled = false;
 
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
   private onChange: (value: T | null) => void = () => undefined;

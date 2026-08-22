@@ -313,6 +313,154 @@ type PatientProfileTab = 'overview' | 'contacts' | 'safety' | 'insurance' | 'doc
       .overview-grid, .detail-grid, .billing-grid, .record-grid { grid-template-columns: 1fr; }
       .patient-avatar { width: 58px; height: 58px; border-radius: 18px; font-size: 20px; }
     }
+
+    .profile-header { padding: 2px 4px; }
+    .back-link {
+      min-height: 40px;
+      padding: 0 12px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      color: var(--ac-muted);
+      font-size: 13.5px;
+      font-weight: 850;
+      text-decoration: none;
+      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    }
+    .back-link:hover {
+      color: var(--ac-primary);
+      background: var(--ac-primary-light);
+      border-color: color-mix(in srgb, var(--ac-primary) 18%, var(--ac-border));
+      transform: translateX(-2px);
+    }
+    .hero-card {
+      position: relative;
+      overflow: hidden;
+      min-height: 154px;
+      padding: 24px 26px;
+      border-color: color-mix(in srgb, var(--ac-primary) 14%, var(--ac-border));
+      background: linear-gradient(120deg, color-mix(in srgb, var(--ac-primary) 13%, var(--ac-surface)) 0%, color-mix(in srgb, #14b8a6 8%, var(--ac-surface)) 52%, var(--ac-surface) 100%);
+      box-shadow: 0 18px 46px rgba(15, 23, 42, 0.07);
+    }
+    .hero-card::before {
+      content: '';
+      position: absolute;
+      inset: 0 0 auto;
+      height: 4px;
+      background: linear-gradient(90deg, var(--ac-primary), #14b8a6, #7c3aed);
+    }
+    .hero-main, .hero-status { position: relative; z-index: 1; }
+    .patient-avatar {
+      width: 76px;
+      height: 76px;
+      border-radius: 20px;
+      outline: 6px solid color-mix(in srgb, var(--ac-surface) 72%, transparent);
+      box-shadow: 0 16px 30px color-mix(in srgb, var(--ac-primary) 22%, transparent);
+    }
+    .hero-main h1 { margin-top: 2px; line-height: 1.06; letter-spacing: 0; }
+    .hero-pills { margin-top: 12px; gap: 8px; }
+    .pill {
+      min-height: 32px;
+      border-color: color-mix(in srgb, var(--ac-border) 75%, var(--ac-surface));
+      background: color-mix(in srgb, var(--ac-surface) 82%, white);
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+      font-weight: 850;
+    }
+    .hero-status {
+      min-width: 210px;
+      padding: 18px;
+      border: 1px solid color-mix(in srgb, var(--ac-border) 82%, var(--ac-surface));
+      border-radius: 18px;
+      background: color-mix(in srgb, var(--ac-surface) 86%, white);
+      box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
+      text-align: right;
+    }
+    .hero-status strong {
+      display: block;
+      margin-top: 8px;
+      color: var(--ac-text);
+      font-size: 17px;
+    }
+    .overview-grid { grid-template-columns: repeat(4, minmax(170px, 1fr)); gap: 14px; }
+    .metric-card {
+      position: relative;
+      overflow: hidden;
+      min-height: 108px;
+      border-color: color-mix(in srgb, var(--ac-border) 84%, var(--ac-surface));
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      inset: 0 0 auto;
+      height: 3px;
+      background: linear-gradient(90deg, var(--ac-primary), color-mix(in srgb, var(--ac-primary) 35%, transparent));
+    }
+    .metric-card:hover {
+      border-color: color-mix(in srgb, var(--ac-primary) 24%, var(--ac-border));
+      box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+      transform: translateY(-2px);
+    }
+    .tab-bar {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      gap: 8px;
+      margin: 2px 0 4px;
+      padding: 8px;
+      overflow-x: auto;
+      border: 1px solid var(--ac-border);
+      border-radius: 18px;
+      background: color-mix(in srgb, var(--ac-surface) 88%, var(--ac-subtle));
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+      scrollbar-width: none;
+    }
+    .tab-bar::-webkit-scrollbar { display: none; }
+    .tab-bar button {
+      min-height: 40px;
+      padding: 0 14px;
+      border-radius: 14px;
+      border-color: transparent;
+      white-space: nowrap;
+    }
+    .tab-bar button.active { box-shadow: 0 10px 22px color-mix(in srgb, var(--ac-primary) 16%, transparent); }
+    .tab-content {
+      overflow: hidden;
+      border-color: color-mix(in srgb, var(--ac-border) 86%, var(--ac-surface));
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.05);
+    }
+    .split-layout, .stacked-section, .record-grid { gap: 16px; }
+    .split-layout > section,
+    .record-card,
+    .detail-grid > div,
+    .billing-grid > div,
+    .empty-state,
+    .timeline li {
+      border-color: color-mix(in srgb, var(--ac-border) 84%, var(--ac-surface));
+      background: color-mix(in srgb, var(--ac-surface) 92%, var(--ac-subtle));
+    }
+    .detail-grid > div, .billing-grid > div { border-radius: 14px; }
+    .empty-state {
+      min-height: 190px;
+      justify-content: center;
+      border-style: dashed;
+      background: linear-gradient(135deg, color-mix(in srgb, var(--ac-primary) 5%, var(--ac-surface)), color-mix(in srgb, #14b8a6 5%, var(--ac-surface)));
+      text-align: center;
+    }
+    .record-card { box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04); }
+
+    @media (max-width: 980px) {
+      .overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 620px) {
+      .patient-profile { gap: 14px; padding-bottom: 18px; }
+      .hero-card { padding: 20px; }
+      .hero-main { align-items: flex-start; }
+      .patient-avatar { width: 64px; height: 64px; border-radius: 18px; }
+      .hero-status { width: 100%; min-width: 0; text-align: left; }
+      .overview-grid { grid-template-columns: 1fr; }
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })

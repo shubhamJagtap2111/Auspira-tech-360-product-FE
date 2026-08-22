@@ -67,6 +67,20 @@ export const routes: Routes = [
       import('./features/patients/patient-list-page.component').then(m => m.PatientListPageComponent)
   },
   {
+    path: 'doctors/:doctorGuid',
+    canActivate: [authGuard, permissionGuard],
+    data: { permission: 'Doctors.View' },
+    loadComponent: () =>
+      import('./features/doctors/doctor-profile-page.component').then(m => m.DoctorProfilePageComponent)
+  },
+  {
+    path: 'doctors',
+    canActivate: [authGuard, permissionGuard],
+    data: { permission: 'Doctors.View' },
+    loadComponent: () =>
+      import('./features/doctors/doctor-list-page.component').then(m => m.DoctorListPageComponent)
+  },
+  {
     path: 'administration/users',
     canActivate: [authGuard, permissionGuard],
     canDeactivate: [pendingChangesGuard],
@@ -124,7 +138,6 @@ export const routes: Routes = [
       import('./features/administration/system-configuration/system-configuration-page.component').then(m => m.SystemConfigurationPageComponent)
   },
   moduleRoute('administration', 'Administration', ['Hospital Management', 'User Management', 'Role Management', 'Permission Management', 'Branch Management', 'Localization']),
-  moduleRoute('doctors', 'Doctor Management', ['Doctor Profiles', 'Availability', 'Specialization', 'Schedule', 'Performance Dashboard']),
   moduleRoute('appointments', 'Appointment Management', ['Calendar View', 'Slot Booking', 'Walk-In Registration', 'Follow-Ups', 'Queue Management']),
   moduleRoute('opd', 'OPD', ['Symptoms', 'Diagnosis', 'Prescription', 'Consultation Notes', 'Attachments', 'Follow-Up Plan']),
   moduleRoute('ipd', 'IPD', ['Admission', 'Discharge', 'Ward Allocation', 'Bed Tracking', 'Nursing Notes', 'Treatment Plans']),

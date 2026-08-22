@@ -1,0 +1,583 @@
+import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { getApiErrorMessage } from '../../core/http/api-error-message';
+import { ToastService } from '../../shared/ui/toast/toast.service';
+import { DoctorProfile } from './doctor-management.models';
+import { DoctorManagementService } from './doctor-management.service';
+
+type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule' | 'fees' | 'credentials' | 'performance' | 'activity';
+
+@Component({
+  standalone: true,
+  imports: [CommonModule, RouterLink],
+  template: `
+    <section class="doctor-profile">
+      <header class="profile-header">
+        <a class="back-link" routerLink="/doctors">
+          <span class="material-symbols-rounded">arrow_back</span>
+          Doctor Registry
+        </a>
+        <button class="ac-btn ac-btn-secondary" type="button" (click)="reload()">
+          <span class="material-symbols-rounded">refresh</span>
+          Refresh
+        </button>
+      </header>
+
+      @if (loading()) {
+        <div class="profile-loader ac-card">Loading doctor profile...</div>
+      } @else if (doctor(); as currentDoctor) {
+        <section class="hero-card ac-card">
+          <div class="hero-main">
+            <div class="doctor-avatar" [style.background]="avatarColor(currentDoctor.doctorGuid)">
+              @if (currentDoctor.profilePhotoUrl) {
+                <img [src]="currentDoctor.profilePhotoUrl" [alt]="currentDoctor.fullName" />
+              } @else {
+                {{ initials(currentDoctor.fullName) }}
+              }
+            </div>
+            <div>
+              <p class="ac-eyebrow">Doctor 360</p>
+              <h1 class="ac-page-title">{{ currentDoctor.fullName }}</h1>
+              <div class="hero-pills">
+                <span class="pill strong"># {{ currentDoctor.doctorCode }}</span>
+                <span class="pill">{{ currentDoctor.departmentName }}</span>
+                <span class="pill">{{ currentDoctor.primarySpecialization }}</span>
+                <span class="pill">{{ currentDoctor.registrationNo }}</span>
+                <span class="pill">{{ currency(currentDoctor.consultationFee) }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="hero-status">
+            <span class="status-dot" [class.warn]="currentDoctor.statusCode !== 'ACTIVE'"></span>
+            <strong>{{ currentDoctor.statusName }}</strong>
+            <small>Joined {{ formatDate(currentDoctor.joiningDate || currentDoctor.createdDate) }}</small>
+          </div>
+        </section>
+
+        <section class="overview-grid">
+          @for (card of overviewCards(); track card.label) {
+            <article class="metric-card ac-card">
+              <span class="material-symbols-rounded" [style.color]="card.color">{{ card.icon }}</span>
+              <div>
+                <strong>{{ card.value }}</strong>
+                <small>{{ card.label }}</small>
+              </div>
+            </article>
+          }
+        </section>
+
+        <nav class="tab-bar ac-card" aria-label="Doctor profile sections">
+          @for (tab of tabs; track tab.id) {
+            <button type="button" [class.active]="activeTab() === tab.id" (click)="activeTab.set(tab.id)">
+              <span class="material-symbols-rounded">{{ tab.icon }}</span>
+              {{ tab.label }}
+            </button>
+          }
+        </nav>
+
+        <section class="tab-content ac-card">
+          @switch (activeTab()) {
+            @case ('overview') {
+              <div class="split-layout">
+                <article>
+                  <h2>Clinical summary</h2>
+                  <div class="detail-grid">
+                    <span><small>Registration</small><strong>{{ currentDoctor.registrationNo }}</strong></span>
+                    <span><small>Council</small><strong>{{ currentDoctor.registrationCouncil || '-' }}</strong></span>
+                    <span><small>Experience</small><strong>{{ currentDoctor.experienceYears }} yrs</strong></span>
+                    <span><small>Branch</small><strong>{{ currentDoctor.branchName }}</strong></span>
+                  </div>
+                </article>
+                <article>
+                  <h2>Patient workflow linkage</h2>
+                  <div class="detail-grid">
+                    <span><small>Appointments</small><strong>{{ currentDoctor.performance.totalAppointments }}</strong></span>
+                    <span><small>Consultations</small><strong>{{ currentDoctor.performance.totalConsultations }}</strong></span>
+                    <span><small>Admissions</small><strong>{{ currentDoctor.performance.admissions }}</strong></span>
+                    <span><small>Revenue</small><strong>{{ currency(currentDoctor.performance.revenue) }}</strong></span>
+                  </div>
+                </article>
+              </div>
+              @if (currentDoctor.bio) {
+                <article class="bio-card">
+                  <h2>Profile note</h2>
+                  <p>{{ currentDoctor.bio }}</p>
+                </article>
+              }
+            }
+            @case ('professional') {
+              <div class="record-grid">
+                @for (department of currentDoctor.departments; track department.mappingGuid) {
+                  <article class="record-card">
+                    <span class="material-symbols-rounded">domain</span>
+                    <div>
+                      <h3>{{ department.departmentName }}</h3>
+                      <p>{{ department.branchName }} · {{ department.isPrimary ? 'Primary' : 'Mapped' }} · {{ department.statusCode }}</p>
+                    </div>
+                  </article>
+                }
+                @for (specialization of currentDoctor.specializations; track specialization.specializationGuid) {
+                  <article class="record-card cyan">
+                    <span class="material-symbols-rounded">workspace_premium</span>
+                    <div>
+                      <h3>{{ specialization.specializationName }}</h3>
+                      <p>{{ specialization.experienceYears }} yrs · {{ specialization.isPrimary ? 'Primary' : 'Secondary' }}</p>
+                    </div>
+                  </article>
+                }
+              </div>
+            }
+            @case ('availability') {
+              <div class="record-grid">
+                @for (availability of currentDoctor.availability; track availability.availabilityGuid) {
+                  <article class="record-card">
+                    <span class="material-symbols-rounded">calendar_clock</span>
+                    <div>
+                      <h3>{{ availability.dayName }}</h3>
+                      <p>{{ availability.startsAt }} - {{ availability.endsAt }} · {{ availability.consultationType }} · {{ availability.branchName }}</p>
+                    </div>
+                  </article>
+                } @empty {
+                  <div class="empty-state">No availability configured yet.</div>
+                }
+              </div>
+            }
+            @case ('schedule') {
+              <div class="stacked-section">
+                <div>
+                  <h2>Schedules</h2>
+                  <div class="record-grid">
+                    @for (schedule of currentDoctor.schedules; track schedule.scheduleGuid) {
+                      <article class="record-card">
+                        <span class="material-symbols-rounded">event_available</span>
+                        <div>
+                          <h3>{{ formatDate(schedule.scheduleDate) }}</h3>
+                          <p>{{ schedule.startsAt || '-' }} - {{ schedule.endsAt || '-' }} · {{ schedule.roomName || 'Room not set' }} · {{ schedule.statusCode }}</p>
+                        </div>
+                      </article>
+                    } @empty {
+                      <div class="empty-state">No schedules created yet.</div>
+                    }
+                  </div>
+                </div>
+                <div>
+                  <h2>Appointment slots</h2>
+                  <div class="record-grid">
+                    @for (slot of currentDoctor.appointmentSlots; track slot.slotGuid) {
+                      <article class="record-card" [class.warning]="slot.isBooked">
+                        <span class="material-symbols-rounded">{{ slot.isBooked ? 'event_busy' : 'event_available' }}</span>
+                        <div>
+                          <h3>{{ formatDateTime(slot.startsAt) }}</h3>
+                          <p>{{ formatTime(slot.startsAt) }} - {{ formatTime(slot.endsAt) }} · {{ slot.isBooked ? 'Booked' : 'Available' }} · {{ slot.maxPatients }} patient capacity</p>
+                        </div>
+                      </article>
+                    } @empty {
+                      <div class="empty-state">No appointment slots generated yet.</div>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+            @case ('fees') {
+              <div class="record-grid">
+                @for (fee of currentDoctor.fees; track fee.feeGuid) {
+                  <article class="record-card">
+                    <span class="material-symbols-rounded">payments</span>
+                    <div>
+                      <h3>{{ currency(fee.amount) }}</h3>
+                      <p>{{ fee.consultationType }} · {{ fee.departmentName }} · {{ fee.patientCategory }}</p>
+                    </div>
+                  </article>
+                } @empty {
+                  <div class="empty-state">No fee slabs configured yet.</div>
+                }
+              </div>
+            }
+            @case ('credentials') {
+              <div class="stacked-section">
+                <div>
+                  <h2>Registrations</h2>
+                  <div class="record-grid">
+                    @for (registration of currentDoctor.registrations; track registration.registrationGuid) {
+                      <article class="record-card">
+                        <span class="material-symbols-rounded">workspace_premium</span>
+                        <div>
+                          <h3>{{ registration.registrationNo }}</h3>
+                          <p>{{ registration.registrationCouncil }} · Expires {{ formatDate(registration.expiryDate) }} · {{ registration.statusCode }}</p>
+                        </div>
+                      </article>
+                    } @empty {
+                      <div class="empty-state">No registration rows available.</div>
+                    }
+                  </div>
+                </div>
+                <div>
+                  <h2>Documents</h2>
+                  <div class="record-grid">
+                    @for (document of currentDoctor.documents; track document.documentGuid) {
+                      <article class="record-card">
+                        <span class="material-symbols-rounded">description</span>
+                        <div>
+                          <h3>{{ document.documentName }}</h3>
+                          <p>{{ document.documentType }} · {{ document.verificationStatus }} · {{ formatDateTime(document.uploadedDate) }}</p>
+                        </div>
+                      </article>
+                    } @empty {
+                      <div class="empty-state">No documents uploaded yet.</div>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+            @case ('performance') {
+              <div class="performance-grid">
+                <div><small>Total appointments</small><strong>{{ currentDoctor.performance.totalAppointments }}</strong></div>
+                <div><small>Completed</small><strong>{{ currentDoctor.performance.completedAppointments }}</strong></div>
+                <div><small>Cancelled</small><strong>{{ currentDoctor.performance.cancelledAppointments }}</strong></div>
+                <div><small>No show</small><strong>{{ currentDoctor.performance.noShowAppointments }}</strong></div>
+                <div><small>Slot utilization</small><strong>{{ currentDoctor.performance.slotUtilization | number:'1.0-0' }}%</strong></div>
+                <div><small>Revenue</small><strong>{{ currency(currentDoctor.performance.revenue) }}</strong></div>
+              </div>
+            }
+            @case ('activity') {
+              <ol class="timeline">
+                @for (activity of currentDoctor.activity; track activity.activityGuid + activity.eventDate) {
+                  <li>
+                    <span></span>
+                    <div>
+                      <strong>{{ activity.eventType }}</strong>
+                      <p>{{ activity.description }}</p>
+                      <small>{{ activity.sourceModule }} · {{ formatDateTime(activity.eventDate) }}</small>
+                    </div>
+                  </li>
+                } @empty {
+                  <div class="empty-state">No doctor activity captured yet.</div>
+                }
+              </ol>
+            }
+          }
+        </section>
+      } @else {
+        <div class="profile-loader ac-card">Doctor profile was not found.</div>
+      }
+    </section>
+  `,
+  styles: `
+    :host { display: block; min-width: 0; }
+    .doctor-profile { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+    .profile-header { display: flex; justify-content: space-between; align-items: center; gap: 14px; }
+    .back-link { color: var(--ac-muted); text-decoration: none; font-weight: 800; display: inline-flex; gap: 8px; align-items: center; }
+    .back-link:hover { color: var(--ac-primary); }
+    .profile-loader { padding: 28px; color: var(--ac-muted); }
+    .hero-card { padding: 28px 30px; display: flex; justify-content: space-between; gap: 20px; align-items: center; background: linear-gradient(120deg, color-mix(in srgb, var(--ac-primary) 10%, var(--ac-surface)), var(--ac-surface)); }
+    .hero-main { display: flex; gap: 18px; align-items: center; min-width: 0; }
+    .doctor-avatar { width: 82px; height: 82px; border-radius: 22px; color: #fff; display: grid; place-items: center; font-weight: 900; font-size: 25px; overflow: hidden; box-shadow: 0 18px 40px rgba(37,99,235,.18); flex: 0 0 82px; }
+    .doctor-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .hero-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .pill { border: 1px solid var(--ac-border); background: var(--ac-surface); color: var(--ac-muted); border-radius: 999px; padding: 7px 11px; font-size: 12.5px; font-weight: 800; }
+    .pill.strong { color: var(--ac-primary); background: var(--ac-primary-light); }
+    .hero-status { display: grid; gap: 4px; justify-items: end; color: var(--ac-muted); }
+    .hero-status strong { color: var(--ac-text); font-size: 18px; }
+    .status-dot { width: 12px; height: 12px; border-radius: 999px; background: #10B981; box-shadow: 0 0 0 5px rgba(16,185,129,.12); }
+    .status-dot.warn { background: #F59E0B; box-shadow-color: rgba(245,158,11,.16); }
+    .overview-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+    .metric-card { display: flex; align-items: center; gap: 14px; padding: 17px 20px; }
+    .metric-card .material-symbols-rounded { width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; background: var(--ac-subtle); }
+    .metric-card strong { display: block; color: var(--ac-text); font-size: 24px; line-height: 1; }
+    .metric-card small { color: var(--ac-muted); }
+    .tab-bar { padding: 8px; display: flex; gap: 8px; overflow-x: auto; }
+    .tab-bar button { min-height: 42px; border: 0; border-radius: 8px; background: transparent; color: var(--ac-muted); font-weight: 800; padding: 0 13px; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; cursor: pointer; }
+    .tab-bar button.active { background: var(--ac-primary-light); color: var(--ac-primary); }
+    .tab-bar .material-symbols-rounded { font-size: 19px; }
+    .tab-content { padding: 24px; min-height: 300px; }
+    h2 { margin: 0 0 14px; color: var(--ac-text); font-size: 18px; }
+    .split-layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .split-layout article, .bio-card { border: 1px solid var(--ac-border); border-radius: 8px; padding: 18px; background: var(--ac-surface); }
+    .bio-card { margin-top: 18px; }
+    .bio-card p { margin: 0; color: var(--ac-muted); line-height: 1.6; }
+    .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .detail-grid span, .performance-grid div { border: 1px solid var(--ac-border); border-radius: 8px; padding: 14px; background: var(--ac-subtle); min-width: 0; }
+    small { color: var(--ac-muted); }
+    .detail-grid small, .performance-grid small { display: block; margin-bottom: 5px; }
+    .detail-grid strong, .performance-grid strong { color: var(--ac-text); overflow-wrap: anywhere; }
+    .record-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .record-card { border: 1px solid var(--ac-border); border-radius: 8px; padding: 16px; display: flex; gap: 12px; align-items: flex-start; background: var(--ac-surface); }
+    .record-card > .material-symbols-rounded { width: 42px; height: 42px; border-radius: 10px; display: grid; place-items: center; background: var(--ac-primary-light); color: var(--ac-primary); flex: 0 0 42px; }
+    .record-card.warning > .material-symbols-rounded { background: #FFF7ED; color: #EA580C; }
+    .record-card.cyan > .material-symbols-rounded { background: #E6F8FC; color: #0891B2; }
+    .record-card h3 { margin: 0; color: var(--ac-text); font-size: 16px; }
+    .record-card p { margin: 5px 0 0; color: var(--ac-muted); line-height: 1.4; }
+    .stacked-section { display: grid; gap: 22px; }
+    .performance-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .performance-grid strong { font-size: 24px; }
+    .timeline { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; }
+    .timeline li { display: grid; grid-template-columns: 18px 1fr; gap: 12px; }
+    .timeline li > span { width: 12px; height: 12px; border-radius: 999px; background: var(--ac-primary); margin-top: 6px; box-shadow: 0 0 0 5px color-mix(in srgb, var(--ac-primary) 15%, transparent); }
+    .timeline strong { color: var(--ac-text); }
+    .timeline p { margin: 4px 0; color: var(--ac-muted); }
+    .empty-state { border: 1px dashed var(--ac-border); border-radius: 8px; padding: 24px; color: var(--ac-muted); text-align: center; }
+    @media (max-width: 1020px) {
+      .overview-grid, .performance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .split-layout, .record-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 680px) {
+      .profile-header, .hero-card, .hero-main { align-items: flex-start; flex-direction: column; }
+      .hero-status { justify-items: start; }
+      .overview-grid, .performance-grid, .detail-grid { grid-template-columns: 1fr; }
+      .tab-content, .hero-card { padding: 18px; }
+    }
+
+    :host { height: 100%; min-height: 0; }
+    .doctor-profile {
+      height: 100%;
+      min-height: 0;
+      overflow: auto;
+      padding: 4px 0 10px;
+      scrollbar-gutter: stable;
+    }
+    .profile-header { padding: 2px 4px; }
+    .back-link {
+      min-height: 40px;
+      padding: 0 12px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      color: var(--ac-muted);
+      font-size: 13.5px;
+      font-weight: 850;
+      text-decoration: none;
+      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+    }
+    .back-link:hover {
+      color: var(--ac-primary);
+      background: var(--ac-primary-light);
+      border-color: color-mix(in srgb, var(--ac-primary) 18%, var(--ac-border));
+      transform: translateX(-2px);
+    }
+    .hero-card {
+      position: relative;
+      overflow: hidden;
+      min-height: 154px;
+      padding: 24px 26px;
+      border-color: color-mix(in srgb, var(--ac-primary) 14%, var(--ac-border));
+      background: linear-gradient(120deg, color-mix(in srgb, var(--ac-primary) 12%, var(--ac-surface)) 0%, color-mix(in srgb, #0891b2 9%, var(--ac-surface)) 52%, var(--ac-surface) 100%);
+      box-shadow: 0 18px 46px rgba(15, 23, 42, 0.07);
+    }
+    .hero-card::before {
+      content: '';
+      position: absolute;
+      inset: 0 0 auto;
+      height: 4px;
+      background: linear-gradient(90deg, var(--ac-primary), #0891b2, #10b981);
+    }
+    .hero-main, .hero-status { position: relative; z-index: 1; }
+    .doctor-avatar {
+      width: 76px;
+      height: 76px;
+      border-radius: 20px;
+      outline: 6px solid color-mix(in srgb, var(--ac-surface) 72%, transparent);
+      box-shadow: 0 16px 30px color-mix(in srgb, var(--ac-primary) 22%, transparent);
+    }
+    .hero-main h1 { margin-top: 2px; line-height: 1.06; letter-spacing: 0; }
+    .hero-pills { margin-top: 12px; gap: 8px; }
+    .pill {
+      min-height: 32px;
+      border-color: color-mix(in srgb, var(--ac-border) 75%, var(--ac-surface));
+      background: color-mix(in srgb, var(--ac-surface) 82%, white);
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+      font-weight: 850;
+    }
+    .hero-status {
+      min-width: 230px;
+      padding: 18px;
+      border: 1px solid color-mix(in srgb, var(--ac-border) 82%, var(--ac-surface));
+      border-radius: 18px;
+      background: color-mix(in srgb, var(--ac-surface) 86%, white);
+      box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
+      text-align: right;
+    }
+    .hero-status strong {
+      display: block;
+      margin-top: 8px;
+      color: var(--ac-text);
+      font-size: 17px;
+    }
+    .overview-grid, .performance-grid {
+      grid-template-columns: repeat(4, minmax(170px, 1fr));
+      gap: 14px;
+    }
+    .metric-card, .performance-card {
+      position: relative;
+      overflow: hidden;
+      min-height: 108px;
+      border-color: color-mix(in srgb, var(--ac-border) 84%, var(--ac-surface));
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .metric-card::before, .performance-card::before {
+      content: '';
+      position: absolute;
+      inset: 0 0 auto;
+      height: 3px;
+      background: linear-gradient(90deg, var(--ac-primary), color-mix(in srgb, var(--ac-primary) 35%, transparent));
+    }
+    .metric-card:hover, .performance-card:hover {
+      border-color: color-mix(in srgb, var(--ac-primary) 24%, var(--ac-border));
+      box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+      transform: translateY(-2px);
+    }
+    .tab-bar {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      gap: 8px;
+      margin: 2px 0 4px;
+      padding: 8px;
+      overflow-x: auto;
+      border: 1px solid var(--ac-border);
+      border-radius: 18px;
+      background: color-mix(in srgb, var(--ac-surface) 88%, var(--ac-subtle));
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+      scrollbar-width: none;
+    }
+    .tab-bar::-webkit-scrollbar { display: none; }
+    .tab-bar button {
+      min-height: 40px;
+      padding: 0 14px;
+      border-radius: 14px;
+      border-color: transparent;
+      white-space: nowrap;
+    }
+    .tab-bar button.active { box-shadow: 0 10px 22px color-mix(in srgb, var(--ac-primary) 16%, transparent); }
+    .tab-content {
+      overflow: hidden;
+      border-color: color-mix(in srgb, var(--ac-border) 86%, var(--ac-surface));
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.05);
+    }
+    .split-layout, .record-grid { gap: 16px; }
+    .split-layout > section,
+    .record-card,
+    .bio-card,
+    .detail-grid > div,
+    .empty-state,
+    .timeline li {
+      border-color: color-mix(in srgb, var(--ac-border) 84%, var(--ac-surface));
+      background: color-mix(in srgb, var(--ac-surface) 92%, var(--ac-subtle));
+    }
+    .detail-grid > div { border-radius: 14px; }
+    .empty-state {
+      min-height: 190px;
+      display: grid;
+      place-items: center;
+      border-style: dashed;
+      background: linear-gradient(135deg, color-mix(in srgb, var(--ac-primary) 5%, var(--ac-surface)), color-mix(in srgb, #0891b2 5%, var(--ac-surface)));
+    }
+    .record-card, .bio-card { box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04); }
+
+    @media (max-width: 1020px) {
+      .overview-grid, .performance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 680px) {
+      .doctor-profile { gap: 14px; padding-bottom: 18px; }
+      .hero-card { padding: 20px; }
+      .hero-main { align-items: flex-start; }
+      .doctor-avatar { width: 64px; height: 64px; border-radius: 18px; }
+      .hero-status { width: 100%; min-width: 0; text-align: left; }
+      .overview-grid, .performance-grid { grid-template-columns: 1fr; }
+    }
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class DoctorProfilePageComponent implements OnInit {
+  protected readonly doctor = signal<DoctorProfile | null>(null);
+  protected readonly loading = signal(false);
+  protected readonly activeTab = signal<DoctorProfileTab>('overview');
+  protected readonly tabs: Array<{ id: DoctorProfileTab; label: string; icon: string }> = [
+    { id: 'overview', label: 'Overview', icon: 'dashboard' },
+    { id: 'professional', label: 'Professional', icon: 'workspace_premium' },
+    { id: 'availability', label: 'Availability', icon: 'calendar_clock' },
+    { id: 'schedule', label: 'Schedule', icon: 'event_available' },
+    { id: 'fees', label: 'Fees', icon: 'payments' },
+    { id: 'credentials', label: 'Credentials', icon: 'verified' },
+    { id: 'performance', label: 'Performance', icon: 'monitoring' },
+    { id: 'activity', label: 'Activity', icon: 'timeline' }
+  ];
+
+  protected readonly overviewCards = computed(() => {
+    const overview = this.doctor()?.overview;
+    return [
+      { label: 'Appointments', value: formatNumber(overview?.totalAppointments ?? 0), icon: 'event', color: '#2563EB' },
+      { label: 'Upcoming', value: formatNumber(overview?.upcomingAppointments ?? 0), icon: 'event_upcoming', color: '#0891B2' },
+      { label: 'Active Patients', value: formatNumber(overview?.activePatients ?? 0), icon: 'groups', color: '#10B981' },
+      { label: 'Revenue', value: this.currency(overview?.revenue ?? 0), icon: 'payments', color: '#7C3AED' }
+    ];
+  });
+
+  private readonly route = inject(ActivatedRoute);
+  private readonly service = inject(DoctorManagementService);
+  private readonly toast = inject(ToastService);
+
+  ngOnInit(): void {
+    void this.reload();
+  }
+
+  protected async reload(): Promise<void> {
+    const doctorGuid = this.route.snapshot.paramMap.get('doctorGuid');
+    if (!doctorGuid) {
+      this.doctor.set(null);
+      return;
+    }
+
+    this.loading.set(true);
+    const response = await this.service.get(doctorGuid);
+    this.loading.set(false);
+
+    if (!response.success || !response.data) {
+      this.toast.error('Unable to load doctor profile', getApiErrorMessage(response, 'Doctor API failed'));
+      this.doctor.set(null);
+      return;
+    }
+
+    this.doctor.set(response.data);
+  }
+
+  protected initials(fullName: string): string {
+    const parts = fullName.trim().split(/\s+/).filter(Boolean);
+    return `${parts[0]?.charAt(0) ?? 'D'}${parts.at(-1)?.charAt(0) ?? 'R'}`.toUpperCase();
+  }
+
+  protected avatarColor(doctorGuid: string): string {
+    const colors = ['#2563EB', '#0891B2', '#7C3AED', '#10B981', '#F59E0B', '#EF4444'];
+    const sum = [...doctorGuid].reduce((total, char) => total + char.charCodeAt(0), 0);
+    return colors[sum % colors.length];
+  }
+
+  protected currency(value: number): string {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value || 0);
+  }
+
+  protected formatDate(value: string | null): string {
+    if (!value) {
+      return '-';
+    }
+
+    return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value));
+  }
+
+  protected formatDateTime(value: string | null): string {
+    if (!value) {
+      return '-';
+    }
+
+    return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+  }
+
+  protected formatTime(value: string): string {
+    return new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+  }
+}
+
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat('en-IN').format(value);
+}
