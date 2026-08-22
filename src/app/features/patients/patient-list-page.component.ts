@@ -181,16 +181,23 @@ import { PatientManagementService } from './patient-management.service';
                     <label class="mobile-field">
                       <span>Mobile</span>
                       <div class="mobile-control">
-                        <select
-                          name="countryIsoCode"
-                          [(ngModel)]="patientForm.countryIsoCode"
-                          (ngModelChange)="setCountry(patientForm, $event)"
-                          aria-label="Country code">
-                          @for (country of countryCodeOptions(); track country.isoCode) {
-                            <option [value]="country.isoCode">{{ country.flag }} {{ country.name }} ({{ country.dialCode }})</option>
-                          }
-                        </select>
-                        <input name="mobileNumber" [(ngModel)]="patientForm.mobileNumber" inputmode="tel" placeholder="8230394902" />
+                        <span class="country-select-shell">
+                          <img
+                            class="country-flag"
+                            [src]="flagUrl(patientForm.countryIsoCode)"
+                            [alt]="selectedCountryName(patientForm.countryIsoCode) + ' flag'"
+                            loading="lazy" />
+                          <select
+                            name="countryIsoCode"
+                            [(ngModel)]="patientForm.countryIsoCode"
+                            (ngModelChange)="setCountry(patientForm, $event)"
+                            aria-label="Country code">
+                            @for (country of countryCodeOptions(); track country.isoCode) {
+                              <option [value]="country.isoCode">{{ country.name }} ({{ country.dialCode }})</option>
+                            }
+                          </select>
+                        </span>
+                        <input class="mobile-number-input" name="mobileNumber" [(ngModel)]="patientForm.mobileNumber" inputmode="tel" placeholder="8230394902" />
                       </div>
                     </label>
                     <label>
