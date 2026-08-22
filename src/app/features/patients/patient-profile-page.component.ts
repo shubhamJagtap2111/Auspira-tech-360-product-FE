@@ -27,38 +27,40 @@ type PatientProfileTab = 'overview' | 'contacts' | 'safety' | 'insurance' | 'doc
       @if (loading()) {
         <div class="profile-loader ac-card">Loading patient profile...</div>
       } @else if (patient(); as currentPatient) {
-        <section class="hero-card ac-card">
-          <div class="hero-main">
-            <div class="patient-avatar" [style.background]="avatarColor(currentPatient.patientGuid)">{{ initials(currentPatient) }}</div>
-            <div>
-              <p class="ac-eyebrow">Patient 360</p>
-              <h1 class="ac-page-title">{{ currentPatient.fullName }}</h1>
-              <div class="hero-pills">
-                <span class="pill strong"># {{ currentPatient.medicalRecordNo }}</span>
-                <span class="pill">{{ displayAge(currentPatient.age) }}</span>
-                <span class="pill">{{ currentPatient.genderName }}</span>
-                <span class="pill">{{ currentPatient.bloodGroupName }}</span>
-                <span class="pill">{{ currentPatient.mobileNo }}</span>
+        <section class="patient-summary-card ac-card">
+          <div class="hero-card">
+            <div class="hero-main">
+              <div class="patient-avatar" [style.background]="avatarColor(currentPatient.patientGuid)">{{ initials(currentPatient) }}</div>
+              <div>
+                <p class="ac-eyebrow">Patient 360</p>
+                <h1 class="ac-page-title">{{ currentPatient.fullName }}</h1>
+                <div class="hero-pills">
+                  <span class="pill strong"># {{ currentPatient.medicalRecordNo }}</span>
+                  <span class="pill">{{ displayAge(currentPatient.age) }}</span>
+                  <span class="pill">{{ currentPatient.genderName }}</span>
+                  <span class="pill">{{ currentPatient.bloodGroupName }}</span>
+                  <span class="pill">{{ currentPatient.mobileNo }}</span>
+                </div>
               </div>
             </div>
+            <div class="hero-status">
+              <span class="status-dot"></span>
+              <strong>{{ currentPatient.statusName }}</strong>
+              <small>Registered {{ formatDate(currentPatient.createdDate) }}</small>
+            </div>
           </div>
-          <div class="hero-status">
-            <span class="status-dot"></span>
-            <strong>{{ currentPatient.statusName }}</strong>
-            <small>Registered {{ formatDate(currentPatient.createdDate) }}</small>
-          </div>
-        </section>
 
-        <section class="overview-grid">
-          @for (card of overviewCards(); track card.label) {
-            <article class="metric-card ac-card">
-              <span class="material-symbols-rounded" [style.color]="card.color">{{ card.icon }}</span>
-              <div>
-                <strong>{{ card.value }}</strong>
-                <small>{{ card.label }}</small>
-              </div>
-            </article>
-          }
+          <section class="overview-grid summary-kpis">
+            @for (card of overviewCards(); track card.label) {
+              <article class="metric-card">
+                <span class="material-symbols-rounded" [style.color]="card.color">{{ card.icon }}</span>
+                <div>
+                  <strong>{{ card.value }}</strong>
+                  <small>{{ card.label }}</small>
+                </div>
+              </article>
+            }
+          </section>
         </section>
 
         <nav class="tab-bar ac-card" aria-label="Patient profile sections">
@@ -619,6 +621,11 @@ type PatientProfileTab = 'overview' | 'contacts' | 'safety' | 'insurance' | 'doc
       min-height: 120px;
       padding: 18px;
       border-radius: 10px;
+      grid-column: 1 / -1;
+      width: 100%;
+      display: grid;
+      place-items: center;
+      align-content: center;
     }
 
     @media (max-width: 620px) {
@@ -638,6 +645,125 @@ type PatientProfileTab = 'overview' | 'contacts' | 'safety' | 'insurance' | 'doc
       }
       .tab-content {
         padding: 12px;
+      }
+    }
+
+    .patient-summary-card {
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 12px;
+      border-color: color-mix(in srgb, var(--ac-primary) 14%, var(--ac-border));
+      background: linear-gradient(120deg, color-mix(in srgb, var(--ac-primary) 9%, var(--ac-surface)) 0%, color-mix(in srgb, #14b8a6 6%, var(--ac-surface)) 52%, var(--ac-surface) 100%);
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+    }
+    .patient-summary-card::before {
+      content: '';
+      position: absolute;
+      inset: 0 0 auto;
+      height: 4px;
+      background: linear-gradient(90deg, var(--ac-primary), #14b8a6, #7c3aed);
+    }
+    .patient-summary-card .hero-card {
+      min-height: 0;
+      padding: 12px 12px 8px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+    .patient-summary-card .hero-card::before {
+      display: none;
+    }
+    .patient-summary-card .hero-main {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .patient-summary-card .patient-avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      font-size: 20px;
+      outline-width: 4px;
+      box-shadow: 0 10px 22px color-mix(in srgb, var(--ac-primary) 18%, transparent);
+    }
+    .patient-summary-card .hero-main h1 {
+      font-size: 23px;
+    }
+    .patient-summary-card .hero-pills {
+      margin-top: 7px;
+    }
+    .patient-summary-card .hero-status {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      column-gap: 9px;
+      row-gap: 2px;
+      min-width: 210px;
+      padding: 10px 12px;
+      text-align: left;
+    }
+    .patient-summary-card .hero-status .status-dot {
+      grid-row: 1 / span 2;
+    }
+    .patient-summary-card .hero-status strong {
+      margin: 0;
+      line-height: 1.1;
+    }
+    .summary-kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      padding-top: 10px;
+      border-top: 1px solid color-mix(in srgb, var(--ac-border) 76%, transparent);
+    }
+    .summary-kpis .metric-card {
+      min-height: 58px;
+      padding: 9px 11px;
+      border: 1px solid color-mix(in srgb, var(--ac-border) 82%, var(--ac-surface));
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--ac-surface) 82%, transparent);
+      box-shadow: none;
+    }
+    .summary-kpis .metric-card::before {
+      display: none;
+    }
+    .summary-kpis .metric-card .material-symbols-rounded {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--ac-primary) 7%, var(--ac-surface));
+      font-size: 18px;
+    }
+    .summary-kpis .metric-card strong {
+      font-size: 20px;
+    }
+    .summary-kpis .metric-card small {
+      margin-top: 2px;
+      font-size: 12px;
+    }
+
+    @media (max-width: 980px) {
+      .summary-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 620px) {
+      .patient-summary-card {
+        padding: 10px;
+      }
+      .patient-summary-card .hero-card {
+        padding: 10px;
+      }
+      .patient-summary-card .hero-status {
+        width: 100%;
+        min-width: 0;
+      }
+      .summary-kpis {
+        grid-template-columns: 1fr;
       }
     }
   `,
