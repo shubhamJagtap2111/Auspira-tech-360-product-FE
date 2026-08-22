@@ -10,6 +10,7 @@ import { AdministrationDashboard } from '../dashboard/administration-dashboard.m
 import { AdministrationDashboardService } from '../dashboard/administration-dashboard.service';
 
 type ProfileTab = 'personal' | 'security' | 'preferences' | 'notifications' | 'sessions';
+type PreferenceCode = 'darkMode' | 'desktopNotifications' | 'emailDigest' | 'autoDetectLanguage';
 
 interface ProfileSessionItem {
   id: string;
@@ -24,6 +25,16 @@ interface ProfileFormModel {
   firstName: string;
   lastName: string;
   mobileNo: string;
+}
+
+interface ProfilePreference {
+  code: PreferenceCode;
+  icon: string;
+  label: string;
+  desc: string;
+  bg: string;
+  color: string;
+  enabled: boolean;
 }
 
 @Component({
@@ -224,7 +235,7 @@ interface ProfileFormModel {
                 <p class="section-sub">Customize your Care360 experience.</p>
               </div>
               <div class="prefs-list">
-                @for (pref of preferences; track pref.label) {
+                @for (pref of preferences; track pref.code) {
                   <div class="pref-item">
                     <div class="pref-icon" [style.background]="pref.bg">
                       <span class="material-symbols-rounded" style="font-size:18px" [style.color]="pref.color">{{ pref.icon }}</span>
@@ -233,9 +244,9 @@ interface ProfileFormModel {
                       <p class="pref-title">{{ pref.label }}</p>
                       <p class="pref-desc">{{ pref.desc }}</p>
                     </div>
-                    <div class="toggle" [class.on]="pref.enabled" (click)="pref.enabled = !pref.enabled">
+                    <button type="button" class="toggle" [class.on]="pref.enabled" (click)="togglePreference(pref)">
                       <div class="toggle-knob"></div>
-                    </div>
+                    </button>
                   </div>
                 }
               </div>
@@ -243,11 +254,11 @@ interface ProfileFormModel {
               <div class="form-row" style="margin-top:16px">
                 <div class="form-group">
                   <label class="form-label">Language</label>
-                  <ac-dropdown name="profileLanguage" [(ngModel)]="profileLanguage" [options]="languageOptions" />
+                  <ac-dropdown name="profileLanguage" [(ngModel)]="profileLanguage" [options]="languageOptions" placement="top" (selectionChange)="savePreferences()" />
                 </div>
                 <div class="form-group">
                   <label class="form-label">Timezone</label>
-                  <ac-dropdown name="profileTimezone" [(ngModel)]="profileTimezone" [options]="timeZoneOptions" />
+                  <ac-dropdown name="profileTimezone" [(ngModel)]="profileTimezone" [options]="timeZoneOptions" placement="top" (selectionChange)="savePreferences()" />
                 </div>
               </div>
             </div>
@@ -426,6 +437,7 @@ interface ProfileFormModel {
     .pref-desc  { font-size: 12px; color: var(--ac-muted); margin-top: 1px; }
     .toggle {
       width: 42px; height: 24px; border-radius: var(--ac-r-full);
+      border: 0; padding: 0;
       background: var(--ac-surface-3); position: relative; cursor: pointer;
       transition: background 0.25s; flex-shrink: 0;
     }
@@ -520,11 +532,11 @@ export class ProfilePageComponent implements OnInit {
     { value: formatNumber(this.assignedModuleCount()), label: 'Modules assigned' }
   ]);
 
-  protected preferences = [
-    { icon: 'dark_mode',     label: 'Dark Mode',            desc: 'Toggle between light and dark theme',     bg: 'rgba(37,99,235,0.08)',   color: '#2563EB', enabled: false },
-    { icon: 'notifications', label: 'Desktop Notifications', desc: 'Show browser notifications',             bg: 'rgba(245,158,11,0.08)',  color: '#F59E0B', enabled: true  },
-    { icon: 'mail',          label: 'Email Digest',          desc: 'Daily summary of key activities',         bg: 'rgba(16,185,129,0.08)',  color: '#10B981', enabled: true  },
-    { icon: 'language',      label: 'Auto-Detect Language',  desc: 'Use browser language preference',         bg: 'rgba(124,58,237,0.08)', color: '#7C3AED', enabled: false }
+  protected preferences: ProfilePreference[] = [
+    { code: 'darkMode',             icon: 'dark_mode',     label: 'Dark Mode',             desc: 'Toggle between light and dark theme', bg: 'rgba(37,99,235,0.08)',   color: '#2563EB', enabled: false },
+    { code: 'desktopNotifications', icon: 'notifications', label: 'Desktop Notifications', desc: 'Show browser notifications',         bg: 'rgba(245,158,11,0.08)',  color: '#F59E0B', enabled: true  },
+    { code: 'emailDigest',          icon: 'mail',          label: 'Email Digest',          desc: 'Daily summary of key activities',     bg: 'rgba(16,185,129,0.08)',  color: '#10B981', enabled: true  },
+    { code: 'autoDetectLanguage',   icon: 'language',      label: 'Auto-Detect Language',  desc: 'Use browser language preference',     bg: 'rgba(124,58,237,0.08)', color: '#7C3AED', enabled: false }
   ];
 
   protected readonly twoFaMethods = [
@@ -596,7 +608,8 @@ export class ProfilePageComponent implements OnInit {
         mobileNo: this.profileForm.mobileNo.trim() || null,
         languageCode: this.profileLanguage || profile.languageCode,
         timeZoneCode: this.profileTimezone || profile.timeZoneCode,
-        rowVersion: profile.rowVersion
+        rowVersion: profile.rowVersion,
+        ...this.preferencePayload()
       });
 
       if (!response.success || !response.data) {
@@ -614,11 +627,52 @@ export class ProfilePageComponent implements OnInit {
     }
   }
 
+  protected async togglePreference(pref: ProfilePreference): Promise<void> {
+    pref.enabled = !pref.enabled;
+    if (pref.code === 'darkMode') {
+      this.applyDarkMode(pref.enabled);
+    }
+    await this.savePreferences();
+  }
+
+  protected async savePreferences(): Promise<void> {
+    const profile = this.profile();
+    if (!profile || this.savingProfile()) {
+      return;
+    }
+
+    this.savingProfile.set(true);
+    try {
+      const response = await this.authService.updateCurrentUser({
+        fullName: profile.fullName,
+        mobileNo: profile.mobileNo,
+        languageCode: this.profileLanguage || profile.languageCode,
+        timeZoneCode: this.profileTimezone || profile.timeZoneCode,
+        rowVersion: profile.rowVersion,
+        ...this.preferencePayload()
+      });
+
+      if (!response.success || !response.data) {
+        this.toast.error(response.message);
+        this.syncPreferences(profile);
+        return;
+      }
+
+      this.profile.set(response.data);
+      this.syncPreferences(response.data);
+      this.refreshStoredSession(response.data);
+      this.toast.success('Preferences updated');
+    } finally {
+      this.savingProfile.set(false);
+    }
+  }
+
   private async loadProfile(): Promise<void> {
     const profile = await this.authService.getCurrentUser();
     this.profile.set(profile);
     this.profileLanguage = profile.languageCode || this.profileLanguage;
     this.profileTimezone = profile.timeZoneCode || this.profileTimezone;
+    this.syncPreferences(profile);
     this.syncProfileForm();
   }
 
@@ -672,6 +726,42 @@ export class ProfilePageComponent implements OnInit {
     });
   }
 
+  private preferencePayload() {
+    return {
+      themeMode: this.preferenceEnabled('darkMode') ? 'dark' : 'light',
+      desktopNotificationsEnabled: this.preferenceEnabled('desktopNotifications'),
+      emailDigestEnabled: this.preferenceEnabled('emailDigest'),
+      autoDetectLanguageEnabled: this.preferenceEnabled('autoDetectLanguage')
+    };
+  }
+
+  private preferenceEnabled(code: PreferenceCode): boolean {
+    return this.preferences.find(pref => pref.code === code)?.enabled ?? false;
+  }
+
+  private setPreference(code: PreferenceCode, enabled: boolean): void {
+    const pref = this.preferences.find(item => item.code === code);
+    if (pref) {
+      pref.enabled = enabled;
+    }
+  }
+
+  private syncPreferences(profile: CurrentUserProfile): void {
+    this.profileLanguage = profile.languageCode || this.profileLanguage;
+    this.profileTimezone = profile.timeZoneCode || this.profileTimezone;
+    this.setPreference('darkMode', profile.themeMode === 'dark');
+    this.setPreference('desktopNotifications', profile.desktopNotificationsEnabled);
+    this.setPreference('emailDigest', profile.emailDigestEnabled);
+    this.setPreference('autoDetectLanguage', profile.autoDetectLanguageEnabled);
+    this.applyDarkMode(this.preferenceEnabled('darkMode'));
+  }
+
+  private applyDarkMode(enabled: boolean): void {
+    document.documentElement.classList.toggle('dark', enabled);
+    localStorage.setItem('ac-dark', String(enabled));
+    window.dispatchEvent(new CustomEvent<boolean>('ac-dark-preference', { detail: enabled }));
+  }
+
   private actionsLogged(): number {
     return this.dashboard()?.auditSummary.reduce((total, item) => total + item.eventCount, 0) ?? 0;
   }
@@ -704,11 +794,24 @@ function mapSession(session: AuthenticationSession): ProfileSessionItem {
   return {
     id: session.sessionId,
     icon: detectDeviceIcon(session.userAgent),
-    device: session.machineName?.trim() || browser || 'Active device',
-    location: session.ipAddress?.trim() || 'Location not captured',
+    device: browser ? `${browser} session` : 'Active device',
+    location: formatSessionLocation(session),
     browser: browser || 'Browser not captured',
-    time: formatRelativeDate(session.lastUsedDate ?? session.createdDate)
+    time: `Last login ${formatRelativeDate(session.lastUsedDate ?? session.createdDate)}`
   };
+}
+
+function formatSessionLocation(session: AuthenticationSession): string {
+  const namedLocation = session.locationName?.trim();
+  if (namedLocation) {
+    return namedLocation;
+  }
+
+  if (typeof session.latitude === 'number' && typeof session.longitude === 'number') {
+    return `${session.latitude.toFixed(5)}, ${session.longitude.toFixed(5)}`;
+  }
+
+  return session.ipAddress?.trim() || 'Location not captured';
 }
 
 function formatMemberSince(value: string | null | undefined): string {

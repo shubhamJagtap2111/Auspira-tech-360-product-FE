@@ -25,9 +25,11 @@ export class AuthService {
   private readonly apiBaseUrl = inject(API_BASE_URL);
   private readonly tenantContext = inject(TenantContextService);
 
-  login(request: LoginRequest): Promise<ApiResponse<AuthResponse>> {
+  async login(request: LoginRequest): Promise<ApiResponse<AuthResponse>> {
+    const location = await getBrowserLocation();
     return firstValueFrom(this.api.post<ApiResponse<AuthResponse>>('/auth/login', {
       ...request,
+      ...location,
       tenantCode: request.tenantCode ?? (this.tenantContext.tenantCode() || null)
     }));
   }
@@ -114,4 +116,22 @@ function isCurrentUserProfile(value: CurrentUserProfile | null | undefined): val
     typeof value.email === 'string' &&
     typeof value.fullName === 'string' &&
     Array.isArray(value.permissions));
+}
+
+function getBrowserLocation(): Promise<Pick<LoginRequest, 'latitude' | 'longitude' | 'locationName'>> {
+  if (typeof navigator === 'undefined' || !navigator.geolocation) {
+    return Promise.resolve({});
+  }
+
+  return new Promise(resolve => {
+    navigator.geolocation.getCurrentPosition(
+      position => resolve({
+        latitude: Number(position.coords.latitude.toFixed(7)),
+        longitude: Number(position.coords.longitude.toFixed(7)),
+        locationName: null
+      }),
+      () => resolve({}),
+      { enableHighAccuracy: false, maximumAge: 300_000, timeout: 3_500 }
+    );
+  });
 }

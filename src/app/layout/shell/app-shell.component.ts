@@ -1775,6 +1775,11 @@ export class AppShellComponent implements OnInit {
     });
   }
 
+  @HostListener('window:ac-dark-preference', ['$event'])
+  syncDarkPreference(event: CustomEvent<boolean>): void {
+    this.dark.set(Boolean(event.detail));
+  }
+
   toggleNotifications(): void {
     this.notifOpen.update(open => !open);
     this.profileOpen.set(false);

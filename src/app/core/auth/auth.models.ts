@@ -24,6 +24,9 @@ export interface LoginRequest {
   password: string;
   rememberMe: boolean;
   tenantCode?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  locationName?: string | null;
 }
 
 export interface RefreshTokenRequest {
@@ -58,6 +61,9 @@ export interface AuthenticationSession {
   ipAddress: string | null;
   machineName: string | null;
   userAgent: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  locationName: string | null;
 }
 
 export interface AuthMenuItem {
@@ -110,6 +116,10 @@ export interface CurrentUserProfile {
   isActive: boolean;
   createdDate: string | null;
   modifiedDate: string | null;
+  themeMode: string;
+  desktopNotificationsEnabled: boolean;
+  emailDigestEnabled: boolean;
+  autoDetectLanguageEnabled: boolean;
   rowVersion: string;
 }
 
@@ -119,4 +129,8 @@ export interface UpdateCurrentUserRequest {
   languageCode: string | null;
   timeZoneCode: string | null;
   rowVersion: string;
+  themeMode?: string | null;
+  desktopNotificationsEnabled?: boolean | null;
+  emailDigestEnabled?: boolean | null;
+  autoDetectLanguageEnabled?: boolean | null;
 }
