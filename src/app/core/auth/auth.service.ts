@@ -101,6 +101,10 @@ export class AuthService {
   updateCurrentUser(request: UpdateCurrentUserRequest): Promise<ApiResponse<CurrentUserProfile>> {
     return firstValueFrom(this.api.put<ApiResponse<CurrentUserProfile>>('/auth/me', request));
   }
+
+  uploadCurrentUserProfileImage(fileName: string, contentType: string, base64Content: string): Promise<ApiResponse<CurrentUserProfile>> {
+    return firstValueFrom(this.api.put<ApiResponse<CurrentUserProfile>>('/auth/me/profile-image', { fileName, contentType, base64Content }));
+  }
 }
 
 function authBootstrapContext(): HttpContext {

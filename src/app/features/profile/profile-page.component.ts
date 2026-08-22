@@ -4,6 +4,7 @@ import { AuthService } from '../../core/auth/auth.service';
 import { AuthStore } from '../../core/auth/auth.store';
 import { AuthenticationSession, AuthResponse, CurrentUserProfile } from '../../core/auth/auth.models';
 import { getUserRoleLabel } from '../../core/auth/user-access';
+import { API_BASE_URL } from '../../core/http/api-endpoints';
 import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { AdministrationDashboard } from '../dashboard/administration-dashboard.models';
@@ -56,8 +57,15 @@ interface ProfilePreference {
       <div class="ac-card profile-hero">
         <div class="hero-left">
           <div class="avatar-upload">
-            <div class="big-avatar">{{ userInitials() }}</div>
-            <button class="upload-btn" title="Upload photo">
+            <div class="big-avatar">
+              @if (profileImageUrl()) {
+                <img class="avatar-image" [src]="profileImageUrl()" alt="Profile photo" />
+              } @else {
+                {{ userInitials() }}
+              }
+            </div>
+            <input #avatarInput type="file" accept="image/png,image/jpeg" hidden (change)="uploadProfileImage($event)" />
+            <button type="button" class="upload-btn" title="Upload photo" (click)="avatarInput.click()" [disabled]="savingProfile()">
               <span class="material-symbols-rounded" style="font-size:16px">photo_camera</span>
             </button>
           </div>
@@ -352,7 +360,9 @@ interface ProfilePreference {
       width: 72px; height: 72px; border-radius: 18px;
       background: linear-gradient(135deg, var(--ac-primary), var(--ac-secondary));
       color: #fff; font-size: 22px; font-weight: 800;
+      overflow: hidden;
     }
+    .avatar-image { width: 100%; height: 100%; object-fit: cover; display: block; }
     .upload-btn {
       position: absolute; bottom: -4px; right: -4px;
       display: flex; align-items: center; justify-content: center;
@@ -481,6 +491,7 @@ export class ProfilePageComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly dashboardService = inject(AdministrationDashboardService);
   private readonly toast = inject(ToastService);
+  private readonly apiBaseUrl = inject(API_BASE_URL);
 
   protected readonly activeTab = signal<ProfileTab>('personal');
   protected readonly profile = signal<CurrentUserProfile | null>(null);
@@ -503,6 +514,21 @@ export class ProfilePageComponent implements OnInit {
   });
   protected readonly isAccountActive = computed(() => this.profile()?.isActive ?? true);
   protected readonly userInitials = computed(() => getInitials(this.displayName(), this.displayEmail()));
+  protected readonly profileImageUrl = computed(() => {
+    const profile = this.profile();
+    const path = profile?.profileImagePath?.trim();
+    if (!profile || !path) {
+      return '';
+    }
+
+    if (/^https?:\/\//i.test(path)) {
+      return path;
+    }
+
+    const apiRoot = this.apiBaseUrl.replace(/\/api\/v\d+\/?$/i, '');
+    const version = encodeURIComponent(profile.modifiedDate ?? profile.rowVersion ?? '');
+    return `${apiRoot}/${path.replace(/^\/+/, '')}${version ? `?v=${version}` : ''}`;
+  });
   protected readonly firstName = computed(() => this.nameParts()[0] ?? '');
   protected readonly lastName = computed(() => this.nameParts().slice(1).join(' '));
   private readonly nameParts = computed(() => this.displayName().split(/\s+/).filter(Boolean));
@@ -622,6 +648,31 @@ export class ProfilePageComponent implements OnInit {
       this.refreshStoredSession(response.data);
       this.editingProfile.set(false);
       this.toast.success('Profile details updated');
+    } finally {
+      this.savingProfile.set(false);
+    }
+  }
+
+  protected async uploadProfileImage(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file || this.savingProfile()) {
+      return;
+    }
+
+    this.savingProfile.set(true);
+    try {
+      const base64Content = await readFileAsBase64(file);
+      const response = await this.authService.uploadCurrentUserProfileImage(file.name, file.type, base64Content);
+      if (!response.success || !response.data) {
+        this.toast.error(response.message);
+        return;
+      }
+
+      this.profile.set(response.data);
+      this.refreshStoredSession(response.data);
+      this.toast.success('Profile image uploaded');
     } finally {
       this.savingProfile.set(false);
     }
@@ -799,6 +850,18 @@ function mapSession(session: AuthenticationSession): ProfileSessionItem {
     browser: browser || 'Browser not captured',
     time: `Last login ${formatRelativeDate(session.lastUsedDate ?? session.createdDate)}`
   };
+}
+
+function readFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const value = String(reader.result ?? '');
+      resolve(value.includes(',') ? value.split(',').pop() ?? '' : value);
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
 
 function formatSessionLocation(session: AuthenticationSession): string {
