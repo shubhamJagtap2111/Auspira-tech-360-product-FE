@@ -166,27 +166,46 @@ interface HospitalPulseItem {
               </footer>
             </article>
 
-            <article class="panel">
-              <div class="section-head">
-                <h2>{{ t('Administration.Dashboard.Widgets.Notifications') }}</h2>
-                <span>{{ model.summary.notificationTemplateCount }} {{ t('Administration.Dashboard.Labels.TemplatesConfigured') }}</span>
+            <div class="dashboard-side-stack">
+              <article class="panel">
+                <div class="section-head">
+                  <h2>{{ t('Administration.Dashboard.Widgets.Notifications') }}</h2>
+                  <span>{{ model.summary.notificationTemplateCount }} {{ t('Administration.Dashboard.Labels.TemplatesConfigured') }}</span>
+                </div>
+                <div class="template-list">
+                  @for (item of model.notifications; track item.templateCode + item.channelCode + item.languageCode) {
+                    <div class="template-row">
+                      <strong>{{ item.templateCode }}</strong>
+                      <span>{{ t('Administration.SystemConfiguration.Channel.' + item.channelCode) }} - {{ item.languageCode }}</span>
+                    </div>
+                  } @empty {
+                    <div class="notification-empty">
+                      <span class="material-symbols-rounded">notifications_active</span>
+                      <strong>No templates yet</strong>
+                      <p>Prepare SMS, email, and reminder templates so hospital communication can run without manual follow-up.</p>
+                      <a routerLink="/administration/system-configuration">Open configuration</a>
+                    </div>
+                  }
+                </div>
+              </article>
+
+              <div class="status-stack">
+                <div class="status-block compact">
+                  <span class="material-symbols-rounded">verified</span>
+                  <p>{{ t('Administration.Dashboard.Widgets.LicenseStatus') }}</p>
+                  <strong class="status-value" [class]="statusToneClass(model.summary.licenseStatusCode)">
+                    <i></i>{{ t('Administration.Dashboard.License.' + model.summary.licenseStatusCode) }}
+                  </strong>
+                </div>
+                <div class="status-block compact">
+                  <span class="material-symbols-rounded">workspace_premium</span>
+                  <p>{{ t('Administration.Dashboard.Widgets.SubscriptionStatus') }}</p>
+                  <strong class="status-value" [class]="statusToneClass(model.summary.subscriptionStatusCode)">
+                    <i></i>{{ t('Hospital.Subscription.Status.' + model.summary.subscriptionStatusCode) }}
+                  </strong>
+                </div>
               </div>
-              <div class="template-list">
-                @for (item of model.notifications; track item.templateCode + item.channelCode + item.languageCode) {
-                  <div class="template-row">
-                    <strong>{{ item.templateCode }}</strong>
-                    <span>{{ t('Administration.SystemConfiguration.Channel.' + item.channelCode) }} - {{ item.languageCode }}</span>
-                  </div>
-                } @empty {
-                  <div class="notification-empty">
-                    <span class="material-symbols-rounded">notifications_active</span>
-                    <strong>No templates yet</strong>
-                    <p>Prepare SMS, email, and reminder templates so hospital communication can run without manual follow-up.</p>
-                    <a routerLink="/administration/system-configuration">Open configuration</a>
-                  </div>
-                }
-              </div>
-            </article>
+            </div>
 
             <article class="panel intelligence-panel">
               <div class="section-head">
@@ -233,23 +252,6 @@ interface HospitalPulseItem {
                       <p>{{ model.summary.systemHealthStatusCode === 'HEALTHY' ? 'Keep monitoring dashboard health and failed login movement.' : 'Open system health and resolve components needing attention.' }}</p>
                     </div>
                   </div>
-                </div>
-              </div>
-              <div class="status-stack">
-                <div class="status-block compact">
-                  <span class="material-symbols-rounded">verified</span>
-                  <p>{{ t('Administration.Dashboard.Widgets.LicenseStatus') }}</p>
-                  <strong>{{ t('Administration.Dashboard.License.' + model.summary.licenseStatusCode) }}</strong>
-                </div>
-                <div class="status-block compact">
-                  <span class="material-symbols-rounded">workspace_premium</span>
-                  <p>{{ t('Administration.Dashboard.Widgets.SubscriptionStatus') }}</p>
-                  <strong>{{ t('Hospital.Subscription.Status.' + model.summary.subscriptionStatusCode) }}</strong>
-                </div>
-                <div class="status-block compact">
-                  <span class="material-symbols-rounded">database</span>
-                  <p>{{ t('Administration.Dashboard.Widgets.StorageUsage') }}</p>
-                  <strong>{{ model.summary.storedProfileImageCount }}</strong>
                 </div>
               </div>
               <div class="pulse-panel" [style.--tone]="currentPulse().tone">
@@ -393,7 +395,8 @@ interface HospitalPulseItem {
     .metric-card strong { display: block; font-size: 24px; line-height: 1.1; }
     .metric-card span { color: var(--ac-muted); font-size: 12px; }
     .main-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(360px, .7fr); gap: 16px; }
-    .lower-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(320px, .7fr); gap: 16px; }
+    .lower-grid { display: grid; grid-template-columns: minmax(360px, 1.08fr) minmax(320px, .92fr) minmax(320px, .86fr); gap: 16px; align-items: start; }
+    .dashboard-side-stack { display: grid; gap: 14px; min-width: 0; align-content: start; }
     .staff-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr); gap: 16px; align-items: start; }
     .panel { padding: 16px; min-width: 0; }
     .section-head h2 { margin: 0; font-size: 16px; }
@@ -424,7 +427,7 @@ interface HospitalPulseItem {
     .icon-btn:disabled { opacity: .45; cursor: not-allowed; }
     .template-row { justify-content: space-between; }
     .template-row span { color: var(--ac-muted); font-size: 12px; }
-    .notification-empty { min-height: 255px; display: grid; place-items: center; align-content: center; gap: 8px; text-align: center; border: 1px dashed var(--ac-border); border-radius: 8px; background: linear-gradient(135deg, rgba(37,99,235,.06), rgba(20,184,166,.05)); padding: 18px; margin-top: 14px; }
+    .notification-empty { min-height: 184px; display: grid; place-items: center; align-content: center; gap: 8px; text-align: center; border: 1px dashed var(--ac-border); border-radius: 8px; background: linear-gradient(135deg, rgba(37,99,235,.06), rgba(20,184,166,.05)); padding: 18px; margin-top: 14px; }
     .notification-empty .material-symbols-rounded { width: 54px; height: 54px; display: grid; place-items: center; border-radius: 16px; background: rgba(37,99,235,.1); color: var(--ac-primary); font-size: 28px; }
     .notification-empty strong { color: var(--ac-text); }
     .notification-empty p { max-width: 360px; margin: 0; color: var(--ac-muted); font-size: 13px; line-height: 1.45; }
@@ -455,6 +458,53 @@ interface HospitalPulseItem {
     .status-block.compact { min-height: 54px; background: rgba(255,255,255,.62); }
     .status-block span { color: #2563eb; }
     .status-block p { margin: 0; color: var(--ac-muted); font-size: 12px; font-weight: 800; }
+    .status-value {
+      min-height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 6px 11px;
+      border-radius: 999px;
+      border: 1px solid var(--status-border, rgba(37,99,235,.14));
+      background: var(--status-bg, rgba(37,99,235,.08));
+      color: var(--status-color, var(--ac-primary));
+      font-size: 12px;
+      font-weight: 900;
+      box-shadow: 0 10px 20px var(--status-shadow, rgba(37,99,235,.08));
+      white-space: nowrap;
+    }
+    .status-value i {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: currentColor;
+      box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 13%, transparent);
+    }
+    .status-value.active,
+    .status-value.valid,
+    .status-value.live {
+      --status-color: #15803d;
+      --status-bg: rgba(34,197,94,.13);
+      --status-border: rgba(34,197,94,.22);
+      --status-shadow: rgba(34,197,94,.10);
+    }
+    .status-value.trial,
+    .status-value.warning,
+    .status-value.pending {
+      --status-color: #b45309;
+      --status-bg: rgba(245,158,11,.14);
+      --status-border: rgba(245,158,11,.24);
+      --status-shadow: rgba(245,158,11,.10);
+    }
+    .status-value.expired,
+    .status-value.suspended,
+    .status-value.inactive {
+      --status-color: #be123c;
+      --status-bg: rgba(244,63,94,.12);
+      --status-border: rgba(244,63,94,.24);
+      --status-shadow: rgba(244,63,94,.10);
+    }
     .status-block small { grid-column: 2 / -1; color: var(--ac-muted); }
     .pulse-panel { display: grid; gap: 12px; padding: 14px; border: 1px solid color-mix(in srgb, var(--tone) 24%, var(--ac-border)); border-radius: 8px; background: linear-gradient(135deg, color-mix(in srgb, var(--tone) 10%, var(--ac-surface)), var(--ac-surface)); box-shadow: inset 0 1px 0 rgba(255,255,255,.5); }
     .pulse-topline { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
@@ -608,6 +658,12 @@ interface HospitalPulseItem {
     :host-context(.dark) .status-block.compact {
       background: rgba(15,23,42,.42);
     }
+    :host-context(.dark) .status-value {
+      color: var(--status-color, #60a5fa);
+      background: color-mix(in srgb, var(--status-color, #60a5fa) 16%, rgba(15,23,42,.74));
+      border-color: color-mix(in srgb, var(--status-color, #60a5fa) 30%, rgba(148,163,184,.18));
+      box-shadow: 0 12px 24px rgba(0,0,0,.18);
+    }
     :host-context(.dark) .pulse-panel {
       border-color: color-mix(in srgb, var(--tone) 28%, rgba(148,163,184,.16));
       background: linear-gradient(135deg, color-mix(in srgb, var(--tone) 13%, rgba(15,23,42,.86)), rgba(15,23,42,.78));
@@ -713,6 +769,10 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
   }
 
   protected t(key: string): string { return this.i18n.translate(key); }
+
+  protected statusToneClass(statusCode: string | null | undefined): string {
+    return (statusCode ?? '').toLowerCase().replace(/[^a-z0-9-]/g, '-') || 'pending';
+  }
 
   protected async load(): Promise<void> {
     const response = await this.service.getDashboard();

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, HostListener, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { RouterLink, RouterLinkActive, RouterOutlet, Router, NavigationEnd } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { filter, map, startWith } from 'rxjs';
@@ -34,6 +35,16 @@ interface AiChatMessage {
   pending?: boolean;
 }
 
+interface AiStoredConversation {
+  id: string;
+  title: string;
+  updatedAt: string;
+  messages: AiChatMessage[];
+}
+
+const airaConversationStorageKey = 'ac-aira-current-chat';
+const airaConversationHistoryStorageKey = 'ac-aira-chat-history';
+
 const fallbackLanguages: Language[] = [
   { cultureCode: 'en-US', englishName: 'English', nativeName: 'English', isDefault: true, direction: 'LeftToRight' },
   { cultureCode: 'hi-IN', englishName: 'Hindi', nativeName: 'Hindi', isDefault: false, direction: 'LeftToRight' },
@@ -43,7 +54,7 @@ const fallbackLanguages: Language[] = [
 @Component({
   selector: 'ac-root',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, FormsModule, ConfirmDialogComponent, AppLoaderComponent],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, FormsModule, DatePipe, ConfirmDialogComponent, AppLoaderComponent],
   template: `
     @if (isAuthPage()) {
       <router-outlet />
@@ -346,28 +357,57 @@ const fallbackLanguages: Language[] = [
                 <span class="ai-orb mini"><i></i></span>
                 <div>
                   <strong>AIRA</strong>
-                  <span><i></i> Online - AI Assistant</span>
+                  <span><i></i> {{ aiMessages().length > 0 ? aiMessages().length + ' messages saved' : aiChatHistory().length + ' recent chats' }}</span>
                 </div>
               </div>
-              <button class="ai-icon-btn" type="button" title="Close AIRA" (click)="aiAssistantOpen.set(false)">
-                <span class="material-symbols-rounded">close</span>
-              </button>
+              <div class="ai-head-actions">
+                <button class="ai-icon-btn new-chat" type="button" title="New chat" (click)="startNewAiChat()" [disabled]="aiSending() || aiMessages().length === 0">
+                  <span class="material-symbols-rounded">add_comment</span>
+                </button>
+                <button class="ai-icon-btn" type="button" title="Close AIRA" (click)="aiAssistantOpen.set(false)">
+                  <span class="material-symbols-rounded">close</span>
+                </button>
+              </div>
             </header>
             <div class="ai-chat-body">
-              <div class="ai-welcome">
-                <span class="voice-wave"><i></i><i></i><i></i><i></i></span>
-                <p class="ai-message bot">Hello. I can help with Auspira Care360 modules, patient workflows, AI features, and daily hospital operations.</p>
-                <div class="ai-mini-grid">
-                  <span>Care360</span>
-                  <span>Patients</span>
-                  <span>Reports</span>
+              @if (aiMessages().length === 0) {
+                <div class="ai-welcome">
+                  <span class="voice-wave"><i></i><i></i><i></i><i></i></span>
+                  <p class="ai-message bot">Hello. I can help with Auspira Care360 modules, patient workflows, AI features, and daily hospital operations.</p>
+                  <div class="ai-mini-grid">
+                    <span>Care360</span>
+                    <span>Patients</span>
+                    <span>Reports</span>
+                  </div>
                 </div>
-              </div>
-              <div class="ai-suggestions">
-                @for (suggestion of aiSuggestions; track suggestion) {
-                  <button type="button" (click)="askAiSuggestion(suggestion)">{{ suggestion }}</button>
+                <div class="ai-suggestions">
+                  @for (suggestion of aiSuggestions; track suggestion) {
+                    <button type="button" (click)="askAiSuggestion(suggestion)">{{ suggestion }}</button>
+                  }
+                </div>
+                @if (aiChatHistory().length > 0) {
+                  <div class="ai-history-list">
+                    <div class="ai-history-list-head">
+                      <span><span class="material-symbols-rounded">history</span>Recent chats</span>
+                      <button type="button" (click)="clearAiHistory()">Clear</button>
+                    </div>
+                    @for (conversation of aiChatHistory(); track conversation.id) {
+                      <button type="button" class="ai-history-item" (click)="openAiConversation(conversation)">
+                        <span>
+                          <strong>{{ conversation.title }}</strong>
+                          <small>{{ conversation.updatedAt | date: 'MMM d, h:mm a' }}</small>
+                        </span>
+                        <span class="material-symbols-rounded">chevron_right</span>
+                      </button>
+                    }
+                  </div>
                 }
-              </div>
+              } @else {
+                <div class="ai-history-bar">
+                  <span><span class="material-symbols-rounded">history</span>Current chat</span>
+                  <button type="button" (click)="startNewAiChat()" [disabled]="aiSending()">New chat</button>
+                </div>
+              }
               @for (message of aiMessages(); track message.role + message.text) {
                 <div class="ai-message" [class.user]="message.role === 'user'" [class.bot]="message.role === 'assistant'" [class.pending]="message.pending">
                   <p [innerHTML]="formatAiMessage(message.text)"></p>
@@ -1225,6 +1265,7 @@ const fallbackLanguages: Language[] = [
     .ai-chat-title strong { display: block; font-size: 14px; color: var(--ac-text); }
     .ai-chat-title span:not(.ai-orb) { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; color: var(--ac-muted); }
     .ai-chat-title span:not(.ai-orb) i { width: 6px; height: 6px; border-radius: 999px; background: var(--ac-success); box-shadow: 0 0 10px rgba(34,197,94,.7); }
+    .ai-head-actions { display: flex; align-items: center; gap: 7px; }
     .ai-orb {
       position: relative;
       display: inline-grid;
@@ -1261,6 +1302,8 @@ const fallbackLanguages: Language[] = [
       cursor: pointer;
     }
     .ai-icon-btn:hover { color: var(--ac-primary); border-color: color-mix(in srgb, var(--ac-primary) 30%, var(--ac-border)); }
+    .ai-icon-btn:disabled { opacity: .45; cursor: not-allowed; }
+    .ai-icon-btn.new-chat { color: var(--ac-primary); background: color-mix(in srgb, var(--ac-primary) 8%, var(--ac-surface)); }
     .ai-icon-btn .material-symbols-rounded { font-size: 19px !important; }
     .ai-chat-body {
       display: grid;
@@ -1360,6 +1403,107 @@ const fallbackLanguages: Language[] = [
       cursor: pointer;
       box-shadow: 0 10px 26px rgba(37,99,235,.06);
     }
+    .ai-history-bar {
+      position: sticky;
+      top: -10px;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 7px 8px;
+      border: 1px solid rgba(37,99,235,.12);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--ac-surface) 88%, white);
+      box-shadow: 0 10px 24px rgba(15,23,42,.06);
+    }
+    .ai-history-bar span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--ac-text-2);
+      font-size: 11.5px;
+      font-weight: 900;
+    }
+    .ai-history-bar .material-symbols-rounded { font-size: 17px !important; color: var(--ac-primary); }
+    .ai-history-bar button {
+      border: 1px solid rgba(37,99,235,.16);
+      border-radius: 999px;
+      background: rgba(37,99,235,.08);
+      color: var(--ac-primary);
+      padding: 5px 9px;
+      font-size: 11px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+    .ai-history-bar button:disabled { opacity: .55; cursor: not-allowed; }
+    .ai-history-list {
+      display: grid;
+      gap: 8px;
+      padding: 9px;
+      border: 1px solid color-mix(in srgb, var(--ac-border) 78%, var(--ac-primary) 22%);
+      border-radius: 14px;
+      background: color-mix(in srgb, var(--ac-surface) 92%, var(--ac-primary) 8%);
+      box-shadow: 0 18px 34px rgba(15,23,42,.07);
+    }
+    .ai-history-list-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--ac-text-2);
+      font-size: 11.5px;
+      font-weight: 900;
+    }
+    .ai-history-list-head span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .ai-history-list-head .material-symbols-rounded { font-size: 16px !important; color: var(--ac-primary); }
+    .ai-history-list-head button {
+      border: none;
+      background: transparent;
+      color: var(--ac-muted);
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .ai-history-list-head button:hover { color: var(--ac-primary); }
+    .ai-history-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      width: 100%;
+      padding: 10px 11px;
+      border: 1px solid var(--ac-border);
+      border-radius: 12px;
+      background: var(--ac-surface);
+      color: var(--ac-text);
+      text-align: left;
+      cursor: pointer;
+      transition: border-color var(--ac-t), box-shadow var(--ac-t), transform var(--ac-t);
+    }
+    .ai-history-item:hover {
+      border-color: color-mix(in srgb, var(--ac-primary) 34%, var(--ac-border));
+      box-shadow: 0 12px 28px rgba(37,99,235,.10);
+      transform: translateY(-1px);
+    }
+    .ai-history-item > span:first-child {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }
+    .ai-history-item strong {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 12.5px;
+      font-weight: 900;
+    }
+    .ai-history-item small { color: var(--ac-muted); font-size: 11px; font-weight: 700; }
+    .ai-history-item .material-symbols-rounded { flex: 0 0 auto; font-size: 17px !important; color: var(--ac-muted); }
     .ai-chat-input {
       display: grid;
       grid-template-columns: 1fr auto;
@@ -1592,6 +1736,7 @@ export class AppShellComponent implements OnInit {
     localStorage.getItem('ac-aira-visible') !== 'false'
   );
   protected readonly aiMessages = signal<AiChatMessage[]>([]);
+  protected readonly aiChatHistory = signal<AiStoredConversation[]>([]);
   protected readonly aiSending = signal(false);
   protected cpQuery = '';
   protected aiPrompt = '';
@@ -1615,16 +1760,29 @@ export class AppShellComponent implements OnInit {
     this.currentUrl().startsWith('/auth')
   );
   protected readonly isAuthenticated = computed(() => this.authStore.isAuthenticated());
+  private aiConversationHydrated = false;
 
   /* ── Dark mode effect ── */
   constructor() {
     effect(() => {
       document.documentElement.classList.toggle('dark', this.dark());
     });
+
+    effect(() => {
+      if (!this.aiConversationHydrated) {
+        return;
+      }
+
+      this.persistAiConversation(this.aiMessages());
+    });
   }
 
   ngOnInit(): void {
     document.documentElement.classList.toggle('dark', this.dark());
+    this.aiMessages.set(this.loadAiConversation());
+    this.aiChatHistory.set(this.loadAiConversationHistory());
+    this.aiConversationHydrated = true;
+    this.persistAiConversation(this.aiMessages());
   }
 
   /* ── Language ── */
@@ -1858,6 +2016,41 @@ export class AppShellComponent implements OnInit {
     this.sendAiMessage();
   }
 
+  startNewAiChat(): void {
+    if (this.aiSending()) {
+      return;
+    }
+
+    this.archiveCurrentAiConversation();
+    this.aiPrompt = '';
+    this.aiMessages.set([]);
+    localStorage.removeItem(airaConversationStorageKey);
+  }
+
+  openAiConversation(conversation: AiStoredConversation): void {
+    if (this.aiSending()) {
+      return;
+    }
+
+    this.archiveCurrentAiConversation(conversation.id);
+    this.aiPrompt = '';
+    this.aiMessages.set(conversation.messages);
+    this.aiChatHistory.update(history => {
+      const next = history.filter(item => item.id !== conversation.id);
+      this.persistAiConversationHistory(next);
+      return next;
+    });
+  }
+
+  clearAiHistory(): void {
+    if (this.aiSending()) {
+      return;
+    }
+
+    this.aiChatHistory.set([]);
+    localStorage.removeItem(airaConversationHistoryStorageKey);
+  }
+
   async sendAiMessage(event?: Event): Promise<void> {
     event?.preventDefault();
     const prompt = this.aiPrompt.trim();
@@ -1945,6 +2138,137 @@ export class AppShellComponent implements OnInit {
     };
 
     return messages[messageKey] ?? 'AIRA could not answer that request right now.';
+  }
+
+  private loadAiConversation(): AiChatMessage[] {
+    try {
+      const raw = localStorage.getItem(airaConversationStorageKey);
+      if (!raw) {
+        return [];
+      }
+
+      const parsed = JSON.parse(raw) as AiChatMessage[];
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+
+      return parsed
+        .filter(message =>
+          (message.role === 'assistant' || message.role === 'user') &&
+          typeof message.text === 'string' &&
+          message.text.trim().length > 0)
+        .slice(-40)
+        .map(message => ({
+          role: message.role,
+          text: message.text.trim()
+        }));
+    } catch {
+      localStorage.removeItem(airaConversationStorageKey);
+      return [];
+    }
+  }
+
+  private loadAiConversationHistory(): AiStoredConversation[] {
+    try {
+      const raw = localStorage.getItem(airaConversationHistoryStorageKey);
+      if (!raw) {
+        return [];
+      }
+
+      const parsed = JSON.parse(raw) as AiStoredConversation[];
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+
+      return parsed
+        .map(conversation => ({
+          id: typeof conversation.id === 'string' && conversation.id ? conversation.id : crypto.randomUUID(),
+          title: typeof conversation.title === 'string' && conversation.title.trim()
+            ? conversation.title.trim()
+            : 'AIRA chat',
+          updatedAt: typeof conversation.updatedAt === 'string' && conversation.updatedAt
+            ? conversation.updatedAt
+            : new Date().toISOString(),
+          messages: Array.isArray(conversation.messages)
+            ? conversation.messages
+                .filter(message =>
+                  (message.role === 'assistant' || message.role === 'user') &&
+                  typeof message.text === 'string' &&
+                  message.text.trim().length > 0)
+                .slice(-40)
+                .map(message => ({ role: message.role, text: message.text.trim() }))
+            : []
+        }))
+        .filter(conversation => conversation.messages.length > 0)
+        .slice(0, 8);
+    } catch {
+      localStorage.removeItem(airaConversationHistoryStorageKey);
+      return [];
+    }
+  }
+
+  private persistAiConversation(messages: AiChatMessage[]): void {
+    const persisted = messages
+      .filter(message => !message.pending && message.text.trim().length > 0)
+      .slice(-40)
+      .map(message => ({ role: message.role, text: message.text.trim() }));
+
+    if (persisted.length === 0) {
+      localStorage.removeItem(airaConversationStorageKey);
+      return;
+    }
+
+    localStorage.setItem(airaConversationStorageKey, JSON.stringify(persisted));
+  }
+
+  private persistAiConversationHistory(history: AiStoredConversation[]): void {
+    const persisted = history
+      .filter(conversation => conversation.messages.length > 0)
+      .slice(0, 8);
+
+    if (persisted.length === 0) {
+      localStorage.removeItem(airaConversationHistoryStorageKey);
+      return;
+    }
+
+    localStorage.setItem(airaConversationHistoryStorageKey, JSON.stringify(persisted));
+  }
+
+  private archiveCurrentAiConversation(skipId?: string): void {
+    const messages = this.aiMessages()
+      .filter(message => !message.pending && message.text.trim().length > 0)
+      .slice(-40)
+      .map(message => ({ role: message.role, text: message.text.trim() }));
+
+    if (messages.length === 0) {
+      return;
+    }
+
+    const conversation: AiStoredConversation = {
+      id: `aira-${Date.now()}`,
+      title: this.getAiConversationTitle(messages),
+      updatedAt: new Date().toISOString(),
+      messages
+    };
+
+    this.aiChatHistory.update(history => {
+      const next = [
+        conversation,
+        ...history.filter(item => item.id !== skipId && item.title !== conversation.title)
+      ].slice(0, 8);
+
+      this.persistAiConversationHistory(next);
+      return next;
+    });
+  }
+
+  private getAiConversationTitle(messages: AiChatMessage[]): string {
+    const firstUserMessage = messages.find(message => message.role === 'user')?.text
+      ?? messages[0]?.text
+      ?? 'AIRA chat';
+    const title = firstUserMessage.replace(/\s+/g, ' ').trim();
+
+    return title.length > 42 ? `${title.slice(0, 39)}...` : title;
   }
 
   protected formatAiMessage(text: string): string {
