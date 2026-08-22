@@ -735,11 +735,9 @@ const fallbackLanguages: Language[] = [
     .aira-toggle {
       overflow: hidden;
       color: var(--ac-primary);
-      border: 1px solid color-mix(in srgb, var(--ac-primary) 12%, transparent);
-      background:
-        radial-gradient(circle at 30% 22%, rgba(8,191,255,.18), transparent 42%),
-        color-mix(in srgb, var(--ac-surface) 92%, white);
-      box-shadow: inset 0 0 0 1px rgba(8,191,255,.06);
+      border: 0;
+      background: transparent;
+      box-shadow: none;
     }
     .aira-message-icon {
       width: 21px;
@@ -759,10 +757,9 @@ const fallbackLanguages: Language[] = [
       border-radius: 999px;
     }
     .aira-toggle.active {
-      color: #fff;
-      border-color: transparent;
-      background: linear-gradient(135deg, #08bfff, var(--ac-primary) 54%, var(--ac-secondary));
-      box-shadow: 0 10px 24px rgba(37,99,235,.26);
+      color: var(--ac-primary);
+      background: transparent;
+      box-shadow: none;
     }
     .aira-toggle.active::after {
       display: block;
@@ -770,9 +767,8 @@ const fallbackLanguages: Language[] = [
       box-shadow: 0 0 0 2px var(--ac-header-bg), 0 0 14px rgba(34,197,94,.82);
     }
     .aira-toggle:hover {
-      color: #fff;
-      border-color: transparent;
-      background: linear-gradient(135deg, #08bfff, var(--ac-primary) 54%, var(--ac-secondary));
+      color: var(--ac-primary);
+      background: var(--ac-surface-2);
     }
 
     .notif-btn { position: relative; }
