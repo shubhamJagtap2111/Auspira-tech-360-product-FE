@@ -84,10 +84,16 @@ export class AuthService {
     return firstValueFrom(this.api.post<ApiResponse<{ accepted: boolean }>>(`/auth/users/${userId}/unlock`, {}));
   }
 
-  getCurrentUser(): Promise<CurrentUserProfile> {
-    return firstValueFrom(this.api.get<CurrentUserProfile>('/auth/me', {
+  async getCurrentUser(): Promise<CurrentUserProfile> {
+    const response = await firstValueFrom(this.api.get<ApiResponse<CurrentUserProfile>>('/auth/me', {
       context: authBootstrapContext()
     }));
+
+    if (!response.success || !isCurrentUserProfile(response.data)) {
+      throw new Error(response.message || 'Auth.Errors.CurrentUserUnavailable');
+    }
+
+    return response.data;
   }
 
   updateCurrentUser(request: UpdateCurrentUserRequest): Promise<ApiResponse<CurrentUserProfile>> {
@@ -99,4 +105,13 @@ function authBootstrapContext(): HttpContext {
   return new HttpContext()
     .set(SKIP_GLOBAL_LOADER, true)
     .set(REQUEST_TIMEOUT_MS, 10_000);
+}
+
+function isCurrentUserProfile(value: CurrentUserProfile | null | undefined): value is CurrentUserProfile {
+  return Boolean(
+    value &&
+    typeof value.userId === 'string' &&
+    typeof value.email === 'string' &&
+    typeof value.fullName === 'string' &&
+    Array.isArray(value.permissions));
 }

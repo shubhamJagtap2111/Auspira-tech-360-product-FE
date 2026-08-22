@@ -19,6 +19,11 @@ export class AuthStore {
   }
 
   setProfile(profile: CurrentUserProfile): void {
+    if (!isProfileUsable(profile)) {
+      this.clearSession();
+      return;
+    }
+
     this.profileSignal.set(profile);
     this.sessionSignal.set(null);
   }
@@ -53,4 +58,12 @@ function isSessionUsable(session: AuthResponse | null): session is AuthResponse 
 
   const expiresAt = Date.parse(session.accessTokenExpiresAt);
   return Number.isFinite(expiresAt) && expiresAt > Date.now() + tokenExpiryBufferMs;
+}
+
+function isProfileUsable(profile: CurrentUserProfile | null): profile is CurrentUserProfile {
+  return Boolean(
+    profile?.userId &&
+    profile.email &&
+    profile.fullName &&
+    Array.isArray(profile.permissions));
 }

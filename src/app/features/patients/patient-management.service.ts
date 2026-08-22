@@ -37,11 +37,11 @@ export class PatientManagementService {
   }
 
   create(patient: PatientForm): Promise<PatientApiResponse<PatientProfile>> {
-    return firstValueFrom(this.api.post<PatientApiResponse<PatientProfile>>('/patients', createPayload(patient)));
+    return firstValueFrom(this.api.post<PatientApiResponse<PatientProfile>>('/patients', createPayload(patient, false)));
   }
 
   update(patient: PatientForm): Promise<PatientApiResponse<PatientProfile>> {
-    return firstValueFrom(this.api.put<PatientApiResponse<PatientProfile>>(`/patients/${patient.patientGuid}`, createPayload(patient)));
+    return firstValueFrom(this.api.put<PatientApiResponse<PatientProfile>>(`/patients/${patient.patientGuid}`, createPayload(patient, true)));
   }
 
   delete(patientGuid: string): Promise<PatientApiResponse<boolean>> {
@@ -49,10 +49,10 @@ export class PatientManagementService {
   }
 }
 
-function createPayload(patient: PatientForm): UpsertPatientPayload {
+function createPayload(patient: PatientForm, includeMedicalRecordNo: boolean): UpsertPatientPayload {
   return {
     patientGuid: patient.patientGuid || null,
-    medicalRecordNo: patient.medicalRecordNo.trim() || null,
+    medicalRecordNo: includeMedicalRecordNo ? patient.medicalRecordNo.trim() || null : null,
     firstName: patient.firstName.trim(),
     lastName: patient.lastName.trim(),
     mobileNo: `${patient.countryDialCode} ${patient.mobileNumber}`.trim(),

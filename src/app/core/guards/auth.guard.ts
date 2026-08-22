@@ -17,11 +17,11 @@ export const authGuard: CanActivateFn = async () => {
 
   try {
     auth.setProfile(await authService.getCurrentUser());
-    loader.reset();
     return true;
   } catch {
     auth.clearSession();
-    loader.reset();
     return router.createUrlTree(['/auth/login']);
+  } finally {
+    loader.reset();
   }
 };
