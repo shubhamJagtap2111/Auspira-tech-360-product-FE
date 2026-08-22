@@ -9,6 +9,7 @@ import { ConfirmDialogComponent } from '../../shared/ui/dialog/confirm-dialog.co
 import { AuthService } from '../../core/auth/auth.service';
 import { AuthStore } from '../../core/auth/auth.store';
 import { getUserRoleLabel, isHospitalAdminUser as isHospitalAdminSession } from '../../core/auth/user-access';
+import { AiraChatService } from '../../core/ai/aira-chat.service';
 import { Language } from '../../core/i18n/i18n.models';
 import { AppLoaderComponent } from '../../shared/ui/app-loader/app-loader.component';
 
@@ -30,6 +31,7 @@ interface NavGroup {
 interface AiChatMessage {
   role: 'assistant' | 'user';
   text: string;
+  pending?: boolean;
 }
 
 const fallbackLanguages: Language[] = [
@@ -367,14 +369,14 @@ const fallbackLanguages: Language[] = [
                 }
               </div>
               @for (message of aiMessages(); track message.role + message.text) {
-                <div class="ai-message" [class.user]="message.role === 'user'" [class.bot]="message.role === 'assistant'">
+                <div class="ai-message" [class.user]="message.role === 'user'" [class.bot]="message.role === 'assistant'" [class.pending]="message.pending">
                   <p>{{ message.text }}</p>
                 </div>
               }
             </div>
             <form class="ai-chat-input" (submit)="sendAiMessage($event)">
-              <input name="aiPrompt" [(ngModel)]="aiPrompt" placeholder="Ask about patients, reports, or workflows" autocomplete="off" />
-              <button type="submit" title="Send message">
+              <input name="aiPrompt" [(ngModel)]="aiPrompt" [disabled]="aiSending()" placeholder="Ask about patients, reports, or workflows" autocomplete="off" />
+              <button type="submit" title="Send message" [disabled]="aiSending()">
                 <span class="material-symbols-rounded">send</span>
               </button>
             </form>
@@ -1322,6 +1324,10 @@ const fallbackLanguages: Language[] = [
       color: #34466f;
       border: 0;
     }
+    .ai-message.pending {
+      color: var(--ac-muted);
+      background: linear-gradient(135deg, rgba(239,246,255,.88), rgba(245,243,255,.9));
+    }
     .dark .ai-message.bot { color: var(--ac-text-2); background: rgba(37,99,235,.14); }
     .ai-message p { margin: 0; }
     .ai-welcome > .ai-message { max-width: 100%; }
@@ -1380,6 +1386,11 @@ const fallbackLanguages: Language[] = [
       color: #fff;
       cursor: pointer;
       box-shadow: 0 14px 36px rgba(37,99,235,.32);
+    }
+    .ai-chat-input input:disabled,
+    .ai-chat-input button:disabled {
+      cursor: wait;
+      opacity: .72;
     }
     .ai-chat-input button .material-symbols-rounded { font-size: 19px !important; }
 
@@ -1559,6 +1570,7 @@ export class AppShellComponent implements OnInit {
   private   readonly router  = inject(Router);
   private   readonly authService = inject(AuthService);
   private   readonly authStore = inject(AuthStore);
+  private   readonly airaChatService = inject(AiraChatService);
 
   /* ── State ── */
   protected readonly sidebarCollapsed = signal<boolean>(
@@ -1576,6 +1588,7 @@ export class AppShellComponent implements OnInit {
     localStorage.getItem('ac-aira-visible') !== 'false'
   );
   protected readonly aiMessages = signal<AiChatMessage[]>([]);
+  protected readonly aiSending = signal(false);
   protected cpQuery = '';
   protected aiPrompt = '';
   protected readonly aiSuggestions = [
@@ -1841,20 +1854,45 @@ export class AppShellComponent implements OnInit {
     this.sendAiMessage();
   }
 
-  sendAiMessage(event?: Event): void {
+  async sendAiMessage(event?: Event): Promise<void> {
     event?.preventDefault();
     const prompt = this.aiPrompt.trim();
 
-    if (!prompt) {
+    if (!prompt || this.aiSending()) {
       return;
     }
 
     this.aiPrompt = '';
+    const history = this.aiMessages()
+      .filter(message => !message.pending)
+      .slice(-10)
+      .map(message => ({ role: message.role, content: message.text }));
+
     this.aiMessages.update(messages => [
       ...messages,
       { role: 'user', text: prompt },
-      { role: 'assistant', text: this.createAiReply(prompt) }
+      { role: 'assistant', text: 'AIRA is thinking...', pending: true }
     ]);
+    this.aiSending.set(true);
+
+    try {
+      const response = await this.airaChatService.send(prompt, history);
+      const reply = response.success && response.data?.message
+        ? response.data.message
+        : this.aiErrorMessage(response.message);
+
+      this.aiMessages.update(messages => [
+        ...messages.filter(message => !message.pending),
+        { role: 'assistant', text: reply }
+      ]);
+    } catch {
+      this.aiMessages.update(messages => [
+        ...messages.filter(message => !message.pending),
+        { role: 'assistant', text: 'AIRA could not reach the AI service right now. Please try again in a moment.' }
+      ]);
+    } finally {
+      this.aiSending.set(false);
+    }
   }
 
   async logout(): Promise<void> {
@@ -1885,22 +1923,16 @@ export class AppShellComponent implements OnInit {
     }
   }
 
-  private createAiReply(prompt: string): string {
-    const normalizedPrompt = prompt.toLowerCase();
+  private aiErrorMessage(messageKey: string): string {
+    const messages: Record<string, string> = {
+      'Ai.Chat.Errors.ProviderNotConfigured': 'AIRA is not configured yet. Please set the Grok API key on the API server.',
+      'Ai.Chat.Errors.ProviderUnavailable': 'AIRA could not reach Grok right now. Please try again in a moment.',
+      'Ai.Chat.Errors.ProviderTimeout': 'AIRA took too long to respond. Please try a shorter question.',
+      'Ai.Chat.Validation.MessageRequired': 'Please type a question for AIRA.',
+      'Ai.Chat.Validation.MessageTooLong': 'Please shorten your question and try again.'
+    };
 
-    if (normalizedPrompt.includes('patient') || normalizedPrompt.includes('register')) {
-      return 'Go to Patients and click Register Patient. AIRA can guide the workflow here; live AI answers can be connected once the backend assistant API is available.';
-    }
-
-    if (normalizedPrompt.includes('hospital') || normalizedPrompt.includes('admin')) {
-      return 'Open Hospital Admin from the left menu to manage profile, branches, users, roles, and permissions.';
-    }
-
-    if (normalizedPrompt.includes('dashboard')) {
-      return 'The dashboard gives the operational summary for your hospital. Use the Dashboard menu item to return there.';
-    }
-
-    return 'I have noted your question. The AIRA chat shell is ready; connect it to the assistant API to return live answers from your knowledge base.';
+    return messages[messageKey] ?? 'AIRA could not answer that request right now.';
   }
 
   /* ── Toast helpers ── */

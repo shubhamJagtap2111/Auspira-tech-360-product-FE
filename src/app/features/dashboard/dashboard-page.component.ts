@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { AiraChatService } from '../../core/ai/aira-chat.service';
 import { AuthStore } from '../../core/auth/auth.store';
 import { getUserRoleLabel, isHospitalAdminUser } from '../../core/auth/user-access';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -27,6 +28,15 @@ interface StaffCard {
 interface StaffAction {
   label: string;
   path: string;
+  icon: string;
+  tone: string;
+}
+
+interface HospitalPulseItem {
+  title: string;
+  detail: string;
+  region: string;
+  tag: string;
   icon: string;
   tone: string;
 }
@@ -125,21 +135,34 @@ interface StaffAction {
             <article class="panel">
               <div class="section-head">
                 <h2>{{ t('Administration.Dashboard.Widgets.RecentLogins') }}</h2>
-                <span>{{ model.summary.loginsToday }} {{ t('Administration.Dashboard.Labels.Today') }}</span>
+                <span>{{ model.summary.loginsToday }} {{ t('Administration.Dashboard.Labels.Today') }} · Page {{ loginPage() }} of {{ recentLoginTotalPages(model) }}</span>
               </div>
               <div class="login-list">
-                @for (login of model.recentLogins; track login.email + login.loginDate) {
+                @for (login of pagedRecentLogins(model); track login.email + login.loginDate) {
                   <div class="login-row">
                     <span class="login-state" [class.failed]="!login.wasSuccessful">{{ t(login.wasSuccessful ? 'Administration.Dashboard.Labels.Success' : 'Administration.Dashboard.Labels.Failed') }}</span>
                     <div>
                       <strong>{{ login.displayName }}</strong>
                       <p>{{ login.email }} - {{ login.loginDate | date: 'short' }}</p>
                     </div>
+                    <small>{{ login.ipAddress || 'Secure session' }}</small>
                   </div>
                 } @empty {
                   <p class="empty">{{ t('Administration.Dashboard.Labels.NoData') }}</p>
                 }
               </div>
+              <footer class="login-pager">
+                <span>Showing {{ recentLoginRange(model) }} of {{ model.recentLogins.length }} logins</span>
+                <div>
+                  <button class="icon-btn" type="button" (click)="changeLoginPage(-1, model)" [disabled]="loginPage() <= 1" title="Previous logins">
+                    <span class="material-symbols-rounded">chevron_left</span>
+                  </button>
+                  <strong>{{ loginPage() }}</strong>
+                  <button class="icon-btn" type="button" (click)="changeLoginPage(1, model)" [disabled]="loginPage() >= recentLoginTotalPages(model)" title="Next logins">
+                    <span class="material-symbols-rounded">chevron_right</span>
+                  </button>
+                </div>
+              </footer>
             </article>
 
             <article class="panel">
@@ -154,27 +177,58 @@ interface StaffAction {
                     <span>{{ t('Administration.SystemConfiguration.Channel.' + item.channelCode) }} - {{ item.languageCode }}</span>
                   </div>
                 } @empty {
-                  <p class="empty">{{ t('Administration.Dashboard.Labels.NoData') }}</p>
+                  <div class="notification-empty">
+                    <span class="material-symbols-rounded">notifications_active</span>
+                    <strong>No templates yet</strong>
+                    <p>Prepare SMS, email, and reminder templates so hospital communication can run without manual follow-up.</p>
+                    <a routerLink="/administration/system-configuration">Open configuration</a>
+                  </div>
                 }
               </div>
             </article>
 
-            <article class="panel status-panel">
-              <div class="status-block">
-                <span class="material-symbols-rounded">verified</span>
-                <p>{{ t('Administration.Dashboard.Widgets.LicenseStatus') }}</p>
-                <strong>{{ t('Administration.Dashboard.License.' + model.summary.licenseStatusCode) }}</strong>
+            <article class="panel intelligence-panel">
+              <div class="section-head">
+                <div>
+                  <h2>AIRA operations insights</h2>
+                  <p>Auto-refreshing summary from safe aggregate dashboard signals.</p>
+                </div>
+                <button class="icon-btn" type="button" (click)="refreshAiInsights(model)" [disabled]="aiInsightLoading()" title="Refresh AI insights">
+                  <span class="material-symbols-rounded">{{ aiInsightLoading() ? 'progress_activity' : 'auto_awesome' }}</span>
+                </button>
               </div>
-              <div class="status-block">
-                <span class="material-symbols-rounded">workspace_premium</span>
-                <p>{{ t('Administration.Dashboard.Widgets.SubscriptionStatus') }}</p>
-                <strong>{{ t('Hospital.Subscription.Status.' + model.summary.subscriptionStatusCode) }}</strong>
+              <div class="ai-insight-card">
+                <span class="ai-orb"><i></i></span>
+                <div>
+                  <strong>{{ aiInsightTitle() }}</strong>
+                  <p>{{ aiInsightText() }}</p>
+                  <small>{{ aiInsightStamp() }}</small>
+                </div>
               </div>
-              <div class="status-block">
-                <span class="material-symbols-rounded">database</span>
-                <p>{{ t('Administration.Dashboard.Widgets.StorageUsage') }}</p>
-                <strong>{{ model.summary.storedProfileImageCount }}</strong>
-                <small>{{ t('Administration.Dashboard.Labels.ProfileImages') }}</small>
+              <div class="status-stack">
+                <div class="status-block compact">
+                  <span class="material-symbols-rounded">verified</span>
+                  <p>{{ t('Administration.Dashboard.Widgets.LicenseStatus') }}</p>
+                  <strong>{{ t('Administration.Dashboard.License.' + model.summary.licenseStatusCode) }}</strong>
+                </div>
+                <div class="status-block compact">
+                  <span class="material-symbols-rounded">workspace_premium</span>
+                  <p>{{ t('Administration.Dashboard.Widgets.SubscriptionStatus') }}</p>
+                  <strong>{{ t('Hospital.Subscription.Status.' + model.summary.subscriptionStatusCode) }}</strong>
+                </div>
+                <div class="status-block compact">
+                  <span class="material-symbols-rounded">database</span>
+                  <p>{{ t('Administration.Dashboard.Widgets.StorageUsage') }}</p>
+                  <strong>{{ model.summary.storedProfileImageCount }}</strong>
+                </div>
+              </div>
+              <div class="pulse-card" [style.--tone]="currentPulse().tone">
+                <span class="material-symbols-rounded">{{ currentPulse().icon }}</span>
+                <div>
+                  <small>{{ currentPulse().region }} · {{ currentPulse().tag }}</small>
+                  <strong>{{ currentPulse().title }}</strong>
+                  <p>{{ currentPulse().detail }}</p>
+                </div>
               </div>
             </article>
           </section>
@@ -312,17 +366,44 @@ interface StaffAction {
     .bar-row > strong { justify-self: end; min-width: 34px; padding: 4px 8px; border-radius: 999px; background: color-mix(in srgb, var(--tone) 10%, transparent); color: var(--tone); text-align: center; font-size: 12px; }
     .health-row, .login-row, .template-row { display: flex; gap: 10px; align-items: center; padding: 10px; border: 1px solid var(--ac-border); border-radius: 8px; }
     .health-row p, .login-row p { margin: 3px 0 0; color: var(--ac-muted); font-size: 12px; }
+    .login-row { min-height: 58px; }
+    .login-row > div { min-width: 0; flex: 1; }
+    .login-row > small { color: var(--ac-muted); font-size: 11px; white-space: nowrap; }
     .dot { width: 10px; height: 10px; border-radius: 999px; background: #16a34a; flex: 0 0 auto; }
     .dot.warning { background: #d97706; }
     .status, .login-state { margin-left: auto; padding: 4px 8px; border-radius: 999px; background: rgba(22,163,74,.1); color: #15803d; font-size: 11px; font-weight: 800; }
+    .login-state { order: -1; margin-left: 0; min-width: 64px; text-align: center; }
     .status.warning, .login-state.failed { background: rgba(217,119,6,.12); color: #b45309; }
+    .login-pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--ac-border); color: var(--ac-muted); font-size: 12px; }
+    .login-pager div { display: flex; align-items: center; gap: 8px; }
+    .login-pager strong { min-width: 34px; height: 34px; display: grid; place-items: center; border-radius: 8px; background: var(--ac-primary); color: #fff; }
+    .icon-btn:disabled { opacity: .45; cursor: not-allowed; }
     .template-row { justify-content: space-between; }
     .template-row span { color: var(--ac-muted); font-size: 12px; }
+    .notification-empty { min-height: 255px; display: grid; place-items: center; align-content: center; gap: 8px; text-align: center; border: 1px dashed var(--ac-border); border-radius: 8px; background: linear-gradient(135deg, rgba(37,99,235,.06), rgba(20,184,166,.05)); padding: 18px; margin-top: 14px; }
+    .notification-empty .material-symbols-rounded { width: 54px; height: 54px; display: grid; place-items: center; border-radius: 16px; background: rgba(37,99,235,.1); color: var(--ac-primary); font-size: 28px; }
+    .notification-empty strong { color: var(--ac-text); }
+    .notification-empty p { max-width: 360px; margin: 0; color: var(--ac-muted); font-size: 13px; line-height: 1.45; }
+    .notification-empty a { min-height: 34px; display: inline-flex; align-items: center; padding: 7px 12px; border-radius: 999px; background: var(--ac-primary); color: #fff; text-decoration: none; font-size: 12px; font-weight: 900; }
+    .intelligence-panel { display: grid; gap: 12px; align-content: start; background: linear-gradient(180deg, color-mix(in srgb, #eff6ff 72%, var(--ac-surface)), var(--ac-surface)); }
+    .ai-insight-card { display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 12px; padding: 13px; border: 1px solid rgba(37,99,235,.16); border-radius: 8px; background: linear-gradient(135deg, rgba(37,99,235,.1), rgba(124,58,237,.08)); }
+    .ai-orb { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 16px; background: radial-gradient(circle at 34% 32%, #ecfeff, #38bdf8 34%, #4f46e5 68%, #312e81); box-shadow: 0 12px 28px rgba(37,99,235,.22); }
+    .ai-orb i { width: 14px; height: 14px; border-radius: 999px; background: #67e8f9; box-shadow: 16px 0 0 #bfdbfe, 8px 14px 0 #a78bfa; }
+    .ai-insight-card strong { display: block; color: var(--ac-text); font-size: 14px; }
+    .ai-insight-card p { margin: 5px 0 8px; color: var(--ac-text-2); font-size: 13px; line-height: 1.45; }
+    .ai-insight-card small { color: var(--ac-muted); font-size: 11px; font-weight: 800; }
+    .status-stack { display: grid; gap: 8px; }
     .status-panel { display: grid; gap: 10px; }
     .status-block { padding: 12px; border: 1px solid var(--ac-border); border-radius: 8px; display: grid; grid-template-columns: 34px 1fr auto; gap: 8px; align-items: center; }
+    .status-block.compact { min-height: 54px; background: rgba(255,255,255,.62); }
     .status-block span { color: #2563eb; }
     .status-block p { margin: 0; color: var(--ac-muted); font-size: 12px; font-weight: 800; }
     .status-block small { grid-column: 2 / -1; color: var(--ac-muted); }
+    .pulse-card { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 12px; padding: 13px; border: 1px solid color-mix(in srgb, var(--tone) 22%, var(--ac-border)); border-radius: 8px; background: color-mix(in srgb, var(--tone) 8%, var(--ac-surface)); }
+    .pulse-card > .material-symbols-rounded { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 14px; color: var(--tone); background: color-mix(in srgb, var(--tone) 14%, transparent); }
+    .pulse-card small { color: var(--tone); font-size: 11px; font-weight: 900; text-transform: uppercase; }
+    .pulse-card strong { display: block; margin-top: 4px; color: var(--ac-text); font-size: 13.5px; }
+    .pulse-card p { margin: 5px 0 0; color: var(--ac-muted); font-size: 12.5px; line-height: 1.45; }
     .empty { margin: 0; color: var(--ac-muted); font-size: 13px; }
     .quick-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
     .quick-action { min-height: 74px; border: 1px solid var(--ac-border); border-radius: 8px; padding: 12px; background: color-mix(in srgb, var(--tone) 7%, var(--ac-surface)); color: var(--ac-text); text-decoration: none; display: grid; grid-template-columns: 34px 1fr; align-items: center; gap: 10px; transition: transform .16s ease, border-color .16s ease; }
@@ -418,6 +499,39 @@ interface StaffAction {
     :host-context(.dark) .status-block strong {
       color: #f8fafc;
     }
+    :host-context(.dark) .login-row > small,
+    :host-context(.dark) .login-pager,
+    :host-context(.dark) .ai-insight-card p,
+    :host-context(.dark) .ai-insight-card small,
+    :host-context(.dark) .notification-empty p,
+    :host-context(.dark) .pulse-card p {
+      color: #94a3b8;
+    }
+    :host-context(.dark) .notification-empty {
+      border-color: rgba(96,165,250,.2);
+      background: linear-gradient(135deg, rgba(37,99,235,.12), rgba(20,184,166,.08));
+    }
+    :host-context(.dark) .notification-empty strong,
+    :host-context(.dark) .ai-insight-card strong,
+    :host-context(.dark) .pulse-card strong {
+      color: #f8fafc;
+    }
+    :host-context(.dark) .intelligence-panel {
+      background:
+        radial-gradient(circle at 20% 0%, rgba(37,99,235,.14), transparent 34%),
+        linear-gradient(180deg, rgba(22,30,42,.96), rgba(17,24,34,.96));
+    }
+    :host-context(.dark) .ai-insight-card {
+      border-color: rgba(96,165,250,.2);
+      background: linear-gradient(135deg, rgba(37,99,235,.18), rgba(124,58,237,.12));
+    }
+    :host-context(.dark) .status-block.compact {
+      background: rgba(15,23,42,.42);
+    }
+    :host-context(.dark) .pulse-card {
+      border-color: color-mix(in srgb, var(--tone) 28%, rgba(148,163,184,.16));
+      background: color-mix(in srgb, var(--tone) 12%, rgba(15,23,42,.78));
+    }
     :host-context(.dark) .bar-track {
       background: rgba(2,6,23,.72);
       box-shadow: inset 0 0 0 1px rgba(148,163,184,.08);
@@ -465,26 +579,137 @@ interface StaffAction {
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class DashboardPageComponent implements OnInit {
+export class DashboardPageComponent implements OnInit, OnDestroy {
   protected readonly dashboard = signal<AdministrationDashboard | null>(null);
 
   private readonly service = inject(AdministrationDashboardService);
+  private readonly airaChat = inject(AiraChatService);
   private readonly i18n = inject(I18nService);
   private readonly toast = inject(ToastService);
   private readonly authStore = inject(AuthStore);
+  private aiTimer: ReturnType<typeof setInterval> | null = null;
+  private pulseTimer: ReturnType<typeof setInterval> | null = null;
 
   protected readonly isHospitalAdmin = computed(() => isHospitalAdminUser(this.authStore.session()));
   protected readonly roleLabel = computed(() => getUserRoleLabel(this.authStore.session()));
   protected readonly displayName = computed(() => this.authStore.session()?.fullName?.trim() || 'User');
   protected readonly staffActions = computed(() => createStaffActions(this.authStore.permissions()));
   protected readonly accessModules = computed(() => createAccessModules(this.authStore.permissions()));
+  protected readonly loginPage = signal(1);
+  protected readonly aiInsightLoading = signal(false);
+  protected readonly aiInsightTitle = signal('Morning command brief');
+  protected readonly aiInsightText = signal('AIRA is ready to read aggregate dashboard signals and suggest operational focus areas.');
+  protected readonly aiInsightStamp = signal('Waiting for first refresh');
+  protected readonly pulseIndex = signal(0);
+  protected readonly currentPulse = computed(() => hospitalPulseItems[this.pulseIndex() % hospitalPulseItems.length]);
 
-  async ngOnInit(): Promise<void> { await this.load(); }
+  async ngOnInit(): Promise<void> {
+    await this.load();
+    this.aiTimer = setInterval(() => {
+      const model = this.dashboard();
+      if (model && this.isHospitalAdmin()) {
+        void this.refreshAiInsights(model, false);
+      }
+    }, 120_000);
+    this.pulseTimer = setInterval(() => {
+      this.pulseIndex.update(index => (index + 1) % hospitalPulseItems.length);
+    }, 12_000);
+  }
+
+  ngOnDestroy(): void {
+    if (this.aiTimer) {
+      clearInterval(this.aiTimer);
+    }
+    if (this.pulseTimer) {
+      clearInterval(this.pulseTimer);
+    }
+  }
+
   protected t(key: string): string { return this.i18n.translate(key); }
 
   protected async load(): Promise<void> {
     const response = await this.service.getDashboard();
-    response.success && response.data ? this.dashboard.set(response.data) : this.toast.error(this.t(response.message));
+    if (response.success && response.data) {
+      this.dashboard.set(response.data);
+      this.loginPage.set(1);
+      this.setFallbackInsight(response.data);
+      if (this.isHospitalAdmin()) {
+        void this.refreshAiInsights(response.data, false);
+      }
+      return;
+    }
+
+    this.toast.error(this.t(response.message));
+  }
+
+  protected pagedRecentLogins(model: AdministrationDashboard) {
+    const start = (this.loginPage() - 1) * recentLoginPageSize;
+    return model.recentLogins.slice(start, start + recentLoginPageSize);
+  }
+
+  protected recentLoginTotalPages(model: AdministrationDashboard): number {
+    return Math.max(1, Math.ceil(model.recentLogins.length / recentLoginPageSize));
+  }
+
+  protected recentLoginRange(model: AdministrationDashboard): string {
+    if (model.recentLogins.length === 0) {
+      return '0';
+    }
+
+    const start = (this.loginPage() - 1) * recentLoginPageSize + 1;
+    const end = Math.min(this.loginPage() * recentLoginPageSize, model.recentLogins.length);
+    return `${start}-${end}`;
+  }
+
+  protected changeLoginPage(delta: number, model: AdministrationDashboard): void {
+    const totalPages = this.recentLoginTotalPages(model);
+    this.loginPage.update(page => Math.min(totalPages, Math.max(1, page + delta)));
+  }
+
+  protected async refreshAiInsights(model: AdministrationDashboard, notify = true): Promise<void> {
+    if (this.aiInsightLoading()) {
+      return;
+    }
+
+    this.aiInsightLoading.set(true);
+    try {
+      const response = await this.airaChat.send(createDashboardInsightPrompt(model), []);
+      if (response.success && response.data?.message) {
+        this.aiInsightTitle.set('AIRA live operations note');
+        this.aiInsightText.set(compactText(response.data.message));
+        this.aiInsightStamp.set(`Updated ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
+        return;
+      }
+
+      this.setFallbackInsight(model);
+      if (notify && response.message !== 'Ai.Chat.Errors.ProviderNotConfigured') {
+        this.toast.error(response.message || 'AIRA insight refresh failed');
+      }
+    } catch {
+      this.setFallbackInsight(model);
+      if (notify) {
+        this.toast.error('AIRA insight refresh failed');
+      }
+    } finally {
+      this.aiInsightLoading.set(false);
+    }
+  }
+
+  private setFallbackInsight(model: AdministrationDashboard): void {
+    const failedLogins = model.recentLogins.filter(login => !login.wasSuccessful).length;
+    const unhealthy = model.systemHealth.filter(item => item.statusCode !== 'HEALTHY').length;
+    const templates = model.summary.notificationTemplateCount;
+    const focus = unhealthy > 0
+      ? `${unhealthy} system component needs attention before shift handover.`
+      : failedLogins > 0
+        ? `${failedLogins} recent sign-in attempt failed. Review access support if this repeats.`
+        : templates === 0
+          ? 'Notification templates are not configured yet. Add templates to reduce manual communication work.'
+          : 'Systems look stable. Keep watching sign-ins, templates, and session load during peak hours.';
+
+    this.aiInsightTitle.set('AIRA local operations note');
+    this.aiInsightText.set(focus);
+    this.aiInsightStamp.set(`Updated ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
   }
 
   protected createCards(summary: AdministrationDashboardSummary): DashboardCard[] {
@@ -546,6 +771,68 @@ export class DashboardPageComponent implements OnInit {
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat().format(value);
+}
+
+const recentLoginPageSize = 6;
+
+const hospitalPulseItems: HospitalPulseItem[] = [
+  {
+    title: 'Digital front desks are becoming command centers',
+    detail: 'Hospitals are moving reception, appointment, and billing signals into one operational view for faster daily decisions.',
+    region: 'Global',
+    tag: 'Operations',
+    icon: 'hub',
+    tone: '#2563eb'
+  },
+  {
+    title: 'Patient communication is shifting to automated journeys',
+    detail: 'Appointment reminders, lab alerts, payment nudges, and discharge instructions work best when templates are ready before peak load.',
+    region: 'APAC',
+    tag: 'Patient experience',
+    icon: 'forum',
+    tone: '#0f766e'
+  },
+  {
+    title: 'Access reviews remain a high-value admin habit',
+    detail: 'Short weekly checks of roles, failed sign-ins, and active sessions reduce avoidable support and compliance friction.',
+    region: 'Global',
+    tag: 'Security',
+    icon: 'admin_panel_settings',
+    tone: '#7c3aed'
+  },
+  {
+    title: 'Care teams need sharper inventory visibility',
+    detail: 'Low-stock signals, pharmacy movement, and expiry tracking are becoming core daily indicators for hospital resilience.',
+    region: 'India',
+    tag: 'Pharmacy',
+    icon: 'medication',
+    tone: '#d97706'
+  }
+];
+
+function createDashboardInsightPrompt(model: AdministrationDashboard): string {
+  const failedLogins = model.recentLogins.filter(login => !login.wasSuccessful).length;
+  const unhealthy = model.systemHealth.filter(item => item.statusCode !== 'HEALTHY').map(item => item.componentCode);
+  return [
+    'Create one concise hospital operations dashboard insight for an admin.',
+    'Use only these aggregate metrics. Do not ask for or mention patient-level data.',
+    `Total users: ${model.summary.totalUsers}`,
+    `Active users: ${model.summary.activeUsers}`,
+    `Active sessions: ${model.summary.activeSessions}`,
+    `Logins today: ${model.summary.loginsToday}`,
+    `Recent failed logins visible: ${failedLogins}`,
+    `Notification templates: ${model.summary.notificationTemplateCount}`,
+    `License status: ${model.summary.licenseStatusCode}`,
+    `Subscription status: ${model.summary.subscriptionStatusCode}`,
+    `System health: ${model.summary.systemHealthStatusCode}`,
+    `Components needing attention: ${unhealthy.length > 0 ? unhealthy.join(', ') : 'none'}`,
+    'Return 1-2 sentences with one practical next action.'
+  ].join('\n');
+}
+
+function compactText(value: string): string {
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  return normalized.length > 280 ? `${normalized.slice(0, 277)}...` : normalized;
 }
 
 function createStaffActions(permissions: string[]): StaffAction[] {
