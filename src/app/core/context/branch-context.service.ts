@@ -88,6 +88,10 @@ export class BranchContextService {
     const normalized = normalizeBranchCode(branchCode);
     const branch = findBranch(this.branchesSignal(), normalized);
     const nextCode = branch?.branchCode ?? normalized;
+    if (nextCode === this.selectedBranchCodeSignal()) {
+      return;
+    }
+
     this.selectedBranchCodeSignal.set(nextCode);
     writeSelectedBranchCode(nextCode);
   }
