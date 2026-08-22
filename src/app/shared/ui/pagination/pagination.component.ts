@@ -24,6 +24,7 @@ import { AcDropdownComponent, DropdownOption } from '../dropdown/dropdown.compon
             class="page-size-dropdown"
             [ngModel]="pageSize"
             [options]="pageSizeDropdownOptions()"
+            placement="top"
             ariaLabel="Rows per page"
             (ngModelChange)="changePageSize($event)" />
         </label>
@@ -41,7 +42,7 @@ import { AcDropdownComponent, DropdownOption } from '../dropdown/dropdown.compon
     </footer>
   `,
   styles: `
-    :host { display: block; width: 100%; }
+    :host { display: block; width: 100%; margin-top: auto; position: relative; z-index: 5; }
     .ac-pagination {
       z-index: 2;
       display: flex;

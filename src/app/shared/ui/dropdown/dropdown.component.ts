@@ -20,7 +20,7 @@ export interface DropdownOption<T = string> {
     }
   ],
   template: `
-    <div class="ac-dropdown" [class.open]="open()" [class.disabled]="disabled">
+    <div class="ac-dropdown" [class.open]="open()" [class.disabled]="disabled" [class.drop-up]="placement === 'top'">
       <button
         class="ac-dropdown-trigger"
         type="button"
@@ -108,6 +108,12 @@ export interface DropdownOption<T = string> {
       box-shadow: 0 18px 38px rgba(15,23,42,.16);
       animation: acDropdownIn .12s ease-out;
     }
+    .drop-up .ac-dropdown-panel {
+      top: auto;
+      bottom: calc(100% + 5px);
+      box-shadow: 0 -18px 38px rgba(15,23,42,.14);
+      animation-name: acDropdownUpIn;
+    }
     .ac-dropdown-option {
       width: 100%;
       min-height: 38px;
@@ -133,6 +139,10 @@ export interface DropdownOption<T = string> {
       from { opacity: 0; transform: translateY(-4px); }
       to { opacity: 1; transform: translateY(0); }
     }
+    @keyframes acDropdownUpIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -142,6 +152,7 @@ export class AcDropdownComponent<T = string> implements ControlValueAccessor {
   @Input() emptyText = 'No options available';
   @Input() clearable = false;
   @Input() ariaLabel = '';
+  @Input() placement: 'bottom' | 'top' = 'bottom';
   @Output() selectionChange = new EventEmitter<T | null>();
 
   protected readonly open = signal(false);

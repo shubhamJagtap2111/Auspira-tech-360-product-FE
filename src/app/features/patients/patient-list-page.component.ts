@@ -298,7 +298,7 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
     </section>
   `,
   styles: `
-    .patients { display: flex; flex-direction: column; gap: 20px; animation: slideUp 0.3s ease; }
+    .patients { min-height: calc(100dvh - var(--ac-header-h) - 56px); display: flex; flex-direction: column; gap: 20px; animation: slideUp 0.3s ease; }
     .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
     .page-desc { font-size: 13.5px; color: var(--ac-muted); margin-top: 5px; max-width: 560px; }
     .header-actions { display: flex; gap: 10px; flex-shrink: 0; }
@@ -319,8 +319,8 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
     .toolbar-count { font-size: 12.5px; color: var(--ac-muted); padding: 0 4px; white-space: nowrap; }
     .icon-btn { width: 38px; height: 38px; border: 1px solid var(--ac-border); border-radius: var(--ac-r-sm); background: var(--ac-surface); color: var(--ac-muted); display: inline-grid; place-items: center; }
     .icon-btn:hover { border-color: var(--ac-primary); color: var(--ac-primary); }
-    .table-card { overflow: hidden; position: relative; display: flex; flex-direction: column; }
-    .table-scroll { width: 100%; overflow-x: auto; overflow-y: hidden; }
+    .table-card { flex: 1 1 auto; min-height: 320px; overflow: hidden; position: relative; display: flex; flex-direction: column; }
+    .table-scroll { flex: 1 1 auto; width: 100%; min-height: 0; overflow: auto; }
     .table-scroll .ac-table { width: 100%; min-width: 980px; table-layout: fixed; }
     .table-scroll .ac-table th:nth-child(1), .table-scroll .ac-table td:nth-child(1) { width: 120px; }
     .table-scroll .ac-table th:nth-child(2), .table-scroll .ac-table td:nth-child(2) { width: 240px; }
@@ -436,7 +436,7 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
     .mobile-number-input { min-width: 0; }
     @media (max-width: 900px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 760px) {
-      .patients { gap: 14px; }
+      .patients { min-height: auto; gap: 14px; }
       .page-header { align-items: stretch; }
       .page-header > div:first-child { min-width: 0; }
       .ac-page-title { font-size: 25px; line-height: 1.12; }
