@@ -307,6 +307,7 @@ export class BranchManagementPageComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     await this.loadBranches();
+    await this.branchContext.refresh();
   }
 
   protected t(key: string): string {

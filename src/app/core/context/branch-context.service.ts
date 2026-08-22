@@ -38,6 +38,7 @@ export class BranchContextService {
   private readonly selectedBranchCodeSignal = signal<string | null>(readSelectedBranchCode());
   private readonly hospitalNameSignal = signal<string | null>(null);
   private loadingPromise: Promise<void> | null = null;
+  private loadedBranchesSuccessfully = false;
 
   readonly branches = this.branchesSignal.asReadonly();
   readonly selectedBranchCode = this.selectedBranchCodeSignal.asReadonly();
@@ -59,12 +60,21 @@ export class BranchContextService {
   );
 
   loadBranches(): Promise<void> {
-    this.loadingPromise ??= this.fetchContext();
+    this.loadingPromise ??= this.fetchContext().finally(() => {
+      if (!this.loadedBranchesSuccessfully) {
+        this.loadingPromise = null;
+      }
+    });
     return this.loadingPromise;
   }
 
   async refresh(): Promise<void> {
-    this.loadingPromise = this.fetchContext();
+    this.loadedBranchesSuccessfully = false;
+    this.loadingPromise = this.fetchContext().finally(() => {
+      if (!this.loadedBranchesSuccessfully) {
+        this.loadingPromise = null;
+      }
+    });
     await this.loadingPromise;
   }
 
@@ -122,6 +132,7 @@ export class BranchContextService {
     }
 
     const branches = response.data.filter(branch => branch.isActive);
+    this.loadedBranchesSuccessfully = true;
     this.branchesSignal.set(branches);
     const storedCode = readSelectedBranchCode();
     const profileCode = normalizeBranchCode(this.authStore.profile()?.branchCode);

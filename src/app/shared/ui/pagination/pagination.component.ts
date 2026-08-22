@@ -48,8 +48,8 @@ import { AcDropdownComponent, DropdownOption } from '../dropdown/dropdown.compon
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      padding: 14px 20px;
+      gap: 10px;
+      padding: 10px 16px;
       border-top: 1px solid var(--ac-border);
       background: color-mix(in srgb, var(--ac-surface) 96%, transparent);
       flex-wrap: wrap;
@@ -63,7 +63,7 @@ import { AcDropdownComponent, DropdownOption } from '../dropdown/dropdown.compon
       display: flex;
       align-items: center;
       justify-content: flex-end;
-      gap: 12px;
+      gap: 10px;
       margin-left: auto;
     }
     .page-size {
@@ -74,7 +74,7 @@ import { AcDropdownComponent, DropdownOption } from '../dropdown/dropdown.compon
       font-size: 12.5px;
       font-weight: 700;
     }
-    .page-size-dropdown { width: 108px; }
+    .page-size-dropdown { width: 100px; }
     .page-controls {
       display: flex;
       align-items: center;
@@ -85,10 +85,10 @@ import { AcDropdownComponent, DropdownOption } from '../dropdown/dropdown.compon
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 30px;
-      height: 30px;
+      width: 28px;
+      height: 28px;
       border-radius: var(--ac-r-sm);
-      font-size: 13px;
+      font-size: 12.5px;
     }
     .page-btn {
       border: 1px solid var(--ac-border);
@@ -106,7 +106,7 @@ import { AcDropdownComponent, DropdownOption } from '../dropdown/dropdown.compon
       cursor: not-allowed;
       opacity: .42;
     }
-    .page-btn .material-symbols-rounded { font-size: 19px; }
+    .page-btn .material-symbols-rounded { font-size: 18px; }
     .page-num.active {
       background: var(--ac-primary);
       color: #fff;
