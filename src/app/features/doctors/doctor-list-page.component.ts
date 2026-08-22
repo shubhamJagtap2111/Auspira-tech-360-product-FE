@@ -245,15 +245,13 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
               </section>
             </div>
 
-            <div drawer-actions>
-              <button class="ac-btn ac-btn-secondary" type="button" (click)="closeDrawer()">Cancel</button>
-              @if (!isViewMode()) {
-                <button class="ac-btn ac-btn-primary" type="button" (click)="saveDoctor()" [disabled]="saving()">
-                  <span class="material-symbols-rounded">save</span>
-                  Save Doctor
-                </button>
-              }
-            </div>
+            <button drawer-actions class="ac-btn ac-btn-secondary drawer-action-btn" type="button" (click)="closeDrawer()">Cancel</button>
+            @if (!isViewMode()) {
+              <button drawer-actions class="ac-btn ac-btn-primary drawer-action-btn save-doctor-btn" type="button" (click)="saveDoctor()" [disabled]="saving()">
+                <span class="material-symbols-rounded">save</span>
+                Save Doctor
+              </button>
+            }
           </ac-admin-drawer>
         }
       }
@@ -325,6 +323,20 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
     input:focus, textarea:focus { border-color: var(--ac-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ac-primary) 14%, transparent); }
     input:disabled, textarea:disabled { opacity: .72; cursor: not-allowed; }
     .wide-label { margin-top: 14px; }
+    .drawer-action-btn {
+      min-width: 98px;
+      height: 44px;
+      border-radius: 10px;
+      font-weight: 850;
+    }
+    .save-doctor-btn {
+      min-width: 172px;
+      padding-inline: 20px;
+      box-shadow: 0 10px 22px color-mix(in srgb, var(--ac-primary) 24%, transparent);
+    }
+    .save-doctor-btn:hover {
+      box-shadow: 0 14px 28px color-mix(in srgb, var(--ac-primary) 28%, transparent);
+    }
     @media (max-width: 1180px) {
       .stats-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .toolbar { grid-template-columns: 1fr 1fr; }
@@ -338,6 +350,11 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
       .mobile-doctor-list { display: grid; }
       .toolbar-select, .toolbar-count, .icon-btn { width: 100%; }
       .icon-btn { justify-self: stretch; }
+      .drawer-action-btn,
+      .save-doctor-btn {
+        width: 100%;
+        min-width: 0;
+      }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush

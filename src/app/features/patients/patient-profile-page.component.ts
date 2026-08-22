@@ -461,6 +461,185 @@ type PatientProfileTab = 'overview' | 'contacts' | 'safety' | 'insurance' | 'doc
       .hero-status { width: 100%; min-width: 0; text-align: left; }
       .overview-grid { grid-template-columns: 1fr; }
     }
+
+    .patient-profile {
+      gap: 12px;
+      padding-bottom: 0;
+    }
+    .profile-header {
+      min-height: 42px;
+    }
+    .hero-card {
+      min-height: 118px;
+      padding: 16px 18px;
+      gap: 16px;
+      border-radius: 12px;
+    }
+    .hero-main {
+      gap: 14px;
+    }
+    .patient-avatar {
+      width: 58px;
+      height: 58px;
+      border-radius: 16px;
+      font-size: 22px;
+      outline-width: 4px;
+    }
+    .hero-main .ac-eyebrow {
+      margin-bottom: 4px;
+      font-size: 11px;
+    }
+    .hero-main h1 {
+      font-size: 25px;
+      line-height: 1.08;
+    }
+    .hero-pills {
+      margin-top: 9px;
+      gap: 6px;
+    }
+    .pill {
+      min-height: 28px;
+      padding: 3px 9px;
+      font-size: 12px;
+    }
+    .hero-status {
+      min-width: 188px;
+      padding: 13px 15px;
+      border-radius: 14px;
+    }
+    .hero-status strong {
+      margin-top: 5px;
+      font-size: 16px;
+    }
+    .overview-grid {
+      gap: 12px;
+    }
+    .metric-card {
+      min-height: 78px;
+      padding: 12px 14px;
+      border-radius: 10px;
+    }
+    .metric-card .material-symbols-rounded {
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+      font-size: 20px;
+    }
+    .metric-card strong {
+      font-size: 22px;
+      line-height: 1;
+    }
+    .metric-card small {
+      margin-top: 4px;
+      display: block;
+      font-size: 12.5px;
+    }
+    .tab-bar {
+      display: flex;
+      align-items: center;
+      min-height: 54px;
+      padding: 6px;
+      gap: 6px;
+      border-radius: 12px;
+      visibility: visible;
+    }
+    .tab-bar button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-width: max-content;
+      min-height: 38px;
+      padding: 0 11px;
+      color: var(--ac-muted);
+      background: transparent;
+      opacity: 1;
+      visibility: visible;
+    }
+    .tab-bar button.active {
+      color: var(--ac-primary);
+      background: var(--ac-primary-light);
+    }
+    .tab-content {
+      min-height: 0;
+      padding: 14px;
+      border-radius: 12px;
+    }
+    .split-layout {
+      gap: 14px;
+    }
+    .split-layout > article,
+    .split-layout > section {
+      padding: 16px;
+      border: 1px solid color-mix(in srgb, var(--ac-border) 84%, var(--ac-surface));
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--ac-surface) 96%, var(--ac-subtle));
+    }
+    h2 {
+      margin-bottom: 10px;
+      font-size: 17px;
+    }
+    .detail-grid,
+    .billing-grid {
+      gap: 8px;
+    }
+    .detail-grid span,
+    .billing-grid div {
+      padding: 11px 12px;
+      min-height: 70px;
+      border-radius: 10px;
+    }
+    .detail-grid strong,
+    .billing-grid strong {
+      margin-top: 3px;
+      font-size: 15px;
+    }
+    .record-grid {
+      gap: 10px;
+    }
+    .record-card {
+      min-height: 70px;
+      padding: 12px;
+      border-radius: 10px;
+    }
+    .record-card .material-symbols-rounded {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      font-size: 19px;
+    }
+    .record-card h3 {
+      font-size: 14px;
+    }
+    .record-card p {
+      margin-top: 3px;
+      font-size: 12.5px;
+    }
+    .empty-state {
+      min-height: 120px;
+      padding: 18px;
+      border-radius: 10px;
+    }
+
+    @media (max-width: 620px) {
+      .hero-card {
+        padding: 15px;
+      }
+      .hero-main h1 {
+        font-size: 22px;
+      }
+      .patient-avatar {
+        width: 52px;
+        height: 52px;
+        font-size: 19px;
+      }
+      .tab-bar {
+        min-height: 50px;
+      }
+      .tab-content {
+        padding: 12px;
+      }
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
