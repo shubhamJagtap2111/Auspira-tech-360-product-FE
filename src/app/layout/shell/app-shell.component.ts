@@ -1924,6 +1924,10 @@ export class AppShellComponent implements OnInit {
   }
 
   private aiErrorMessage(messageKey: string): string {
+    if (messageKey.startsWith('Ai.Chat.Errors.ProviderUnavailable:')) {
+      return messageKey.replace('Ai.Chat.Errors.ProviderUnavailable: ', '');
+    }
+
     const messages: Record<string, string> = {
       'Ai.Chat.Errors.ProviderNotConfigured': 'AIRA is not configured yet. Please set the Grok API key on the API server.',
       'Ai.Chat.Errors.ProviderUnavailable': 'AIRA could not reach Grok right now. Please try again in a moment.',
