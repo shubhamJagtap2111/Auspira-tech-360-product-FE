@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { BranchContextService } from '../../core/context/branch-context.service';
 import { getApiErrorMessage } from '../../core/http/api-error-message';
 import { AcAdminDrawerComponent } from '../../shared/ui/admin-drawer/admin-drawer.component';
 import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dropdown.component';
@@ -249,7 +250,7 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
             @if (!isViewMode()) {
               <button drawer-actions class="ac-btn ac-btn-primary drawer-action-btn save-doctor-btn" type="button" (click)="saveDoctor()" [disabled]="saving()">
                 <span class="material-symbols-rounded">save</span>
-                Save Doctor
+                {{ doctorSaveLabel() }}
               </button>
             }
           </ac-admin-drawer>
@@ -423,10 +424,20 @@ export class DoctorListPageComponent implements OnInit, OnDestroy {
   private readonly service = inject(DoctorManagementService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly branchContext = inject(BranchContextService);
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
+  private branchReloadReady = false;
+  private readonly branchReloadEffect = effect(() => {
+    this.branchContext.selectedBranchCode();
+    if (this.branchReloadReady) {
+      void this.loadDoctors(1);
+    }
+  });
 
-  ngOnInit(): void {
-    void this.loadDoctors(1);
+  async ngOnInit(): Promise<void> {
+    await this.branchContext.loadBranches();
+    this.branchReloadReady = true;
+    await this.loadDoctors(1);
   }
 
   ngOnDestroy(): void {
@@ -441,7 +452,7 @@ export class DoctorListPageComponent implements OnInit, OnDestroy {
       searchText: this.searchQuery,
       departmentName: this.departmentFilter,
       specializationName: this.specializationFilter,
-      branchName: '',
+      branchName: this.branchContext.selectedBranch()?.branchName ?? '',
       employmentType: '',
       statusCode: this.statusFilter,
       pageNumber,
@@ -488,7 +499,7 @@ export class DoctorListPageComponent implements OnInit, OnDestroy {
   }
 
   protected async startCreate(): Promise<void> {
-    const doctor = createEmptyDoctor();
+    const doctor = createEmptyDoctor(this.branchContext.selectedBranch()?.branchName);
     const response = await this.service.nextDoctorCode();
     if (response.success && response.data) {
       doctor.doctorCode = response.data.doctorCode;
@@ -517,6 +528,14 @@ export class DoctorListPageComponent implements OnInit, OnDestroy {
   protected closeDrawer(): void {
     this.drawerOpen.set(false);
     this.form.set(null);
+  }
+
+  protected doctorSaveLabel(): string {
+    if (this.saving()) {
+      return this.drawerMode() === 'edit' ? 'Updating doctor...' : 'Saving doctor...';
+    }
+
+    return this.drawerMode() === 'edit' ? 'Update Doctor' : 'Save Doctor';
   }
 
   protected async saveDoctor(): Promise<void> {
@@ -616,7 +635,7 @@ export class DoctorListPageComponent implements OnInit, OnDestroy {
   }
 }
 
-function createEmptyDoctor(): DoctorForm {
+function createEmptyDoctor(branchName = 'Main Branch'): DoctorForm {
   return {
     doctorGuid: '',
     doctorCode: '',
@@ -642,7 +661,7 @@ function createEmptyDoctor(): DoctorForm {
     designation: null,
     experienceYears: 0,
     employmentType: 'FULL_TIME',
-    branchName: 'Main Branch',
+    branchName,
     joiningDate: null,
     consultationFee: 0,
     statusCode: 'ACTIVE',

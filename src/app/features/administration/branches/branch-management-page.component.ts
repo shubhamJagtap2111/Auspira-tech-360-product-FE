@@ -2,9 +2,11 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthStore } from '../../../core/auth/auth.store';
+import { BranchContextService } from '../../../core/context/branch-context.service';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
 import { AcAdminDrawerComponent } from '../../../shared/ui/admin-drawer/admin-drawer.component';
+import { AcPaginationComponent } from '../../../shared/ui/pagination/pagination.component';
 import { BranchConfiguration, BranchProfile, BranchSummary, BranchWorkingHour } from './branch-management.models';
 import { BranchManagementService } from './branch-management.service';
 
@@ -19,7 +21,7 @@ const permissions = {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcAdminDrawerComponent],
+  imports: [CommonModule, FormsModule, AcAdminDrawerComponent, AcPaginationComponent],
   template: `
     <section class="branch-page">
       <header class="page-head">
@@ -38,9 +40,9 @@ const permissions = {
       <section class="toolbar">
         <label>
           <span>{{ t('Administration.Branch.Filter.Search') }}</span>
-          <input name="searchText" [(ngModel)]="searchText" (keyup.enter)="loadBranches()" />
+          <input name="searchText" [(ngModel)]="searchText" (keyup.enter)="loadBranches(1)" />
         </label>
-        <button class="icon-btn" type="button" (click)="loadBranches()" [attr.title]="t('Administration.Rbac.Actions.Refresh')">
+        <button class="icon-btn" type="button" (click)="loadBranches(1)" [attr.title]="t('Administration.Rbac.Actions.Refresh')">
           <span class="material-symbols-rounded">refresh</span>
         </button>
       </section>
@@ -110,9 +112,13 @@ const permissions = {
           </table>
         </div>
 
-        <footer class="table-footer">
-          <span class="table-count">Showing {{ branches().length }} branches</span>
-        </footer>
+        <ac-pagination
+          [pageNumber]="pageNumber()"
+          [pageSize]="pageSize()"
+          [totalCount]="totalCount()"
+          itemLabel="branches"
+          (pageChange)="changePage($event)"
+          (pageSizeChange)="changePageSize($event)" />
 
         @if (drawerOpen()) {
           @if (form(); as branchForm) {
@@ -224,7 +230,7 @@ const permissions = {
               <button drawer-actions class="ac-btn ac-btn-secondary" type="button" (click)="closeDrawer()">{{ t('Common.Actions.Cancel') }}</button>
               <button drawer-actions class="ac-btn ac-btn-primary" type="button" (click)="save()" [disabled]="saving() || !canSave(branchForm)">
                 <span class="material-symbols-rounded">save</span>
-                {{ t('Administration.Branch.Actions.SaveBranch') }}
+                {{ branchForm.branchGuid ? 'Update branch' : t('Administration.Branch.Actions.SaveBranch') }}
               </button>
             </ac-admin-drawer>
           }
@@ -273,8 +279,6 @@ const permissions = {
     .setting-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
     .settings-empty { margin: 0; padding: 12px; border: 1px dashed var(--ac-border-2); border-radius: 8px; color: var(--ac-muted); text-align: center; font-size: 13px; }
     .empty { text-align: center; color: var(--ac-muted); padding: 28px; }
-    .table-footer { margin-top: auto; position: sticky; bottom: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-top: 1px solid var(--ac-border); background: color-mix(in srgb, var(--ac-surface) 96%, transparent); backdrop-filter: blur(10px); flex-wrap: wrap; gap: 10px; }
-    .table-count { font-size: 12.5px; color: var(--ac-muted); }
     @media (max-width: 1360px) { .layout.drawer-open .table-wrap { margin-right: 0; } }
     @media (max-width: 760px) {
       .page-head, .toolbar { flex-direction: column; align-items: stretch; }
@@ -285,7 +289,11 @@ const permissions = {
 })
 export class BranchManagementPageComponent implements OnInit {
   protected readonly permissions = permissions;
+  private readonly allBranches = signal<BranchSummary[]>([]);
   protected readonly branches = signal<BranchSummary[]>([]);
+  protected readonly totalCount = signal(0);
+  protected readonly pageNumber = signal(1);
+  protected readonly pageSize = signal(10);
   protected readonly form = signal<BranchProfile>(createEmptyBranch());
   protected readonly drawerOpen = signal(false);
   protected readonly saving = signal(false);
@@ -295,6 +303,7 @@ export class BranchManagementPageComponent implements OnInit {
   private readonly i18n = inject(I18nService);
   private readonly authStore = inject(AuthStore);
   private readonly toast = inject(ToastService);
+  private readonly branchContext = inject(BranchContextService);
 
   async ngOnInit(): Promise<void> {
     await this.loadBranches();
@@ -316,14 +325,25 @@ export class BranchManagementPageComponent implements OnInit {
     return branch.branchGuid ? this.can(permissions.edit) : this.can(permissions.create);
   }
 
-  protected async loadBranches(): Promise<void> {
+  protected async loadBranches(pageNumber = this.pageNumber()): Promise<void> {
     const response = await this.service.search(this.searchText, true);
     if (response.success && response.data) {
-      this.branches.set(response.data);
+      this.allBranches.set(response.data);
+      this.totalCount.set(response.data.length);
+      this.applyBranchPage(pageNumber);
       return;
     }
 
     this.toast.error(this.t(response.message));
+  }
+
+  protected changePage(pageNumber: number): void {
+    this.applyBranchPage(pageNumber);
+  }
+
+  protected changePageSize(pageSize: number): void {
+    this.pageSize.set(pageSize);
+    this.applyBranchPage(1);
   }
 
   protected async selectBranch(branch: BranchSummary): Promise<void> {
@@ -366,6 +386,15 @@ export class BranchManagementPageComponent implements OnInit {
     await this.saveOperation(() => this.service.setDefault(branch.branchGuid), 'Administration.Branch.Messages.DefaultUpdated');
   }
 
+  private applyBranchPage(pageNumber: number): void {
+    const allBranches = this.allBranches();
+    const totalPages = Math.max(1, Math.ceil(allBranches.length / Math.max(this.pageSize(), 1)));
+    const safePage = Math.min(Math.max(pageNumber, 1), totalPages);
+    const start = (safePage - 1) * this.pageSize();
+    this.pageNumber.set(safePage);
+    this.branches.set(allBranches.slice(start, start + this.pageSize()));
+  }
+
   private async saveOperation(operation: () => Promise<{ success: boolean; message: string; data: BranchProfile | null }>, successKey: string): Promise<void> {
     this.saving.set(true);
     try {
@@ -378,6 +407,7 @@ export class BranchManagementPageComponent implements OnInit {
       this.form.set(ensureWorkingHours(response.data));
       this.drawerOpen.set(false);
       await this.loadBranches();
+      await this.branchContext.refresh();
       this.toast.success(this.t(successKey));
     } finally {
       this.saving.set(false);

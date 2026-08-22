@@ -143,7 +143,7 @@ const permissions = {
             <button drawer-actions class="ac-btn ac-btn-secondary" type="button" (click)="closeEditor()">{{ t('Common.Actions.Cancel') }}</button>
             <button drawer-actions class="ac-btn ac-btn-primary" type="submit" form="role-editor-form" [disabled]="saving() || (!can(permissions.create) && !can(permissions.edit))">
               <span class="material-symbols-rounded">save</span>
-              {{ t('Administration.Rbac.Actions.SaveRole') }}
+              {{ form.rowVersion ? 'Update role' : t('Administration.Rbac.Actions.SaveRole') }}
             </button>
         </ac-admin-drawer>
         }

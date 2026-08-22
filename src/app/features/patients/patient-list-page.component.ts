@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, HostListener, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, OnDestroy, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AcAdminDrawerComponent } from '../../shared/ui/admin-drawer/admin-drawer.component';
@@ -7,6 +7,7 @@ import { DialogService } from '../../shared/ui/dialog/dialog.service';
 import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
 import { AcPaginationComponent } from '../../shared/ui/pagination/pagination.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
+import { BranchContextService } from '../../core/context/branch-context.service';
 import { getApiErrorMessage } from '../../core/http/api-error-message';
 import { PatientDuplicate, PatientForm, PatientRegistryStats, PatientSummary } from './patient-management.models';
 import { PatientManagementService } from './patient-management.service';
@@ -314,7 +315,7 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
               <button drawer-actions class="ac-btn ac-btn-secondary" type="button" (click)="closeDrawer()">Cancel</button>
               <button drawer-actions class="ac-btn ac-btn-primary" type="button" (click)="save()" [disabled]="isViewMode() || saving() || !canSave(patientForm)">
                 <span class="material-symbols-rounded">save</span>
-                Save Patient
+                {{ patientSaveLabel() }}
               </button>
             </ac-admin-drawer>
           }
@@ -570,10 +571,20 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
   private readonly toast = inject(ToastService);
   private readonly dialog = inject(DialogService);
   private readonly router = inject(Router);
+  private readonly branchContext = inject(BranchContextService);
   private searchDebounceId: ReturnType<typeof setTimeout> | undefined;
   private patientRequestId = 0;
+  private branchReloadReady = false;
+  private readonly branchReloadEffect = effect(() => {
+    this.branchContext.selectedBranchCode();
+    if (this.branchReloadReady) {
+      void this.loadPatients(1);
+    }
+  });
 
   async ngOnInit(): Promise<void> {
+    await this.branchContext.loadBranches();
+    this.branchReloadReady = true;
     await this.loadPatients();
   }
 
@@ -583,7 +594,14 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
 
   protected async loadPatients(pageNumber = this.pageNumber()): Promise<void> {
     const requestId = ++this.patientRequestId;
-    const response = await this.service.search(this.searchQuery, this.genderFilter, this.statusFilter, pageNumber, this.pageSize());
+    const response = await this.service.search(
+      this.searchQuery,
+      this.genderFilter,
+      this.statusFilter,
+      this.branchContext.selectedBranchCode() ?? '',
+      pageNumber,
+      this.pageSize()
+    );
     if (requestId !== this.patientRequestId) {
       return;
     }
@@ -681,6 +699,14 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
       edit: 'Edit patient',
       create: 'New patient'
     }[this.drawerMode()];
+  }
+
+  protected patientSaveLabel(): string {
+    if (this.saving()) {
+      return this.drawerMode() === 'edit' ? 'Updating patient...' : 'Saving patient...';
+    }
+
+    return this.drawerMode() === 'edit' ? 'Update Patient' : 'Save Patient';
   }
 
   protected canSave(patient: PatientForm): boolean {

@@ -100,7 +100,7 @@ const permissions = {
                 </section>
               </div>
               <button drawer-actions class="ac-btn ac-btn-secondary" type="button" (click)="closeDrawer()">{{ t('Common.Actions.Cancel') }}</button>
-              <button drawer-actions class="ac-btn ac-btn-primary" type="button" (click)="save()" [disabled]="saving() || !canSave(model)"><span class="material-symbols-rounded">save</span>{{ t('Administration.Department.Actions.Save') }}</button>
+              <button drawer-actions class="ac-btn ac-btn-primary" type="button" (click)="save()" [disabled]="saving() || !canSave(model)"><span class="material-symbols-rounded">save</span>{{ model.departmentGuid ? 'Update department' : t('Administration.Department.Actions.Save') }}</button>
             </ac-admin-drawer>
           }
         }

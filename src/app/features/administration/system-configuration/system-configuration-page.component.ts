@@ -263,13 +263,13 @@ type ConfigEditorMode = 'number-series' | 'fiscal-year' | 'template';
             </div>
             <button drawer-actions class="ac-btn ac-btn-secondary" type="button" (click)="closeEditor()">{{ t('Common.Actions.Cancel') }}</button>
             @if (mode === 'number-series') {
-              <button drawer-actions class="ac-btn ac-btn-primary" type="button" (click)="saveNumberSeries()" [disabled]="saving()"><span class="material-symbols-rounded">save</span>{{ t('Administration.SystemConfiguration.Actions.SaveNumberSeries') }}</button>
+              <button drawer-actions class="ac-btn ac-btn-primary" type="button" (click)="saveNumberSeries()" [disabled]="saving()"><span class="material-symbols-rounded">save</span>{{ numberSeriesForm().numberSeriesGuid ? 'Update number series' : t('Administration.SystemConfiguration.Actions.SaveNumberSeries') }}</button>
             }
             @if (mode === 'fiscal-year') {
-              <button drawer-actions class="ac-btn ac-btn-primary" type="button" (click)="saveFiscalYear()" [disabled]="saving()"><span class="material-symbols-rounded">save</span>{{ t('Administration.SystemConfiguration.Actions.SaveFiscalYear') }}</button>
+              <button drawer-actions class="ac-btn ac-btn-primary" type="button" (click)="saveFiscalYear()" [disabled]="saving()"><span class="material-symbols-rounded">save</span>{{ fiscalYearForm().fiscalYearGuid ? 'Update fiscal year' : t('Administration.SystemConfiguration.Actions.SaveFiscalYear') }}</button>
             }
             @if (mode === 'template') {
-              <button drawer-actions class="ac-btn ac-btn-primary" type="button" (click)="saveTemplate()" [disabled]="saving()"><span class="material-symbols-rounded">save</span>{{ t('Administration.SystemConfiguration.Actions.SaveTemplate') }}</button>
+              <button drawer-actions class="ac-btn ac-btn-primary" type="button" (click)="saveTemplate()" [disabled]="saving()"><span class="material-symbols-rounded">save</span>{{ templateForm().notificationTemplateGuid ? 'Update template' : t('Administration.SystemConfiguration.Actions.SaveTemplate') }}</button>
             }
         </ac-admin-drawer>
       }

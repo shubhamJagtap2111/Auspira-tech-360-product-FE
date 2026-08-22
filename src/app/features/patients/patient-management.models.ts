@@ -159,6 +159,7 @@ export interface UpsertPatientPayload {
   genderCode: string | null;
   dateOfBirth: string | null;
   bloodGroupCode: string | null;
+  branchCode: string | null;
   rowVersion: string | null;
 }
 

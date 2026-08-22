@@ -1,12 +1,14 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthStore } from '../../../core/auth/auth.store';
+import { BranchContextService } from '../../../core/context/branch-context.service';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
 import { DialogService } from '../../../shared/ui/dialog/dialog.service';
 import { AcDropdownComponent } from '../../../shared/ui/dropdown/dropdown.component';
 import { AcAdminDrawerComponent } from '../../../shared/ui/admin-drawer/admin-drawer.component';
+import { AcPaginationComponent } from '../../../shared/ui/pagination/pagination.component';
 import { AssignableRole, ManagedUser, UserAuditHistoryItem, UserFormModel, UserLanguageOption, UserTimeZoneOption } from './user-management.models';
 import { UserManagementService } from './user-management.service';
 
@@ -28,7 +30,7 @@ const defaultResetPassword = 'Reset@123';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcDropdownComponent, AcAdminDrawerComponent],
+  imports: [CommonModule, FormsModule, AcDropdownComponent, AcAdminDrawerComponent, AcPaginationComponent],
   template: `
     <section class="user-page">
       <header class="page-head">
@@ -158,18 +160,13 @@ const defaultResetPassword = 'Reset@123';
           </table>
         </div>
 
-        <footer class="table-footer">
-          <span class="table-count">Showing {{ users().length }} of {{ totalCount() }} users</span>
-          <div class="pagination">
-            <button class="page-btn" type="button" [disabled]="pageNumber() === 1" (click)="loadUsers(pageNumber() - 1)">
-              <span class="material-symbols-rounded">chevron_left</span>
-            </button>
-            <span class="page-num active">{{ pageNumber() }}</span>
-            <button class="page-btn" type="button" [disabled]="!hasNextPage()" (click)="loadUsers(pageNumber() + 1)">
-              <span class="material-symbols-rounded">chevron_right</span>
-            </button>
-          </div>
-        </footer>
+        <ac-pagination
+          [pageNumber]="pageNumber()"
+          [pageSize]="pageSize()"
+          [totalCount]="totalCount()"
+          itemLabel="users"
+          (pageChange)="loadUsers($event)"
+          (pageSizeChange)="changePageSize($event)" />
 
         @if (editorOpen()) {
         <ac-admin-drawer
@@ -203,7 +200,18 @@ const defaultResetPassword = 'Reset@123';
                     <label><span>{{ t('Administration.UserManagement.Form.Password') }}</span><input type="password" name="password" [(ngModel)]="form.password" required /></label>
                   }
                   @if (editingUserGuid() && can(permissions.uploadProfileImage)) {
-                    <label class="ac-admin-wide"><span>{{ t('Administration.UserManagement.Form.ProfileImage') }}</span><input type="file" accept="image/png,image/jpeg" (change)="uploadProfileImage($event)" /></label>
+                    <label class="ac-admin-wide profile-upload">
+                      <span>{{ t('Administration.UserManagement.Form.ProfileImage') }}</span>
+                      <span class="profile-upload-box">
+                        <span class="material-symbols-rounded">cloud_upload</span>
+                        <span>
+                          <strong>{{ selectedUser()?.profileImageFileName || 'Upload profile image' }}</strong>
+                          <small>PNG or JPG, up to 2 MB</small>
+                        </span>
+                        <em>Browse</em>
+                      </span>
+                      <input class="profile-upload-input" type="file" accept="image/png,image/jpeg" (change)="uploadProfileImage($event)" />
+                    </label>
                   }
                   <label class="ac-admin-switch-row"><input type="checkbox" name="isEmailVerified" [(ngModel)]="form.isEmailVerified" /><span>{{ t('Administration.UserManagement.Form.EmailVerified') }}</span></label>
                 </div>
@@ -239,7 +247,7 @@ const defaultResetPassword = 'Reset@123';
             </button>
             <button drawer-actions class="ac-btn ac-btn-primary" type="submit" form="user-editor-form" [disabled]="saving()">
               <span class="material-symbols-rounded">save</span>
-              {{ t(saving() ? 'Common.Actions.Updating' : 'Administration.UserManagement.Actions.Save') }}
+              {{ userSaveLabel() }}
             </button>
         </ac-admin-drawer>
         }
@@ -292,13 +300,6 @@ const defaultResetPassword = 'Reset@123';
     .icon-btn:hover { border-color: var(--ac-primary); color: var(--ac-primary); }
     .icon-btn.danger:hover { border-color: var(--ac-error); color: var(--ac-error); }
     .empty { text-align: center; color: var(--ac-muted); padding: 32px; }
-    .table-footer { margin-top: auto; position: sticky; bottom: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-top: 1px solid var(--ac-border); background: color-mix(in srgb, var(--ac-surface) 96%, transparent); backdrop-filter: blur(10px); flex-wrap: wrap; gap: 10px; }
-    .table-count { font-size: 12.5px; color: var(--ac-muted); }
-    .pagination { display: flex; align-items: center; gap: 4px; }
-    .page-btn, .page-num { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: var(--ac-r-sm); font-size: 13px; }
-    .page-btn { border: 1px solid var(--ac-border); background: var(--ac-surface); color: var(--ac-muted); cursor: pointer; }
-    .page-btn:disabled { opacity: .4; cursor: not-allowed; }
-    .page-num.active { background: var(--ac-primary); color: #fff; font-weight: 700; }
     .editor { width: min(380px, 100%); flex: 0 0 380px; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; padding: 16px; }
     .editor h2 { margin: 0 0 14px; font-size: 16px; }
     form { display: flex; flex-direction: column; gap: 12px; }
@@ -308,6 +309,14 @@ const defaultResetPassword = 'Reset@123';
     .check-row input { width: 16px; height: 16px; }
     .form-actions { justify-content: flex-end; margin-top: 4px; }
     .error { margin: 0 0 10px; padding: 10px 12px; border-radius: 8px; background: var(--ac-error-light); color: var(--ac-error); font-size: 13px; }
+    .profile-upload { position: relative; cursor: pointer; }
+    .profile-upload-box { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 62px; padding: 10px 12px; border: 1px dashed color-mix(in srgb, var(--ac-primary) 44%, var(--ac-border)); border-radius: 10px; background: linear-gradient(135deg, color-mix(in srgb, var(--ac-primary) 8%, var(--ac-surface)), var(--ac-surface)); color: var(--ac-text); transition: border-color var(--ac-t), box-shadow var(--ac-t), transform var(--ac-t); }
+    .profile-upload:hover .profile-upload-box { border-color: var(--ac-primary); box-shadow: 0 10px 24px rgba(37,99,235,.12); transform: translateY(-1px); }
+    .profile-upload-box > .material-symbols-rounded { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 10px; background: var(--ac-primary-light); color: var(--ac-primary); font-size: 22px; }
+    .profile-upload-box strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--ac-text); }
+    .profile-upload-box small { display: block; margin-top: 2px; color: var(--ac-muted); font-size: 11px; font-weight: 700; }
+    .profile-upload-box em { justify-self: end; padding: 7px 10px; border-radius: 8px; background: var(--ac-primary); color: #fff; font-size: 12px; font-style: normal; font-weight: 800; }
+    .profile-upload-input { position: absolute; inset: 24px 0 0; opacity: 0; cursor: pointer; }
     @media (max-width: 1280px) { .toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)) 44px; } }
     @media (max-width: 1120px) { .editor { width: 100%; flex-basis: auto; } }
     @media (max-width: 720px) { .page-head, .page-actions { flex-direction: column; align-items: stretch; } .toolbar { grid-template-columns: 1fr; } .page-actions { width: 100%; margin-left: 0; } table { min-width: 760px; } }
@@ -319,6 +328,7 @@ export class UserListPageComponent implements OnInit {
   private readonly service = inject(UserManagementService);
   private readonly i18n = inject(I18nService);
   private readonly authStore = inject(AuthStore);
+  private readonly branchContext = inject(BranchContextService);
   private readonly toast = inject(ToastService);
   private readonly dialog = inject(DialogService);
 
@@ -334,7 +344,7 @@ export class UserListPageComponent implements OnInit {
   protected readonly auditRows = signal<UserAuditHistoryItem[]>([]);
   protected readonly totalCount = signal(0);
   protected readonly pageNumber = signal(1);
-  protected readonly pageSize = signal(20);
+  protected readonly pageSize = signal(10);
   protected readonly selectedUser = signal<ManagedUser | null>(null);
   protected readonly editingUserGuid = signal<string | null>(null);
   protected readonly saving = signal(false);
@@ -343,9 +353,18 @@ export class UserListPageComponent implements OnInit {
 
   protected form: UserFormModel = emptyForm();
   private formBaseline = serializeUserForm(this.form);
+  private branchReloadReady = false;
+  private readonly branchReloadEffect = effect(() => {
+    this.branchContext.selectedBranchCode();
+    if (this.branchReloadReady && !this.branchFilter.trim()) {
+      void this.loadUsers(1);
+    }
+  });
 
   async ngOnInit(): Promise<void> {
-    await Promise.all([this.loadRoles(), this.loadReferenceData(), this.loadUsers()]);
+    await Promise.all([this.loadRoles(), this.loadReferenceData(), this.branchContext.loadBranches()]);
+    this.branchReloadReady = true;
+    await this.loadUsers();
   }
 
   protected t(key: string): string {
@@ -390,7 +409,7 @@ export class UserListPageComponent implements OnInit {
       searchText: this.searchText.trim(),
       roleCode: this.roleCode,
       isActive: this.statusFilter === 'all' ? null : this.statusFilter === 'active',
-      branchCode: this.branchFilter.trim(),
+      branchCode: this.branchFilter.trim() || this.branchContext.selectedBranchCode() || '',
       departmentCode: this.departmentFilter.trim(),
       languageCode: undefined,
       timeZoneCode: undefined,
@@ -411,10 +430,6 @@ export class UserListPageComponent implements OnInit {
     this.errorKey.set(response.message);
   }
 
-  protected hasNextPage(): boolean {
-    return this.pageNumber() * this.pageSize() < this.totalCount();
-  }
-
   protected async loadRoles(): Promise<void> {
     const response = await this.service.getAssignableRoles();
     if (response.success && response.data) {
@@ -430,6 +445,11 @@ export class UserListPageComponent implements OnInit {
     }
   }
 
+  protected async changePageSize(pageSize: number): Promise<void> {
+    this.pageSize.set(pageSize);
+    await this.loadUsers(1);
+  }
+
   protected selectUser(user: ManagedUser): void {
     this.selectedUser.set(user);
   }
@@ -437,7 +457,11 @@ export class UserListPageComponent implements OnInit {
   protected startCreate(): void {
     this.editingUserGuid.set(null);
     this.selectedUser.set(null);
-    this.form = emptyForm();
+    this.form = {
+      ...emptyForm(),
+      branchCode: this.branchContext.selectedBranch()?.branchCode ?? '',
+      branchNameKey: this.branchContext.selectedBranch()?.branchName ?? ''
+    };
     this.formBaseline = serializeUserForm(this.form);
     this.errorKey.set(null);
     this.editorOpen.set(true);
@@ -496,9 +520,13 @@ export class UserListPageComponent implements OnInit {
 
     try {
       const userGuid = this.editingUserGuid();
-      const response = userGuid
+      let response = userGuid
         ? await this.service.updateUser(userGuid, this.form)
         : await this.service.createUser(this.form);
+
+      if (response.success && response.data && userGuid && this.rolesChanged()) {
+        response = await this.service.assignRoles(userGuid, this.form.roleCodes);
+      }
 
       await this.handleUserResponse(response, userGuid ? 'Administration.UserManagement.Messages.Updated' : 'Administration.UserManagement.Messages.Created');
     } catch {
@@ -609,6 +637,20 @@ export class UserListPageComponent implements OnInit {
     }
 
     return this.t(user.isActive ? 'Administration.UserManagement.Status.Active' : 'Administration.UserManagement.Status.Inactive');
+  }
+
+  protected userSaveLabel(): string {
+    if (this.saving()) {
+      return this.editingUserGuid() ? 'Updating user...' : 'Saving user...';
+    }
+
+    return this.editingUserGuid() ? 'Update user' : this.t('Administration.UserManagement.Actions.Save');
+  }
+
+  private rolesChanged(): boolean {
+    const current = [...this.form.roleCodes].sort().join('|');
+    const original = [...(this.selectedUser()?.roleCodes ?? [])].sort().join('|');
+    return current !== original;
   }
 
   private async handleUserResponse(response: { success: boolean; message: string; data: ManagedUser | null }, successKey: string): Promise<void> {

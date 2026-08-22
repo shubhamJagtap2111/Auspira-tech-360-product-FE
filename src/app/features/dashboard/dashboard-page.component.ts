@@ -205,6 +205,29 @@ interface HospitalPulseItem {
                   }
                 </div>
               </article>
+
+              <article class="panel readiness-panel">
+                <div class="section-head">
+                  <div>
+                    <h2>Operational readiness</h2>
+                    <p>Branch-ready actions from the current dashboard signals.</p>
+                  </div>
+                </div>
+                <div class="readiness-list">
+                  <div>
+                    <span class="material-symbols-rounded">account_tree</span>
+                    <p>Use the branch selector before reviewing patients, doctors, users, and reports.</p>
+                  </div>
+                  <div>
+                    <span class="material-symbols-rounded">fact_check</span>
+                    <p>{{ model.summary.notificationTemplateCount === 0 ? 'Notification templates are still pending configuration.' : 'Notification templates are configured for operational follow-up.' }}</p>
+                  </div>
+                  <div>
+                    <span class="material-symbols-rounded">health_and_safety</span>
+                    <p>{{ model.summary.systemHealthStatusCode === 'HEALTHY' ? 'Core services are healthy for today’s administration work.' : 'System health needs review before peak workflow hours.' }}</p>
+                  </div>
+                </div>
+              </article>
             </div>
 
             <article class="panel intelligence-panel">
@@ -218,42 +241,40 @@ interface HospitalPulseItem {
                 </button>
               </div>
               <div class="ai-insight-card">
-                <span class="ai-orb" aria-hidden="true">
-                  <span class="aira-message-icon"></span>
-                  <i></i>
-                </span>
-                <div>
-                  <div class="ai-card-head">
-                    <div>
-                      <strong>{{ aiInsightTitle() }}</strong>
-                      <small>{{ aiInsightStamp() }}</small>
-                    </div>
-                    <span class="ai-live-chip"><i></i>AIRA live</span>
+                <div class="ai-card-head">
+                  <span class="ai-orb" aria-hidden="true">
+                    <span class="aira-message-icon"></span>
+                    <i></i>
+                  </span>
+                  <div>
+                    <strong>{{ aiInsightTitle() }}</strong>
+                    <small>{{ aiInsightStamp() }}</small>
                   </div>
-                  <p>{{ aiInsightText() }}</p>
-                  <div class="ai-signal-grid">
-                    <span>
-                      <b>{{ model.summary.systemHealthStatusCode === 'HEALTHY' ? 'Stable' : 'Review' }}</b>
-                      System health
-                    </span>
-                    <span>
-                      <b>{{ model.summary.notificationTemplateCount }}</b>
-                      Templates
-                    </span>
-                    <span>
-                      <b>{{ model.summary.activeSessions }}</b>
-                      Sessions
-                    </span>
+                  <span class="ai-live-chip"><i></i>AIRA live</span>
+                </div>
+                <p>{{ aiInsightText() }}</p>
+                <div class="ai-signal-grid">
+                  <span>
+                    <b>{{ model.summary.systemHealthStatusCode === 'HEALTHY' ? 'Stable' : 'Review' }}</b>
+                    System health
+                  </span>
+                  <span>
+                    <b>{{ model.summary.notificationTemplateCount }}</b>
+                    Templates
+                  </span>
+                  <span>
+                    <b>{{ model.summary.activeSessions }}</b>
+                    Sessions
+                  </span>
+                </div>
+                <div class="ai-next-actions">
+                  <div>
+                    <span class="material-symbols-rounded">task_alt</span>
+                    <p>{{ model.summary.notificationTemplateCount === 0 ? 'Create notification templates for alerts, reminders, and daily communication.' : 'Review recently updated notification templates before peak hours.' }}</p>
                   </div>
-                  <div class="ai-next-actions">
-                    <div>
-                      <span class="material-symbols-rounded">task_alt</span>
-                      <p>{{ model.summary.notificationTemplateCount === 0 ? 'Create notification templates for alerts, reminders, and daily communication.' : 'Review recently updated notification templates before peak hours.' }}</p>
-                    </div>
-                    <div>
-                      <span class="material-symbols-rounded">monitor_heart</span>
-                      <p>{{ model.summary.systemHealthStatusCode === 'HEALTHY' ? 'Keep monitoring dashboard health and failed login movement.' : 'Open system health and resolve components needing attention.' }}</p>
-                    </div>
+                  <div>
+                    <span class="material-symbols-rounded">monitor_heart</span>
+                    <p>{{ model.summary.systemHealthStatusCode === 'HEALTHY' ? 'Keep monitoring dashboard health and failed login movement.' : 'Open system health and resolve components needing attention.' }}</p>
                   </div>
                 </div>
               </div>
@@ -398,7 +419,7 @@ interface HospitalPulseItem {
     .metric-card strong { display: block; font-size: 24px; line-height: 1.1; }
     .metric-card span { color: var(--ac-muted); font-size: 12px; }
     .main-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(360px, .7fr); gap: 16px; }
-    .lower-grid { display: grid; grid-template-columns: minmax(360px, 1.08fr) minmax(320px, .92fr) minmax(320px, .86fr); gap: 16px; align-items: start; }
+    .lower-grid { display: grid; grid-template-columns: minmax(360px, 1.08fr) minmax(360px, .98fr) minmax(360px, .98fr); gap: 16px; align-items: start; }
     .dashboard-side-stack { display: grid; gap: 10px; min-width: 0; align-content: start; }
     .staff-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr); gap: 16px; align-items: start; }
     .panel { padding: 16px; min-width: 0; }
@@ -436,27 +457,32 @@ interface HospitalPulseItem {
     .notification-empty p { max-width: 360px; margin: 0; color: var(--ac-muted); font-size: 13px; line-height: 1.45; }
     .notification-empty a { min-height: 34px; display: inline-flex; align-items: center; padding: 7px 12px; border-radius: 999px; background: var(--ac-primary); color: #fff; text-decoration: none; font-size: 12px; font-weight: 900; }
     .intelligence-panel { display: grid; gap: 12px; align-content: start; background: linear-gradient(180deg, color-mix(in srgb, #eff6ff 72%, var(--ac-surface)), var(--ac-surface)); }
-    .ai-insight-card { position: relative; display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 14px; padding: 14px; border: 1px solid rgba(37,99,235,.18); border-radius: 8px; overflow: hidden; background: radial-gradient(circle at 0% 0%, rgba(34,211,238,.18), transparent 34%), linear-gradient(135deg, rgba(37,99,235,.12), rgba(124,58,237,.08) 52%, rgba(20,184,166,.08)); box-shadow: 0 16px 36px rgba(37,99,235,.12), inset 0 1px 0 rgba(255,255,255,.62); }
+    .ai-insight-card { position: relative; display: grid; gap: 12px; padding: 14px; border: 1px solid rgba(37,99,235,.18); border-radius: 8px; overflow: hidden; background: radial-gradient(circle at 0% 0%, rgba(34,211,238,.18), transparent 34%), linear-gradient(135deg, rgba(37,99,235,.12), rgba(124,58,237,.08) 52%, rgba(20,184,166,.08)); box-shadow: 0 16px 36px rgba(37,99,235,.12), inset 0 1px 0 rgba(255,255,255,.62); }
     .ai-insight-card::after { content: ''; position: absolute; inset: auto -38px -58px auto; width: 150px; height: 150px; border-radius: 999px; background: radial-gradient(circle, rgba(37,99,235,.16), transparent 68%); pointer-events: none; }
-    .ai-orb { position: relative; z-index: 1; width: 52px; height: 52px; display: grid; place-items: center; border-radius: 14px; color: var(--ac-primary); background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(239,246,255,.94)); border: 1px solid rgba(37,99,235,.16); box-shadow: 0 14px 28px rgba(37,99,235,.14), inset 0 1px 0 rgba(255,255,255,.9); }
-    .ai-orb::before { content: ''; position: absolute; inset: 7px; border-radius: 11px; background: rgba(37,99,235,.08); }
+    .ai-orb { position: relative; z-index: 1; width: 48px; height: 48px; display: grid; place-items: center; border-radius: 14px; color: #2563eb; background: linear-gradient(135deg, rgba(37,99,235,.16), rgba(20,184,166,.12)); box-shadow: 0 14px 28px rgba(37,99,235,.12); }
+    .ai-orb::before { content: ''; position: absolute; inset: 7px; border-radius: 11px; background: rgba(255,255,255,.44); }
     .ai-orb .aira-message-icon { position: relative; z-index: 1; width: 26px; height: 26px; background: currentColor; mask: url('/assets/brand/aira-message.png') center / contain no-repeat; -webkit-mask: url('/assets/brand/aira-message.png') center / contain no-repeat; filter: drop-shadow(0 8px 16px rgba(37,99,235,.18)); }
-    .ai-orb i { position: absolute; top: 8px; right: 8px; width: 9px; height: 9px; border-radius: 999px; background: #10b981; border: 2px solid var(--ac-surface); box-shadow: 0 0 0 4px rgba(16,185,129,.14); }
-    .ai-insight-card > div { position: relative; z-index: 1; min-width: 0; }
-    .ai-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+    .ai-orb i { position: absolute; top: 5px; right: 5px; width: 9px; height: 9px; border-radius: 999px; background: #10b981; box-shadow: 0 0 0 4px rgba(16,185,129,.14); }
+    .ai-insight-card > * { position: relative; z-index: 1; min-width: 0; }
+    .ai-card-head { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 12px; margin-bottom: 0; }
     .ai-card-head strong { display: block; color: var(--ac-text); font-size: 14.5px; line-height: 1.2; }
     .ai-card-head small { display: block; margin-top: 4px; color: var(--ac-muted); font-size: 11px; font-weight: 900; }
     .ai-live-chip { min-height: 26px; display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 999px; background: rgba(255,255,255,.72); color: #0f766e; border: 1px solid rgba(20,184,166,.18); font-size: 11px; font-weight: 900; white-space: nowrap; }
     .ai-live-chip i { width: 7px; height: 7px; border-radius: 999px; background: #10b981; box-shadow: 0 0 0 4px rgba(16,185,129,.12); }
-    .ai-insight-card p { margin: 0 0 10px; color: var(--ac-text-2); font-size: 13px; line-height: 1.5; }
-    .ai-signal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-bottom: 10px; }
+    .ai-insight-card p { margin: 0; color: var(--ac-text-2); font-size: 13px; line-height: 1.5; }
+    .ai-signal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin-bottom: 0; }
     .ai-signal-grid span { min-height: 48px; display: grid; align-content: center; gap: 2px; padding: 8px; border-radius: 8px; background: rgba(255,255,255,.66); border: 1px solid rgba(37,99,235,.1); color: var(--ac-muted); font-size: 10.5px; font-weight: 800; }
     .ai-signal-grid b { color: var(--ac-text); font-size: 14px; line-height: 1; }
-    .ai-next-actions { display: grid; gap: 7px; }
-    .ai-next-actions div { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 8px; align-items: center; padding: 8px; border-radius: 8px; background: rgba(255,255,255,.54); border: 1px solid rgba(37,99,235,.1); }
+    .ai-next-actions { display: grid; gap: 9px; }
+    .ai-next-actions div { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 8px; align-items: center; padding: 9px; border-radius: 8px; background: rgba(255,255,255,.54); border: 1px solid rgba(37,99,235,.1); }
     .ai-next-actions .material-symbols-rounded { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; color: #2563eb; background: rgba(37,99,235,.1); font-size: 18px; }
     .ai-next-actions p { margin: 0; color: var(--ac-text-2); font-size: 12px; line-height: 1.35; }
     .status-stack { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+    .readiness-panel { background: linear-gradient(135deg, rgba(20,184,166,.05), rgba(37,99,235,.04)); }
+    .readiness-list { display: grid; gap: 9px; margin-top: 12px; }
+    .readiness-list div { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 9px; align-items: center; min-height: 50px; padding: 9px; border: 1px solid var(--ac-border); border-radius: 8px; background: color-mix(in srgb, #eff6ff 34%, var(--ac-surface)); }
+    .readiness-list .material-symbols-rounded { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; color: #2563eb; background: rgba(37,99,235,.1); font-size: 19px; }
+    .readiness-list p { margin: 0; color: var(--ac-text-2); font-size: 12.5px; line-height: 1.35; }
     .status-panel { display: grid; gap: 10px; }
     .status-block { padding: 12px; border: 1px solid var(--ac-border); border-radius: 8px; display: grid; grid-template-columns: 34px 1fr auto; gap: 8px; align-items: center; }
     .status-block.compact { min-height: 58px; background: rgba(255,255,255,.62); }
@@ -701,9 +727,16 @@ interface HospitalPulseItem {
     :host-context(.dark) .health-row,
     :host-context(.dark) .login-row,
     :host-context(.dark) .template-row,
-    :host-context(.dark) .status-block {
+    :host-context(.dark) .status-block,
+    :host-context(.dark) .readiness-list div {
       border-color: rgba(148,163,184,.16);
       background: rgba(15,23,42,.42);
+    }
+    :host-context(.dark) .readiness-panel {
+      background: linear-gradient(135deg, rgba(20,184,166,.08), rgba(37,99,235,.08));
+    }
+    :host-context(.dark) .readiness-list p {
+      color: #cbd5e1;
     }
     :host-context(.dark) .quick-action {
       border-color: rgba(148,163,184,.18);

@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthStore } from '../../../core/auth/auth.store';
+import { BranchContextService } from '../../../core/context/branch-context.service';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
 import { AcAdminDrawerComponent } from '../../../shared/ui/admin-drawer/admin-drawer.component';
@@ -243,6 +244,7 @@ export class HospitalManagementPageComponent implements OnInit {
   private readonly i18n = inject(I18nService);
   private readonly authStore = inject(AuthStore);
   private readonly toast = inject(ToastService);
+  private readonly branchContext = inject(BranchContextService);
 
   protected readonly profile = signal<HospitalProfile | null>(null);
   protected readonly profileDrawer = signal<HospitalProfileDrawer | null>(null);
@@ -368,6 +370,7 @@ export class HospitalManagementPageComponent implements OnInit {
       }
 
       this.profile.set(response.data);
+      await this.branchContext.refreshHospitalName();
       this.toast.success(this.t(successKey));
     } finally {
       this.saving.set(false);

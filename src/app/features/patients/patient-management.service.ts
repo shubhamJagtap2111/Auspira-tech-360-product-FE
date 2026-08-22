@@ -1,17 +1,19 @@
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { BranchContextService } from '../../core/context/branch-context.service';
 import { ApiClientService } from '../../core/http/api-client.service';
 import { PatientApiResponse, PatientDuplicateCheck, PatientForm, PatientNextMedicalRecordNo, PatientProfile, PatientRegistry, UpsertPatientPayload } from './patient-management.models';
 
 @Injectable({ providedIn: 'root' })
 export class PatientManagementService {
   private readonly api = inject(ApiClientService);
+  private readonly branchContext = inject(BranchContextService);
 
   nextMedicalRecordNo(): Promise<PatientApiResponse<PatientNextMedicalRecordNo>> {
     return firstValueFrom(this.api.get<PatientApiResponse<PatientNextMedicalRecordNo>>('/patients/next-mrn'));
   }
 
-  search(searchText = '', genderCode = '', statusCode = '', pageNumber = 1, pageSize = 20): Promise<PatientApiResponse<PatientRegistry>> {
+  search(searchText = '', genderCode = '', statusCode = '', branchCode = '', pageNumber = 1, pageSize = 20): Promise<PatientApiResponse<PatientRegistry>> {
     const query = new URLSearchParams({
       pageNumber: String(pageNumber),
       pageSize: String(pageSize)
@@ -27,6 +29,10 @@ export class PatientManagementService {
 
     if (statusCode) {
       query.set('statusCode', statusCode);
+    }
+
+    if (branchCode.trim()) {
+      query.set('branchCode', branchCode.trim());
     }
 
     return firstValueFrom(this.api.get<PatientApiResponse<PatientRegistry>>(`/patients?${query.toString()}`));
@@ -48,11 +54,11 @@ export class PatientManagementService {
   }
 
   create(patient: PatientForm): Promise<PatientApiResponse<PatientProfile>> {
-    return firstValueFrom(this.api.post<PatientApiResponse<PatientProfile>>('/patients', createPayload(patient, false)));
+    return firstValueFrom(this.api.post<PatientApiResponse<PatientProfile>>('/patients', createPayload(patient, false, this.branchContext.selectedBranchCode())));
   }
 
   update(patient: PatientForm): Promise<PatientApiResponse<PatientProfile>> {
-    return firstValueFrom(this.api.put<PatientApiResponse<PatientProfile>>(`/patients/${patient.patientGuid}`, createPayload(patient, true)));
+    return firstValueFrom(this.api.put<PatientApiResponse<PatientProfile>>(`/patients/${patient.patientGuid}`, createPayload(patient, true, this.branchContext.selectedBranchCode())));
   }
 
   delete(patientGuid: string): Promise<PatientApiResponse<boolean>> {
@@ -60,7 +66,7 @@ export class PatientManagementService {
   }
 }
 
-function createPayload(patient: PatientForm, includeMedicalRecordNo: boolean): UpsertPatientPayload {
+function createPayload(patient: PatientForm, includeMedicalRecordNo: boolean, branchCode: string | null): UpsertPatientPayload {
   return {
     patientGuid: patient.patientGuid || null,
     medicalRecordNo: includeMedicalRecordNo ? patient.medicalRecordNo.trim() || null : null,
@@ -70,6 +76,7 @@ function createPayload(patient: PatientForm, includeMedicalRecordNo: boolean): U
     genderCode: patient.genderCode || null,
     dateOfBirth: patient.dateOfBirth || null,
     bloodGroupCode: patient.bloodGroupCode || null,
+    branchCode: branchCode || null,
     rowVersion: patient.rowVersion || null
   };
 }

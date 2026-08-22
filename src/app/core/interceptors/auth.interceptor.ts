@@ -3,6 +3,7 @@ import { inject } from '@angular/core';
 import { Observable, catchError, finalize, map, shareReplay, switchMap, throwError } from 'rxjs';
 import { ApiResponse, AuthResponse } from '../auth/auth.models';
 import { AuthStore } from '../auth/auth.store';
+import { selectedBranchStorageKey } from '../context/branch-context.service';
 import { API_BASE_URL } from '../http/api-endpoints';
 import { REQUEST_TIMEOUT_MS, SKIP_GLOBAL_LOADER } from './loader.interceptor';
 
@@ -78,12 +79,26 @@ function isAnonymousAuthRequest(url: string): boolean {
 }
 
 function withAuthentication(request: HttpRequest<unknown>, token: string | null): HttpRequest<unknown> {
-  return token
-    ? request.clone({
-        setHeaders: {
-          Authorization: `Bearer ${token}`
-        },
-        withCredentials: true
-      })
-    : request.clone({ withCredentials: true });
+  const headers: Record<string, string> = {};
+  const branchCode = readSelectedBranchCode();
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  if (branchCode) {
+    headers['X-Branch-Code'] = branchCode;
+  }
+
+  return request.clone({ setHeaders: headers, withCredentials: true });
+}
+
+function readSelectedBranchCode(): string | null {
+  try {
+    const value = typeof window === 'undefined' ? null : window.localStorage.getItem(selectedBranchStorageKey);
+    const trimmed = value?.trim();
+    return trimmed ? trimmed.toUpperCase() : null;
+  } catch {
+    return null;
+  }
 }

@@ -11,8 +11,10 @@ import { AuthService } from '../../core/auth/auth.service';
 import { AuthStore } from '../../core/auth/auth.store';
 import { getUserRoleLabel, isHospitalAdminUser as isHospitalAdminSession } from '../../core/auth/user-access';
 import { AiraChatService } from '../../core/ai/aira-chat.service';
+import { BranchContextService } from '../../core/context/branch-context.service';
 import { Language } from '../../core/i18n/i18n.models';
 import { AppLoaderComponent } from '../../shared/ui/app-loader/app-loader.component';
+import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dropdown.component';
 
 interface NavItem {
   path: string;
@@ -54,7 +56,7 @@ const fallbackLanguages: Language[] = [
 @Component({
   selector: 'ac-root',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, FormsModule, DatePipe, ConfirmDialogComponent, AppLoaderComponent],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, FormsModule, DatePipe, ConfirmDialogComponent, AppLoaderComponent, AcDropdownComponent],
   template: `
     @if (isAuthPage()) {
       <router-outlet />
@@ -167,11 +169,15 @@ const fallbackLanguages: Language[] = [
                 <span class="tenant-dot"></span>
                 <span class="tenant-name">{{ hospitalHeaderLabel() }}</span>
               </div>
-              <button class="branch-btn">
+              <div class="branch-select">
                 <span class="material-symbols-rounded" style="font-size:16px">account_tree</span>
-                <span>{{ branchHeaderLabel() }}</span>
-                <span class="material-symbols-rounded" style="font-size:16px">expand_more</span>
-              </button>
+                <ac-dropdown
+                  [ngModel]="selectedBranchCode()"
+                  [options]="branchOptions()"
+                  placeholder="Select branch"
+                  ariaLabel="Select branch"
+                  (ngModelChange)="changeBranch($event)" />
+              </div>
             </div>
 
             <!-- Actions -->
@@ -742,12 +748,14 @@ const fallbackLanguages: Language[] = [
     }
     .tenant-name { font-size: 13px; font-weight: 600; color: var(--ac-text-2); }
 
-    .branch-btn {
+    .branch-select {
       display: flex;
       align-items: center;
       gap: 6px;
       height: 32px;
-      padding: 0 12px;
+      min-width: 190px;
+      max-width: 230px;
+      padding: 0 8px 0 11px;
       border: 1px solid var(--ac-border);
       border-radius: var(--ac-r-full);
       background: var(--ac-surface);
@@ -755,9 +763,22 @@ const fallbackLanguages: Language[] = [
       font-weight: 600;
       color: var(--ac-text-3);
       transition: all var(--ac-t);
-      cursor: pointer;
     }
-    .branch-btn:hover { border-color: var(--ac-border-2); background: var(--ac-surface-2); }
+    .branch-select:hover { border-color: var(--ac-border-2); background: var(--ac-surface-2); }
+    .branch-select ac-dropdown { flex: 1; min-width: 0; }
+    :host ::ng-deep .branch-select .ac-dropdown-trigger {
+      min-height: 28px;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none !important;
+      color: inherit;
+    }
+    :host ::ng-deep .branch-select .ac-dropdown-panel {
+      min-width: 230px;
+      right: auto;
+    }
 
     /* Header buttons */
     .hdr-btn {
@@ -1584,7 +1605,7 @@ const fallbackLanguages: Language[] = [
       .hdr-sep { display: none; }
       .search-btn { width: 40px; padding: 0; justify-content: center; }
       .tenant-name,
-      .branch-btn span:not(.material-symbols-rounded) {
+      .branch-select ac-dropdown {
         max-width: 140px;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -1604,7 +1625,7 @@ const fallbackLanguages: Language[] = [
         justify-content: space-between;
       }
       .header-left,
-      .branch-btn,
+      .branch-select,
       .header-right .hdr-btn[title='Messages'],
       .lang-btn { display: none; }
       .header-center { flex: 1 1 auto; min-width: 0; justify-content: flex-start; }
@@ -1719,6 +1740,7 @@ export class AppShellComponent implements OnInit {
   private   readonly authService = inject(AuthService);
   private   readonly authStore = inject(AuthStore);
   private   readonly airaChatService = inject(AiraChatService);
+  private   readonly branchContext = inject(BranchContextService);
 
   /* ── State ── */
   protected readonly sidebarCollapsed = signal<boolean>(
@@ -1779,6 +1801,7 @@ export class AppShellComponent implements OnInit {
 
   ngOnInit(): void {
     document.documentElement.classList.toggle('dark', this.dark());
+    void this.branchContext.loadBranches();
     this.aiMessages.set(this.loadAiConversation());
     this.aiChatHistory.set(this.loadAiConversationHistory());
     this.aiConversationHydrated = true;
@@ -1807,11 +1830,33 @@ export class AppShellComponent implements OnInit {
   );
   protected readonly roleLabel = computed(() => getUserRoleLabel(this.authStore.session()));
   protected readonly organizationLabel = computed(() =>
-    this.authStore.session()?.hospitalName?.trim() || 'Auspira Care360'
+    this.branchContext.hospitalName()
   );
   protected readonly hospitalHeaderLabel = computed(() => this.organizationLabel());
-  protected readonly branchHeaderLabel = computed(() => 'Main Branch');
+  protected readonly branchHeaderLabel = computed(() =>
+    this.branchContext.selectedBranch()?.branchName
+    || this.authStore.profile()?.branchNameKey?.trim()
+    || this.authStore.profile()?.branchCode?.trim()
+    || 'Main Branch'
+  );
+  protected readonly selectedBranchCode = computed(() =>
+    this.branchContext.selectedBranchCode() ?? this.branchContext.selectedBranch()?.branchCode ?? ''
+  );
+  protected readonly branchOptions = computed<DropdownOption<string>[]>(() => {
+    const options = this.branchContext.branches().map(branch => ({
+      label: branch.branchName,
+      value: branch.branchCode
+    }));
+
+    return options.length > 0
+      ? options
+      : [{ label: this.branchHeaderLabel(), value: this.selectedBranchCode() }];
+  });
   protected readonly userInitials = computed(() => getInitials(this.displayName(), this.displayEmail()));
+
+  protected changeBranch(branchCode: string | null): void {
+    this.branchContext.setSelectedBranchCode(branchCode);
+  }
 
   /* ── Navigation Groups ── */
   protected readonly navGroups: NavGroup[] = [
