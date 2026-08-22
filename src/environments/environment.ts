@@ -1,3 +1,3 @@
 export const environment = {
-  apiBaseUrl: '/api/v1'
+  apiBaseUrl: 'https://auspira-tech-360-product-api.onrender.com/api/v1'
 } as const;
