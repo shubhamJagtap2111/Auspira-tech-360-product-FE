@@ -269,8 +269,8 @@ import { PatientManagementService } from './patient-management.service';
     .toolbar-count { font-size: 12.5px; color: var(--ac-muted); padding: 0 4px; white-space: nowrap; }
     .icon-btn { width: 38px; height: 38px; border: 1px solid var(--ac-border); border-radius: var(--ac-r-sm); background: var(--ac-surface); color: var(--ac-muted); display: inline-grid; place-items: center; }
     .icon-btn:hover { border-color: var(--ac-primary); color: var(--ac-primary); }
-    .table-card { overflow: hidden; position: relative; }
-    .table-scroll { overflow: auto; }
+    .table-card { overflow: hidden; position: relative; min-height: clamp(360px, 44vh, 620px); display: flex; flex-direction: column; }
+    .table-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; }
     .mrn-chip { font-family: monospace; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: var(--ac-r-sm); background: var(--ac-primary-light); color: var(--ac-primary); }
     .patient-cell { display: flex; align-items: center; gap: 10px; }
     .patient-avatar { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: var(--ac-r-full); font-size: 12px; font-weight: 800; color: #fff; flex-shrink: 0; }
@@ -291,7 +291,7 @@ import { PatientManagementService } from './patient-management.service';
     .tbl-btn .material-symbols-rounded { font-size: 16px; }
     .tbl-btn:hover { background: var(--ac-surface-2); color: var(--ac-text); }
     .tbl-btn.danger:hover { color: var(--ac-error); border-color: color-mix(in srgb, var(--ac-error) 32%, var(--ac-border)); background: var(--ac-error-light); }
-    .table-footer { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-top: 1px solid var(--ac-border); flex-wrap: wrap; gap: 10px; }
+    .table-footer { margin-top: auto; position: sticky; bottom: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-top: 1px solid var(--ac-border); background: color-mix(in srgb, var(--ac-surface) 96%, transparent); backdrop-filter: blur(10px); flex-wrap: wrap; gap: 10px; }
     .table-count { font-size: 12.5px; color: var(--ac-muted); }
     .pagination { display: flex; align-items: center; gap: 4px; }
     .page-btn, .page-num { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: var(--ac-r-sm); font-size: 13px; }

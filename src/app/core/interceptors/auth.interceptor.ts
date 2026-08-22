@@ -1,11 +1,12 @@
-import { HttpContext, HttpInterceptorFn } from '@angular/common/http';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpInterceptorFn, HttpRequest } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { catchError, switchMap, throwError } from 'rxjs';
+import { Observable, catchError, finalize, map, shareReplay, switchMap, throwError } from 'rxjs';
 import { ApiResponse, AuthResponse } from '../auth/auth.models';
 import { AuthStore } from '../auth/auth.store';
 import { API_BASE_URL } from '../http/api-endpoints';
 import { REQUEST_TIMEOUT_MS, SKIP_GLOBAL_LOADER } from './loader.interceptor';
+
+let activeRefreshRequest: Observable<AuthResponse> | null = null;
 
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const authStore = inject(AuthStore);
@@ -18,14 +19,7 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
     return next(request);
   }
 
-  const authorizedRequest = token
-    ? request.clone({
-        setHeaders: {
-          Authorization: `Bearer ${token}`
-        },
-        withCredentials: true
-      })
-    : request.clone({ withCredentials: true });
+  const authorizedRequest = withAuthentication(request, token);
 
   return next(authorizedRequest).pipe(
     catchError(error => {
@@ -33,31 +27,37 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
         return throwError(() => error);
       }
 
-      return http.post<ApiResponse<AuthResponse>>(
-        `${apiBaseUrl}/auth/refresh`,
-        { refreshToken: authStore.refreshToken() ?? '' },
-        {
-          withCredentials: true,
-          context: new HttpContext()
-            .set(SKIP_GLOBAL_LOADER, true)
-            .set(REQUEST_TIMEOUT_MS, 10_000)
-        }).pipe(
-        switchMap(response => {
-          if (!response.success || !response.data) {
-            authStore.clearSession();
-            return throwError(() => error);
-          }
+      const refreshToken = authStore.refreshToken();
+      if (!refreshToken) {
+        authStore.clearSession();
+        return throwError(() => error);
+      }
 
-          authStore.setSession(response.data);
-          return next(response.data.accessToken
-            ? request.clone({
-                setHeaders: {
-                  Authorization: `Bearer ${response.data.accessToken}`
-                },
-                withCredentials: true
-              })
-            : request.clone({ withCredentials: true }));
-        }),
+      activeRefreshRequest ??= http.post<ApiResponse<AuthResponse>>(
+          `${apiBaseUrl}/auth/refresh`,
+          { refreshToken },
+          {
+            withCredentials: true,
+            context: new HttpContext()
+              .set(SKIP_GLOBAL_LOADER, true)
+              .set(REQUEST_TIMEOUT_MS, 10_000)
+          }).pipe(
+          map(response => {
+            if (!response.success || !response.data) {
+              throw error;
+            }
+
+            authStore.setSession(response.data);
+            return response.data;
+          }),
+          finalize(() => {
+            activeRefreshRequest = null;
+          }),
+          shareReplay({ bufferSize: 1, refCount: false })
+        );
+
+      return activeRefreshRequest.pipe(
+        switchMap(session => next(withAuthentication(request, session.accessToken))),
         catchError(refreshError => {
           authStore.clearSession();
           return throwError(() => refreshError);
@@ -75,4 +75,15 @@ function isAnonymousAuthRequest(url: string): boolean {
     '/auth/reset-password',
     '/auth/verify-email'
   ].some(path => url.includes(path));
+}
+
+function withAuthentication(request: HttpRequest<unknown>, token: string | null): HttpRequest<unknown> {
+  return token
+    ? request.clone({
+        setHeaders: {
+          Authorization: `Bearer ${token}`
+        },
+        withCredentials: true
+      })
+    : request.clone({ withCredentials: true });
 }

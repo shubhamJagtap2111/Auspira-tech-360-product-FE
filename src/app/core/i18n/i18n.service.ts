@@ -45,7 +45,12 @@ export class I18nService {
   }
 
   translate(resourceKey: string): string {
-    return this.resources()[resourceKey] ?? FALLBACK_RESOURCES[resourceKey] ?? resourceKey;
+    const localizedValue = this.resources()[resourceKey];
+    if (localizedValue && localizedValue !== resourceKey && !looksLikeLocalizationKey(localizedValue)) {
+      return localizedValue;
+    }
+
+    return FALLBACK_RESOURCES[resourceKey] ?? humanizeResourceKey(resourceKey);
   }
 
   seedItems(module: string, name: string): SeedDataItem[] {
@@ -141,6 +146,43 @@ function isApiResponse<T>(response: ApiResponse<T> | T): response is ApiResponse
 
 function isUsableCatalog(catalog: LocalizationCatalog): boolean {
   return !!catalog.effectiveCulture && Object.keys(catalog.resources ?? {}).length > 0;
+}
+
+function looksLikeLocalizationKey(value: string): boolean {
+  return /^[A-Z][A-Za-z0-9]*(\.[A-Z][A-Za-z0-9]*)+$/.test(value);
+}
+
+function humanizeResourceKey(resourceKey: string): string {
+  if (!resourceKey.includes('.')) {
+    return resourceKey;
+  }
+
+  const parts = resourceKey.split('.').filter(Boolean);
+  const last = parts.at(-1) ?? resourceKey;
+  const previous = parts.at(-2) ?? '';
+  const second = parts.at(1) ?? '';
+
+  if (last === 'Title' && second) {
+    return splitPascalCase(second);
+  }
+
+  if (last === 'Subtitle' && second) {
+    return splitPascalCase(second);
+  }
+
+  if (['Fields', 'Columns', 'Actions', 'Filter', 'Form', 'Section', 'Status'].includes(previous)) {
+    return splitPascalCase(last);
+  }
+
+  return splitPascalCase(last);
+}
+
+function splitPascalCase(value: string): string {
+  return value
+    .replaceAll('_', ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .trim();
 }
 
 function createFallbackCatalog(cultureCode: string): LocalizationCatalog {
@@ -301,7 +343,71 @@ const FALLBACK_RESOURCES: Record<string, string> = {
   'Administration.Dashboard.SystemHealth.TenantDatabase': 'Hospital database is reachable.',
   'Administration.Dashboard.SystemHealth.Localization': 'Localization catalog is available.',
   'Administration.Dashboard.SystemHealth.NotificationTemplates': 'Notification templates are configured.',
+  'Administration.UserManagement.Title': 'User Management',
+  'Administration.UserManagement.Subtitle': 'Manage hospital users, roles, access, status, and account recovery.',
+  'Administration.UserManagement.Search.Placeholder': 'Search users',
+  'Administration.UserManagement.Filter.Role': 'Role',
+  'Administration.UserManagement.Filter.Status': 'Status',
+  'Administration.UserManagement.Filter.AllRoles': 'All roles',
+  'Administration.UserManagement.Filter.AllStatuses': 'All statuses',
+  'Administration.UserManagement.Columns.Name': 'Name',
+  'Administration.UserManagement.Columns.Email': 'Email',
+  'Administration.UserManagement.Columns.Roles': 'Roles',
+  'Administration.UserManagement.Columns.Status': 'Status',
+  'Administration.UserManagement.Columns.LastLogin': 'Last login',
+  'Administration.UserManagement.Columns.Actions': 'Actions',
+  'Administration.UserManagement.Columns.Branch': 'Branch',
+  'Administration.UserManagement.Columns.Department': 'Department',
+  'Administration.UserManagement.Actions.New': 'New user',
+  'Administration.UserManagement.Actions.Export': 'Export',
+  'Administration.UserManagement.Actions.Edit': 'Edit',
+  'Administration.UserManagement.Actions.Delete': 'Delete',
+  'Administration.UserManagement.Actions.Activate': 'Activate',
+  'Administration.UserManagement.Actions.Deactivate': 'Deactivate',
+  'Administration.UserManagement.Actions.Unlock': 'Unlock',
+  'Administration.UserManagement.Actions.ResetPassword': 'Reset password',
+  'Administration.UserManagement.Actions.ViewAudit': 'View audit',
+  'Administration.UserManagement.Actions.Cancel': 'Cancel',
+  'Administration.UserManagement.Actions.Save': 'Save user',
+  'Administration.UserManagement.Empty': 'No users found.',
   'Administration.UserManagement.Status.Active': 'Active',
+  'Administration.UserManagement.Status.Inactive': 'Inactive',
+  'Administration.UserManagement.Status.Locked': 'Locked',
+  'Administration.Branch.Title': 'Branch Management',
+  'Administration.Branch.Subtitle': 'Manage hospital branches, locations, contacts, working hours, and settings.',
+  'Administration.Branch.Filter.Search': 'Search branches',
+  'Administration.Branch.Columns.Branch': 'Branch',
+  'Administration.Branch.Columns.Location': 'Location',
+  'Administration.Branch.Actions.NewBranch': 'New branch',
+  'Administration.Branch.Actions.SaveBranch': 'Save branch',
+  'Administration.Branch.Actions.SetDefault': 'Set default',
+  'Administration.Branch.Actions.Activate': 'Activate',
+  'Administration.Branch.Actions.Deactivate': 'Deactivate',
+  'Administration.Branch.Actions.AddSetting': 'Add setting',
+  'Administration.Branch.Empty': 'No branches found.',
+  'Administration.Branch.Section.Profile': 'Profile',
+  'Administration.Branch.Section.Address': 'Address',
+  'Administration.Branch.Section.Contact': 'Contact',
+  'Administration.Branch.Section.WorkingHours': 'Working hours',
+  'Administration.Branch.Section.Configuration': 'Configuration',
+  'Administration.Branch.Fields.DefaultBranch': 'Default branch',
+  'Administration.Branch.Fields.BranchCode': 'Branch code',
+  'Administration.Branch.Fields.BranchName': 'Branch name',
+  'Administration.Branch.Fields.BranchTypeCode': 'Branch type',
+  'Administration.Branch.Fields.AddressLine1': 'Address line 1',
+  'Administration.Branch.Fields.AddressLine2': 'Address line 2',
+  'Administration.Branch.Fields.CityName': 'City',
+  'Administration.Branch.Fields.StateName': 'State',
+  'Administration.Branch.Fields.CountryCode': 'Country',
+  'Administration.Branch.Fields.PostalCode': 'Postal code',
+  'Administration.Branch.Fields.PrimaryPhone': 'Primary phone',
+  'Administration.Branch.Fields.SecondaryPhone': 'Secondary phone',
+  'Administration.Branch.Fields.EmergencyPhone': 'Emergency phone',
+  'Administration.Branch.Fields.Email': 'Email',
+  'Administration.Branch.Fields.Fax': 'Fax',
+  'Administration.Branch.Fields.Closed': 'Closed',
+  'Administration.Branch.Fields.SettingKey': 'Setting key',
+  'Administration.Branch.Fields.SettingValue': 'Setting value',
   'Navigation.SessionManagement': 'Session Management',
   'Navigation.BranchManagement': 'Branch Management',
   'Navigation.DepartmentManagement': 'Department Management',

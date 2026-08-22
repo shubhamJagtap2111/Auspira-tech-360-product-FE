@@ -45,9 +45,9 @@ const permissions = {
         </button>
       </section>
 
-      <section class="layout ac-admin-layout" [class.drawer-open]="drawerOpen()">
+      <section class="layout ac-admin-layout table-card" [class.drawer-open]="drawerOpen()">
         <div class="table-wrap">
-          <table>
+          <table class="ac-table">
             <thead>
               <tr>
                 <th>{{ t('Administration.Branch.Columns.Branch') }}</th>
@@ -109,6 +109,10 @@ const permissions = {
             </tbody>
           </table>
         </div>
+
+        <footer class="table-footer">
+          <span class="table-count">Showing {{ branches().length }} branches</span>
+        </footer>
 
         @if (drawerOpen()) {
           @if (form(); as branchForm) {
@@ -235,13 +239,13 @@ const permissions = {
     .page-head p { margin: 4px 0 0; color: var(--ac-muted); font-size: 13px; }
     .toolbar { align-items: end; padding: 14px; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; }
     .toolbar label { min-width: 260px; flex: 1; }
-    .layout { align-items: flex-start; }
+    .layout { align-items: stretch; flex-direction: column; overflow: hidden; position: relative; min-height: clamp(380px, 48vh, 680px); border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: var(--ac-r); box-shadow: var(--ac-sh-sm); }
     .layout.drawer-open .table-wrap { margin-right: 0; transition: margin var(--ac-t-slow); }
-    .table-wrap { flex: 1 1 auto; overflow: auto; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; transition: margin var(--ac-t-slow); }
+    .table-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; background: var(--ac-surface); transition: margin var(--ac-t-slow); }
     table { width: 100%; border-collapse: collapse; min-width: 840px; }
-    th, td { padding: 12px; border-bottom: 1px solid var(--ac-border); text-align: left; font-size: 13px; vertical-align: middle; }
-    th { color: var(--ac-muted); font-size: 11px; text-transform: uppercase; background: var(--ac-bg); }
-    tr.selected td { background: rgba(37,99,235,.06); }
+    th, td { padding: 13px 20px; border-bottom: 1px solid var(--ac-border); text-align: left; font-size: 13px; vertical-align: middle; }
+    th { color: var(--ac-muted); font-size: 11.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; background: var(--ac-surface-2); white-space: nowrap; }
+    tr.selected td { background: var(--ac-primary-light); }
     .branch-link { border: 0; background: transparent; padding: 0; display: flex; flex-direction: column; gap: 3px; color: var(--ac-text); text-align: left; cursor: pointer; }
     .branch-link span, td span { color: var(--ac-muted); font-size: 12px; }
     .default-mark, .status { display: inline-flex; margin-top: 6px; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; }
@@ -269,6 +273,8 @@ const permissions = {
     .setting-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
     .settings-empty { margin: 0; padding: 12px; border: 1px dashed var(--ac-border-2); border-radius: 8px; color: var(--ac-muted); text-align: center; font-size: 13px; }
     .empty { text-align: center; color: var(--ac-muted); padding: 28px; }
+    .table-footer { margin-top: auto; position: sticky; bottom: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-top: 1px solid var(--ac-border); background: color-mix(in srgb, var(--ac-surface) 96%, transparent); backdrop-filter: blur(10px); flex-wrap: wrap; gap: 10px; }
+    .table-count { font-size: 12.5px; color: var(--ac-muted); }
     @media (max-width: 1360px) { .layout.drawer-open .table-wrap { margin-right: 0; } }
     @media (max-width: 760px) {
       .page-head, .toolbar { flex-direction: column; align-items: stretch; }

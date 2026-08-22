@@ -55,32 +55,32 @@ const defaultResetPassword = 'Reset@123';
       <section class="toolbar">
         <label>
           <span>{{ t('Administration.UserManagement.Search.Placeholder') }}</span>
-          <input name="searchText" [(ngModel)]="searchText" (keyup.enter)="loadUsers()" />
+          <input name="searchText" [(ngModel)]="searchText" (keyup.enter)="loadUsers(1)" />
         </label>
         <label>
           <span>{{ t('Administration.UserManagement.Filter.Role') }}</span>
-          <ac-dropdown name="roleCode" [(ngModel)]="roleCode" [options]="roleFilterOptions()" (selectionChange)="loadUsers()" />
+          <ac-dropdown name="roleCode" [(ngModel)]="roleCode" [options]="roleFilterOptions()" (selectionChange)="loadUsers(1)" />
         </label>
         <label>
           <span>{{ t('Administration.UserManagement.Filter.Status') }}</span>
-          <ac-dropdown name="status" [(ngModel)]="statusFilter" [options]="statusOptions()" (selectionChange)="loadUsers()" />
+          <ac-dropdown name="status" [(ngModel)]="statusFilter" [options]="statusOptions()" (selectionChange)="loadUsers(1)" />
         </label>
         <label>
           <span>{{ t('Administration.UserManagement.Columns.Branch') }}</span>
-          <input name="branchFilter" [(ngModel)]="branchFilter" (keyup.enter)="loadUsers()" />
+          <input name="branchFilter" [(ngModel)]="branchFilter" (keyup.enter)="loadUsers(1)" />
         </label>
         <label>
           <span>{{ t('Administration.UserManagement.Columns.Department') }}</span>
-          <input name="departmentFilter" [(ngModel)]="departmentFilter" (keyup.enter)="loadUsers()" />
+          <input name="departmentFilter" [(ngModel)]="departmentFilter" (keyup.enter)="loadUsers(1)" />
         </label>
-        <button class="icon-btn" type="button" (click)="loadUsers()" [attr.title]="t('Common.Actions.Updating')">
+        <button class="icon-btn" type="button" (click)="loadUsers(1)" [attr.title]="t('Common.Actions.Updating')">
           <span class="material-symbols-rounded">search</span>
         </button>
       </section>
 
-      <section class="content-grid ac-admin-layout" [class.drawer-open]="editorOpen()">
+      <section class="content-grid ac-admin-layout table-card" [class.drawer-open]="editorOpen()">
         <div class="table-wrap">
-          <table>
+          <table class="ac-table">
             <thead>
               <tr>
                 <th>{{ t('Administration.UserManagement.Columns.Name') }}</th>
@@ -157,6 +157,19 @@ const defaultResetPassword = 'Reset@123';
             </tbody>
           </table>
         </div>
+
+        <footer class="table-footer">
+          <span class="table-count">Showing {{ users().length }} of {{ totalCount() }} users</span>
+          <div class="pagination">
+            <button class="page-btn" type="button" [disabled]="pageNumber() === 1" (click)="loadUsers(pageNumber() - 1)">
+              <span class="material-symbols-rounded">chevron_left</span>
+            </button>
+            <span class="page-num active">{{ pageNumber() }}</span>
+            <button class="page-btn" type="button" [disabled]="!hasNextPage()" (click)="loadUsers(pageNumber() + 1)">
+              <span class="material-symbols-rounded">chevron_right</span>
+            </button>
+          </div>
+        </footer>
 
         @if (editorOpen()) {
         <ac-admin-drawer
@@ -251,21 +264,22 @@ const defaultResetPassword = 'Reset@123';
     .page-head { align-items: flex-start; justify-content: space-between; }
     .page-actions { align-items: center; justify-content: flex-end; flex-wrap: wrap; margin-left: auto; }
     .page-head p { margin: 4px 0 0; color: var(--ac-muted); font-size: 13px; }
-    .toolbar { align-items: end; padding: 14px; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; }
+    .toolbar { display: grid; grid-template-columns: minmax(240px, 1.2fr) repeat(4, minmax(150px, .8fr)) 44px; align-items: end; padding: 14px; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; box-shadow: var(--ac-sh-sm); }
     .audit-panel { padding: 14px; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; display: flex; gap: 12px; align-items: end; }
     .audit-panel { flex-direction: column; align-items: stretch; }
     .audit-panel h2 { margin: 0; font-size: 16px; }
     .audit-row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--ac-border); font-size: 13px; }
-    .toolbar label { min-width: 180px; flex: 1; }
+    .toolbar label { min-width: 0; }
+    .toolbar label span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     label { display: flex; flex-direction: column; gap: 6px; color: var(--ac-text-2); font-size: 12px; font-weight: 700; }
     input, select { height: 38px; border: 1px solid var(--ac-border); border-radius: 8px; padding: 0 10px; background: var(--ac-surface); color: var(--ac-text); font: inherit; }
     input:focus, select:focus { outline: none; border-color: var(--ac-primary); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
-    .content-grid { align-items: flex-start; }
-    .table-wrap { flex: 1 1 auto; overflow: auto; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; }
+    .content-grid { align-items: stretch; flex-direction: column; overflow: hidden; position: relative; min-height: clamp(380px, 48vh, 680px); border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: var(--ac-r); box-shadow: var(--ac-sh-sm); }
+    .table-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; background: var(--ac-surface); }
     table { width: 100%; border-collapse: collapse; min-width: 880px; }
-    th, td { padding: 12px; border-bottom: 1px solid var(--ac-border); text-align: left; font-size: 13px; vertical-align: middle; }
-    th { color: var(--ac-muted); font-size: 11px; text-transform: uppercase; background: var(--ac-bg); }
-    tr.selected td { background: rgba(37,99,235,.06); }
+    th, td { padding: 13px 20px; border-bottom: 1px solid var(--ac-border); text-align: left; font-size: 13px; vertical-align: middle; }
+    th { color: var(--ac-muted); font-size: 11.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; background: var(--ac-surface-2); white-space: nowrap; }
+    tr.selected td { background: var(--ac-primary-light); }
     .user-link { border: 0; background: transparent; padding: 0; display: flex; flex-direction: column; gap: 3px; color: var(--ac-text); text-align: left; cursor: pointer; }
     .user-link span { color: var(--ac-muted); font-size: 12px; }
     .role-list { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -278,6 +292,13 @@ const defaultResetPassword = 'Reset@123';
     .icon-btn:hover { border-color: var(--ac-primary); color: var(--ac-primary); }
     .icon-btn.danger:hover { border-color: var(--ac-error); color: var(--ac-error); }
     .empty { text-align: center; color: var(--ac-muted); padding: 32px; }
+    .table-footer { margin-top: auto; position: sticky; bottom: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-top: 1px solid var(--ac-border); background: color-mix(in srgb, var(--ac-surface) 96%, transparent); backdrop-filter: blur(10px); flex-wrap: wrap; gap: 10px; }
+    .table-count { font-size: 12.5px; color: var(--ac-muted); }
+    .pagination { display: flex; align-items: center; gap: 4px; }
+    .page-btn, .page-num { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: var(--ac-r-sm); font-size: 13px; }
+    .page-btn { border: 1px solid var(--ac-border); background: var(--ac-surface); color: var(--ac-muted); cursor: pointer; }
+    .page-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .page-num.active { background: var(--ac-primary); color: #fff; font-weight: 700; }
     .editor { width: min(380px, 100%); flex: 0 0 380px; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; padding: 16px; }
     .editor h2 { margin: 0 0 14px; font-size: 16px; }
     form { display: flex; flex-direction: column; gap: 12px; }
@@ -287,8 +308,9 @@ const defaultResetPassword = 'Reset@123';
     .check-row input { width: 16px; height: 16px; }
     .form-actions { justify-content: flex-end; margin-top: 4px; }
     .error { margin: 0 0 10px; padding: 10px 12px; border-radius: 8px; background: var(--ac-error-light); color: var(--ac-error); font-size: 13px; }
-    @media (max-width: 1120px) { .content-grid { flex-direction: column; } .editor { width: 100%; flex-basis: auto; } }
-    @media (max-width: 720px) { .page-head, .toolbar, .page-actions { flex-direction: column; align-items: stretch; } .page-actions { width: 100%; margin-left: 0; } table { min-width: 760px; } }
+    @media (max-width: 1280px) { .toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)) 44px; } }
+    @media (max-width: 1120px) { .editor { width: 100%; flex-basis: auto; } }
+    @media (max-width: 720px) { .page-head, .page-actions { flex-direction: column; align-items: stretch; } .toolbar { grid-template-columns: 1fr; } .page-actions { width: 100%; margin-left: 0; } table { min-width: 760px; } }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -311,6 +333,8 @@ export class UserListPageComponent implements OnInit {
   protected readonly timeZones = signal<UserTimeZoneOption[]>([]);
   protected readonly auditRows = signal<UserAuditHistoryItem[]>([]);
   protected readonly totalCount = signal(0);
+  protected readonly pageNumber = signal(1);
+  protected readonly pageSize = signal(20);
   protected readonly selectedUser = signal<ManagedUser | null>(null);
   protected readonly editingUserGuid = signal<string | null>(null);
   protected readonly saving = signal(false);
@@ -361,7 +385,7 @@ export class UserListPageComponent implements OnInit {
     ];
   }
 
-  protected async loadUsers(): Promise<void> {
+  protected async loadUsers(pageNumber = this.pageNumber()): Promise<void> {
     const response = await this.service.searchUsers({
       searchText: this.searchText.trim(),
       roleCode: this.roleCode,
@@ -372,17 +396,23 @@ export class UserListPageComponent implements OnInit {
       timeZoneCode: undefined,
       sortColumn: 'FullName',
       sortDirection: 'ASC',
-      pageNumber: 1,
-      pageSize: 50
+      pageNumber,
+      pageSize: this.pageSize()
     });
 
     if (response.success && response.data) {
       this.users.set(response.data.items);
       this.totalCount.set(response.data.totalCount);
+      this.pageNumber.set(response.data.pageNumber);
+      this.pageSize.set(response.data.pageSize);
       return;
     }
 
     this.errorKey.set(response.message);
+  }
+
+  protected hasNextPage(): boolean {
+    return this.pageNumber() * this.pageSize() < this.totalCount();
   }
 
   protected async loadRoles(): Promise<void> {
