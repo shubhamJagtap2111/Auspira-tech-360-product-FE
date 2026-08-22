@@ -1,8 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { firstValueFrom } from 'rxjs';
 import { AcAdminDrawerComponent } from '../../shared/ui/admin-drawer/admin-drawer.component';
 import { DialogService } from '../../shared/ui/dialog/dialog.service';
 import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
@@ -365,10 +363,9 @@ export class PatientListPageComponent implements OnInit {
   private readonly service = inject(PatientManagementService);
   private readonly toast = inject(ToastService);
   private readonly dialog = inject(DialogService);
-  private readonly http = inject(HttpClient);
 
   async ngOnInit(): Promise<void> {
-    await Promise.all([this.loadPatients(), this.loadCountryCodeOptions()]);
+    await this.loadPatients();
   }
 
   protected async loadPatients(pageNumber = this.pageNumber()): Promise<void> {
@@ -550,26 +547,6 @@ export class PatientListPageComponent implements OnInit {
     link.click();
     URL.revokeObjectURL(url);
   }
-
-  private async loadCountryCodeOptions(): Promise<void> {
-    try {
-      const [countries, phoneCodes] = await Promise.all([
-        firstValueFrom(this.http.get<CountryApiItem[]>(countryListUrl)),
-        firstValueFrom(this.http.get<Record<string, string>>(countryPhoneCodeUrl))
-      ]);
-
-      const options = countries
-        .map(country => toCountryCodeOption(country, phoneCodes[country.value]))
-        .filter((country): country is CountryCodeOption => country !== null)
-        .sort((left, right) => left.name.localeCompare(right.name));
-
-      if (options.length > 0) {
-        this.countryCodeOptions.set(options);
-      }
-    } catch {
-      this.countryCodeOptions.set(fallbackCountryCodeOptions);
-    }
-  }
 }
 
 function createEmptyPatient(): PatientForm {
@@ -619,11 +596,6 @@ function escapeCsv(value: string): string {
   return `"${value.replaceAll('"', '""')}"`;
 }
 
-interface CountryApiItem {
-  text: string;
-  value: string;
-}
-
 interface CountryCodeOption {
   isoCode: string;
   flag: string;
@@ -631,47 +603,27 @@ interface CountryCodeOption {
   dialCode: string;
 }
 
-const countryListUrl = 'https://trial.mobiscroll.com/content/countries.json';
-const countryPhoneCodeUrl = 'https://country.io/phone.json';
-
 const fallbackCountryCodeOptions: CountryCodeOption[] = [
-  { isoCode: 'IN', flag: flagFromIsoCode('IN'), name: 'India', dialCode: '+91' },
-  { isoCode: 'US', flag: flagFromIsoCode('US'), name: 'United States', dialCode: '+1' },
-  { isoCode: 'GB', flag: flagFromIsoCode('GB'), name: 'United Kingdom', dialCode: '+44' },
-  { isoCode: 'AU', flag: flagFromIsoCode('AU'), name: 'Australia', dialCode: '+61' },
-  { isoCode: 'CA', flag: flagFromIsoCode('CA'), name: 'Canada', dialCode: '+1' },
   { isoCode: 'AE', flag: flagFromIsoCode('AE'), name: 'United Arab Emirates', dialCode: '+971' },
-  { isoCode: 'SA', flag: flagFromIsoCode('SA'), name: 'Saudi Arabia', dialCode: '+966' },
-  { isoCode: 'SG', flag: flagFromIsoCode('SG'), name: 'Singapore', dialCode: '+65' },
+  { isoCode: 'AU', flag: flagFromIsoCode('AU'), name: 'Australia', dialCode: '+61' },
+  { isoCode: 'BD', flag: flagFromIsoCode('BD'), name: 'Bangladesh', dialCode: '+880' },
+  { isoCode: 'CA', flag: flagFromIsoCode('CA'), name: 'Canada', dialCode: '+1' },
+  { isoCode: 'DE', flag: flagFromIsoCode('DE'), name: 'Germany', dialCode: '+49' },
+  { isoCode: 'FR', flag: flagFromIsoCode('FR'), name: 'France', dialCode: '+33' },
+  { isoCode: 'GB', flag: flagFromIsoCode('GB'), name: 'United Kingdom', dialCode: '+44' },
+  { isoCode: 'IN', flag: flagFromIsoCode('IN'), name: 'India', dialCode: '+91' },
+  { isoCode: 'JP', flag: flagFromIsoCode('JP'), name: 'Japan', dialCode: '+81' },
+  { isoCode: 'LK', flag: flagFromIsoCode('LK'), name: 'Sri Lanka', dialCode: '+94' },
   { isoCode: 'MY', flag: flagFromIsoCode('MY'), name: 'Malaysia', dialCode: '+60' },
   { isoCode: 'NP', flag: flagFromIsoCode('NP'), name: 'Nepal', dialCode: '+977' },
-  { isoCode: 'BD', flag: flagFromIsoCode('BD'), name: 'Bangladesh', dialCode: '+880' },
-  { isoCode: 'LK', flag: flagFromIsoCode('LK'), name: 'Sri Lanka', dialCode: '+94' }
+  { isoCode: 'NZ', flag: flagFromIsoCode('NZ'), name: 'New Zealand', dialCode: '+64' },
+  { isoCode: 'OM', flag: flagFromIsoCode('OM'), name: 'Oman', dialCode: '+968' },
+  { isoCode: 'QA', flag: flagFromIsoCode('QA'), name: 'Qatar', dialCode: '+974' },
+  { isoCode: 'SA', flag: flagFromIsoCode('SA'), name: 'Saudi Arabia', dialCode: '+966' },
+  { isoCode: 'SG', flag: flagFromIsoCode('SG'), name: 'Singapore', dialCode: '+65' },
+  { isoCode: 'US', flag: flagFromIsoCode('US'), name: 'United States', dialCode: '+1' },
+  { isoCode: 'ZA', flag: flagFromIsoCode('ZA'), name: 'South Africa', dialCode: '+27' }
 ];
-
-function toCountryCodeOption(country: CountryApiItem, phoneCode: string | undefined): CountryCodeOption | null {
-  const dialCode = normalizeDialCode(phoneCode);
-  if (!dialCode) {
-    return null;
-  }
-
-  return {
-    isoCode: country.value,
-    flag: flagFromIsoCode(country.value),
-    name: country.text,
-    dialCode
-  };
-}
-
-function normalizeDialCode(phoneCode: string | undefined): string | null {
-  const normalized = phoneCode?.trim();
-  if (!normalized) {
-    return null;
-  }
-
-  const firstCode = normalized.split(' and ')[0].trim();
-  return firstCode.startsWith('+') ? firstCode : `+${firstCode}`;
-}
 
 function flagFromIsoCode(isoCode: string): string {
   return isoCode
