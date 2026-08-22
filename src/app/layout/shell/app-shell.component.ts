@@ -176,7 +176,7 @@ const fallbackLanguages: Language[] = [
                 type="button"
                 (click)="toggleAiAssistantBot()"
                 [title]="showAiAssistantBot() ? 'Hide AIRA' : 'Show AIRA'">
-                <span class="material-symbols-rounded">auto_awesome</span>
+                <span class="aira-message-icon" aria-hidden="true"></span>
               </button>
               <button class="hdr-btn" (click)="toggleDark()" [title]="dark() ? 'Light mode' : 'Dark mode'">
                 <span class="material-symbols-rounded">{{ dark() ? 'light_mode' : 'dark_mode' }}</span>
@@ -741,16 +741,22 @@ const fallbackLanguages: Language[] = [
         color-mix(in srgb, var(--ac-surface) 92%, white);
       box-shadow: inset 0 0 0 1px rgba(8,191,255,.06);
     }
+    .aira-message-icon {
+      width: 21px;
+      height: 21px;
+      background: currentColor;
+      mask: url('/assets/brand/aira-message.png') center / contain no-repeat;
+      -webkit-mask: url('/assets/brand/aira-message.png') center / contain no-repeat;
+    }
     .aira-toggle::after {
       content: '';
       position: absolute;
+      display: none;
       right: 7px;
       top: 7px;
       width: 6px;
       height: 6px;
       border-radius: 999px;
-      background: var(--ac-muted-2);
-      box-shadow: 0 0 0 2px var(--ac-header-bg);
     }
     .aira-toggle.active {
       color: #fff;
@@ -759,6 +765,7 @@ const fallbackLanguages: Language[] = [
       box-shadow: 0 10px 24px rgba(37,99,235,.26);
     }
     .aira-toggle.active::after {
+      display: block;
       background: var(--ac-success);
       box-shadow: 0 0 0 2px var(--ac-header-bg), 0 0 14px rgba(34,197,94,.82);
     }
