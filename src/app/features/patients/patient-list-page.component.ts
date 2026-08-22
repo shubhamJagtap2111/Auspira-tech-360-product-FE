@@ -312,8 +312,12 @@ import { PatientManagementService } from './patient-management.service';
     .empty-title { font-size: 16px; font-weight: 700; color: var(--ac-text); }
     .empty-desc { font-size: 13.5px; color: var(--ac-muted); max-width: 340px; }
     input[readonly] { background: var(--ac-surface-2); color: var(--ac-text-2); cursor: not-allowed; font-weight: 800; }
-    .mobile-control { display: grid; grid-template-columns: minmax(190px, .9fr) minmax(160px, 1.1fr); gap: 8px; }
-    .mobile-control select, .mobile-control input { min-width: 0; }
+    .mobile-field { grid-column: 1 / -1; }
+    .mobile-control { display: grid; grid-template-columns: minmax(260px, .9fr) minmax(220px, 1.1fr); gap: 10px; width: 100%; min-width: 0; }
+    .country-select-shell { position: relative; display: flex; align-items: center; min-width: 0; }
+    .country-select-shell select { min-width: 0; width: 100%; padding-left: 46px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .country-flag { position: absolute; left: 14px; z-index: 1; width: 22px; height: 16px; border-radius: 3px; object-fit: cover; box-shadow: 0 0 0 1px rgba(15,23,42,.12); pointer-events: none; }
+    .mobile-number-input { min-width: 0; }
     @media (max-width: 900px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 620px) {
       .stats-row { grid-template-columns: 1fr; }
@@ -501,6 +505,14 @@ export class PatientListPageComponent implements OnInit {
     const selectedCountry = this.countryCodeOptions().find(country => country.isoCode === isoCode);
     patient.countryIsoCode = isoCode;
     patient.countryDialCode = selectedCountry?.dialCode ?? patient.countryDialCode;
+  }
+
+  protected flagUrl(isoCode: string | null): string {
+    return `https://flagcdn.com/w40/${(isoCode || 'IN').toLowerCase()}.png`;
+  }
+
+  protected selectedCountryName(isoCode: string | null): string {
+    return this.countryCodeOptions().find(country => country.isoCode === isoCode)?.name ?? 'Country';
   }
 
   protected initials(patient: PatientSummary): string {
