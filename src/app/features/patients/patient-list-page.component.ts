@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, ElementRef, HostListener, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AcAdminDrawerComponent } from '../../shared/ui/admin-drawer/admin-drawer.component';
 import { DialogService } from '../../shared/ui/dialog/dialog.service';
@@ -550,7 +550,6 @@ export class PatientListPageComponent implements OnInit {
   private readonly service = inject(PatientManagementService);
   private readonly toast = inject(ToastService);
   private readonly dialog = inject(DialogService);
-  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
 
   async ngOnInit(): Promise<void> {
     await this.loadPatients();
@@ -565,7 +564,7 @@ export class PatientListPageComponent implements OnInit {
         return;
       }
 
-      this.patients.set(response.data.patients);
+      this.patients.set(response.data.patients.map(applyCalculatedAge));
       this.stats.set(response.data.stats);
       this.totalCount.set(response.data.totalCount);
       this.pageNumber.set(response.data.pageNumber);
@@ -752,7 +751,7 @@ export class PatientListPageComponent implements OnInit {
   }
 
   protected displayPatientAge(patient: PatientSummary): string {
-    const age = calculateAge(patient.dateOfBirth) ?? patient.age;
+    const age = patient.age;
 
     if (age === null || age === undefined || age < 0) {
       return '-';
@@ -788,7 +787,9 @@ export class PatientListPageComponent implements OnInit {
 
   @HostListener('document:click', ['$event'])
   protected closeCountryDropdownFromOutside(event: MouseEvent): void {
-    if (!this.elementRef.nativeElement.contains(event.target as Node)) {
+    const target = event.target as HTMLElement | null;
+
+    if (!target?.closest('.country-select-shell')) {
       this.countryDropdownOpen.set(false);
     }
   }
@@ -840,6 +841,15 @@ function emptyStats(): PatientRegistryStats {
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat('en-IN').format(value);
+}
+
+function applyCalculatedAge(patient: PatientSummary): PatientSummary {
+  const calculatedAge = calculateAge(patient.dateOfBirth);
+
+  return {
+    ...patient,
+    age: calculatedAge ?? patient.age
+  };
 }
 
 function calculateAge(dateOfBirth: string | null): number | null {
