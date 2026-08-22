@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, HostListener, OnDestroy, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, OnDestroy, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AcAdminDrawerComponent } from '../../shared/ui/admin-drawer/admin-drawer.component';
@@ -579,15 +579,23 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
   private searchDebounceId: ReturnType<typeof setTimeout> | undefined;
   private patientRequestId = 0;
   private branchReloadReady = false;
+  private lastBranchCode: string | null = null;
   private readonly branchReloadEffect = effect(() => {
-    this.branchContext.selectedBranchCode();
-    if (this.branchReloadReady) {
-      void this.loadPatients(1);
+    const branchCode = this.branchContext.selectedBranchCode();
+    if (!this.branchReloadReady) {
+      this.lastBranchCode = branchCode;
+      return;
+    }
+
+    if (branchCode !== this.lastBranchCode) {
+      this.lastBranchCode = branchCode;
+      untracked(() => void this.loadPatients(1));
     }
   });
 
   async ngOnInit(): Promise<void> {
     await this.branchContext.loadBranches();
+    this.lastBranchCode = this.branchContext.selectedBranchCode();
     this.branchReloadReady = true;
     await this.loadPatients();
   }

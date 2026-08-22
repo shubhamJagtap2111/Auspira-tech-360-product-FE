@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { BranchContextService } from '../../core/context/branch-context.service';
@@ -428,15 +428,23 @@ export class DoctorListPageComponent implements OnInit, OnDestroy {
   private readonly branchContext = inject(BranchContextService);
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
   private branchReloadReady = false;
+  private lastBranchCode: string | null = null;
   private readonly branchReloadEffect = effect(() => {
-    this.branchContext.selectedBranchCode();
-    if (this.branchReloadReady) {
-      void this.loadDoctors(1);
+    const branchCode = this.branchContext.selectedBranchCode();
+    if (!this.branchReloadReady) {
+      this.lastBranchCode = branchCode;
+      return;
+    }
+
+    if (branchCode !== this.lastBranchCode) {
+      this.lastBranchCode = branchCode;
+      untracked(() => void this.loadDoctors(1));
     }
   });
 
   async ngOnInit(): Promise<void> {
     await this.branchContext.loadBranches();
+    this.lastBranchCode = this.branchContext.selectedBranchCode();
     this.branchReloadReady = true;
     await this.loadDoctors(1);
   }
