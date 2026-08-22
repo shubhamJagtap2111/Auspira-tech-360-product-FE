@@ -751,20 +751,34 @@ const fallbackLanguages: Language[] = [
     .branch-select {
       display: flex;
       align-items: center;
-      gap: 6px;
-      height: 32px;
-      min-width: 190px;
-      max-width: 230px;
-      padding: 0 8px 0 11px;
+      gap: 8px;
+      height: 36px;
+      min-width: 210px;
+      max-width: 260px;
+      padding: 0 10px 0 12px;
       border: 1px solid var(--ac-border);
       border-radius: var(--ac-r-full);
-      background: var(--ac-surface);
-      font-size: 12.5px;
-      font-weight: 600;
-      color: var(--ac-text-3);
+      background: linear-gradient(180deg, var(--ac-surface), var(--ac-surface-2));
+      box-shadow: 0 8px 22px rgba(15, 23, 42, .06);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ac-text-2);
       transition: all var(--ac-t);
     }
-    .branch-select:hover { border-color: var(--ac-border-2); background: var(--ac-surface-2); }
+    .branch-select:hover {
+      border-color: color-mix(in srgb, var(--ac-primary) 35%, var(--ac-border));
+      background: linear-gradient(180deg, var(--ac-surface), color-mix(in srgb, var(--ac-primary) 5%, var(--ac-surface-2)));
+      box-shadow: 0 10px 26px rgba(15, 23, 42, .08);
+    }
+    .branch-select > .material-symbols-rounded {
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--ac-primary) 10%, transparent);
+      color: var(--ac-primary);
+    }
     .branch-select ac-dropdown { flex: 1; min-width: 0; }
     :host ::ng-deep .branch-select .ac-dropdown-trigger {
       min-height: 28px;
@@ -776,8 +790,78 @@ const fallbackLanguages: Language[] = [
       color: inherit;
     }
     :host ::ng-deep .branch-select .ac-dropdown-panel {
-      min-width: 230px;
+      min-width: 280px;
       right: auto;
+      left: -40px;
+      top: calc(100% + 12px);
+      padding: 8px;
+      border-radius: 16px;
+      border-color: color-mix(in srgb, var(--ac-primary) 18%, var(--ac-border));
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--ac-surface) 96%, transparent), var(--ac-surface)),
+        var(--ac-surface);
+      box-shadow: 0 24px 58px rgba(15, 23, 42, .18);
+      overflow: auto;
+      scrollbar-width: thin;
+    }
+    :host-context(.dark) ::ng-deep .branch-select .ac-dropdown-panel {
+      box-shadow: 0 24px 58px rgba(0, 0, 0, .44);
+    }
+    :host ::ng-deep .branch-select .ac-dropdown-panel::before {
+      content: '';
+      position: absolute;
+      top: -6px;
+      left: 54px;
+      width: 12px;
+      height: 12px;
+      border-left: 1px solid color-mix(in srgb, var(--ac-primary) 18%, var(--ac-border));
+      border-top: 1px solid color-mix(in srgb, var(--ac-primary) 18%, var(--ac-border));
+      background: var(--ac-surface);
+      transform: rotate(45deg);
+      pointer-events: none;
+    }
+    :host ::ng-deep .branch-select .ac-dropdown-option {
+      min-height: 44px;
+      display: grid;
+      grid-template-columns: 30px minmax(0, 1fr) auto;
+      gap: 10px;
+      border-radius: 12px;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    :host ::ng-deep .branch-select .ac-dropdown-option::before {
+      content: 'account_tree';
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--ac-primary) 10%, transparent);
+      color: var(--ac-primary);
+      font-family: 'Material Symbols Rounded';
+      font-size: 18px;
+      font-weight: 400;
+      font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+    }
+    :host ::ng-deep .branch-select .ac-dropdown-option:hover {
+      background: color-mix(in srgb, var(--ac-primary) 8%, var(--ac-surface));
+    }
+    :host ::ng-deep .branch-select .ac-dropdown-option.selected {
+      background: linear-gradient(135deg, color-mix(in srgb, var(--ac-primary) 16%, transparent), color-mix(in srgb, var(--ac-secondary) 10%, transparent));
+      color: var(--ac-primary);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ac-primary) 14%, transparent);
+    }
+    :host ::ng-deep .branch-select .ac-dropdown-option span:first-child {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      align-self: center;
+    }
+    :host ::ng-deep .branch-select .ac-dropdown-option .material-symbols-rounded {
+      align-self: center;
+      color: var(--ac-primary);
+      font-size: 20px;
     }
 
     /* Header buttons */

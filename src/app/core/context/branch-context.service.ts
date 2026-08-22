@@ -4,6 +4,8 @@ import { AuthStore } from '../auth/auth.store';
 import { ApiClientService } from '../http/api-client.service';
 
 export const selectedBranchStorageKey = 'care360.selectedBranchCode';
+const fallbackMainBranchCode = 'MAIN';
+const fallbackMainBranchName = 'Main Branch';
 
 interface BranchApiResponse<T> {
   success: boolean;
@@ -131,7 +133,7 @@ export class BranchContextService {
       return;
     }
 
-    const branches = response.data.filter(branch => branch.isActive);
+    const branches = ensureMainBranchOption(response.data.filter(branch => branch.isActive));
     this.loadedBranchesSuccessfully = true;
     this.branchesSignal.set(branches);
     const storedCode = readSelectedBranchCode();
@@ -161,6 +163,35 @@ function findBranch(branches: BranchContextOption[], branchCode: string | null):
   }
 
   return branches.find(branch => branch.branchCode.localeCompare(branchCode, undefined, { sensitivity: 'accent' }) === 0) ?? null;
+}
+
+function ensureMainBranchOption(branches: BranchContextOption[]): BranchContextOption[] {
+  const hasMainBranch = branches.some(branch =>
+    branch.branchCode.localeCompare(fallbackMainBranchCode, undefined, { sensitivity: 'accent' }) === 0
+    || branch.branchName.localeCompare(fallbackMainBranchName, undefined, { sensitivity: 'accent' }) === 0
+  );
+
+  if (hasMainBranch) {
+    return branches;
+  }
+
+  const firstBranch = branches[0];
+  const mainBranch: BranchContextOption = {
+    branchGuid: 'main-branch-fallback',
+    hospitalGuid: firstBranch?.hospitalGuid ?? '',
+    branchCode: fallbackMainBranchCode,
+    branchName: fallbackMainBranchName,
+    branchTypeCode: 'GENERAL',
+    isDefault: true,
+    cityName: null,
+    stateName: null,
+    countryCode: null,
+    primaryPhone: null,
+    email: null,
+    isActive: true
+  };
+
+  return [mainBranch, ...branches];
 }
 
 function normalizeBranchCode(branchCode: string | null | undefined): string | null {
