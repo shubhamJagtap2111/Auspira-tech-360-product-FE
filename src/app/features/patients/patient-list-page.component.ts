@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, HostListener, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AcAdminDrawerComponent } from '../../shared/ui/admin-drawer/admin-drawer.component';
 import { DialogService } from '../../shared/ui/dialog/dialog.service';
 import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
+import { AcPaginationComponent } from '../../shared/ui/pagination/pagination.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { getApiErrorMessage } from '../../core/http/api-error-message';
 import { PatientForm, PatientRegistryStats, PatientSummary } from './patient-management.models';
@@ -13,7 +14,7 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcDropdownComponent, AcAdminDrawerComponent],
+  imports: [CommonModule, FormsModule, AcDropdownComponent, AcPaginationComponent, AcAdminDrawerComponent],
   template: `
     <section class="patients">
       <header class="page-header">
@@ -51,7 +52,7 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
       <section class="toolbar ac-card">
         <div class="search-field">
           <span class="material-symbols-rounded search-icon">search</span>
-          <input class="toolbar-input" type="text" name="searchQuery" [(ngModel)]="searchQuery" (keyup.enter)="loadPatients(1)"
+          <input class="toolbar-input" type="text" name="searchQuery" [(ngModel)]="searchQuery" (ngModelChange)="queueSearch()" (keyup.enter)="runSearchNow()"
                  placeholder="Search by name, MRN, or mobile..." />
           @if (searchQuery) {
             <button class="clear-btn" type="button" (click)="clearSearch()">
@@ -70,13 +71,7 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
       </section>
 
       <section class="ac-card table-card ac-admin-layout" [class.drawer-open]="drawerOpen()">
-        @if (loading()) {
-          <div class="loading-state">
-            <span class="ac-skeleton"></span>
-            <span class="ac-skeleton"></span>
-            <span class="ac-skeleton"></span>
-          </div>
-        } @else if (patients().length > 0) {
+        @if (patients().length > 0) {
           <div class="table-scroll">
             <table class="ac-table">
               <thead>
@@ -159,18 +154,13 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
             }
           </div>
 
-          <footer class="table-footer">
-            <span class="table-count">Showing {{ patients().length }} of {{ totalCount() }} patients</span>
-            <div class="pagination">
-              <button class="page-btn" type="button" [disabled]="pageNumber() === 1" (click)="loadPatients(pageNumber() - 1)">
-                <span class="material-symbols-rounded">chevron_left</span>
-              </button>
-              <span class="page-num active">{{ pageNumber() }}</span>
-              <button class="page-btn" type="button" [disabled]="!hasNextPage()" (click)="loadPatients(pageNumber() + 1)">
-                <span class="material-symbols-rounded">chevron_right</span>
-              </button>
-            </div>
-          </footer>
+          <ac-pagination
+            [pageNumber]="pageNumber()"
+            [pageSize]="pageSize()"
+            [totalCount]="totalCount()"
+            itemLabel="patients"
+            (pageChange)="loadPatients($event)"
+            (pageSizeChange)="changePageSize($event)" />
         } @else {
           <div class="empty-state">
             <div class="empty-icon">
@@ -360,15 +350,7 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
     .tbl-btn .material-symbols-rounded { font-size: 16px; }
     .tbl-btn:hover { background: var(--ac-surface-2); color: var(--ac-text); }
     .tbl-btn.danger:hover { color: var(--ac-error); border-color: color-mix(in srgb, var(--ac-error) 32%, var(--ac-border)); background: var(--ac-error-light); }
-    .table-footer { z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-top: 1px solid var(--ac-border); background: color-mix(in srgb, var(--ac-surface) 96%, transparent); flex-wrap: wrap; gap: 10px; }
-    .table-count { font-size: 12.5px; color: var(--ac-muted); }
-    .pagination { display: flex; align-items: center; gap: 4px; }
-    .page-btn, .page-num { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: var(--ac-r-sm); font-size: 13px; }
-    .page-btn { border: 1px solid var(--ac-border); background: var(--ac-surface); color: var(--ac-muted); cursor: pointer; }
-    .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .page-num.active { background: var(--ac-primary); color: #fff; font-weight: 700; }
-    .loading-state, .empty-state { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 60px 24px; text-align: center; }
-    .loading-state .ac-skeleton { width: min(720px, 90%); height: 42px; }
+    .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 360px; padding: 60px 24px; text-align: center; }
     .empty-icon { display: flex; align-items: center; justify-content: center; width: 72px; height: 72px; border-radius: 18px; background: var(--ac-surface-2); }
     .empty-icon .material-symbols-rounded { font-size: 40px; color: var(--ac-muted-2); }
     .empty-title { font-size: 16px; font-weight: 700; color: var(--ac-text); }
@@ -483,9 +465,6 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
       .mobile-card-grid strong { color: var(--ac-text-2); font-weight: 700; text-align: right; overflow-wrap: anywhere; }
       .mobile-card-actions { display: flex; justify-content: flex-end; gap: 8px; }
       .mobile-card-actions .tbl-btn { width: 36px; height: 36px; }
-      .table-footer { position: sticky; bottom: 0; padding: 12px; }
-      .table-count { width: 100%; text-align: center; }
-      .pagination { width: 100%; justify-content: center; }
     }
     @media (max-width: 620px) {
       .stats-row { grid-template-columns: 1fr; }
@@ -502,13 +481,12 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class PatientListPageComponent implements OnInit {
+export class PatientListPageComponent implements OnInit, OnDestroy {
   protected readonly patients = signal<PatientSummary[]>([]);
   protected readonly stats = signal<PatientRegistryStats>(emptyStats());
   protected readonly totalCount = signal(0);
   protected readonly pageNumber = signal(1);
-  protected readonly pageSize = signal(20);
-  protected readonly loading = signal(false);
+  protected readonly pageSize = signal(10);
   protected readonly saving = signal(false);
   protected readonly drawerOpen = signal(false);
   protected readonly drawerMode = signal<PatientDrawerMode>('view');
@@ -550,33 +528,65 @@ export class PatientListPageComponent implements OnInit {
   private readonly service = inject(PatientManagementService);
   private readonly toast = inject(ToastService);
   private readonly dialog = inject(DialogService);
+  private searchDebounceId: ReturnType<typeof setTimeout> | undefined;
+  private patientRequestId = 0;
 
   async ngOnInit(): Promise<void> {
     await this.loadPatients();
   }
 
-  protected async loadPatients(pageNumber = this.pageNumber()): Promise<void> {
-    this.loading.set(true);
-    try {
-      const response = await this.service.search(this.searchQuery, this.genderFilter, this.statusFilter, pageNumber, this.pageSize());
-      if (!response.success || !response.data) {
-        this.toast.error('Unable to load patients', getApiErrorMessage(response, 'Patient API failed'));
-        return;
-      }
+  ngOnDestroy(): void {
+    this.clearSearchDebounce();
+  }
 
-      this.patients.set(response.data.patients.map(applyCalculatedAge));
-      this.stats.set(response.data.stats);
-      this.totalCount.set(response.data.totalCount);
-      this.pageNumber.set(response.data.pageNumber);
-      this.pageSize.set(response.data.pageSize);
-    } finally {
-      this.loading.set(false);
+  protected async loadPatients(pageNumber = this.pageNumber()): Promise<void> {
+    const requestId = ++this.patientRequestId;
+    const response = await this.service.search(this.searchQuery, this.genderFilter, this.statusFilter, pageNumber, this.pageSize());
+    if (requestId !== this.patientRequestId) {
+      return;
     }
+
+    if (!response.success || !response.data) {
+      this.toast.error('Unable to load patients', getApiErrorMessage(response, 'Patient API failed'));
+      return;
+    }
+
+    this.patients.set(response.data.patients.map(applyCalculatedAge));
+    this.stats.set(response.data.stats);
+    this.totalCount.set(response.data.totalCount);
+    this.pageNumber.set(response.data.pageNumber);
+    this.pageSize.set(response.data.pageSize);
   }
 
   protected clearSearch(): void {
+    this.clearSearchDebounce();
     this.searchQuery = '';
     void this.loadPatients(1);
+  }
+
+  protected queueSearch(): void {
+    this.clearSearchDebounce();
+    this.searchDebounceId = setTimeout(() => {
+      void this.loadPatients(1);
+    }, 300);
+  }
+
+  protected runSearchNow(): void {
+    this.clearSearchDebounce();
+    void this.loadPatients(1);
+  }
+
+  protected async changePageSize(pageSize: number): Promise<void> {
+    this.clearSearchDebounce();
+    this.pageSize.set(pageSize);
+    await this.loadPatients(1);
+  }
+
+  private clearSearchDebounce(): void {
+    if (this.searchDebounceId) {
+      clearTimeout(this.searchDebounceId);
+      this.searchDebounceId = undefined;
+    }
   }
 
   protected async startCreate(): Promise<void> {
@@ -681,10 +691,6 @@ export class PatientListPageComponent implements OnInit {
 
     await this.loadPatients(this.pageNumber());
     this.toast.success('Patient deleted');
-  }
-
-  protected hasNextPage(): boolean {
-    return this.pageNumber() * this.pageSize() < this.totalCount();
   }
 
   protected drawerTitle(patient: PatientForm): string {
