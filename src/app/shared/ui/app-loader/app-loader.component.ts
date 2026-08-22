@@ -27,22 +27,21 @@ import { AppLoaderService } from './app-loader.service';
       display: grid;
       place-items: center;
       pointer-events: all;
-      background: color-mix(in srgb, var(--ac-bg) 52%, transparent);
-      backdrop-filter: blur(3px);
+      background: color-mix(in srgb, var(--ac-bg) 78%, transparent);
       animation: loaderFade .16s ease;
     }
 
     .loader-card {
-      min-width: 176px;
-      min-height: 118px;
+      min-width: 166px;
+      min-height: 108px;
       display: grid;
       place-items: center;
-      gap: 10px;
-      padding: 22px 24px;
-      border: 1px solid color-mix(in srgb, var(--ac-primary) 24%, var(--ac-border));
-      border-radius: 8px;
-      background: linear-gradient(180deg, var(--ac-surface), color-mix(in srgb, var(--ac-primary-light) 34%, var(--ac-surface)));
-      box-shadow: 0 22px 60px rgba(15,23,42,.18);
+      gap: 8px;
+      padding: 18px 22px;
+      border: 1px solid color-mix(in srgb, var(--ac-primary) 18%, var(--ac-border));
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--ac-surface) 96%, var(--ac-primary-light));
+      box-shadow: 0 18px 42px rgba(15,23,42,.12);
     }
 
     .loader-card span {
@@ -72,13 +71,13 @@ import { AppLoaderService } from './app-loader.service';
     }
 
     :host-context(.dark) .loader-overlay {
-      background: rgba(2,6,23,.42);
+      background: rgba(2,6,23,.72);
     }
 
     :host-context(.dark) .loader-card {
-      background: linear-gradient(180deg, rgba(22,30,42,.96), rgba(15,23,42,.96));
+      background: color-mix(in srgb, var(--ac-surface) 92%, var(--ac-bg));
       border-color: rgba(96,165,250,.26);
-      box-shadow: 0 24px 70px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.05);
+      box-shadow: 0 22px 58px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.05);
     }
 
     :host-context(.dark) .loader-card span {

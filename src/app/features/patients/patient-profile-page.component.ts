@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { getApiErrorMessage } from '../../core/http/api-error-message';
+import { AcPageActionsComponent } from '../../shared/ui/page-actions/page-actions.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { PatientProfile } from './patient-management.models';
 import { PatientManagementService } from './patient-management.service';
@@ -10,19 +11,10 @@ type PatientProfileTab = 'overview' | 'contacts' | 'safety' | 'insurance' | 'doc
 
 @Component({
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, AcPageActionsComponent],
   template: `
     <section class="patient-profile">
-      <header class="profile-header">
-        <a class="back-link" routerLink="/patients">
-          <span class="material-symbols-rounded">arrow_back</span>
-          Patient Registry
-        </a>
-        <button class="ac-btn ac-btn-secondary" type="button" (click)="reload()">
-          <span class="material-symbols-rounded">refresh</span>
-          Refresh
-        </button>
-      </header>
+      <ac-page-actions backLink="/patients" backLabel="Patient Registry" (refreshed)="reload()" />
 
       @if (loading()) {
         <div class="profile-loader ac-card">Loading patient profile...</div>
@@ -76,17 +68,29 @@ type PatientProfileTab = 'overview' | 'contacts' | 'safety' | 'insurance' | 'doc
           @switch (activeTab()) {
             @case ('overview') {
               <div class="split-layout">
-                <article>
-                  <h2>Care summary</h2>
-                  <div class="detail-grid">
-                    <span><small>MRN</small><strong>{{ currentPatient.medicalRecordNo }}</strong></span>
-                    <span><small>Date of birth</small><strong>{{ currentPatient.dateOfBirth ? formatDate(currentPatient.dateOfBirth) : '-' }}</strong></span>
-                    <span><small>Last visit</small><strong>{{ formatDateTime(currentPatient.lastVisitDate) }}</strong></span>
-                    <span><small>Outstanding</small><strong>{{ currency(currentPatient.billingSummary.outstandingBalance) }}</strong></span>
+                <article class="overview-panel care-panel">
+                  <div class="panel-title">
+                    <span class="panel-icon material-symbols-rounded">clinical_notes</span>
+                    <div>
+                      <p class="ac-eyebrow">Patient snapshot</p>
+                      <h2>Care summary</h2>
+                    </div>
+                  </div>
+                  <div class="detail-grid overview-detail-grid">
+                    <span class="detail-tile"><small>MRN</small><strong>{{ currentPatient.medicalRecordNo }}</strong><em>Master record</em></span>
+                    <span class="detail-tile"><small>Date of birth</small><strong>{{ currentPatient.dateOfBirth ? formatDate(currentPatient.dateOfBirth) : '-' }}</strong><em>{{ displayAge(currentPatient.age) }}</em></span>
+                    <span class="detail-tile"><small>Last visit</small><strong>{{ formatDateTime(currentPatient.lastVisitDate) }}</strong><em>Clinical touchpoint</em></span>
+                    <span class="detail-tile"><small>Outstanding</small><strong>{{ currency(currentPatient.billingSummary.outstandingBalance) }}</strong><em>Billing exposure</em></span>
                   </div>
                 </article>
-                <article>
-                  <h2>Clinical flags</h2>
+                <article class="overview-panel flags-panel">
+                  <div class="panel-title">
+                    <span class="panel-icon warning-icon material-symbols-rounded">health_and_safety</span>
+                    <div>
+                      <p class="ac-eyebrow">Safety watch</p>
+                      <h2>Clinical flags</h2>
+                    </div>
+                  </div>
                   @if (currentPatient.allergies.length > 0) {
                     <div class="chip-list">
                       @for (allergy of currentPatient.allergies.slice(0, 4); track allergy.allergyGuid) {
@@ -94,7 +98,13 @@ type PatientProfileTab = 'overview' | 'contacts' | 'safety' | 'insurance' | 'doc
                       }
                     </div>
                   } @else {
-                    <p class="muted">No active allergy records captured.</p>
+                    <div class="flag-empty">
+                      <span class="material-symbols-rounded">verified_user</span>
+                      <div>
+                        <strong>No active safety alerts</strong>
+                        <p class="muted">No active allergy records captured.</p>
+                      </div>
+                    </div>
                   }
                 </article>
               </div>
@@ -235,20 +245,39 @@ type PatientProfileTab = 'overview' | 'contacts' | 'safety' | 'insurance' | 'doc
               </div>
             }
             @case ('activity') {
-              <ol class="timeline">
-                @for (event of currentPatient.timeline; track event.eventGuid + event.eventDate) {
-                  <li>
-                    <span></span>
-                    <div>
-                      <strong>{{ event.eventType }}</strong>
-                      <p>{{ event.description }}</p>
-                      <small>{{ event.sourceModule }} · {{ formatDateTime(event.eventDate) }}</small>
-                    </div>
-                  </li>
-                } @empty {
-                  <div class="empty-state">No activity captured yet.</div>
-                }
-              </ol>
+              <section class="activity-tracker">
+                <header class="tracker-head">
+                  <div>
+                    <p class="ac-eyebrow">Care timeline</p>
+                    <h2>Patient activity tracker</h2>
+                  </div>
+                  <span class="tracker-count">{{ currentPatient.timeline.length }} events</span>
+                </header>
+                <ol class="timeline tracker-list">
+                  @for (event of currentPatient.timeline; track event.eventGuid + event.eventDate; let index = $index) {
+                    <li class="tracker-item">
+                      <div class="tracker-marker">
+                        <span class="tracker-step">{{ index + 1 }}</span>
+                      </div>
+                      <article class="tracker-card">
+                        <div class="tracker-card-head">
+                          <div>
+                            <strong>{{ event.eventType }}</strong>
+                            <p>{{ event.description }}</p>
+                          </div>
+                          <span class="tracker-date">{{ formatDateTime(event.eventDate) }}</span>
+                        </div>
+                        <div class="tracker-meta">
+                          <span class="material-symbols-rounded">apps</span>
+                          {{ event.sourceModule }}
+                        </div>
+                      </article>
+                    </li>
+                  } @empty {
+                    <div class="empty-state">No activity captured yet.</div>
+                  }
+                </ol>
+              </section>
             }
           }
         </section>
@@ -259,7 +288,7 @@ type PatientProfileTab = 'overview' | 'contacts' | 'safety' | 'insurance' | 'doc
   `,
   styles: `
     :host { display: block; height: 100%; min-height: 0; }
-    .patient-profile { height: 100%; min-height: 0; overflow: auto; display: grid; gap: 16px; padding-bottom: 8px; animation: slideUp .25s ease; }
+    .patient-profile { height: 100%; min-height: 0; overflow: auto; display: grid; grid-auto-rows: max-content; align-content: start; gap: 16px; padding-bottom: 8px; animation: slideUp .25s ease; }
     .profile-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
     .back-link { display: inline-flex; align-items: center; gap: 7px; color: var(--ac-muted); font-weight: 800; font-size: 13px; }
     .back-link:hover { color: var(--ac-primary); }
@@ -467,6 +496,8 @@ type PatientProfileTab = 'overview' | 'contacts' | 'safety' | 'insurance' | 'doc
     .patient-profile {
       gap: 12px;
       padding-bottom: 0;
+      grid-auto-rows: max-content;
+      align-content: start;
     }
     .profile-header {
       min-height: 42px;
@@ -627,6 +658,220 @@ type PatientProfileTab = 'overview' | 'contacts' | 'safety' | 'insurance' | 'doc
       place-items: center;
       align-content: center;
     }
+    .activity-tracker {
+      display: grid;
+      gap: 14px;
+    }
+    .tracker-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 14px;
+      border: 1px solid color-mix(in srgb, var(--ac-primary) 14%, var(--ac-border));
+      border-radius: 12px;
+      background: linear-gradient(120deg, color-mix(in srgb, var(--ac-primary) 8%, var(--ac-surface)), color-mix(in srgb, #14b8a6 5%, var(--ac-surface)));
+    }
+    .tracker-head h2 {
+      margin: 2px 0 0;
+      font-size: 18px;
+    }
+    .tracker-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 32px;
+      padding: 0 12px;
+      border-radius: 999px;
+      background: var(--ac-surface);
+      color: var(--ac-primary);
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+    }
+    .tracker-list {
+      position: relative;
+      display: grid;
+      gap: 12px;
+      padding-left: 0;
+    }
+    .tracker-list::before {
+      content: '';
+      position: absolute;
+      top: 17px;
+      bottom: 17px;
+      left: 19px;
+      width: 2px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, var(--ac-primary), color-mix(in srgb, #14b8a6 72%, var(--ac-primary)));
+      opacity: 0.28;
+    }
+    .tracker-item {
+      position: relative;
+      display: grid;
+      grid-template-columns: 40px minmax(0, 1fr);
+      gap: 12px;
+      padding: 0;
+    }
+    .tracker-marker {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      place-items: start center;
+      padding-top: 5px;
+    }
+    .tracker-step {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border: 4px solid color-mix(in srgb, var(--ac-surface) 84%, transparent);
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--ac-primary), #14b8a6);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+      box-shadow: 0 10px 24px color-mix(in srgb, var(--ac-primary) 20%, transparent);
+    }
+    .tracker-card {
+      min-width: 0;
+      padding: 13px 14px;
+      border: 1px solid color-mix(in srgb, var(--ac-border) 84%, var(--ac-surface));
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--ac-surface) 94%, var(--ac-subtle));
+      box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+    }
+    .tracker-card-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }
+    .tracker-card strong {
+      display: block;
+      color: var(--ac-text);
+      font-size: 15px;
+    }
+    .tracker-card p {
+      margin: 4px 0 0;
+      color: var(--ac-text-2);
+      font-size: 13.5px;
+    }
+    .tracker-date {
+      flex: 0 0 auto;
+      padding: 6px 9px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--ac-primary) 8%, var(--ac-surface));
+      color: var(--ac-muted);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .tracker-meta {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      color: var(--ac-muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .tracker-meta .material-symbols-rounded {
+      font-size: 16px;
+      color: var(--ac-primary);
+    }
+    .overview-panel {
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      gap: 12px;
+    }
+    .overview-panel::before {
+      content: '';
+      position: absolute;
+      inset: 0 0 auto;
+      height: 3px;
+      background: linear-gradient(90deg, var(--ac-primary), color-mix(in srgb, #14b8a6 74%, var(--ac-primary)));
+      opacity: 0.85;
+    }
+    .panel-title {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+    }
+    .panel-title .ac-eyebrow {
+      margin: 0 0 2px;
+      font-size: 10.5px;
+    }
+    .panel-title h2 {
+      margin: 0;
+    }
+    .panel-icon {
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 11px;
+      background: var(--ac-primary-light);
+      color: var(--ac-primary);
+      box-shadow: 0 10px 22px color-mix(in srgb, var(--ac-primary) 12%, transparent);
+    }
+    .warning-icon {
+      background: var(--ac-warning-light);
+      color: var(--ac-warning);
+    }
+    .overview-detail-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .detail-tile {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, color-mix(in srgb, var(--ac-primary) 4%, var(--ac-surface)), color-mix(in srgb, var(--ac-surface-2) 82%, var(--ac-surface)));
+    }
+    .detail-tile::after {
+      content: '';
+      position: absolute;
+      inset: auto 10px 0;
+      height: 2px;
+      border-radius: 999px 999px 0 0;
+      background: color-mix(in srgb, var(--ac-primary) 24%, transparent);
+    }
+    .detail-tile em {
+      display: block;
+      margin-top: 4px;
+      color: var(--ac-muted);
+      font-size: 11.5px;
+      font-style: normal;
+      font-weight: 750;
+    }
+    .flag-empty {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 86px;
+      padding: 14px;
+      border: 1px dashed color-mix(in srgb, var(--ac-success) 26%, var(--ac-border));
+      border-radius: 12px;
+      background: linear-gradient(135deg, color-mix(in srgb, var(--ac-success) 8%, var(--ac-surface)), var(--ac-surface));
+    }
+    .flag-empty > .material-symbols-rounded {
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: var(--ac-success-light);
+      color: var(--ac-success);
+    }
+    .flag-empty strong {
+      display: block;
+      color: var(--ac-text);
+      font-size: 14px;
+    }
+    .flag-empty p {
+      margin: 3px 0 0;
+    }
 
     @media (max-width: 620px) {
       .hero-card {
@@ -645,6 +890,17 @@ type PatientProfileTab = 'overview' | 'contacts' | 'safety' | 'insurance' | 'doc
       }
       .tab-content {
         padding: 12px;
+      }
+      .tracker-head,
+      .tracker-card-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .tracker-date {
+        white-space: normal;
+      }
+      .overview-detail-grid {
+        grid-template-columns: 1fr;
       }
     }
 
@@ -765,6 +1021,16 @@ type PatientProfileTab = 'overview' | 'contacts' | 'safety' | 'insurance' | 'doc
       .summary-kpis {
         grid-template-columns: 1fr;
       }
+    }
+
+    :host {
+      margin-top: -12px;
+    }
+
+    .patient-profile {
+      gap: 8px;
+      grid-auto-rows: max-content;
+      align-content: start;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush

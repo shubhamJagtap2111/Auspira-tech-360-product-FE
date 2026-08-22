@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { getApiErrorMessage } from '../../core/http/api-error-message';
+import { AcPageActionsComponent } from '../../shared/ui/page-actions/page-actions.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { DoctorProfile } from './doctor-management.models';
 import { DoctorManagementService } from './doctor-management.service';
@@ -10,61 +11,54 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
 
 @Component({
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, AcPageActionsComponent],
   template: `
     <section class="doctor-profile">
-      <header class="profile-header">
-        <a class="back-link" routerLink="/doctors">
-          <span class="material-symbols-rounded">arrow_back</span>
-          Doctor Registry
-        </a>
-        <button class="ac-btn ac-btn-secondary" type="button" (click)="reload()">
-          <span class="material-symbols-rounded">refresh</span>
-          Refresh
-        </button>
-      </header>
+      <ac-page-actions backLink="/doctors" backLabel="Doctor Registry" (refreshed)="reload()" />
 
       @if (loading()) {
         <div class="profile-loader ac-card">Loading doctor profile...</div>
       } @else if (doctor(); as currentDoctor) {
-        <section class="hero-card ac-card">
-          <div class="hero-main">
-            <div class="doctor-avatar" [style.background]="avatarColor(currentDoctor.doctorGuid)">
-              @if (currentDoctor.profilePhotoUrl) {
-                <img [src]="currentDoctor.profilePhotoUrl" [alt]="currentDoctor.fullName" />
-              } @else {
-                {{ initials(currentDoctor.fullName) }}
-              }
-            </div>
-            <div>
-              <p class="ac-eyebrow">Doctor 360</p>
-              <h1 class="ac-page-title">{{ currentDoctor.fullName }}</h1>
-              <div class="hero-pills">
-                <span class="pill strong"># {{ currentDoctor.doctorCode }}</span>
-                <span class="pill">{{ currentDoctor.departmentName }}</span>
-                <span class="pill">{{ currentDoctor.primarySpecialization }}</span>
-                <span class="pill">{{ currentDoctor.registrationNo }}</span>
-                <span class="pill">{{ currency(currentDoctor.consultationFee) }}</span>
+        <section class="doctor-summary-card ac-card">
+          <div class="hero-card">
+            <div class="hero-main">
+              <div class="doctor-avatar" [style.background]="avatarColor(currentDoctor.doctorGuid)">
+                @if (currentDoctor.profilePhotoUrl) {
+                  <img [src]="currentDoctor.profilePhotoUrl" [alt]="currentDoctor.fullName" />
+                } @else {
+                  {{ initials(currentDoctor.fullName) }}
+                }
               </div>
-            </div>
-          </div>
-          <div class="hero-status">
-            <span class="status-dot" [class.warn]="currentDoctor.statusCode !== 'ACTIVE'"></span>
-            <strong>{{ currentDoctor.statusName }}</strong>
-            <small>Joined {{ formatDate(currentDoctor.joiningDate || currentDoctor.createdDate) }}</small>
-          </div>
-        </section>
-
-        <section class="overview-grid">
-          @for (card of overviewCards(); track card.label) {
-            <article class="metric-card ac-card">
-              <span class="material-symbols-rounded" [style.color]="card.color">{{ card.icon }}</span>
               <div>
-                <strong>{{ card.value }}</strong>
-                <small>{{ card.label }}</small>
+                <p class="ac-eyebrow">Doctor 360</p>
+                <h1 class="ac-page-title">{{ currentDoctor.fullName }}</h1>
+                <div class="hero-pills">
+                  <span class="pill strong"># {{ currentDoctor.doctorCode }}</span>
+                  <span class="pill">{{ currentDoctor.departmentName }}</span>
+                  <span class="pill">{{ currentDoctor.primarySpecialization }}</span>
+                  <span class="pill">{{ currentDoctor.registrationNo }}</span>
+                  <span class="pill">{{ currency(currentDoctor.consultationFee) }}</span>
+                </div>
               </div>
-            </article>
-          }
+            </div>
+            <div class="hero-status">
+              <span class="status-dot" [class.warn]="currentDoctor.statusCode !== 'ACTIVE'"></span>
+              <strong>{{ currentDoctor.statusName }}</strong>
+              <small>Joined {{ formatDate(currentDoctor.joiningDate || currentDoctor.createdDate) }}</small>
+            </div>
+          </div>
+
+          <section class="overview-grid summary-kpis">
+            @for (card of overviewCards(); track card.label) {
+              <article class="metric-card">
+                <span class="material-symbols-rounded" [style.color]="card.color">{{ card.icon }}</span>
+                <div>
+                  <strong>{{ card.value }}</strong>
+                  <small>{{ card.label }}</small>
+                </div>
+              </article>
+            }
+          </section>
         </section>
 
         <nav class="tab-bar ac-card" aria-label="Doctor profile sections">
@@ -80,22 +74,34 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
           @switch (activeTab()) {
             @case ('overview') {
               <div class="split-layout">
-                <article>
-                  <h2>Clinical summary</h2>
-                  <div class="detail-grid">
-                    <span><small>Registration</small><strong>{{ currentDoctor.registrationNo }}</strong></span>
-                    <span><small>Council</small><strong>{{ currentDoctor.registrationCouncil || '-' }}</strong></span>
-                    <span><small>Experience</small><strong>{{ currentDoctor.experienceYears }} yrs</strong></span>
-                    <span><small>Branch</small><strong>{{ currentDoctor.branchName }}</strong></span>
+                <article class="overview-panel care-panel">
+                  <div class="panel-title">
+                    <span class="panel-icon material-symbols-rounded">clinical_notes</span>
+                    <div>
+                      <p class="ac-eyebrow">Doctor snapshot</p>
+                      <h2>Clinical summary</h2>
+                    </div>
+                  </div>
+                  <div class="detail-grid overview-detail-grid">
+                    <span class="detail-tile"><small>Registration</small><strong>{{ currentDoctor.registrationNo }}</strong><em>Medical council ID</em></span>
+                    <span class="detail-tile"><small>Council</small><strong>{{ currentDoctor.registrationCouncil || '-' }}</strong><em>Credential authority</em></span>
+                    <span class="detail-tile"><small>Experience</small><strong>{{ currentDoctor.experienceYears }} yrs</strong><em>Clinical practice</em></span>
+                    <span class="detail-tile"><small>Branch</small><strong>{{ currentDoctor.branchName }}</strong><em>Care location</em></span>
                   </div>
                 </article>
-                <article>
-                  <h2>Patient workflow linkage</h2>
-                  <div class="detail-grid">
-                    <span><small>Appointments</small><strong>{{ currentDoctor.performance.totalAppointments }}</strong></span>
-                    <span><small>Consultations</small><strong>{{ currentDoctor.performance.totalConsultations }}</strong></span>
-                    <span><small>Admissions</small><strong>{{ currentDoctor.performance.admissions }}</strong></span>
-                    <span><small>Revenue</small><strong>{{ currency(currentDoctor.performance.revenue) }}</strong></span>
+                <article class="overview-panel workflow-panel">
+                  <div class="panel-title">
+                    <span class="panel-icon workflow-icon material-symbols-rounded">hub</span>
+                    <div>
+                      <p class="ac-eyebrow">Patient linkage</p>
+                      <h2>Workflow summary</h2>
+                    </div>
+                  </div>
+                  <div class="detail-grid overview-detail-grid">
+                    <span class="detail-tile"><small>Appointments</small><strong>{{ currentDoctor.performance.totalAppointments }}</strong><em>Scheduled care</em></span>
+                    <span class="detail-tile"><small>Consultations</small><strong>{{ currentDoctor.performance.totalConsultations }}</strong><em>Completed visits</em></span>
+                    <span class="detail-tile"><small>Admissions</small><strong>{{ currentDoctor.performance.admissions }}</strong><em>IPD linkage</em></span>
+                    <span class="detail-tile"><small>Revenue</small><strong>{{ currency(currentDoctor.performance.revenue) }}</strong><em>Billing impact</em></span>
                   </div>
                 </article>
               </div>
@@ -241,20 +247,39 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
               </div>
             }
             @case ('activity') {
-              <ol class="timeline">
-                @for (activity of currentDoctor.activity; track activity.activityGuid + activity.eventDate) {
-                  <li>
-                    <span></span>
-                    <div>
-                      <strong>{{ activity.eventType }}</strong>
-                      <p>{{ activity.description }}</p>
-                      <small>{{ activity.sourceModule }} · {{ formatDateTime(activity.eventDate) }}</small>
-                    </div>
-                  </li>
-                } @empty {
-                  <div class="empty-state">No doctor activity captured yet.</div>
-                }
-              </ol>
+              <section class="activity-tracker">
+                <header class="tracker-head">
+                  <div>
+                    <p class="ac-eyebrow">Doctor timeline</p>
+                    <h2>Doctor activity tracker</h2>
+                  </div>
+                  <span class="tracker-count">{{ currentDoctor.activity.length }} events</span>
+                </header>
+                <ol class="timeline tracker-list">
+                  @for (activity of currentDoctor.activity; track activity.activityGuid + activity.eventDate; let index = $index) {
+                    <li class="tracker-item">
+                      <div class="tracker-marker">
+                        <span class="tracker-step">{{ index + 1 }}</span>
+                      </div>
+                      <article class="tracker-card">
+                        <div class="tracker-card-head">
+                          <div>
+                            <strong>{{ activity.eventType }}</strong>
+                            <p>{{ activity.description }}</p>
+                          </div>
+                          <span class="tracker-date">{{ formatDateTime(activity.eventDate) }}</span>
+                        </div>
+                        <div class="tracker-meta">
+                          <span class="material-symbols-rounded">apps</span>
+                          {{ activity.sourceModule }}
+                        </div>
+                      </article>
+                    </li>
+                  } @empty {
+                    <div class="empty-state">No doctor activity captured yet.</div>
+                  }
+                </ol>
+              </section>
             }
           }
         </section>
@@ -265,7 +290,7 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
   `,
   styles: `
     :host { display: block; min-width: 0; }
-    .doctor-profile { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+    .doctor-profile { display: flex; flex-direction: column; align-items: stretch; gap: 18px; min-width: 0; }
     .profile-header { display: flex; justify-content: space-between; align-items: center; gap: 14px; }
     .back-link { color: var(--ac-muted); text-decoration: none; font-weight: 800; display: inline-flex; gap: 8px; align-items: center; }
     .back-link:hover { color: var(--ac-primary); }
@@ -333,7 +358,7 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
       height: 100%;
       min-height: 0;
       overflow: auto;
-      padding: 4px 0 10px;
+      padding: 0 0 10px;
       scrollbar-gutter: stable;
     }
     .profile-header { padding: 2px 4px; }
@@ -485,6 +510,463 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
       .doctor-avatar { width: 64px; height: 64px; border-radius: 18px; }
       .hero-status { width: 100%; min-width: 0; text-align: left; }
       .overview-grid, .performance-grid { grid-template-columns: 1fr; }
+    }
+
+    :host {
+      margin-top: -12px;
+    }
+
+    .doctor-profile {
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .doctor-summary-card {
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 12px;
+      border-color: color-mix(in srgb, var(--ac-primary) 14%, var(--ac-border));
+      background: linear-gradient(120deg, color-mix(in srgb, var(--ac-primary) 9%, var(--ac-surface)) 0%, color-mix(in srgb, #0891b2 7%, var(--ac-surface)) 52%, var(--ac-surface) 100%);
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+    }
+    .doctor-summary-card::before {
+      content: '';
+      position: absolute;
+      inset: 0 0 auto;
+      height: 4px;
+      background: linear-gradient(90deg, var(--ac-primary), #0891b2, #10b981);
+    }
+    .doctor-summary-card .hero-card {
+      min-height: 0;
+      padding: 12px 12px 8px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+    .doctor-summary-card .hero-card::before { display: none; }
+    .doctor-summary-card .hero-main {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .doctor-summary-card .doctor-avatar {
+      width: 52px;
+      height: 52px;
+      flex-basis: 52px;
+      border-radius: 14px;
+      font-size: 20px;
+      outline: 4px solid color-mix(in srgb, var(--ac-surface) 72%, transparent);
+      box-shadow: 0 10px 22px color-mix(in srgb, var(--ac-primary) 18%, transparent);
+    }
+    .doctor-summary-card .hero-main h1 {
+      font-size: 23px;
+    }
+    .doctor-summary-card .hero-pills {
+      margin-top: 7px;
+    }
+    .doctor-summary-card .hero-status {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      column-gap: 9px;
+      row-gap: 2px;
+      min-width: 210px;
+      padding: 10px 12px;
+      text-align: left;
+    }
+    .doctor-summary-card .hero-status .status-dot {
+      grid-row: 1 / span 2;
+    }
+    .doctor-summary-card .hero-status strong {
+      margin: 0;
+      line-height: 1.1;
+    }
+    .summary-kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      padding-top: 10px;
+      border-top: 1px solid color-mix(in srgb, var(--ac-border) 76%, transparent);
+    }
+    .summary-kpis .metric-card {
+      min-height: 58px;
+      padding: 9px 11px;
+      border: 1px solid color-mix(in srgb, var(--ac-border) 82%, var(--ac-surface));
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--ac-surface) 82%, transparent);
+      box-shadow: none;
+    }
+    .summary-kpis .metric-card::before { display: none; }
+    .summary-kpis .metric-card .material-symbols-rounded {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--ac-primary) 7%, var(--ac-surface));
+      font-size: 18px;
+    }
+    .summary-kpis .metric-card strong {
+      font-size: 20px;
+    }
+    .summary-kpis .metric-card small {
+      margin-top: 2px;
+      display: block;
+      font-size: 12px;
+    }
+    .overview-panel {
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      gap: 12px;
+    }
+    .overview-panel::before {
+      content: '';
+      position: absolute;
+      inset: 0 0 auto;
+      height: 3px;
+      background: linear-gradient(90deg, var(--ac-primary), color-mix(in srgb, #0891b2 74%, var(--ac-primary)));
+      opacity: 0.85;
+    }
+    .panel-title {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+    }
+    .panel-title .ac-eyebrow {
+      margin: 0 0 2px;
+      font-size: 10.5px;
+    }
+    .panel-title h2 {
+      margin: 0;
+    }
+    .panel-icon {
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 11px;
+      background: var(--ac-primary-light);
+      color: var(--ac-primary);
+      box-shadow: 0 10px 22px color-mix(in srgb, var(--ac-primary) 12%, transparent);
+    }
+    .workflow-icon {
+      background: var(--ac-success-light);
+      color: var(--ac-success);
+    }
+    .overview-detail-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .detail-tile {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, color-mix(in srgb, var(--ac-primary) 4%, var(--ac-surface)), color-mix(in srgb, var(--ac-surface-2) 82%, var(--ac-surface)));
+    }
+    .detail-tile::after {
+      content: '';
+      position: absolute;
+      inset: auto 10px 0;
+      height: 2px;
+      border-radius: 999px 999px 0 0;
+      background: color-mix(in srgb, var(--ac-primary) 24%, transparent);
+    }
+    .detail-tile em {
+      display: block;
+      margin-top: 4px;
+      color: var(--ac-muted);
+      font-size: 11.5px;
+      font-style: normal;
+      font-weight: 750;
+    }
+    .activity-tracker {
+      display: grid;
+      gap: 14px;
+    }
+    .tracker-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 14px;
+      border: 1px solid color-mix(in srgb, var(--ac-primary) 14%, var(--ac-border));
+      border-radius: 12px;
+      background: linear-gradient(120deg, color-mix(in srgb, var(--ac-primary) 8%, var(--ac-surface)), color-mix(in srgb, #0891b2 5%, var(--ac-surface)));
+    }
+    .tracker-head h2 {
+      margin: 2px 0 0;
+      font-size: 18px;
+    }
+    .tracker-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 32px;
+      padding: 0 12px;
+      border-radius: 999px;
+      background: var(--ac-surface);
+      color: var(--ac-primary);
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+    }
+    .tracker-list {
+      position: relative;
+      display: grid;
+      gap: 12px;
+      padding-left: 0;
+    }
+    .tracker-list::before {
+      content: '';
+      position: absolute;
+      top: 17px;
+      bottom: 17px;
+      left: 19px;
+      width: 2px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, var(--ac-primary), color-mix(in srgb, #0891b2 72%, var(--ac-primary)));
+      opacity: 0.28;
+    }
+    .tracker-item {
+      position: relative;
+      display: grid;
+      grid-template-columns: 40px minmax(0, 1fr);
+      gap: 12px;
+      padding: 0;
+    }
+    .tracker-marker {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      place-items: start center;
+      padding-top: 5px;
+    }
+    .tracker-step {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border: 4px solid color-mix(in srgb, var(--ac-surface) 84%, transparent);
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--ac-primary), #0891b2);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+      box-shadow: 0 10px 24px color-mix(in srgb, var(--ac-primary) 20%, transparent);
+    }
+    .tracker-card {
+      min-width: 0;
+      padding: 13px 14px;
+      border: 1px solid color-mix(in srgb, var(--ac-border) 84%, var(--ac-surface));
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--ac-surface) 94%, var(--ac-subtle));
+      box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+    }
+    .tracker-card-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }
+    .tracker-card strong {
+      display: block;
+      color: var(--ac-text);
+      font-size: 15px;
+    }
+    .tracker-card p {
+      margin: 4px 0 0;
+      color: var(--ac-text-2);
+      font-size: 13.5px;
+    }
+    .tracker-date {
+      flex: 0 0 auto;
+      padding: 6px 9px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--ac-primary) 8%, var(--ac-surface));
+      color: var(--ac-muted);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .tracker-meta {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      color: var(--ac-muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .tracker-meta .material-symbols-rounded {
+      font-size: 16px;
+      color: var(--ac-primary);
+    }
+
+    @media (max-width: 1020px) {
+      .summary-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 680px) {
+      .doctor-summary-card {
+        padding: 10px;
+      }
+      .doctor-summary-card .hero-card {
+        padding: 10px;
+      }
+      .doctor-summary-card .hero-status {
+        width: 100%;
+        min-width: 0;
+      }
+      .summary-kpis,
+      .overview-detail-grid {
+        grid-template-columns: 1fr;
+      }
+      .tracker-head,
+      .tracker-card-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .tracker-date {
+        white-space: normal;
+      }
+    }
+
+    .doctor-profile {
+      display: grid;
+      grid-auto-rows: max-content;
+      align-content: start;
+      gap: 8px;
+      min-width: 0;
+    }
+    .doctor-summary-card {
+      overflow: visible;
+    }
+    .doctor-summary-card .hero-card {
+      overflow: visible;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      min-height: auto;
+      padding: 12px;
+    }
+    .doctor-summary-card .hero-main {
+      min-width: 260px;
+    }
+    .doctor-summary-card .doctor-avatar {
+      flex: 0 0 52px;
+    }
+    .doctor-summary-card .hero-main h1 {
+      margin: 0;
+      overflow-wrap: anywhere;
+    }
+    .doctor-summary-card .hero-pills {
+      min-width: 0;
+      overflow: visible;
+    }
+    .doctor-summary-card .pill {
+      max-width: 100%;
+    }
+    .doctor-summary-card .hero-status {
+      margin-left: auto;
+      min-width: 190px;
+    }
+    .tab-bar {
+      display: flex;
+      align-items: center;
+      min-height: 54px;
+      padding: 6px;
+      gap: 6px;
+      border-radius: 12px;
+      overflow-x: auto;
+      visibility: visible;
+    }
+    .tab-bar button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-width: max-content;
+      min-height: 38px;
+      padding: 0 11px;
+      color: var(--ac-muted);
+      background: transparent;
+      opacity: 1;
+      visibility: visible;
+    }
+    .tab-bar button.active {
+      color: var(--ac-primary);
+      background: var(--ac-primary-light);
+    }
+    .tab-content {
+      overflow: visible;
+      min-height: 0;
+      padding: 14px;
+      border-radius: 12px;
+    }
+    .split-layout {
+      gap: 14px;
+    }
+    .split-layout > article,
+    .split-layout > section {
+      padding: 16px;
+      border: 1px solid color-mix(in srgb, var(--ac-border) 84%, var(--ac-surface));
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--ac-surface) 96%, var(--ac-subtle));
+    }
+    .stacked-section {
+      gap: 14px;
+    }
+    .record-grid {
+      gap: 10px;
+    }
+    .record-card {
+      min-height: 70px;
+      padding: 12px;
+      border-radius: 10px;
+    }
+    .record-card > .material-symbols-rounded {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      font-size: 19px;
+    }
+    .record-card h3 {
+      font-size: 14px;
+    }
+    .record-card p {
+      margin-top: 3px;
+      font-size: 12.5px;
+    }
+    .empty-state {
+      grid-column: 1 / -1;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      width: 100%;
+      min-height: 120px;
+      padding: 18px;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    @media (max-width: 680px) {
+      .doctor-summary-card .hero-main {
+        min-width: 0;
+        width: 100%;
+      }
+      .doctor-summary-card .hero-status {
+        width: 100%;
+        min-width: 0;
+        margin-left: 0;
+      }
+      .tab-content {
+        padding: 12px;
+      }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
