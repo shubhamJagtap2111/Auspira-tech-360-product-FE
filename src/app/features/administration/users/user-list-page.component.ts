@@ -282,21 +282,25 @@ const defaultResetPassword = 'Reset@123';
     label { display: flex; flex-direction: column; gap: 6px; color: var(--ac-text-2); font-size: 12px; font-weight: 700; }
     input, select { height: 38px; border: 1px solid var(--ac-border); border-radius: 8px; padding: 0 10px; background: var(--ac-surface); color: var(--ac-text); font: inherit; }
     input:focus, select:focus { outline: none; border-color: var(--ac-primary); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
-    .content-grid { align-items: stretch; flex-direction: column; overflow: hidden; position: relative; min-height: clamp(380px, 48vh, 680px); border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: var(--ac-r); box-shadow: var(--ac-sh-sm); }
+    .content-grid { align-items: stretch; flex-direction: column; overflow: hidden; position: relative; min-height: clamp(320px, 42vh, 560px); border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: var(--ac-r); box-shadow: var(--ac-sh-sm); }
     .table-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; background: var(--ac-surface); }
     table { width: 100%; border-collapse: collapse; min-width: 880px; }
-    th, td { padding: 13px 20px; border-bottom: 1px solid var(--ac-border); text-align: left; font-size: 13px; vertical-align: middle; }
-    th { color: var(--ac-muted); font-size: 11.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; background: var(--ac-surface-2); white-space: nowrap; }
+    th, td { padding: 8px 16px; border-bottom: 1px solid var(--ac-border); text-align: left; font-size: 12.5px; vertical-align: middle; }
+    th { height: 38px; color: var(--ac-muted); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; background: var(--ac-surface-2); white-space: nowrap; }
+    tbody tr { height: 48px; }
     tr.selected td { background: var(--ac-primary-light); }
-    .user-link { border: 0; background: transparent; padding: 0; display: flex; flex-direction: column; gap: 3px; color: var(--ac-text); text-align: left; cursor: pointer; }
-    .user-link span { color: var(--ac-muted); font-size: 12px; }
-    .role-list { display: flex; gap: 6px; flex-wrap: wrap; }
-    .role-list span { padding: 3px 7px; border-radius: 6px; background: rgba(15,118,110,.1); color: #0f766e; font-size: 11px; font-weight: 700; }
-    .status { padding: 4px 8px; border-radius: 999px; background: rgba(22,163,74,.1); color: #15803d; font-size: 11px; font-weight: 800; }
+    .user-link { border: 0; background: transparent; padding: 0; display: flex; flex-direction: column; gap: 1px; color: var(--ac-text); text-align: left; cursor: pointer; }
+    .user-link strong { font-size: 12.5px; line-height: 1.2; }
+    .user-link span { color: var(--ac-muted); font-size: 11.5px; line-height: 1.2; }
+    .role-list { display: flex; gap: 4px; flex-wrap: wrap; }
+    .role-list span { padding: 2px 7px; border-radius: 6px; background: rgba(15,118,110,.1); color: #0f766e; font-size: 10.5px; font-weight: 700; line-height: 1.35; }
+    .status { display: inline-flex; align-items: center; min-height: 22px; padding: 2px 8px; border-radius: 999px; background: rgba(22,163,74,.1); color: #15803d; font-size: 11px; font-weight: 800; line-height: 1.2; }
     .status.inactive { background: rgba(100,116,139,.12); color: #475569; }
     .status.locked { background: rgba(220,38,38,.1); color: #b91c1c; }
-    .icon-btn { width: 36px; height: 36px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-text-2); cursor: pointer; display: inline-grid; place-items: center; }
-    .icon-btn .material-symbols-rounded, .ac-btn .material-symbols-rounded { font-size: 18px; }
+    .row-actions { gap: 8px; align-items: center; }
+    .row-actions .icon-btn { width: 30px; height: 30px; border-radius: 7px; }
+    .icon-btn { width: 34px; height: 34px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-text-2); cursor: pointer; display: inline-grid; place-items: center; }
+    .icon-btn .material-symbols-rounded, .ac-btn .material-symbols-rounded { font-size: 17px; }
     .icon-btn:hover { border-color: var(--ac-primary); color: var(--ac-primary); }
     .icon-btn.danger:hover { border-color: var(--ac-error); color: var(--ac-error); }
     .empty { text-align: center; color: var(--ac-muted); padding: 32px; }

@@ -297,6 +297,7 @@ export class HospitalManagementPageComponent implements OnInit {
       const response = await this.service.getProfile();
       if (response.success && response.data) {
         this.profile.set(response.data);
+        this.branchContext.setHospitalName(response.data.hospitalName);
         return;
       }
 
@@ -370,6 +371,7 @@ export class HospitalManagementPageComponent implements OnInit {
       }
 
       this.profile.set(response.data);
+      this.branchContext.setHospitalName(response.data.hospitalName);
       await this.branchContext.refreshHospitalName();
       this.toast.success(this.t(successKey));
     } finally {

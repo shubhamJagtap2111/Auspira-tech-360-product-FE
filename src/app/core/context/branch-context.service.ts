@@ -84,6 +84,13 @@ export class BranchContextService {
     await this.fetchHospitalName();
   }
 
+  setHospitalName(hospitalName: string | null | undefined): void {
+    const normalized = hospitalName?.trim();
+    if (normalized) {
+      this.hospitalNameSignal.set(normalized);
+    }
+  }
+
   setSelectedBranchCode(branchCode: string | null): void {
     const normalized = normalizeBranchCode(branchCode);
     const branch = findBranch(this.branchesSignal(), normalized);

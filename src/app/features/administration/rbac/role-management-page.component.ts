@@ -16,6 +16,12 @@ const permissions = {
   assign: 'Administration.Roles.AssignPermissions'
 };
 
+interface PermissionGroupView {
+  pageName: string;
+  pageKey: string;
+  items: PermissionCatalogItem[];
+}
+
 @Component({
   standalone: true,
   imports: [CommonModule, FormsModule, AcDropdownComponent, AcAdminDrawerComponent],
@@ -128,15 +134,27 @@ const permissions = {
               <section class="ac-admin-form-section">
                 <div class="ac-admin-section-title"><span class="material-symbols-rounded">rule</span><h3>{{ t('Administration.Rbac.Actions.AssignPermissions') }}</h3></div>
                 <label><span>{{ t('Administration.Rbac.Columns.Permissions') }}</span><input name="permissionSearch" [(ngModel)]="permissionSearch" /></label>
-                <fieldset class="ac-admin-fieldset">
-                  <legend>{{ t('Administration.Rbac.Actions.AssignPermissions') }}</legend>
-                  @for (item of filteredCatalog(); track item.permissionCode) {
-                    <label class="ac-admin-switch-row">
-                      <input type="checkbox" [name]="'perm_' + item.permissionCode" [checked]="hasPermission(item.permissionCode)" (change)="togglePermission(item.permissionCode)" />
-                      <span>{{ t(item.permissionNameKey) }}</span>
-                    </label>
+                <div class="permission-groups" role="group" [attr.aria-label]="t('Administration.Rbac.Actions.AssignPermissions')">
+                  @for (group of permissionGroups(); track group.pageKey) {
+                    <section class="permission-group">
+                      <header>
+                        <strong>{{ group.pageName }}</strong>
+                        <span>{{ group.items.length }} permissions</span>
+                      </header>
+                      @for (item of group.items; track item.permissionCode) {
+                        <label class="permission-row">
+                          <input type="checkbox" [name]="'perm_' + item.permissionCode" [checked]="hasPermission(item.permissionCode)" (change)="togglePermission(item.permissionCode)" />
+                          <span>
+                            <strong>{{ group.pageName }}</strong>
+                            <small>{{ permissionActionLabel(item) }}</small>
+                          </span>
+                        </label>
+                      }
+                    </section>
+                  } @empty {
+                    <p class="empty compact">{{ t('Administration.Rbac.Empty.Matrix') }}</p>
                   }
-                </fieldset>
+                </div>
               </section>
             </form>
           </div>
@@ -175,6 +193,18 @@ const permissions = {
     form { display: flex; flex-direction: column; gap: 12px; }
     fieldset { max-height: 280px; overflow: auto; border: 1px solid var(--ac-border); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
     legend { padding: 0 4px; color: var(--ac-text-2); font-size: 12px; font-weight: 800; }
+    .permission-groups { max-height: 360px; overflow: auto; border: 1px solid var(--ac-border); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 10px; background: var(--ac-surface); }
+    .permission-group { display: flex; flex-direction: column; gap: 6px; }
+    .permission-group header { position: sticky; top: -8px; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 6px; background: var(--ac-surface); border-bottom: 1px solid var(--ac-border); }
+    .permission-group header strong { font-size: 13px; color: var(--ac-text); }
+    .permission-group header span { font-size: 11px; color: var(--ac-muted); font-weight: 800; }
+    .permission-row { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: 10px; min-height: 42px; padding: 7px 10px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface-2); cursor: pointer; }
+    .permission-row input { width: 18px; height: 18px; }
+    .permission-row span { min-width: 0; display: flex; align-items: baseline; gap: 8px; }
+    .permission-row span strong { flex: 0 0 auto; color: var(--ac-text); font-size: 12px; font-weight: 800; }
+    .permission-row span small { min-width: 0; color: var(--ac-muted); font-size: 12px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .permission-row:hover { border-color: color-mix(in srgb, var(--ac-primary) 48%, var(--ac-border)); background: color-mix(in srgb, var(--ac-primary) 5%, var(--ac-surface)); }
+    .empty.compact { padding: 12px; margin: 0; font-size: 12px; }
     .check-row { flex-direction: row; align-items: center; font-weight: 600; color: var(--ac-text-2); }
     .check-row input { width: 16px; height: 16px; }
     .form-actions { justify-content: flex-end; }
@@ -200,6 +230,8 @@ export class RoleManagementPageComponent implements OnInit {
   protected readonly errorKey = signal<string | null>(null);
   protected readonly editorOpen = signal(false);
   protected form = emptyForm();
+  private originalParentRoleCode = '';
+  private originalPermissionCodes: string[] = [];
 
   async ngOnInit(): Promise<void> {
     await Promise.all([this.loadRoles(), this.loadCatalog()]);
@@ -219,7 +251,60 @@ export class RoleManagementPageComponent implements OnInit {
       ...this.roles()
         .filter(role => role.roleCode !== this.form.roleCode)
         .map(role => ({ label: this.t(role.roleNameKey), value: role.roleCode }))
+        .sort((left, right) => left.label.localeCompare(right.label))
     ];
+  }
+
+  protected permissionGroups(): PermissionGroupView[] {
+    const search = this.permissionSearch.trim().toLowerCase();
+    const groups = new Map<string, PermissionGroupView>();
+    for (const item of this.catalog()) {
+      const pageName = permissionPageLabel(item);
+      const actionLabel = this.permissionActionLabel(item);
+      const searchable = `${pageName} ${actionLabel} ${item.permissionCode}`.toLowerCase();
+      if (search && !searchable.includes(search)) {
+        continue;
+      }
+
+      const pageKey = pageName.toLowerCase();
+      const group = groups.get(pageKey) ?? { pageName, pageKey, items: [] };
+      group.items.push(item);
+      groups.set(pageKey, group);
+    }
+
+    return Array.from(groups.values())
+      .map(group => ({
+        ...group,
+        items: group.items.sort((left, right) =>
+          actionSortValue(left).localeCompare(actionSortValue(right))
+          || left.permissionCode.localeCompare(right.permissionCode))
+      }))
+      .sort((left, right) => left.pageName.localeCompare(right.pageName));
+  }
+
+  protected permissionActionLabel(item: PermissionCatalogItem): string {
+    const parts = item.permissionCode.split('.');
+    const permissionAction = parts[parts.length - 1] || item.permissionCode;
+    const action = permissionAction || item.actionCode?.trim() || item.permissionCode;
+    const mapped = permissionActionOverrides[action.toLowerCase()];
+    return mapped ?? humanizeToken(action);
+  }
+
+  protected filteredCatalog(): PermissionCatalogItem[] {
+    const search = this.permissionSearch.trim().toLowerCase();
+    return search
+      ? this.catalog().filter(item => `${item.permissionCode} ${permissionPageLabel(item)} ${this.permissionActionLabel(item)}`.toLowerCase().includes(search))
+      : this.catalog();
+  }
+
+  protected startCreate(): void {
+    this.form = emptyForm();
+    this.parentRoleCode = '';
+    this.originalParentRoleCode = '';
+    this.originalPermissionCodes = [];
+    this.errorKey.set(null);
+    this.permissionSearch = '';
+    this.editorOpen.set(true);
   }
 
   protected async loadRoles(): Promise<void> {
@@ -239,21 +324,6 @@ export class RoleManagementPageComponent implements OnInit {
     }
   }
 
-  protected filteredCatalog(): PermissionCatalogItem[] {
-    const search = this.permissionSearch.trim().toLowerCase();
-    return search
-      ? this.catalog().filter(item => `${item.permissionCode} ${this.t(item.permissionNameKey)}`.toLowerCase().includes(search))
-      : this.catalog();
-  }
-
-  protected startCreate(): void {
-    this.form = emptyForm();
-    this.parentRoleCode = '';
-    this.errorKey.set(null);
-    this.permissionSearch = '';
-    this.editorOpen.set(true);
-  }
-
   protected async startEdit(role: RoleDto): Promise<void> {
     const response = await this.service.getRole(role.roleCode);
     const detail = response.data ?? role;
@@ -267,6 +337,8 @@ export class RoleManagementPageComponent implements OnInit {
       permissionCodes: [...detail.permissionCodes]
     };
     this.parentRoleCode = detail.parentRoleCode ?? '';
+    this.originalParentRoleCode = this.parentRoleCode;
+    this.originalPermissionCodes = [...detail.permissionCodes].sort();
     this.errorKey.set(null);
     this.editorOpen.set(true);
   }
@@ -274,6 +346,8 @@ export class RoleManagementPageComponent implements OnInit {
   protected closeEditor(): void {
     this.form = emptyForm();
     this.parentRoleCode = '';
+    this.originalParentRoleCode = '';
+    this.originalPermissionCodes = [];
     this.permissionSearch = '';
     this.errorKey.set(null);
     this.editorOpen.set(false);
@@ -294,10 +368,37 @@ export class RoleManagementPageComponent implements OnInit {
     this.errorKey.set(null);
 
     try {
-      const response = this.form.rowVersion
+      const isUpdate = !!this.form.rowVersion;
+      let response = isUpdate
         ? await this.service.updateRole(this.form)
         : await this.service.createRole(this.form);
-      await this.handleSaveResponse(response, this.form.rowVersion ? 'Administration.Rbac.Messages.RoleUpdated' : 'Administration.Rbac.Messages.RoleCreated', true);
+      if (!this.applySaveResponse(response)) {
+        return;
+      }
+
+      let savedRole = response.data;
+      if (isUpdate && this.permissionsChanged()) {
+        response = await this.service.assignPermissions(savedRole.roleCode, this.form.permissionCodes);
+        if (!this.applySaveResponse(response)) {
+          return;
+        }
+
+        savedRole = response.data;
+      }
+
+      if (this.parentChanged(savedRole)) {
+        const parentResponse = await this.service.setRoleParent(savedRole.roleCode, this.parentRoleCode || null);
+        if (!parentResponse.success) {
+          this.errorKey.set(parentResponse.message);
+          this.toast.error(this.t(parentResponse.message));
+          return;
+        }
+      }
+
+      this.toast.success(this.t(isUpdate ? 'Administration.Rbac.Messages.RoleUpdated' : 'Administration.Rbac.Messages.RoleCreated'));
+      await this.loadRoles();
+      await this.startEdit(savedRole);
+      this.editorOpen.set(false);
     } finally {
       this.saving.set(false);
     }
@@ -316,25 +417,31 @@ export class RoleManagementPageComponent implements OnInit {
       permissionCodes: [...detail.permissionCodes]
     };
     this.parentRoleCode = detail.parentRoleCode ?? '';
+    this.originalParentRoleCode = this.parentRoleCode;
+    this.originalPermissionCodes = [...detail.permissionCodes].sort();
     this.errorKey.set(null);
     this.editorOpen.set(true);
   }
 
-  private async handleSaveResponse(response: { success: boolean; message: string; data: RoleDto | null }, successKey: string, updateParent: boolean): Promise<void> {
+  private applySaveResponse(response: { success: boolean; message: string; data: RoleDto | null }): response is { success: true; message: string; data: RoleDto } {
     if (!response.success || !response.data) {
       this.errorKey.set(response.message);
       this.toast.error(this.t(response.message));
-      return;
+      return false;
     }
 
-    if (updateParent) {
-      await this.service.setRoleParent(response.data.roleCode, this.parentRoleCode || null);
-    }
+    return true;
+  }
 
-    this.toast.success(this.t(successKey));
-    await this.loadRoles();
-    await this.startEdit(response.data);
-    this.editorOpen.set(false);
+  private permissionsChanged(): boolean {
+    return [...this.form.permissionCodes].sort().join('|') !== this.originalPermissionCodes.join('|');
+  }
+
+  private parentChanged(role: RoleDto): boolean {
+    return this.can(permissions.edit)
+      && role.roleCode !== this.parentRoleCode
+      && Boolean(this.parentRoleCode || this.originalParentRoleCode)
+      && this.parentRoleCode !== this.originalParentRoleCode;
   }
 }
 
@@ -348,4 +455,91 @@ function emptyForm(): RoleFormModel {
     rowVersion: '',
     permissionCodes: []
   };
+}
+
+const permissionPageOverrides: Record<string, string> = {
+  Administration: 'Administration',
+  Hospital: 'Hospital Profile',
+  Branch: 'Branches',
+  Branches: 'Branches',
+  UserManagement: 'User Management',
+  Users: 'Users',
+  Roles: 'Roles',
+  Permissions: 'Permissions',
+  Menus: 'Menus',
+  DataPermissions: 'Data Permissions',
+  Department: 'Departments',
+  Departments: 'Departments',
+  Designation: 'Designations',
+  Designations: 'Designations',
+  SystemConfiguration: 'System Configuration',
+  Dashboard: 'Dashboard',
+  Reports: 'Reports & Insights',
+  Doctors: 'Doctors',
+  Patients: 'Patients',
+  Appointments: 'Appointments',
+  Opd: 'OPD',
+  Ipd: 'IPD',
+  Laboratory: 'Laboratory',
+  Pharmacy: 'Pharmacy',
+  Billing: 'Billing',
+  Inventory: 'Inventory'
+};
+
+const permissionActionOverrides: Record<string, string> = {
+  assignpermissions: 'Assign permissions',
+  assignroles: 'Assign roles',
+  resetpassword: 'Reset password',
+  viewaudit: 'View audit',
+  setdefault: 'Set default'
+};
+
+const permissionActionOrder = [
+  'view',
+  'create',
+  'edit',
+  'manage',
+  'configure',
+  'assignroles',
+  'assignpermissions',
+  'branding',
+  'settings',
+  'subscription',
+  'copy',
+  'import',
+  'export',
+  'activate',
+  'deactivate',
+  'unlock',
+  'resetpassword',
+  'viewaudit',
+  'delete'
+];
+
+function permissionPageLabel(item: PermissionCatalogItem): string {
+  const parts = item.permissionCode.split('.').filter(Boolean);
+  const pageToken = parts.length >= 3
+    ? parts[1]
+    : item.menuCode || item.groupCode || item.categoryCode || item.permissionCode;
+
+  return permissionPageOverrides[pageToken] ?? humanizeToken(pageToken);
+}
+
+function actionSortValue(item: PermissionCatalogItem): string {
+  const parts = item.permissionCode.split('.');
+  const action = (parts[parts.length - 1] || item.actionCode || item.permissionCode).toLowerCase();
+  const index = permissionActionOrder.indexOf(action);
+  return `${index === -1 ? 999 : index}`.padStart(3, '0');
+}
+
+function humanizeToken(value: string): string {
+  return value
+    .replace(/^Permission\./, '')
+    .replace(/^Navigation\./, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\./g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, character => character.toUpperCase());
 }
