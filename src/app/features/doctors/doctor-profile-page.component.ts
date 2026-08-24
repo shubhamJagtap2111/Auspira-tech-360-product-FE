@@ -3,6 +3,8 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { getApiErrorMessage } from '../../core/http/api-error-message';
+import { DialogService } from '../../shared/ui/dialog/dialog.service';
+import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dropdown.component';
 import { AcPageActionsComponent } from '../../shared/ui/page-actions/page-actions.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { DoctorProfile } from './doctor-management.models';
@@ -12,7 +14,7 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcPageActionsComponent],
+  imports: [CommonModule, FormsModule, AcDropdownComponent, AcPageActionsComponent],
   template: `
     <section class="doctor-profile">
       <ac-page-actions backLink="/doctors" backLabel="Doctor Registry" (refreshed)="reload()" />
@@ -396,24 +398,11 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
                 </label>
                 <label>
                   <span>Day</span>
-                  <select name="availabilityDay" [(ngModel)]="form.dayOfWeek" required>
-                    <option [ngValue]="1">Monday</option>
-                    <option [ngValue]="2">Tuesday</option>
-                    <option [ngValue]="3">Wednesday</option>
-                    <option [ngValue]="4">Thursday</option>
-                    <option [ngValue]="5">Friday</option>
-                    <option [ngValue]="6">Saturday</option>
-                    <option [ngValue]="0">Sunday</option>
-                  </select>
+                  <ac-dropdown name="availabilityDay" [(ngModel)]="form.dayOfWeek" [options]="availabilityDayOptions" />
                 </label>
                 <label>
                   <span>Consultation Type</span>
-                  <select name="availabilityConsultationType" [(ngModel)]="form.consultationType" required>
-                    <option value="OPD">OPD</option>
-                    <option value="FOLLOW_UP">Follow-up</option>
-                    <option value="TELECONSULT">Teleconsult</option>
-                    <option value="IPD_ROUND">IPD round</option>
-                  </select>
+                  <ac-dropdown name="availabilityConsultationType" [(ngModel)]="form.consultationType" [options]="consultationTypeOptions" />
                 </label>
                 <label>
                   <span>Start Time</span>
@@ -1335,6 +1324,21 @@ export class DoctorProfilePageComponent implements OnInit {
   protected readonly activeTab = signal<DoctorProfileTab>('overview');
   protected readonly availabilityForm = signal<DoctorAvailabilityForm | null>(null);
   protected readonly leaveForm = signal<DoctorLeaveForm | null>(null);
+  protected readonly availabilityDayOptions: DropdownOption<number>[] = [
+    { label: 'Monday', value: 1 },
+    { label: 'Tuesday', value: 2 },
+    { label: 'Wednesday', value: 3 },
+    { label: 'Thursday', value: 4 },
+    { label: 'Friday', value: 5 },
+    { label: 'Saturday', value: 6 },
+    { label: 'Sunday', value: 0 }
+  ];
+  protected readonly consultationTypeOptions: DropdownOption<string>[] = [
+    { label: 'OPD', value: 'OPD' },
+    { label: 'Follow-up', value: 'FOLLOW_UP' },
+    { label: 'Teleconsult', value: 'TELECONSULT' },
+    { label: 'IPD round', value: 'IPD_ROUND' }
+  ];
   protected readonly tabs: Array<{ id: DoctorProfileTab; label: string; icon: string }> = [
     { id: 'overview', label: 'Overview', icon: 'dashboard' },
     { id: 'professional', label: 'Professional', icon: 'workspace_premium' },
@@ -1361,6 +1365,7 @@ export class DoctorProfilePageComponent implements OnInit {
 
   private readonly route = inject(ActivatedRoute);
   private readonly service = inject(DoctorManagementService);
+  private readonly dialog = inject(DialogService);
   private readonly toast = inject(ToastService);
 
   ngOnInit(): void {
@@ -1471,7 +1476,18 @@ export class DoctorProfilePageComponent implements OnInit {
   }
 
   protected async blockDate(doctor: DoctorProfile): Promise<void> {
-    const scheduleDate = window.prompt('Date to block', new Date().toISOString().slice(0, 10));
+    const scheduleDate = await this.dialog.prompt({
+      title: 'Block Doctor Date',
+      message: `Prevent appointment booking for ${doctor.fullName} on a specific date.`,
+      label: 'Date to block',
+      inputType: 'date',
+      value: new Date().toISOString().slice(0, 10),
+      required: true,
+      confirmText: 'Block Date',
+      cancelText: 'Cancel',
+      icon: 'event_busy',
+      intent: 'warning'
+    });
     if (!scheduleDate) {
       return;
     }

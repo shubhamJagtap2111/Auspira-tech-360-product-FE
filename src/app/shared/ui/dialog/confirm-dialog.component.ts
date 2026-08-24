@@ -1,11 +1,13 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, HostListener, inject } from '@angular/core';
-import { DialogIntent, DialogService } from './dialog.service';
+import { FormsModule } from '@angular/forms';
+import { AcDropdownComponent } from '../dropdown/dropdown.component';
+import { ConfirmDialogState, DialogFormValues, DialogIntent, DialogService } from './dialog.service';
 
 @Component({
   selector: 'ac-confirm-dialog',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule, AcDropdownComponent],
   template: `
     @if (dialogSvc.dialog(); as dialog) {
       <div class="dialog-backdrop" (click)="dismiss(dialog.dismissible)">
@@ -39,11 +41,44 @@ import { DialogIntent, DialogService } from './dialog.service';
             }
           </div>
 
+          @if (dialog.fields.length > 0) {
+            <div class="dialog-form">
+              @for (field of dialog.fields; track field.name) {
+                <label>
+                  <span>{{ field.label }} @if (field.required) { <em>*</em> }</span>
+                  @switch (field.type) {
+                    @case ('textarea') {
+                      <textarea
+                        [name]="field.name"
+                        [rows]="field.rows || 3"
+                        [placeholder]="field.placeholder || ''"
+                        [(ngModel)]="field.value"></textarea>
+                    }
+                    @case ('select') {
+                      <ac-dropdown
+                        [attr.name]="field.name"
+                        [(ngModel)]="field.value"
+                        [options]="field.options || []"
+                        [placeholder]="field.placeholder || 'Select'" />
+                    }
+                    @default {
+                      <input
+                        [type]="field.type || 'text'"
+                        [name]="field.name"
+                        [placeholder]="field.placeholder || ''"
+                        [(ngModel)]="field.value" />
+                    }
+                  }
+                </label>
+              }
+            </div>
+          }
+
           <div class="dialog-actions">
             <button class="dialog-btn secondary" type="button" (click)="cancel()">
               {{ dialog.cancelText }}
             </button>
-            <button class="dialog-btn primary" type="button" (click)="confirm()" autofocus>
+            <button class="dialog-btn primary" type="button" [disabled]="!isValid(dialog)" (click)="confirm(dialog)" autofocus>
               {{ dialog.confirmText }}
             </button>
           </div>
@@ -190,6 +225,56 @@ import { DialogIntent, DialogService } from './dialog.service';
       line-height: 1.45;
     }
 
+    .dialog-form {
+      display: grid;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .dialog-form label {
+      display: grid;
+      gap: 7px;
+      color: var(--ac-muted);
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .dialog-form label span {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .dialog-form label em {
+      color: var(--ac-error);
+      font-style: normal;
+    }
+
+    .dialog-form input,
+    .dialog-form textarea {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid var(--ac-border);
+      border-radius: 8px;
+      background: var(--ac-surface);
+      color: var(--ac-text);
+      padding: 10px 12px;
+      font: inherit;
+      outline: 0;
+      transition: border-color var(--ac-t), box-shadow var(--ac-t);
+    }
+
+    .dialog-form textarea {
+      resize: vertical;
+      line-height: 1.45;
+    }
+
+    .dialog-form input:focus,
+    .dialog-form textarea:focus {
+      border-color: var(--ac-primary);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--ac-primary) 14%, transparent);
+    }
+
     .dialog-actions {
       display: flex;
       justify-content: flex-end;
@@ -231,6 +316,13 @@ import { DialogIntent, DialogService } from './dialog.service';
     .dialog-btn.primary:hover {
       transform: translateY(-1px);
       box-shadow: 0 14px 24px color-mix(in srgb, var(--dialog-tone) 34%, transparent);
+    }
+
+    .dialog-btn:disabled {
+      opacity: .58;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
     }
 
     @media (max-width: 560px) {
@@ -278,12 +370,25 @@ export class ConfirmDialogComponent {
     }
   }
 
-  protected confirm(): void {
-    this.dialogSvc.settle(true);
+  protected confirm(dialog: ConfirmDialogState): void {
+    if (!this.isValid(dialog)) {
+      return;
+    }
+
+    if (dialog.fields.length === 0) {
+      this.dialogSvc.settle(true);
+      return;
+    }
+
+    this.dialogSvc.settle(dialog.fields.reduce<DialogFormValues>((values, field) => {
+      values[field.name] = field.value?.trim() ?? '';
+      return values;
+    }, {}));
   }
 
   protected cancel(): void {
-    this.dialogSvc.settle(false);
+    const dialog = this.dialogSvc.dialog();
+    this.dialogSvc.settle(dialog?.fields.length ? null : false);
   }
 
   protected dismiss(dismissible: boolean): void {
@@ -302,5 +407,9 @@ export class ConfirmDialogComponent {
     };
 
     return labels[intent];
+  }
+
+  protected isValid(dialog: ConfirmDialogState): boolean {
+    return dialog.fields.every(field => !field.required || Boolean(field.value?.trim()));
   }
 }

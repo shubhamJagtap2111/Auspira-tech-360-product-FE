@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { getApiErrorMessage } from '../../core/http/api-error-message';
+import { DialogFieldOption, DialogService } from '../../shared/ui/dialog/dialog.service';
 import { AcPageActionsComponent } from '../../shared/ui/page-actions/page-actions.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { PatientAllergy, PatientConnectedRecord, PatientProfile } from './patient-management.models';
@@ -631,13 +632,34 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
       display: flex;
       align-items: center;
       min-height: 54px;
-      padding: 6px;
+      padding: 6px 6px 10px;
       gap: 6px;
       border-radius: 12px;
+      overflow-x: scroll;
+      overflow-y: hidden;
+      scroll-snap-type: x proximity;
+      scrollbar-width: thin;
+      scrollbar-color: color-mix(in srgb, var(--ac-primary) 52%, var(--ac-border)) color-mix(in srgb, var(--ac-border) 42%, transparent);
       visibility: visible;
+    }
+    .tab-bar::-webkit-scrollbar {
+      display: block;
+      height: 8px;
+    }
+    .tab-bar::-webkit-scrollbar-track {
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--ac-border) 38%, transparent);
+    }
+    .tab-bar::-webkit-scrollbar-thumb {
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--ac-primary) 58%, var(--ac-border));
+    }
+    .tab-bar::-webkit-scrollbar-thumb:hover {
+      background: var(--ac-primary);
     }
     .tab-bar button {
       display: inline-flex;
+      flex: 0 0 auto;
       align-items: center;
       justify-content: center;
       gap: 6px;
@@ -648,6 +670,7 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
       background: transparent;
       opacity: 1;
       visibility: visible;
+      scroll-snap-align: start;
     }
     .tab-bar button.active {
       color: var(--ac-primary);
@@ -1099,6 +1122,20 @@ export class PatientProfilePageComponent implements OnInit {
   protected readonly loading = signal(true);
   protected readonly patient = signal<PatientProfile | null>(null);
   protected readonly activeTab = signal<PatientProfileTab>('overview');
+  protected readonly allergyTypeOptions: DialogFieldOption[] = [
+    { label: 'Drug', value: 'Drug' },
+    { label: 'Food', value: 'Food' },
+    { label: 'Environmental', value: 'Environmental' },
+    { label: 'Latex', value: 'Latex' },
+    { label: 'General', value: 'General' }
+  ];
+  protected readonly allergySeverityOptions: DialogFieldOption[] = [
+    { label: 'Low', value: 'LOW' },
+    { label: 'Mild', value: 'MILD' },
+    { label: 'Moderate', value: 'MODERATE' },
+    { label: 'High', value: 'HIGH' },
+    { label: 'Severe', value: 'SEVERE' }
+  ];
   protected readonly tabs: { id: PatientProfileTab; label: string; icon: string }[] = [
     { id: 'overview', label: 'Overview', icon: 'dashboard' },
     { id: 'personal', label: 'Personal & Contacts', icon: 'contact_phone' },
@@ -1127,6 +1164,7 @@ export class PatientProfilePageComponent implements OnInit {
 
   private readonly route = inject(ActivatedRoute);
   private readonly service = inject(PatientManagementService);
+  private readonly dialog = inject(DialogService);
   private readonly toast = inject(ToastService);
 
   async ngOnInit(): Promise<void> {
@@ -1208,36 +1246,97 @@ export class PatientProfilePageComponent implements OnInit {
 
     try {
       if (action === 'Add Allergy') {
-        const allergen = window.prompt('Allergen name');
-        if (!allergen?.trim()) {
+        const values = await this.dialog.form({
+          title: 'Add Allergy',
+          message: 'Capture allergy information for clinical safety alerts.',
+          confirmText: 'Save Allergy',
+          cancelText: 'Cancel',
+          icon: 'emergency_home',
+          intent: 'info',
+          fields: [
+            { name: 'allergen', label: 'Allergen name', required: true, placeholder: 'Example: Penicillin' },
+            { name: 'allergyType', label: 'Allergy type', type: 'select', value: 'Drug', options: this.allergyTypeOptions, required: true },
+            { name: 'reaction', label: 'Reaction', placeholder: 'Example: Rash, swelling, breathing issue' },
+            { name: 'severityCode', label: 'Severity', type: 'select', value: 'MODERATE', options: this.allergySeverityOptions, required: true },
+            { name: 'notes', label: 'Notes', type: 'textarea', rows: 3, placeholder: 'Clinical notes' }
+          ]
+        });
+        if (!values) {
           return;
         }
 
-        const allergyType = window.prompt('Allergy type', 'Drug') || 'General';
-        const reaction = window.prompt('Reaction', '') || '';
-        const severityCode = window.prompt('Severity: LOW, MILD, MODERATE, HIGH, SEVERE', 'MODERATE') || 'MODERATE';
+        const severityCode = normalizeSeverity(values['severityCode']);
         await this.service.createAllergy(currentPatient.patientGuid, {
-          allergen,
-          allergyType,
-          reaction,
+          allergen: values['allergen'],
+          allergyType: values['allergyType'] || 'General',
+          reaction: values['reaction'] || '',
           severityCode,
-          notes: '',
+          notes: values['notes'] || '',
           statusCode: 'ACTIVE',
-          isCritical: ['HIGH', 'SEVERE'].includes(severityCode.trim().toUpperCase())
+          isCritical: isCriticalSeverity(severityCode)
         });
       } else {
-        const allergy = this.selectAllergy(currentPatient.allergies);
+        const allergy = await this.selectAllergy(currentPatient.allergies);
         if (!allergy) {
           return;
         }
 
         if (action === 'Edit Allergy') {
-          const reaction = window.prompt('Reaction', allergy.reaction || '') ?? allergy.reaction ?? '';
-          const notes = window.prompt('Notes', allergy.notes || '') ?? allergy.notes ?? '';
-          await this.service.updateAllergy(currentPatient.patientGuid, allergy, { reaction, notes });
+          const values = await this.dialog.form({
+            title: 'Edit Allergy',
+            message: `Update the safety record for ${allergy.allergen}.`,
+            confirmText: 'Save Allergy',
+            cancelText: 'Cancel',
+            icon: 'edit',
+            intent: 'info',
+            fields: [
+              { name: 'allergen', label: 'Allergen name', value: allergy.allergen, required: true },
+              { name: 'allergyType', label: 'Allergy type', type: 'select', value: allergy.allergyType || 'General', options: this.allergyTypeOptions, required: true },
+              { name: 'reaction', label: 'Reaction', value: allergy.reaction || '' },
+              { name: 'severityCode', label: 'Severity', type: 'select', value: normalizeSeverity(allergy.severityCode), options: this.allergySeverityOptions, required: true },
+              { name: 'notes', label: 'Notes', type: 'textarea', rows: 3, value: allergy.notes || '' }
+            ]
+          });
+          if (!values) {
+            return;
+          }
+
+          const severityCode = normalizeSeverity(values['severityCode']);
+          await this.service.updateAllergy(currentPatient.patientGuid, allergy, {
+            allergen: values['allergen'],
+            allergyType: values['allergyType'] || 'General',
+            reaction: values['reaction'],
+            severityCode,
+            notes: values['notes'],
+            isCritical: allergy.isCritical || isCriticalSeverity(severityCode)
+          });
         } else if (action === 'Mark Critical') {
+          const confirmed = await this.dialog.confirm({
+            title: 'Mark allergy as critical?',
+            message: `${allergy.allergen} will be highlighted as a critical clinical alert.`,
+            confirmText: 'Mark Critical',
+            cancelText: 'Cancel',
+            icon: 'priority_high',
+            intent: 'warning'
+          });
+          if (!confirmed) {
+            return;
+          }
+
           await this.service.updateAllergy(currentPatient.patientGuid, allergy, { isCritical: true, severityCode: allergy.severityCode === 'UNKNOWN' ? 'SEVERE' : allergy.severityCode });
         } else {
+          const confirmed = await this.dialog.confirm({
+            title: 'Deactivate allergy?',
+            message: `${allergy.allergen} will no longer appear as an active allergy alert.`,
+            confirmText: 'Deactivate',
+            cancelText: 'Cancel',
+            icon: 'block',
+            intent: 'warning'
+          });
+          if (!confirmed) {
+            return;
+          }
+
           await this.service.updateAllergy(currentPatient.patientGuid, allergy, { statusCode: 'INACTIVE' });
         }
       }
@@ -1249,7 +1348,7 @@ export class PatientProfilePageComponent implements OnInit {
     }
   }
 
-  private selectAllergy(allergies: PatientAllergy[]): PatientAllergy | null {
+  private async selectAllergy(allergies: PatientAllergy[]): Promise<PatientAllergy | null> {
     if (allergies.length === 0) {
       this.toast.warning('No allergy selected', 'Add an allergy before editing or deactivating.');
       return null;
@@ -1259,9 +1358,29 @@ export class PatientProfilePageComponent implements OnInit {
       return allergies[0];
     }
 
-    const selection = window.prompt(allergies.map((allergy, index) => `${index + 1}. ${allergy.allergen}`).join('\n'), '1');
-    const index = Number(selection) - 1;
-    return Number.isInteger(index) && allergies[index] ? allergies[index] : null;
+    const values = await this.dialog.form({
+      title: 'Select Allergy',
+      message: 'Choose the allergy record to update.',
+      confirmText: 'Continue',
+      cancelText: 'Cancel',
+      icon: 'emergency_home',
+      intent: 'info',
+      fields: [
+        {
+          name: 'allergyGuid',
+          label: 'Allergy',
+          type: 'select',
+          value: allergies[0]?.allergyGuid,
+          required: true,
+          options: allergies.map(allergy => ({
+            label: `${allergy.allergen} - ${allergy.severityName || allergy.severityCode}`,
+            value: allergy.allergyGuid
+          }))
+        }
+      ]
+    });
+
+    return allergies.find(allergy => allergy.allergyGuid === values?.['allergyGuid']) ?? null;
   }
 
   protected formatDate(value: string): string {
@@ -1280,4 +1399,13 @@ export class PatientProfilePageComponent implements OnInit {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value ?? 0);
   }
 
+}
+
+function normalizeSeverity(value: string | null | undefined): string {
+  const severity = (value || 'MODERATE').trim().toUpperCase();
+  return ['LOW', 'MILD', 'MODERATE', 'HIGH', 'SEVERE'].includes(severity) ? severity : 'MODERATE';
+}
+
+function isCriticalSeverity(value: string): boolean {
+  return ['HIGH', 'SEVERE'].includes(normalizeSeverity(value));
 }

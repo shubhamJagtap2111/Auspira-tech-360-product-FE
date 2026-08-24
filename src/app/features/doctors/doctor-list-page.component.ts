@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { BranchContextService } from '../../core/context/branch-context.service';
 import { getApiErrorMessage } from '../../core/http/api-error-message';
 import { AcAdminDrawerComponent } from '../../shared/ui/admin-drawer/admin-drawer.component';
+import { DialogService } from '../../shared/ui/dialog/dialog.service';
 import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dropdown.component';
 import { AcPaginationComponent } from '../../shared/ui/pagination/pagination.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
@@ -444,6 +445,7 @@ export class DoctorListPageComponent implements OnInit, OnDestroy {
 
   private readonly service = inject(DoctorManagementService);
   private readonly toast = inject(ToastService);
+  private readonly dialog = inject(DialogService);
   private readonly router = inject(Router);
   private readonly branchContext = inject(BranchContextService);
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
@@ -615,7 +617,16 @@ export class DoctorListPageComponent implements OnInit, OnDestroy {
   }
 
   protected async deleteDoctor(doctor: DoctorSummary): Promise<void> {
-    if (!confirm(`Delete ${doctor.fullName}? This is blocked automatically if appointments, OPD, or IPD activity exists.`)) {
+    const confirmed = await this.dialog.confirm({
+      title: 'Delete doctor?',
+      message: `Delete ${doctor.fullName}?`,
+      details: 'This is blocked automatically if appointments, OPD, or IPD activity exists.',
+      confirmText: 'Delete Doctor',
+      cancelText: 'Cancel',
+      icon: 'delete',
+      intent: 'danger'
+    });
+    if (!confirmed) {
       return;
     }
 
