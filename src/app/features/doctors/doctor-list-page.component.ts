@@ -71,7 +71,13 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
       </section>
 
       <section class="ac-card doctor-table-card">
-        @if (doctors().length > 0) {
+        @if (initialLoading()) {
+          <div class="registry-loader">
+            <span class="loader-mark material-symbols-rounded">monitor_heart</span>
+            <strong>Loading doctor registry...</strong>
+            <p>Preparing departments, schedules, and doctor records.</p>
+          </div>
+        } @else if (doctors().length > 0) {
           <div class="table-scroll">
             <table class="ac-table doctor-table">
               <thead>
@@ -327,6 +333,41 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
     .empty-state h3 { margin: 0; color: var(--ac-text); }
     .empty-state p { max-width: 420px; margin: 0; }
     .empty-icon { width: 58px; height: 58px; border-radius: 14px; display: grid; place-items: center; background: var(--ac-subtle); color: var(--ac-muted); font-size: 31px; }
+    .registry-loader {
+      min-height: 260px;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 10px;
+      padding: 34px 24px;
+      text-align: center;
+      color: var(--ac-muted);
+    }
+    .registry-loader strong {
+      color: var(--ac-text);
+      font-size: 16px;
+    }
+    .registry-loader p {
+      margin: 0;
+      max-width: 390px;
+      font-size: 13.5px;
+    }
+    .loader-mark {
+      width: 58px;
+      height: 58px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: color-mix(in srgb, var(--ac-primary) 9%, var(--ac-surface));
+      color: var(--ac-primary);
+      font-size: 34px;
+      box-shadow: 0 14px 34px color-mix(in srgb, var(--ac-primary) 14%, transparent);
+      animation: loaderPulse 1.15s ease-in-out infinite;
+    }
+    @keyframes loaderPulse {
+      0%, 100% { transform: translateY(0); opacity: .72; }
+      50% { transform: translateY(-2px); opacity: 1; }
+    }
     .drawer-form { display: flex; flex-direction: column; gap: 18px; }
     .form-section { border: 1px solid var(--ac-border); border-radius: 8px; padding: 18px; background: var(--ac-surface); }
     .section-title { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
@@ -382,6 +423,7 @@ export class DoctorListPageComponent implements OnInit, OnDestroy {
   protected readonly totalCount = signal(0);
   protected readonly pageNumber = signal(1);
   protected readonly pageSize = signal(10);
+  protected readonly initialLoading = signal(true);
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly drawerOpen = signal(false);
@@ -465,10 +507,15 @@ export class DoctorListPageComponent implements OnInit, OnDestroy {
   });
 
   async ngOnInit(): Promise<void> {
-    await this.branchContext.loadBranches();
-    this.lastBranchCode = this.branchContext.selectedBranchCode();
-    this.branchReloadReady = true;
-    await this.loadDoctors(1);
+    this.initialLoading.set(true);
+    try {
+      await this.branchContext.loadBranches();
+      this.lastBranchCode = this.branchContext.selectedBranchCode();
+      this.branchReloadReady = true;
+      await this.loadDoctors(1);
+    } finally {
+      this.initialLoading.set(false);
+    }
   }
 
   ngOnDestroy(): void {

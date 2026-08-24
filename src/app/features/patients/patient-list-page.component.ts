@@ -77,7 +77,13 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
       </section>
 
       <section class="ac-card table-card ac-admin-layout" [class.drawer-open]="drawerOpen()">
-        @if (patients().length > 0) {
+        @if (initialLoading()) {
+          <div class="registry-loader">
+            <span class="loader-mark material-symbols-rounded">monitor_heart</span>
+            <strong>Loading patient registry...</strong>
+            <p>Preparing MRNs, demographics, and patient records.</p>
+          </div>
+        } @else if (patients().length > 0) {
           <div class="table-scroll">
             <table class="ac-table">
               <thead>
@@ -549,6 +555,41 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
     .empty-icon .material-symbols-rounded { font-size: 40px; color: var(--ac-muted-2); }
     .empty-title { font-size: 16px; font-weight: 700; color: var(--ac-text); }
     .empty-desc { font-size: 13.5px; color: var(--ac-muted); max-width: 340px; }
+    .registry-loader {
+      min-height: 260px;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 10px;
+      padding: 34px 24px;
+      text-align: center;
+      color: var(--ac-muted);
+    }
+    .registry-loader strong {
+      color: var(--ac-text);
+      font-size: 16px;
+    }
+    .registry-loader p {
+      margin: 0;
+      max-width: 390px;
+      font-size: 13.5px;
+    }
+    .loader-mark {
+      width: 58px;
+      height: 58px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: color-mix(in srgb, var(--ac-primary) 9%, var(--ac-surface));
+      color: var(--ac-primary);
+      font-size: 34px;
+      box-shadow: 0 14px 34px color-mix(in srgb, var(--ac-primary) 14%, transparent);
+      animation: loaderPulse 1.15s ease-in-out infinite;
+    }
+    @keyframes loaderPulse {
+      0%, 100% { transform: translateY(0); opacity: .72; }
+      50% { transform: translateY(-2px); opacity: 1; }
+    }
     input[readonly] { background: var(--ac-surface-2); color: var(--ac-text-2); cursor: not-allowed; font-weight: 800; }
     textarea { min-height: 86px; resize: vertical; }
     .system-panel { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 12px; border: 1px dashed var(--ac-border); border-radius: var(--ac-r); background: var(--ac-surface-2); }
@@ -700,6 +741,7 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
   protected readonly totalCount = signal(0);
   protected readonly pageNumber = signal(1);
   protected readonly pageSize = signal(10);
+  protected readonly initialLoading = signal(true);
   protected readonly saving = signal(false);
   protected readonly drawerOpen = signal(false);
   protected readonly drawerMode = signal<PatientDrawerMode>('view');
@@ -763,10 +805,15 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
   });
 
   async ngOnInit(): Promise<void> {
-    await this.branchContext.loadBranches();
-    this.lastBranchCode = this.branchContext.selectedBranchCode();
-    this.branchReloadReady = true;
-    await this.loadPatients();
+    this.initialLoading.set(true);
+    try {
+      await this.branchContext.loadBranches();
+      this.lastBranchCode = this.branchContext.selectedBranchCode();
+      this.branchReloadReady = true;
+      await this.loadPatients();
+    } finally {
+      this.initialLoading.set(false);
+    }
   }
 
   ngOnDestroy(): void {

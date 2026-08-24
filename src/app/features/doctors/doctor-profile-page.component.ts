@@ -662,12 +662,19 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
     }
 
     :host {
-      margin-top: -12px;
+      margin-top: 0;
+      padding-top: 2px;
     }
 
     .doctor-profile {
-      gap: 8px;
+      gap: 12px;
       align-items: stretch;
+    }
+
+    ac-page-actions {
+      position: relative;
+      z-index: 2;
+      margin-bottom: 2px;
     }
 
     .doctor-summary-card {

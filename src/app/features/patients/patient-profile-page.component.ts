@@ -1394,13 +1394,20 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
     }
 
     :host {
-      margin-top: -12px;
+      margin-top: 0;
+      padding-top: 2px;
     }
 
     .patient-profile {
-      gap: 8px;
+      gap: 12px;
       grid-auto-rows: max-content;
       align-content: start;
+    }
+
+    ac-page-actions {
+      position: relative;
+      z-index: 2;
+      margin-bottom: 2px;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
