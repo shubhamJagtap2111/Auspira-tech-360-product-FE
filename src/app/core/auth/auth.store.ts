@@ -43,6 +43,52 @@ export class AuthStore {
     }
   }
 
+  updateCurrentUserSnapshot(
+    update: Partial<Pick<CurrentUserProfile,
+      'email' |
+      'fullName' |
+      'languageCode' |
+      'timeZoneCode' |
+      'themeMode' |
+      'desktopNotificationsEnabled' |
+      'emailDigestEnabled' |
+      'autoDetectLanguageEnabled' |
+      'loginAlertsEnabled' |
+      'requireVerifiedEmailEnabled' |
+      'twoStepVerificationEnabled'>>
+  ): void {
+    const fullName = update.fullName?.trim();
+    const email = update.email?.trim();
+    const session = this.sessionSignal();
+    if (session) {
+      const nextSession = {
+        ...session,
+        fullName: fullName || session.fullName,
+        email: email || session.email
+      };
+      this.sessionSignal.set(nextSession);
+      writeStoredSession(nextSession);
+    }
+
+    const profile = this.profileSignal();
+    if (profile) {
+      this.profileSignal.set({
+        ...profile,
+        fullName: fullName || profile.fullName,
+        email: email || profile.email,
+        languageCode: update.languageCode ?? profile.languageCode,
+        timeZoneCode: update.timeZoneCode ?? profile.timeZoneCode,
+        themeMode: update.themeMode ?? profile.themeMode,
+        desktopNotificationsEnabled: update.desktopNotificationsEnabled ?? profile.desktopNotificationsEnabled,
+        emailDigestEnabled: update.emailDigestEnabled ?? profile.emailDigestEnabled,
+        autoDetectLanguageEnabled: update.autoDetectLanguageEnabled ?? profile.autoDetectLanguageEnabled,
+        loginAlertsEnabled: update.loginAlertsEnabled ?? profile.loginAlertsEnabled,
+        requireVerifiedEmailEnabled: update.requireVerifiedEmailEnabled ?? profile.requireVerifiedEmailEnabled,
+        twoStepVerificationEnabled: update.twoStepVerificationEnabled ?? profile.twoStepVerificationEnabled
+      });
+    }
+  }
+
   clearSession(): void {
     this.sessionSignal.set(null);
     this.profileSignal.set(null);

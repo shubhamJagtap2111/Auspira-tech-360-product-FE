@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { AuthStore } from '../../core/auth/auth.store';
+import { CurrentUserProfile } from '../../core/auth/auth.models';
 import { getUserRoleLabel } from '../../core/auth/user-access';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { Language } from '../../core/i18n/i18n.models';
@@ -125,9 +126,9 @@ const fallbackLanguages: Language[] = [
             </label>
           </div>
           <div class="form-actions">
-            <button class="ac-btn ac-btn-primary" (click)="saveSecuritySettings()">
-              <span class="material-symbols-rounded">save</span>
-              Save Security
+            <button class="ac-btn ac-btn-primary" (click)="saveSecuritySettings()" [disabled]="savingSecurity()">
+              <span class="material-symbols-rounded">{{ savingSecurity() ? 'progress_activity' : 'save' }}</span>
+              {{ savingSecurity() ? 'Saving...' : 'Save Security' }}
             </button>
           </div>
         </section>
@@ -250,7 +251,7 @@ const fallbackLanguages: Language[] = [
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ProfileActionPageComponent {
+export class ProfileActionPageComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly authStore = inject(AuthStore);
@@ -262,6 +263,9 @@ export class ProfileActionPageComponent {
   protected readonly mode = computed(() => this.route.snapshot.data['mode'] as ProfileActionMode);
   protected readonly email = computed(() => this.authStore.session()?.email ?? '');
   protected readonly languages = computed(() => this.i18n.languages().length ? this.i18n.languages() : fallbackLanguages);
+  protected readonly profile = signal<CurrentUserProfile | null>(null);
+  protected readonly loadingSecurity = signal(false);
+  protected readonly savingSecurity = signal(false);
   protected readonly savingPassword = signal(false);
   protected activityQuery = '';
 
@@ -296,6 +300,12 @@ export class ProfileActionPageComponent {
     }
   ]));
 
+  async ngOnInit(): Promise<void> {
+    if (this.mode() === 'security') {
+      await this.loadCurrentUserProfile(true);
+    }
+  }
+
   protected readonly filteredActivity = computed(() => {
     const query = this.activityQuery.trim().toLowerCase();
     if (!query) {
@@ -327,7 +337,22 @@ export class ProfileActionPageComponent {
   });
 
   protected saveAccountSettings(): void {
+    const displayName = this.account.displayName.trim();
+    if (!displayName) {
+      this.toast.error('Display name is required');
+      return;
+    }
+
+    this.account.displayName = displayName;
+    this.account.email = this.account.email.trim();
     window.localStorage.setItem(accountStorageKey, JSON.stringify(this.account));
+    this.authStore.updateCurrentUserSnapshot({
+      fullName: this.account.displayName,
+      email: this.account.email,
+      languageCode: this.account.language,
+      timeZoneCode: this.account.timeZone,
+      emailDigestEnabled: this.account.emailDigest
+    });
     this.addActivityEntry('Updated account settings', 'Profile');
     this.toast.success('Account settings saved');
   }
@@ -342,6 +367,13 @@ export class ProfileActionPageComponent {
       emailDigest: true,
       compactMode: false
     };
+    this.authStore.updateCurrentUserSnapshot({
+      fullName: this.account.displayName,
+      email: this.account.email,
+      languageCode: this.account.language,
+      timeZoneCode: this.account.timeZone,
+      emailDigestEnabled: this.account.emailDigest
+    });
     this.toast.info('Account settings reset');
   }
 
@@ -365,10 +397,50 @@ export class ProfileActionPageComponent {
     this.account.language = cultureCode;
   }
 
-  protected saveSecuritySettings(): void {
-    window.localStorage.setItem(securityStorageKey, JSON.stringify(this.security));
-    this.addActivityEntry('Updated security settings', 'Security');
-    this.toast.success('Security settings saved');
+  protected async saveSecuritySettings(): Promise<void> {
+    if (this.savingSecurity()) {
+      return;
+    }
+
+    const profile = this.profile() ?? await this.loadCurrentUserProfile();
+    if (!profile) {
+      this.toast.error('Security settings not saved', 'Unable to load your current profile. Please refresh and try again.');
+      return;
+    }
+
+    this.savingSecurity.set(true);
+    try {
+      const response = await this.authService.updateCurrentUser({
+        fullName: profile.fullName,
+        mobileNo: profile.mobileNo,
+        languageCode: profile.languageCode,
+        timeZoneCode: profile.timeZoneCode,
+        rowVersion: profile.rowVersion,
+        themeMode: profile.themeMode,
+        desktopNotificationsEnabled: profile.desktopNotificationsEnabled,
+        emailDigestEnabled: profile.emailDigestEnabled,
+        autoDetectLanguageEnabled: profile.autoDetectLanguageEnabled,
+        loginAlertsEnabled: this.security.loginAlerts,
+        requireVerifiedEmailEnabled: this.security.requireVerifiedEmail,
+        twoStepVerificationEnabled: this.security.twoStep
+      });
+
+      if (!response.success || !response.data) {
+        this.toast.error(response.message || 'Security settings not saved');
+        return;
+      }
+
+      this.profile.set(response.data);
+      this.syncSecuritySettings(response.data);
+      this.authStore.setProfile(response.data);
+      window.localStorage.setItem(securityStorageKey, JSON.stringify(this.security));
+      this.addActivityEntry('Updated security settings', 'Security');
+      this.toast.success('Security settings saved');
+    } catch {
+      this.toast.error('Security settings not saved', 'Please try again.');
+    } finally {
+      this.savingSecurity.set(false);
+    }
   }
 
   protected addActivity(): void {
@@ -419,6 +491,35 @@ export class ProfileActionPageComponent {
 
   private roleLabel(): string {
     return getUserRoleLabel(this.authStore.session());
+  }
+
+  private async loadCurrentUserProfile(syncSecurity = false): Promise<CurrentUserProfile | null> {
+    if (this.loadingSecurity()) {
+      return this.profile();
+    }
+
+    this.loadingSecurity.set(true);
+    try {
+      const profile = await this.authService.getCurrentUser();
+      this.profile.set(profile);
+      this.authStore.setProfile(profile);
+      if (syncSecurity) {
+        this.syncSecuritySettings(profile);
+      }
+      return profile;
+    } catch {
+      return null;
+    } finally {
+      this.loadingSecurity.set(false);
+    }
+  }
+
+  private syncSecuritySettings(profile: CurrentUserProfile): void {
+    this.security = {
+      loginAlerts: profile.loginAlertsEnabled ?? true,
+      requireVerifiedEmail: profile.requireVerifiedEmailEnabled ?? true,
+      twoStep: profile.twoStepVerificationEnabled ?? false
+    };
   }
 }
 

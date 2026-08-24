@@ -120,6 +120,9 @@ export interface CurrentUserProfile {
   desktopNotificationsEnabled: boolean;
   emailDigestEnabled: boolean;
   autoDetectLanguageEnabled: boolean;
+  loginAlertsEnabled: boolean;
+  requireVerifiedEmailEnabled: boolean;
+  twoStepVerificationEnabled: boolean;
   rowVersion: string;
 }
 
@@ -133,4 +136,7 @@ export interface UpdateCurrentUserRequest {
   desktopNotificationsEnabled?: boolean | null;
   emailDigestEnabled?: boolean | null;
   autoDetectLanguageEnabled?: boolean | null;
+  loginAlertsEnabled?: boolean | null;
+  requireVerifiedEmailEnabled?: boolean | null;
+  twoStepVerificationEnabled?: boolean | null;
 }

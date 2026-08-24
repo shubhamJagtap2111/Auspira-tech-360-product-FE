@@ -9,6 +9,8 @@ import { ToastService } from '../../shared/ui/toast/toast.service';
 import { ConfirmDialogComponent } from '../../shared/ui/dialog/confirm-dialog.component';
 import { AuthService } from '../../core/auth/auth.service';
 import { AuthStore } from '../../core/auth/auth.store';
+import { buildProfileImageUrl } from '../../core/auth/profile-image-url';
+import { API_BASE_URL } from '../../core/http/api-endpoints';
 import { getUserRoleLabel, isHospitalAdminUser as isHospitalAdminSession } from '../../core/auth/user-access';
 import { AiraChatService } from '../../core/ai/aira-chat.service';
 import { BranchContextService } from '../../core/context/branch-context.service';
@@ -207,7 +209,11 @@ const fallbackLanguages: Language[] = [
               <div class="hdr-sep"></div>
               <button class="profile-btn" (click)="toggleProfileMenu()">
                 <div class="avatar">
-                  <span>{{ userInitials() }}</span>
+                  @if (profileImageUrl()) {
+                    <img class="avatar-image" [src]="profileImageUrl()" alt="Profile photo" />
+                  } @else {
+                    <span>{{ userInitials() }}</span>
+                  }
                 </div>
                 <div class="profile-meta">
                   <span class="profile-name">{{ displayName() }}</span>
@@ -275,7 +281,13 @@ const fallbackLanguages: Language[] = [
           @if (profileOpen()) {
             <div class="profile-drop">
               <div class="pd-user">
-                <div class="pd-avatar">{{ userInitials() }}</div>
+                <div class="pd-avatar">
+                  @if (profileImageUrl()) {
+                    <img class="pd-avatar-image" [src]="profileImageUrl()" alt="Profile photo" />
+                  } @else {
+                    {{ userInitials() }}
+                  }
+                </div>
                 <div class="pd-info">
                   <p class="pd-name">{{ displayName() }}</p>
                   <p class="pd-role">{{ roleLabel() }}</p>
@@ -956,6 +968,14 @@ const fallbackLanguages: Language[] = [
       color: #fff;
       font-size: 11px;
       font-weight: 800;
+      overflow: hidden;
+    }
+    .avatar-image,
+    .pd-avatar-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
     }
     .profile-meta { display: flex; flex-direction: column; }
     .profile-name { font-size: 13px; font-weight: 600; color: var(--ac-text); line-height: 1.2; }
@@ -1104,6 +1124,7 @@ const fallbackLanguages: Language[] = [
       font-size: 14px;
       font-weight: 800;
       flex-shrink: 0;
+      overflow: hidden;
     }
     .pd-info { min-width: 0; }
     .pd-name { font-size: 14px; font-weight: 700; color: var(--ac-text); }
@@ -1817,6 +1838,7 @@ export class AppShellComponent implements OnInit {
   private   readonly authStore = inject(AuthStore);
   private   readonly airaChatService = inject(AiraChatService);
   private   readonly branchContext = inject(BranchContextService);
+  private   readonly apiBaseUrl = inject(API_BASE_URL);
 
   /* ── State ── */
   protected readonly sidebarCollapsed = signal<boolean>(
@@ -1877,6 +1899,7 @@ export class AppShellComponent implements OnInit {
 
   ngOnInit(): void {
     document.documentElement.classList.toggle('dark', this.dark());
+    void this.loadCurrentUserProfile();
     void this.branchContext.loadBranches();
     this.aiMessages.set(this.loadAiConversation());
     this.aiChatHistory.set(this.loadAiConversationHistory());
@@ -1929,6 +1952,9 @@ export class AppShellComponent implements OnInit {
       : [{ label: this.branchHeaderLabel(), value: this.selectedBranchCode() }];
   });
   protected readonly userInitials = computed(() => getInitials(this.displayName(), this.displayEmail()));
+  protected readonly profileImageUrl = computed(() =>
+    buildProfileImageUrl(this.authStore.profile(), this.apiBaseUrl)
+  );
 
   protected changeBranch(branchCode: string | null): void {
     this.branchContext.setSelectedBranchCode(branchCode);
@@ -2259,6 +2285,18 @@ export class AppShellComponent implements OnInit {
     };
 
     return messages[messageKey] ?? 'AIRA could not answer that request right now.';
+  }
+
+  private async loadCurrentUserProfile(): Promise<void> {
+    if (!this.authStore.isAuthenticated() || this.isAuthPage()) {
+      return;
+    }
+
+    try {
+      this.authStore.setProfile(await this.authService.getCurrentUser());
+    } catch {
+      // Header profile details are best-effort; auth guards/interceptors handle invalid sessions.
+    }
   }
 
   private loadAiConversation(): AiChatMessage[] {

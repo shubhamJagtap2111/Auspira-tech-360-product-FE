@@ -29,6 +29,13 @@ export interface ManagedUser {
   isActive: boolean;
   createdDate: string | null;
   modifiedDate: string | null;
+  themeMode: string;
+  desktopNotificationsEnabled: boolean;
+  emailDigestEnabled: boolean;
+  autoDetectLanguageEnabled: boolean;
+  loginAlertsEnabled: boolean;
+  requireVerifiedEmailEnabled: boolean;
+  twoStepVerificationEnabled: boolean;
   roleCodes: string[];
   rowVersion: string;
 }

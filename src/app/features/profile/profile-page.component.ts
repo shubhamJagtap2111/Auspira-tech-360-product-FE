@@ -1,10 +1,13 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { AuthStore } from '../../core/auth/auth.store';
 import { AuthenticationSession, AuthResponse, CurrentUserProfile } from '../../core/auth/auth.models';
+import { buildProfileImageUrl } from '../../core/auth/profile-image-url';
 import { getUserRoleLabel } from '../../core/auth/user-access';
 import { API_BASE_URL } from '../../core/http/api-endpoints';
+import { ReverseGeocodingService } from '../../core/location/reverse-geocoding.service';
 import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { AdministrationDashboard } from '../dashboard/administration-dashboard.models';
@@ -18,6 +21,8 @@ interface ProfileSessionItem {
   icon: string;
   device: string;
   location: string;
+  latitude: number | null;
+  longitude: number | null;
   browser: string;
   time: string;
 }
@@ -26,6 +31,12 @@ interface ProfileFormModel {
   firstName: string;
   lastName: string;
   mobileNo: string;
+}
+
+interface PasswordFormModel {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
 }
 
 interface ProfilePreference {
@@ -187,23 +198,25 @@ interface ProfilePreference {
                       <p class="security-desc">{{ passwordChangedLabel() }}</p>
                     </div>
                   </div>
-                  <form class="profile-form">
+                  <form class="profile-form" (ngSubmit)="changePassword()">
                     <div class="form-group">
                       <label class="form-label">Current Password</label>
-                      <input class="ac-input" type="password" placeholder="••••••••" />
+                      <input class="ac-input" type="password" name="currentPassword" [(ngModel)]="passwordForm.currentPassword" autocomplete="current-password" required />
                     </div>
                     <div class="form-row">
                       <div class="form-group">
                         <label class="form-label">New Password</label>
-                        <input class="ac-input" type="password" placeholder="Min 8 chars" />
+                        <input class="ac-input" type="password" name="newPassword" [(ngModel)]="passwordForm.newPassword" autocomplete="new-password" placeholder="Min 8 chars" required minlength="8" />
                       </div>
                       <div class="form-group">
                         <label class="form-label">Confirm Password</label>
-                        <input class="ac-input" type="password" placeholder="Repeat password" />
+                        <input class="ac-input" type="password" name="confirmPassword" [(ngModel)]="passwordForm.confirmPassword" autocomplete="new-password" placeholder="Repeat password" required />
                       </div>
                     </div>
                     <div class="form-actions">
-                      <button type="submit" class="ac-btn ac-btn-primary">Update Password</button>
+                      <button type="submit" class="ac-btn ac-btn-primary" [disabled]="savingPassword()">
+                        {{ savingPassword() ? 'Updating...' : 'Update Password' }}
+                      </button>
                     </div>
                   </form>
                 </div>
@@ -492,6 +505,8 @@ export class ProfilePageComponent implements OnInit {
   private readonly dashboardService = inject(AdministrationDashboardService);
   private readonly toast = inject(ToastService);
   private readonly apiBaseUrl = inject(API_BASE_URL);
+  private readonly router = inject(Router);
+  private readonly reverseGeocoding = inject(ReverseGeocodingService);
 
   protected readonly activeTab = signal<ProfileTab>('personal');
   protected readonly profile = signal<CurrentUserProfile | null>(null);
@@ -499,7 +514,9 @@ export class ProfilePageComponent implements OnInit {
   protected readonly sessions = signal<ProfileSessionItem[]>([]);
   protected readonly editingProfile = signal(false);
   protected readonly savingProfile = signal(false);
+  protected readonly savingPassword = signal(false);
   protected profileForm: ProfileFormModel = { firstName: '', lastName: '', mobileNo: '' };
+  protected passwordForm: PasswordFormModel = { currentPassword: '', newPassword: '', confirmPassword: '' };
   protected readonly displayName = computed(() => {
     const profile = this.profile();
     const session = this.authStore.session();
@@ -514,21 +531,7 @@ export class ProfilePageComponent implements OnInit {
   });
   protected readonly isAccountActive = computed(() => this.profile()?.isActive ?? true);
   protected readonly userInitials = computed(() => getInitials(this.displayName(), this.displayEmail()));
-  protected readonly profileImageUrl = computed(() => {
-    const profile = this.profile();
-    const path = profile?.profileImagePath?.trim();
-    if (!profile || !path) {
-      return '';
-    }
-
-    if (/^https?:\/\//i.test(path)) {
-      return path;
-    }
-
-    const apiRoot = this.apiBaseUrl.replace(/\/api\/v\d+\/?$/i, '');
-    const version = encodeURIComponent(profile.modifiedDate ?? profile.rowVersion ?? '');
-    return `${apiRoot}/${path.replace(/^\/+/, '')}${version ? `?v=${version}` : ''}`;
-  });
+  protected readonly profileImageUrl = computed(() => buildProfileImageUrl(this.profile(), this.apiBaseUrl));
   protected readonly firstName = computed(() => this.nameParts()[0] ?? '');
   protected readonly lastName = computed(() => this.nameParts().slice(1).join(' '));
   private readonly nameParts = computed(() => this.displayName().split(/\s+/).filter(Boolean));
@@ -721,10 +724,54 @@ export class ProfilePageComponent implements OnInit {
   private async loadProfile(): Promise<void> {
     const profile = await this.authService.getCurrentUser();
     this.profile.set(profile);
+    this.refreshStoredSession(profile);
     this.profileLanguage = profile.languageCode || this.profileLanguage;
     this.profileTimezone = profile.timeZoneCode || this.profileTimezone;
     this.syncPreferences(profile);
     this.syncProfileForm();
+  }
+
+  protected async changePassword(): Promise<void> {
+    if (this.savingPassword()) {
+      return;
+    }
+
+    const currentPassword = this.passwordForm.currentPassword.trim();
+    const newPassword = this.passwordForm.newPassword.trim();
+    const confirmPassword = this.passwordForm.confirmPassword.trim();
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      this.toast.error('Password not changed', 'Please fill all password fields.');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      this.toast.error('Password not changed', 'New password must be at least 8 characters.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      this.toast.error('Password mismatch', 'New password and confirm password must match.');
+      return;
+    }
+
+    this.savingPassword.set(true);
+    try {
+      const response = await this.authService.changePassword({ currentPassword, newPassword });
+      if (!response.success) {
+        this.toast.error(response.message || 'Password not changed');
+        return;
+      }
+
+      this.passwordForm = { currentPassword: '', newPassword: '', confirmPassword: '' };
+      this.toast.success('Password changed', 'Please sign in again with the new password.');
+      this.authStore.clearSession();
+      await this.router.navigateByUrl('/auth/login');
+    } catch {
+      this.toast.error('Password not changed', 'Please check the current password and try again.');
+    } finally {
+      this.savingPassword.set(false);
+    }
   }
 
   private async loadDashboard(): Promise<void> {
@@ -736,7 +783,24 @@ export class ProfilePageComponent implements OnInit {
 
   private async loadSessions(): Promise<void> {
     const response = await this.authService.getSessions().catch(() => null);
-    this.sessions.set(response?.success && response.data ? response.data.map(mapSession) : []);
+    const sessions = response?.success && response.data ? response.data.map(mapSession) : [];
+    this.sessions.set(sessions);
+    await this.resolveSessionLocations(sessions);
+  }
+
+  private async resolveSessionLocations(sessions: ProfileSessionItem[]): Promise<void> {
+    await Promise.all(sessions.map(async session => {
+      if (session.location !== resolvingLocationLabel) {
+        return;
+      }
+
+      const location = await this.reverseGeocoding.resolve(session.latitude, session.longitude);
+      this.sessions.update(items => items.map(item =>
+        item.id === session.id
+          ? { ...item, location: location ?? 'Location unavailable' }
+          : item
+      ));
+    }));
   }
 
   private profileSession(): AuthResponse | null {
@@ -763,18 +827,7 @@ export class ProfilePageComponent implements OnInit {
   }
 
   private refreshStoredSession(profile: CurrentUserProfile): void {
-    const session = this.authStore.session();
-    if (!session) {
-      return;
-    }
-
-    this.authStore.setSession({
-      ...session,
-      fullName: profile.fullName,
-      email: profile.email,
-      permissions: profile.permissions.length > 0 ? profile.permissions : session.permissions,
-      roleCodes: profile.roleCodes.length > 0 ? profile.roleCodes : session.roleCodes
-    });
+    this.authStore.setProfile(profile);
   }
 
   private preferencePayload() {
@@ -847,6 +900,8 @@ function mapSession(session: AuthenticationSession): ProfileSessionItem {
     icon: detectDeviceIcon(session.userAgent),
     device: browser ? `${browser} session` : 'Active device',
     location: formatSessionLocation(session),
+    latitude: session.latitude,
+    longitude: session.longitude,
     browser: browser || 'Browser not captured',
     time: `Last login ${formatRelativeDate(session.lastUsedDate ?? session.createdDate)}`
   };
@@ -870,12 +925,19 @@ function formatSessionLocation(session: AuthenticationSession): string {
     return namedLocation;
   }
 
-  if (typeof session.latitude === 'number' && typeof session.longitude === 'number') {
-    return `${session.latitude.toFixed(5)}, ${session.longitude.toFixed(5)}`;
+  const ipAddress = session.ipAddress?.trim();
+  if (ipAddress === '::1' || ipAddress === '127.0.0.1') {
+    return 'Local device';
   }
 
-  return session.ipAddress?.trim() || 'Location not captured';
+  if (typeof session.latitude === 'number' && typeof session.longitude === 'number') {
+    return resolvingLocationLabel;
+  }
+
+  return ipAddress || 'Location not captured';
 }
+
+const resolvingLocationLabel = 'Resolving location...';
 
 function formatMemberSince(value: string | null | undefined): string {
   if (!value) {

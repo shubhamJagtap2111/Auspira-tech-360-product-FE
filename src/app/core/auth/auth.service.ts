@@ -87,11 +87,14 @@ export class AuthService {
   }
 
   async getCurrentUser(): Promise<CurrentUserProfile> {
-    const response = await firstValueFrom(this.api.get<ApiResponse<CurrentUserProfile>>('/auth/me', {
+    const response = await firstValueFrom(this.api.get<ApiResponse<CurrentUserProfile> | CurrentUserProfile>('/auth/me', {
       context: authBootstrapContext()
     }));
+    if (isCurrentUserProfile(response)) {
+      return response;
+    }
 
-    if (!response.success || !isCurrentUserProfile(response.data)) {
+    if (!isApiResponse<CurrentUserProfile>(response) || !response.success || !isCurrentUserProfile(response.data)) {
       throw new Error(response.message || 'Auth.Errors.CurrentUserUnavailable');
     }
 
@@ -113,13 +116,23 @@ function authBootstrapContext(): HttpContext {
     .set(REQUEST_TIMEOUT_MS, 10_000);
 }
 
-function isCurrentUserProfile(value: CurrentUserProfile | null | undefined): value is CurrentUserProfile {
+function isCurrentUserProfile(value: unknown): value is CurrentUserProfile {
+  const profile = value as Partial<CurrentUserProfile> | null;
+  return Boolean(
+    profile &&
+    typeof profile.userId === 'string' &&
+    typeof profile.email === 'string' &&
+    typeof profile.fullName === 'string' &&
+    Array.isArray(profile.permissions));
+}
+
+function isApiResponse<T>(value: unknown): value is ApiResponse<T> {
   return Boolean(
     value &&
-    typeof value.userId === 'string' &&
-    typeof value.email === 'string' &&
-    typeof value.fullName === 'string' &&
-    Array.isArray(value.permissions));
+    typeof value === 'object' &&
+    'success' in value &&
+    'data' in value &&
+    'message' in value);
 }
 
 function getBrowserLocation(): Promise<Pick<LoginRequest, 'latitude' | 'longitude' | 'locationName'>> {
