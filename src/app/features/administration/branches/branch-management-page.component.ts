@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { BranchContextService } from '../../../core/context/branch-context.service';
@@ -29,19 +29,63 @@ const permissions = {
           <h1 class="ac-page-title">{{ t('Administration.Branch.Title') }}</h1>
           <p>{{ t('Administration.Branch.Subtitle') }}</p>
         </div>
-        @if (can(permissions.create)) {
-          <button class="ac-btn ac-btn-primary" type="button" (click)="startCreate()">
-            <span class="material-symbols-rounded">add</span>
-            {{ t('Administration.Branch.Actions.NewBranch') }}
-          </button>
-        }
+        <div class="page-actions">
+          @if (can(permissions.create)) {
+            <button class="ac-btn ac-btn-primary" type="button" (click)="startCreate()">
+              <span class="material-symbols-rounded">add</span>
+              {{ t('Administration.Branch.Actions.NewBranch') }}
+            </button>
+          }
+        </div>
       </header>
+
+      <section class="stat-grid">
+        <article class="stat-card">
+          <span class="material-symbols-rounded">account_tree</span>
+          <div>
+            <strong>{{ allBranches().length }}</strong>
+            <p>Total branches</p>
+          </div>
+        </article>
+        <article class="stat-card">
+          <span class="material-symbols-rounded">check_circle</span>
+          <div>
+            <strong>{{ activeBranchCount() }}</strong>
+            <p>Active branches</p>
+          </div>
+        </article>
+        <article class="stat-card">
+          <span class="material-symbols-rounded">star</span>
+          <div>
+            <strong>{{ defaultBranchName() }}</strong>
+            <p>Default branch</p>
+          </div>
+        </article>
+        <article class="stat-card">
+          <span class="material-symbols-rounded">location_on</span>
+          <div>
+            <strong>{{ locationCount() }}</strong>
+            <p>Locations mapped</p>
+          </div>
+        </article>
+      </section>
 
       <section class="toolbar">
         <label>
           <span>{{ t('Administration.Branch.Filter.Search') }}</span>
-          <input name="searchText" [(ngModel)]="searchText" (keyup.enter)="loadBranches(1)" />
+          <input name="searchText" [(ngModel)]="searchText" (keyup.enter)="loadBranches(1)" placeholder="Search branch, city, phone, or email" />
         </label>
+        <label>
+          <span>{{ t('Administration.UserManagement.Columns.Status') }}</span>
+          <select name="statusFilter" [(ngModel)]="statusFilter" (change)="applyBranchPage(1)">
+            <option value="all">All statuses</option>
+            <option value="active">{{ t('Administration.UserManagement.Status.Active') }}</option>
+            <option value="inactive">{{ t('Administration.UserManagement.Status.Inactive') }}</option>
+          </select>
+        </label>
+        <button class="icon-btn" type="button" (click)="loadBranches(1)" [attr.title]="t('Common.Actions.Updating')">
+          <span class="material-symbols-rounded">search</span>
+        </button>
         <button class="icon-btn" type="button" (click)="loadBranches(1)" [attr.title]="t('Administration.Rbac.Actions.Refresh')">
           <span class="material-symbols-rounded">refresh</span>
         </button>
@@ -63,16 +107,31 @@ const permissions = {
               @for (branch of branches(); track branch.branchGuid) {
                 <tr [class.selected]="form().branchGuid === branch.branchGuid">
                   <td>
-                    <button class="branch-link" type="button" (click)="selectBranch(branch)">
-                      <strong>{{ branch.branchName }}</strong>
-                      <span>{{ branch.branchCode }} · {{ branch.branchTypeCode }}</span>
-                    </button>
-                    @if (branch.isDefault) {
-                      <span class="default-mark">{{ t('Administration.Branch.Fields.DefaultBranch') }}</span>
-                    }
+                    <div class="branch-cell">
+                      <span class="branch-avatar material-symbols-rounded">{{ branch.isDefault ? 'star' : 'account_tree' }}</span>
+                      <div>
+                        <button class="branch-link" type="button" (click)="selectBranch(branch)">
+                          <strong>{{ branch.branchName }}</strong>
+                          <span>{{ branch.branchCode }} · {{ branch.branchTypeCode }}</span>
+                        </button>
+                        @if (branch.isDefault) {
+                          <span class="default-mark">{{ t('Administration.Branch.Fields.DefaultBranch') }}</span>
+                        }
+                      </div>
+                    </div>
                   </td>
-                  <td>{{ branch.cityName || '-' }}, {{ branch.stateName || '-' }}</td>
-                  <td>{{ branch.primaryPhone || '-' }}<br /><span>{{ branch.email || '-' }}</span></td>
+                  <td>
+                    <div class="cell-stack">
+                      <strong>{{ branch.cityName || 'City not set' }}</strong>
+                      <span>{{ branch.stateName || 'State not set' }}{{ branch.countryCode ? ' · ' + branch.countryCode : '' }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="cell-stack">
+                      <strong>{{ branch.primaryPhone || 'Phone not set' }}</strong>
+                      <span>{{ branch.email || 'Email not set' }}</span>
+                    </div>
+                  </td>
                   <td>
                     <span class="status" [class.inactive]="!branch.isActive">
                       {{ t(branch.isActive ? 'Administration.UserManagement.Status.Active' : 'Administration.UserManagement.Status.Inactive') }}
@@ -240,25 +299,69 @@ const permissions = {
   `,
   styles: `
     .branch-page { display: flex; flex-direction: column; gap: 16px; }
-    .page-head, .toolbar, .layout, .row-actions { display: flex; gap: 12px; }
+    .page-head, .toolbar, .layout, .row-actions, .page-actions { display: flex; gap: 12px; }
     .page-head { align-items: flex-start; justify-content: space-between; }
+    .page-actions { align-items: center; justify-content: flex-end; flex-wrap: wrap; margin-left: auto; }
     .page-head p { margin: 4px 0 0; color: var(--ac-muted); font-size: 13px; }
-    .toolbar { align-items: end; padding: 14px; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; }
-    .toolbar label { min-width: 260px; flex: 1; }
-    .layout { align-items: stretch; flex-direction: column; overflow: hidden; position: relative; min-height: clamp(380px, 48vh, 680px); border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: var(--ac-r); box-shadow: var(--ac-sh-sm); }
+    .stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .stat-card {
+      min-height: 86px;
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr);
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--ac-border);
+      border-radius: 8px;
+      background: var(--ac-surface);
+      box-shadow: var(--ac-sh-sm);
+    }
+    .stat-card > .material-symbols-rounded {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: var(--ac-primary-light);
+      color: var(--ac-primary);
+      font-size: 22px;
+    }
+    .stat-card strong { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ac-text); font-size: 22px; line-height: 1.1; }
+    .stat-card p { margin: 4px 0 0; color: var(--ac-muted); font-size: 12px; font-weight: 800; }
+    .toolbar { display: grid; grid-template-columns: minmax(240px, 1fr) minmax(150px, 220px) 44px 44px; align-items: end; padding: 14px; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; box-shadow: var(--ac-sh-sm); }
+    .toolbar label { min-width: 0; }
+    .toolbar label span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .layout { align-items: stretch; flex-direction: column; overflow: hidden; position: relative; min-height: clamp(320px, 42vh, 560px); border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: var(--ac-r); box-shadow: var(--ac-sh-sm); }
     .layout.drawer-open .table-wrap { margin-right: 0; transition: margin var(--ac-t-slow); }
     .table-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; background: var(--ac-surface); transition: margin var(--ac-t-slow); }
-    table { width: 100%; border-collapse: collapse; min-width: 840px; }
-    th, td { padding: 13px 20px; border-bottom: 1px solid var(--ac-border); text-align: left; font-size: 13px; vertical-align: middle; }
-    th { color: var(--ac-muted); font-size: 11.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; background: var(--ac-surface-2); white-space: nowrap; }
+    table { width: 100%; border-collapse: collapse; min-width: 880px; }
+    th, td { padding: 8px 16px; border-bottom: 1px solid var(--ac-border); text-align: left; font-size: 12.5px; vertical-align: middle; }
+    th { height: 38px; color: var(--ac-muted); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; background: var(--ac-surface-2); white-space: nowrap; }
+    tbody tr { height: 58px; }
     tr.selected td { background: var(--ac-primary-light); }
+    .branch-cell { min-width: 0; display: grid; grid-template-columns: 40px minmax(0, 1fr); align-items: center; gap: 10px; }
+    .branch-avatar {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: var(--ac-primary-light);
+      color: var(--ac-primary);
+      font-size: 21px;
+    }
     .branch-link { border: 0; background: transparent; padding: 0; display: flex; flex-direction: column; gap: 3px; color: var(--ac-text); text-align: left; cursor: pointer; }
-    .branch-link span, td span { color: var(--ac-muted); font-size: 12px; }
-    .default-mark, .status { display: inline-flex; margin-top: 6px; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+    .branch-link strong, .cell-stack strong { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ac-text); font-size: 12.5px; line-height: 1.2; }
+    .branch-link span, .cell-stack span, td span { color: var(--ac-muted); font-size: 11.5px; line-height: 1.2; }
+    .cell-stack { min-width: 0; display: grid; gap: 3px; }
+    .default-mark, .status { display: inline-flex; align-items: center; min-height: 22px; margin-top: 6px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; line-height: 1.2; }
     .default-mark { background: rgba(245,158,11,.12); color: #b45309; }
-    .status { background: rgba(22,163,74,.1); color: #15803d; }
+    .status { margin-top: 0; background: rgba(22,163,74,.1); color: #15803d; }
     .status.inactive { background: rgba(100,116,139,.12); color: #475569; }
-    .icon-btn { width: 36px; height: 36px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-text-2); cursor: pointer; display: inline-grid; place-items: center; }
+    .row-actions { gap: 8px; align-items: center; }
+    .row-actions .icon-btn { width: 30px; height: 30px; border-radius: 7px; }
+    .icon-btn { width: 34px; height: 34px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-text-2); cursor: pointer; display: inline-grid; place-items: center; }
+    .icon-btn .material-symbols-rounded, .ac-btn .material-symbols-rounded { font-size: 17px; }
     .icon-btn:hover { border-color: var(--ac-primary); color: var(--ac-primary); }
     .icon-btn.danger { color: #b91c1c; }
     .close-btn { min-width: 36px; }
@@ -266,8 +369,8 @@ const permissions = {
     .mini-action { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 10px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-primary); font-size: 12px; font-weight: 800; }
     .mini-action .material-symbols-rounded { width: auto; height: auto; background: transparent; font-size: 17px; }
     label { display: flex; flex-direction: column; gap: 6px; color: var(--ac-text-2); font-size: 12px; font-weight: 700; }
-    input { width: 100%; height: 38px; border: 1px solid var(--ac-border); border-radius: 8px; padding: 0 10px; background: var(--ac-surface); color: var(--ac-text); font: inherit; min-width: 0; }
-    input:focus { outline: none; border-color: var(--ac-primary); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+    input, select { width: 100%; height: 38px; border: 1px solid var(--ac-border); border-radius: 8px; padding: 0 10px; background: var(--ac-surface); color: var(--ac-text); font: inherit; min-width: 0; }
+    input:focus, select:focus { outline: none; border-color: var(--ac-primary); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
     input:disabled { background: var(--ac-surface-2); color: var(--ac-muted); cursor: not-allowed; }
     .switch-row { min-height: 38px; flex-direction: row; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-bg); }
     .switch-row input { width: 16px; height: 16px; accent-color: var(--ac-primary); }
@@ -279,17 +382,20 @@ const permissions = {
     .setting-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
     .settings-empty { margin: 0; padding: 12px; border: 1px dashed var(--ac-border-2); border-radius: 8px; color: var(--ac-muted); text-align: center; font-size: 13px; }
     .empty { text-align: center; color: var(--ac-muted); padding: 28px; }
-    @media (max-width: 1360px) { .layout.drawer-open .table-wrap { margin-right: 0; } }
+    @media (max-width: 1360px) { .layout.drawer-open .table-wrap { margin-right: 0; } .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)) 44px 44px; } }
     @media (max-width: 760px) {
-      .page-head, .toolbar { flex-direction: column; align-items: stretch; }
+      .page-head, .page-actions { flex-direction: column; align-items: stretch; }
+      .page-actions { width: 100%; margin-left: 0; }
+      .toolbar, .stat-grid { grid-template-columns: 1fr; }
       .hour-row, .setting-row { grid-template-columns: 1fr; }
+      table { min-width: 760px; }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BranchManagementPageComponent implements OnInit {
   protected readonly permissions = permissions;
-  private readonly allBranches = signal<BranchSummary[]>([]);
+  protected readonly allBranches = signal<BranchSummary[]>([]);
   protected readonly branches = signal<BranchSummary[]>([]);
   protected readonly totalCount = signal(0);
   protected readonly pageNumber = signal(1);
@@ -297,7 +403,11 @@ export class BranchManagementPageComponent implements OnInit {
   protected readonly form = signal<BranchProfile>(createEmptyBranch());
   protected readonly drawerOpen = signal(false);
   protected readonly saving = signal(false);
+  protected readonly activeBranchCount = computed(() => this.allBranches().filter(branch => branch.isActive).length);
+  protected readonly defaultBranchName = computed(() => this.allBranches().find(branch => branch.isDefault)?.branchName ?? '-');
+  protected readonly locationCount = computed(() => new Set(this.allBranches().filter(branch => branch.cityName || branch.stateName).map(branch => `${branch.cityName ?? ''}|${branch.stateName ?? ''}`)).size);
   protected searchText = '';
+  protected statusFilter: 'all' | 'active' | 'inactive' = 'all';
 
   private readonly service = inject(BranchManagementService);
   private readonly i18n = inject(I18nService);
@@ -387,13 +497,26 @@ export class BranchManagementPageComponent implements OnInit {
     await this.saveOperation(() => this.service.setDefault(branch.branchGuid), 'Administration.Branch.Messages.DefaultUpdated');
   }
 
-  private applyBranchPage(pageNumber: number): void {
-    const allBranches = this.allBranches();
+  protected applyBranchPage(pageNumber: number): void {
+    const allBranches = this.filteredBranches();
+    this.totalCount.set(allBranches.length);
     const totalPages = Math.max(1, Math.ceil(allBranches.length / Math.max(this.pageSize(), 1)));
     const safePage = Math.min(Math.max(pageNumber, 1), totalPages);
     const start = (safePage - 1) * this.pageSize();
     this.pageNumber.set(safePage);
     this.branches.set(allBranches.slice(start, start + this.pageSize()));
+  }
+
+  private filteredBranches(): BranchSummary[] {
+    if (this.statusFilter === 'active') {
+      return this.allBranches().filter(branch => branch.isActive);
+    }
+
+    if (this.statusFilter === 'inactive') {
+      return this.allBranches().filter(branch => !branch.isActive);
+    }
+
+    return this.allBranches();
   }
 
   private async saveOperation(operation: () => Promise<{ success: boolean; message: string; data: BranchProfile | null }>, successKey: string): Promise<void> {

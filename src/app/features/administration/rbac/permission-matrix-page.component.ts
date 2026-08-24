@@ -1,11 +1,19 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { AcDropdownComponent } from '../../../shared/ui/dropdown/dropdown.component';
 import { AcAdminDrawerComponent } from '../../../shared/ui/admin-drawer/admin-drawer.component';
 import { PermissionMatrixRow, RoleDto } from './rbac.models';
 import { RbacService } from './rbac.service';
+
+interface PermissionModuleGroup {
+  moduleName: string;
+  moduleKey: string;
+  rows: PermissionMatrixRow[];
+  assignedCount: number;
+  totalCount: number;
+}
 
 @Component({
   standalone: true,
@@ -15,141 +23,257 @@ import { RbacService } from './rbac.service';
       <header class="page-head">
         <div>
           <h1 class="ac-page-title">{{ t('Administration.Rbac.Matrix.Title') }}</h1>
-          <p>{{ t('Administration.Rbac.Matrix.Subtitle') }}</p>
+          <p>Simple view of what each role can access.</p>
         </div>
         <button class="icon-btn" type="button" (click)="loadMatrix()" [attr.title]="t('Administration.Rbac.Actions.Refresh')">
           <span class="material-symbols-rounded">refresh</span>
         </button>
       </header>
 
+      <section class="summary-grid">
+        <article>
+          <span class="material-symbols-rounded">admin_panel_settings</span>
+          <div>
+            <strong>{{ visibleRoleCount() }}</strong>
+            <p>Roles shown</p>
+          </div>
+        </article>
+        <article>
+          <span class="material-symbols-rounded">widgets</span>
+          <div>
+            <strong>{{ moduleGroups().length }}</strong>
+            <p>Modules</p>
+          </div>
+        </article>
+        <article>
+          <span class="material-symbols-rounded">check_circle</span>
+          <div>
+            <strong>{{ assignedCount() }}</strong>
+            <p>Assigned access</p>
+          </div>
+        </article>
+        <article>
+          <span class="material-symbols-rounded">radio_button_unchecked</span>
+          <div>
+            <strong>{{ unassignedCount() }}</strong>
+            <p>Not assigned</p>
+          </div>
+        </article>
+      </section>
+
       <section class="toolbar">
         <label>
-          <span>{{ t('Administration.Rbac.Columns.Role') }}</span>
+          <span>Role</span>
           <ac-dropdown name="roleCode" [(ngModel)]="roleCode" [options]="roleOptions()" (selectionChange)="loadMatrix()" />
         </label>
         <label>
-          <span>{{ t('Administration.Rbac.Columns.Permission') }}</span>
-          <input name="searchText" [(ngModel)]="searchText" />
+          <span>Search module or permission</span>
+          <input name="searchText" [(ngModel)]="searchText" placeholder="Example: patients, create, billing" />
+        </label>
+        <label class="toggle-row">
+          <input type="checkbox" name="showAssignedOnly" [(ngModel)]="showAssignedOnly" />
+          <span>Show assigned only</span>
         </label>
       </section>
 
-      <section class="ac-admin-layout" [class.drawer-open]="!!selectedRow()">
-      <div class="table-wrap">
-        <table>
-          <colgroup>
-            @for (width of columnWidths(); track $index) {
-              <col [style.width.%]="width" />
-            }
-          </colgroup>
-          <thead>
-            <tr>
-              <th><span class="th-content">{{ t('Administration.Rbac.Columns.Role') }}</span><span class="resize-handle" (pointerdown)="startColumnResize(0, $event)"></span></th>
-              <th><span class="th-content">{{ t('Administration.Rbac.Columns.Category') }}</span><span class="resize-handle" (pointerdown)="startColumnResize(1, $event)"></span></th>
-              <th><span class="th-content">{{ t('Administration.Rbac.Columns.Group') }}</span><span class="resize-handle" (pointerdown)="startColumnResize(2, $event)"></span></th>
-              <th><span class="th-content">{{ t('Administration.Rbac.Columns.Permission') }}</span><span class="resize-handle" (pointerdown)="startColumnResize(3, $event)"></span></th>
-              <th><span class="th-content">{{ t('Administration.Rbac.Columns.Type') }}</span><span class="resize-handle" (pointerdown)="startColumnResize(4, $event)"></span></th>
-              <th><span class="th-content">{{ t('Administration.Rbac.Columns.Scope') }}</span><span class="resize-handle" (pointerdown)="startColumnResize(5, $event)"></span></th>
-              <th><span class="th-content">{{ t('Administration.Rbac.Columns.Assigned') }}</span></th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (row of filteredRows(); track row.roleCode + row.permissionCode) {
-              <tr [class.selected]="selectedRow()?.roleCode === row.roleCode && selectedRow()?.permissionCode === row.permissionCode" (click)="selectRow(row)">
-                <td>
-                  <strong>{{ t(row.roleNameKey) }}</strong>
-                  <span>{{ row.roleCode }}</span>
-                </td>
-                <td [title]="t(row.categoryNameKey)">{{ t(row.categoryNameKey) }}</td>
-                <td [title]="t(row.groupNameKey)">{{ t(row.groupNameKey) }}</td>
-                <td>
-                  <strong [title]="t(row.permissionNameKey)">{{ t(row.permissionNameKey) }}</strong>
-                  <span>{{ row.permissionCode }}</span>
-                </td>
-                <td>{{ row.permissionTypeCode }}</td>
-                <td>{{ row.dataScopeCode }}</td>
-                <td>
+      <section class="permission-board">
+        @for (group of moduleGroups(); track group.moduleKey) {
+          <article class="module-card">
+            <header>
+              <div>
+                <h2>{{ group.moduleName }}</h2>
+                <p>{{ group.assignedCount }} of {{ group.totalCount }} permissions assigned</p>
+              </div>
+              <span>{{ group.rows.length }}</span>
+            </header>
+
+            <div class="permission-list">
+              @for (row of group.rows; track row.roleCode + row.permissionCode) {
+                <button class="permission-row" type="button" [class.unassigned]="!row.isAssigned" (click)="selectRow(row)">
+                  <span class="state-icon material-symbols-rounded">{{ row.isAssigned ? 'check_circle' : 'radio_button_unchecked' }}</span>
+                  <div>
+                    <strong>{{ permissionActionLabel(row) }}</strong>
+                    <p>{{ t(row.roleNameKey) }} · {{ row.roleCode }}</p>
+                  </div>
                   <span class="status" [class.inactive]="!row.isAssigned">
-                    {{ t(row.isAssigned ? 'Common.Labels.Yes' : 'Common.Labels.No') }}
+                    {{ row.isAssigned ? 'Allowed' : 'Not allowed' }}
                   </span>
-                </td>
-              </tr>
-            } @empty {
-              <tr>
-                <td colspan="7" class="empty">{{ t('Administration.Rbac.Empty.Matrix') }}</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
+                </button>
+              }
+            </div>
+          </article>
+        } @empty {
+          <section class="empty-state">
+            <span class="material-symbols-rounded">manage_search</span>
+            <h2>No permissions found</h2>
+            <p>Try another role or search term.</p>
+          </section>
+        }
+      </section>
 
       @if (selectedRow(); as row) {
         <ac-admin-drawer
           [open]="!!selectedRow()"
           icon="rule"
-          [eyebrow]="t('Administration.Rbac.Columns.Permission')"
-          [title]="t(row.permissionNameKey)"
+          eyebrow="Permission detail"
+          [title]="permissionActionLabel(row)"
           closeTitle="Close details"
           (closed)="closeDetails()">
-            <span drawer-summary class="ac-admin-pill"><span class="material-symbols-rounded">admin_panel_settings</span>{{ row.roleCode }}</span>
-            <span drawer-summary class="ac-admin-pill"><span class="material-symbols-rounded">category</span>{{ row.categoryCode }}</span>
-            <span drawer-summary class="ac-admin-pill" [class.featured]="row.isAssigned"><span class="material-symbols-rounded">{{ row.isAssigned ? 'check_circle' : 'radio_button_unchecked' }}</span>{{ t(row.isAssigned ? 'Common.Labels.Yes' : 'Common.Labels.No') }}</span>
+            <span drawer-summary class="ac-admin-pill"><span class="material-symbols-rounded">admin_panel_settings</span>{{ t(row.roleNameKey) }}</span>
+            <span drawer-summary class="ac-admin-pill"><span class="material-symbols-rounded">widgets</span>{{ permissionModuleLabel(row) }}</span>
+            <span drawer-summary class="ac-admin-pill" [class.featured]="row.isAssigned"><span class="material-symbols-rounded">{{ row.isAssigned ? 'check_circle' : 'radio_button_unchecked' }}</span>{{ row.isAssigned ? 'Allowed' : 'Not allowed' }}</span>
             <div drawer-body class="ac-admin-drawer-content">
               <section class="ac-admin-form-section">
-                <div class="ac-admin-section-title"><span class="material-symbols-rounded">badge</span><h3>{{ t('Administration.Rbac.Columns.Role') }}</h3></div>
+                <div class="ac-admin-section-title"><span class="material-symbols-rounded">badge</span><h3>Role access</h3></div>
                 <div class="detail-grid">
-                  <div><span>{{ t('Administration.Rbac.Columns.Role') }}</span><strong>{{ t(row.roleNameKey) }}</strong><small>{{ row.roleCode }}</small></div>
-                  <div><span>{{ t('Administration.Rbac.Columns.Assigned') }}</span><strong>{{ t(row.isAssigned ? 'Common.Labels.Yes' : 'Common.Labels.No') }}</strong></div>
-                </div>
-              </section>
-              <section class="ac-admin-form-section">
-                <div class="ac-admin-section-title"><span class="material-symbols-rounded">account_tree</span><h3>{{ t('Administration.Rbac.Columns.Permission') }}</h3></div>
-                <div class="detail-grid">
-                  <div><span>{{ t('Administration.Rbac.Columns.Permission') }}</span><strong>{{ t(row.permissionNameKey) }}</strong><small>{{ row.permissionCode }}</small></div>
-                  <div><span>{{ t('Administration.Rbac.Columns.Category') }}</span><strong>{{ t(row.categoryNameKey) }}</strong><small>{{ row.categoryCode }}</small></div>
-                  <div><span>{{ t('Administration.Rbac.Columns.Group') }}</span><strong>{{ t(row.groupNameKey) }}</strong><small>{{ row.groupCode }}</small></div>
-                  <div><span>{{ t('Administration.Rbac.Columns.Type') }}</span><strong>{{ row.permissionTypeCode }}</strong><small>{{ row.dataScopeCode }}</small></div>
+                  <div><span>Role</span><strong>{{ t(row.roleNameKey) }}</strong><small>{{ row.roleCode }}</small></div>
+                  <div><span>Status</span><strong>{{ row.isAssigned ? 'Allowed' : 'Not allowed' }}</strong></div>
+                  <div><span>Module</span><strong>{{ permissionModuleLabel(row) }}</strong><small>{{ row.permissionCode }}</small></div>
+                  <div><span>Scope</span><strong>{{ readableScope(row.dataScopeCode) }}</strong><small>{{ row.permissionTypeCode }}</small></div>
                 </div>
               </section>
             </div>
             <button drawer-actions class="ac-btn ac-btn-secondary" type="button" (click)="closeDetails()">{{ t('Common.Actions.Cancel') }}</button>
         </ac-admin-drawer>
       }
-      </section>
     </section>
   `,
   styles: `
     .matrix-page { display: flex; flex-direction: column; gap: 16px; }
-    .page-head, .toolbar { display: flex; gap: 12px; }
-    .page-head { align-items: flex-start; justify-content: space-between; }
+    .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
     .page-head p { margin: 4px 0 0; color: var(--ac-muted); font-size: 13px; }
-    .toolbar { align-items: end; padding: 14px; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; }
-    .toolbar label { min-width: 220px; flex: 1; }
-    label { display: flex; flex-direction: column; gap: 6px; color: var(--ac-text-2); font-size: 12px; font-weight: 700; }
-    input, select { height: 38px; border: 1px solid var(--ac-border); border-radius: 8px; padding: 0 10px; background: var(--ac-surface); color: var(--ac-text); font: inherit; }
-    .table-wrap { overflow-x: hidden; overflow-y: auto; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; }
-    table { width: 100%; min-width: 0; table-layout: fixed; border-collapse: collapse; }
-    th, td { min-width: 0; padding: 12px 14px; border-bottom: 1px solid var(--ac-border); text-align: left; font-size: 13px; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    th { position: relative; color: var(--ac-muted); font-size: 11px; text-transform: uppercase; background: var(--ac-bg); user-select: none; }
-    .th-content { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .resize-handle { position: absolute; top: 8px; right: -3px; bottom: 8px; width: 8px; cursor: col-resize; z-index: 2; border-radius: 999px; }
-    .resize-handle::after { content: ''; position: absolute; inset: 0 3px; border-radius: inherit; background: transparent; transition: background .16s ease; }
-    .resize-handle:hover::after { background: color-mix(in srgb, var(--ac-primary) 55%, transparent); }
-    tbody tr { cursor: pointer; }
-    tr.selected td { background: rgba(37,99,235,.06); }
-    td strong, td span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: baseline; }
-    td strong { display: inline; }
-    td strong + span::before { content: ' · '; color: var(--ac-muted); font-weight: 600; }
-    td span { display: inline; color: var(--ac-muted); font-size: 12px; margin-top: 0; }
-    .status { display: inline-block; padding: 4px 8px; border-radius: 999px; background: rgba(22,163,74,.1); color: #15803d; font-size: 11px; font-weight: 800; }
+    .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .summary-grid article {
+      min-height: 84px;
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr);
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--ac-border);
+      border-radius: 8px;
+      background: var(--ac-surface);
+      box-shadow: var(--ac-sh-sm);
+    }
+    .summary-grid .material-symbols-rounded {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: var(--ac-primary-light);
+      color: var(--ac-primary);
+      font-size: 22px;
+    }
+    .summary-grid strong { display: block; color: var(--ac-text); font-size: 22px; line-height: 1.1; }
+    .summary-grid p { margin: 4px 0 0; color: var(--ac-muted); font-size: 12px; font-weight: 800; }
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(220px, .6fr) minmax(280px, 1fr) auto;
+      align-items: end;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--ac-border);
+      background: var(--ac-surface);
+      border-radius: 8px;
+      box-shadow: var(--ac-sh-sm);
+    }
+    label { min-width: 0; display: flex; flex-direction: column; gap: 6px; color: var(--ac-text-2); font-size: 12px; font-weight: 800; }
+    input { height: 38px; border: 1px solid var(--ac-border); border-radius: 8px; padding: 0 10px; background: var(--ac-surface); color: var(--ac-text); font: inherit; }
+    input:focus { outline: none; border-color: var(--ac-primary); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+    .toggle-row {
+      min-height: 38px;
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      border: 1px solid var(--ac-border);
+      border-radius: 8px;
+      background: var(--ac-surface-2);
+      white-space: nowrap;
+    }
+    .toggle-row input { width: 16px; height: 16px; }
+    .permission-board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+    .module-card {
+      min-width: 0;
+      border: 1px solid var(--ac-border);
+      border-radius: 8px;
+      background: var(--ac-surface);
+      box-shadow: var(--ac-sh-sm);
+      overflow: hidden;
+    }
+    .module-card header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--ac-border);
+      background: var(--ac-surface-2);
+    }
+    .module-card h2 { margin: 0; color: var(--ac-text); font-size: 15px; }
+    .module-card p { margin: 3px 0 0; color: var(--ac-muted); font-size: 12px; }
+    .module-card header > span {
+      min-width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: var(--ac-primary-light);
+      color: var(--ac-primary);
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .permission-list { display: grid; gap: 8px; padding: 12px; }
+    .permission-row {
+      width: 100%;
+      min-height: 54px;
+      display: grid;
+      grid-template-columns: 30px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 10px;
+      border: 1px solid var(--ac-border);
+      border-radius: 8px;
+      background: var(--ac-surface);
+      color: var(--ac-text);
+      text-align: left;
+      cursor: pointer;
+    }
+    .permission-row:hover { border-color: var(--ac-primary); box-shadow: 0 8px 20px rgba(37,99,235,.08); }
+    .permission-row.unassigned { background: color-mix(in srgb, var(--ac-surface-2) 62%, var(--ac-surface)); }
+    .state-icon { color: #16a34a; font-size: 22px; }
+    .permission-row.unassigned .state-icon { color: #94a3b8; }
+    .permission-row strong, .permission-row p { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .permission-row strong { font-size: 13px; line-height: 1.2; }
+    .permission-row p { margin: 3px 0 0; color: var(--ac-muted); font-size: 12px; }
+    .status { display: inline-flex; align-items: center; min-height: 24px; padding: 3px 8px; border-radius: 999px; background: rgba(22,163,74,.1); color: #15803d; font-size: 11px; font-weight: 900; white-space: nowrap; }
     .status.inactive { background: rgba(100,116,139,.12); color: #475569; }
     .icon-btn { width: 36px; height: 36px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-text-2); cursor: pointer; display: inline-grid; place-items: center; }
-    .empty { text-align: center; color: var(--ac-muted); padding: 32px; }
+    .icon-btn:hover { border-color: var(--ac-primary); color: var(--ac-primary); }
+    .empty-state {
+      min-height: 240px;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 8px;
+      grid-column: 1 / -1;
+      border: 1px dashed var(--ac-border);
+      border-radius: 8px;
+      background: var(--ac-surface);
+      text-align: center;
+      color: var(--ac-muted);
+    }
+    .empty-state .material-symbols-rounded { width: 52px; height: 52px; display: grid; place-items: center; border-radius: 8px; background: var(--ac-primary-light); color: var(--ac-primary); font-size: 28px; }
+    .empty-state h2 { margin: 0; color: var(--ac-text); font-size: 16px; }
+    .empty-state p { margin: 0; font-size: 13px; }
     .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
     .detail-grid div { min-height: 76px; border: 1px solid var(--ac-border); border-radius: 8px; padding: 10px; background: var(--ac-bg); display: flex; flex-direction: column; gap: 4px; }
     .detail-grid span { color: var(--ac-muted); font-size: 11px; font-weight: 800; text-transform: uppercase; }
     .detail-grid strong { color: var(--ac-text); font-size: 13px; }
     .detail-grid small { color: var(--ac-muted); word-break: break-word; }
-    @media (max-width: 720px) { .page-head, .toolbar { flex-direction: column; align-items: stretch; } }
+    @media (max-width: 1280px) { .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .permission-board { grid-template-columns: 1fr; } }
+    @media (max-width: 760px) { .page-head { flex-direction: column; } .toolbar, .summary-grid { grid-template-columns: 1fr; } .toggle-row { justify-content: flex-start; } .permission-row { grid-template-columns: 28px minmax(0, 1fr); } .permission-row .status { grid-column: 2; justify-self: start; } .detail-grid { grid-template-columns: 1fr; } }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -159,10 +283,16 @@ export class PermissionMatrixPageComponent implements OnInit {
 
   protected roleCode = '';
   protected searchText = '';
-  protected readonly columnWidths = signal([14, 22, 22, 24, 7, 7, 4]);
+  protected showAssignedOnly = true;
   protected readonly roles = signal<RoleDto[]>([]);
   protected readonly rows = signal<PermissionMatrixRow[]>([]);
   protected readonly selectedRow = signal<PermissionMatrixRow | null>(null);
+  protected readonly searchedRows = computed(() => this.createSearchedRows());
+  protected readonly visibleRows = computed(() => this.createVisibleRows());
+  protected readonly moduleGroups = computed(() => this.createModuleGroups());
+  protected readonly assignedCount = computed(() => this.searchedRows().filter(row => row.isAssigned).length);
+  protected readonly unassignedCount = computed(() => this.searchedRows().filter(row => !row.isAssigned).length);
+  protected readonly visibleRoleCount = computed(() => new Set(this.visibleRows().map(row => row.roleCode)).size);
 
   async ngOnInit(): Promise<void> {
     await Promise.all([this.loadRoles(), this.loadMatrix()]);
@@ -190,14 +320,8 @@ export class PermissionMatrixPageComponent implements OnInit {
     const response = await this.service.getPermissionMatrix(this.roleCode || undefined);
     if (response.success && response.data) {
       this.rows.set(response.data);
+      this.selectedRow.set(null);
     }
-  }
-
-  protected filteredRows(): PermissionMatrixRow[] {
-    const search = this.searchText.trim().toLowerCase();
-    return search
-      ? this.rows().filter(row => `${row.permissionCode} ${this.t(row.permissionNameKey)} ${row.groupCode}`.toLowerCase().includes(search))
-      : this.rows();
   }
 
   protected selectRow(row: PermissionMatrixRow): void {
@@ -208,41 +332,165 @@ export class PermissionMatrixPageComponent implements OnInit {
     this.selectedRow.set(null);
   }
 
-  protected startColumnResize(index: number, event: PointerEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
+  protected permissionModuleLabel(row: PermissionMatrixRow): string {
+    const token = row.permissionCode.split('.')[0] || row.menuCode || row.groupCode || row.categoryCode;
+    return permissionModuleOverrides[token] ?? humanizeToken(token);
+  }
 
-    const table = (event.currentTarget as HTMLElement).closest('table');
-    const tableWidth = table?.clientWidth ?? 0;
-    if (tableWidth <= 0 || index >= this.columnWidths().length - 1) {
-      return;
+  protected permissionActionLabel(row: PermissionMatrixRow): string {
+    const parts = row.permissionCode.split('.');
+    const action = parts[parts.length - 1] || row.actionCode || row.permissionCode;
+    return permissionActionOverrides[action.toLowerCase()] ?? humanizeToken(action);
+  }
+
+  protected readableScope(scopeCode: string): string {
+    return permissionScopeOverrides[scopeCode.toUpperCase()] ?? humanizeToken(scopeCode);
+  }
+
+  private createSearchedRows(): PermissionMatrixRow[] {
+    const search = this.searchText.trim().toLowerCase();
+    return [...this.rows()]
+      .filter(row => !search || this.rowSearchText(row).includes(search))
+      .sort((left, right) =>
+        this.t(left.roleNameKey).localeCompare(this.t(right.roleNameKey))
+        || this.permissionModuleLabel(left).localeCompare(this.permissionModuleLabel(right))
+        || actionSortValue(left).localeCompare(actionSortValue(right))
+        || left.permissionCode.localeCompare(right.permissionCode));
+  }
+
+  private createVisibleRows(): PermissionMatrixRow[] {
+    return this.searchedRows().filter(row => !this.showAssignedOnly || row.isAssigned);
+  }
+
+  private createModuleGroups(): PermissionModuleGroup[] {
+    const groups = new Map<string, PermissionModuleGroup>();
+    for (const row of this.searchedRows()) {
+      const moduleName = this.permissionModuleLabel(row);
+      const moduleKey = moduleName.toLowerCase();
+      const group = groups.get(moduleKey) ?? { moduleName, moduleKey, rows: [], assignedCount: 0, totalCount: 0 };
+      group.totalCount += 1;
+      if (row.isAssigned) {
+        group.assignedCount += 1;
+      }
+      groups.set(moduleKey, group);
     }
 
-    const minWidth = 4;
-    const startX = event.clientX;
-    const startWidths = [...this.columnWidths()];
+    for (const row of this.visibleRows()) {
+      const moduleKey = this.permissionModuleLabel(row).toLowerCase();
+      groups.get(moduleKey)?.rows.push(row);
+    }
 
-    const onMove = (moveEvent: PointerEvent) => {
-      const delta = ((moveEvent.clientX - startX) / tableWidth) * 100;
-      const current = startWidths[index];
-      const next = startWidths[index + 1];
-      const clampedDelta = Math.max(minWidth - current, Math.min(delta, next - minWidth));
-      const updated = [...startWidths];
-      updated[index] = roundWidth(current + clampedDelta);
-      updated[index + 1] = roundWidth(next - clampedDelta);
-      this.columnWidths.set(updated);
-    };
+    return Array.from(groups.values())
+      .filter(group => group.rows.length > 0)
+      .map(group => ({
+        ...group,
+        rows: group.rows.sort((left, right) =>
+          this.t(left.roleNameKey).localeCompare(this.t(right.roleNameKey))
+          || actionSortValue(left).localeCompare(actionSortValue(right))
+          || left.permissionCode.localeCompare(right.permissionCode))
+      }))
+      .sort((left, right) => left.moduleName.localeCompare(right.moduleName));
+  }
 
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-    };
-
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp, { once: true });
+  private rowSearchText(row: PermissionMatrixRow): string {
+    return [
+      this.t(row.roleNameKey),
+      row.roleCode,
+      this.permissionModuleLabel(row),
+      this.permissionActionLabel(row),
+      row.permissionCode,
+      this.readableScope(row.dataScopeCode)
+    ].join(' ').toLowerCase();
   }
 }
 
-function roundWidth(value: number): number {
-  return Math.round(value * 10) / 10;
+const permissionModuleOverrides: Record<string, string> = {
+  Administration: 'Administration',
+  Appointments: 'Appointments',
+  Billing: 'Billing',
+  Branch: 'Branches',
+  Branches: 'Branches',
+  Dashboard: 'Dashboard',
+  Department: 'Departments',
+  Departments: 'Departments',
+  Designation: 'Designations',
+  Designations: 'Designations',
+  Doctors: 'Doctors',
+  Emergency: 'Emergency',
+  Hospital: 'Hospital Management',
+  Inventory: 'Inventory',
+  Ipd: 'IPD',
+  Laboratory: 'Laboratory',
+  Menus: 'Menus',
+  Opd: 'OPD',
+  Patients: 'Patients',
+  Permissions: 'Permissions',
+  Pharmacy: 'Pharmacy',
+  Reports: 'Reports & Insights',
+  Roles: 'Roles',
+  SystemConfiguration: 'System Configuration',
+  UserManagement: 'User Management',
+  Users: 'Users'
+};
+
+const permissionActionOverrides: Record<string, string> = {
+  assignpermissions: 'Assign permissions',
+  assignroles: 'Assign roles',
+  copy: 'Copy',
+  create: 'Create',
+  delete: 'Delete',
+  edit: 'Edit',
+  export: 'Export',
+  import: 'Import',
+  manage: 'Manage',
+  resetpassword: 'Reset password',
+  settings: 'Settings',
+  subscription: 'Subscription',
+  unlock: 'Unlock',
+  view: 'View',
+  viewaudit: 'View audit'
+};
+
+const permissionScopeOverrides: Record<string, string> = {
+  GLOBAL: 'All hospitals',
+  TENANT: 'This hospital',
+  BRANCH: 'Selected branch',
+  OWN: 'Own records'
+};
+
+const permissionActionOrder = [
+  'view',
+  'create',
+  'edit',
+  'manage',
+  'assignroles',
+  'assignpermissions',
+  'settings',
+  'subscription',
+  'copy',
+  'import',
+  'export',
+  'unlock',
+  'resetpassword',
+  'viewaudit',
+  'delete'
+];
+
+function actionSortValue(row: PermissionMatrixRow): string {
+  const parts = row.permissionCode.split('.');
+  const action = (parts[parts.length - 1] || row.actionCode || row.permissionCode).toLowerCase();
+  const index = permissionActionOrder.indexOf(action);
+  return `${index === -1 ? 999 : index}`.padStart(3, '0');
+}
+
+function humanizeToken(value: string): string {
+  return value
+    .replace(/^Permission\./, '')
+    .replace(/^Navigation\./, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\./g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, character => character.toUpperCase());
 }

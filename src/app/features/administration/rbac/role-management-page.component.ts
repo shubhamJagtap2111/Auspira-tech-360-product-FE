@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { I18nService } from '../../../core/i18n/i18n.service';
@@ -32,27 +32,63 @@ interface PermissionGroupView {
           <h1 class="ac-page-title">{{ t('Administration.Rbac.Roles.Title') }}</h1>
           <p>{{ t('Administration.Rbac.Roles.Subtitle') }}</p>
         </div>
-        @if (can(permissions.create)) {
-          <button class="ac-btn ac-btn-primary" type="button" (click)="startCreate()">
-            <span class="material-symbols-rounded">add</span>
-            {{ t('Administration.Rbac.Actions.NewRole') }}
-          </button>
-        }
+        <div class="page-actions">
+          @if (can(permissions.create)) {
+            <button class="ac-btn ac-btn-primary" type="button" (click)="startCreate()">
+              <span class="material-symbols-rounded">add</span>
+              {{ t('Administration.Rbac.Actions.NewRole') }}
+            </button>
+          }
+        </div>
       </header>
+
+      <section class="stat-grid">
+        <article class="stat-card">
+          <span class="material-symbols-rounded">admin_panel_settings</span>
+          <div>
+            <strong>{{ roles().length }}</strong>
+            <p>Total roles</p>
+          </div>
+        </article>
+        <article class="stat-card">
+          <span class="material-symbols-rounded">check_circle</span>
+          <div>
+            <strong>{{ activeRoleCount() }}</strong>
+            <p>Active roles</p>
+          </div>
+        </article>
+        <article class="stat-card">
+          <span class="material-symbols-rounded">rule</span>
+          <div>
+            <strong>{{ assignedPermissionCount() }}</strong>
+            <p>Assigned permissions</p>
+          </div>
+        </article>
+        <article class="stat-card">
+          <span class="material-symbols-rounded">groups</span>
+          <div>
+            <strong>{{ assignedUserCount() }}</strong>
+            <p>Users mapped</p>
+          </div>
+        </article>
+      </section>
 
       <section class="toolbar">
         <label>
           <span>{{ t('Administration.Rbac.Filter.SearchRoles') }}</span>
           <input name="searchText" [(ngModel)]="searchText" (keyup.enter)="loadRoles()" />
         </label>
+        <button class="icon-btn" type="button" (click)="loadRoles()" [attr.title]="t('Common.Actions.Updating')">
+          <span class="material-symbols-rounded">search</span>
+        </button>
         <button class="icon-btn" type="button" (click)="loadRoles()" [attr.title]="t('Administration.Rbac.Actions.Refresh')">
           <span class="material-symbols-rounded">refresh</span>
         </button>
       </section>
 
-      <section class="content-grid ac-admin-layout" [class.drawer-open]="editorOpen()">
+      <section class="content-grid ac-admin-layout table-card" [class.drawer-open]="editorOpen()">
         <div class="table-wrap">
-          <table>
+          <table class="ac-table">
             <thead>
               <tr>
                 <th>{{ t('Administration.Rbac.Columns.Role') }}</th>
@@ -72,9 +108,15 @@ interface PermissionGroupView {
                       <span>{{ role.roleCode }}</span>
                     </button>
                   </td>
-                  <td>{{ role.parentRoleCode || '-' }}</td>
-                  <td>{{ role.permissionCount }}</td>
-                  <td>{{ role.userCount }}</td>
+                  <td>
+                    <span class="parent-pill">{{ role.parentRoleCode || '-' }}</span>
+                  </td>
+                  <td>
+                    <span class="count-pill">{{ role.permissionCount }}</span>
+                  </td>
+                  <td>
+                    <span class="count-pill muted">{{ role.userCount }}</span>
+                  </td>
                   <td>
                     <span class="status" [class.inactive]="!role.isActive">
                       {{ t(role.isActive ? 'Administration.UserManagement.Status.Active' : 'Administration.UserManagement.Status.Inactive') }}
@@ -170,24 +212,71 @@ interface PermissionGroupView {
   `,
   styles: `
     .rbac-page { display: flex; flex-direction: column; gap: 16px; }
-    .page-head, .toolbar, .content-grid, .row-actions, .form-actions { display: flex; gap: 12px; }
+    .page-head, .toolbar, .content-grid, .row-actions, .form-actions, .page-actions { display: flex; gap: 12px; }
     .page-head { align-items: flex-start; justify-content: space-between; }
+    .page-actions { align-items: center; justify-content: flex-end; flex-wrap: wrap; margin-left: auto; }
     .page-head p { margin: 4px 0 0; color: var(--ac-muted); font-size: 13px; }
-    .toolbar { align-items: end; padding: 14px; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; }
-    .toolbar label { min-width: 240px; flex: 1; }
+    .stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .stat-card {
+      min-height: 86px;
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr);
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--ac-border);
+      border-radius: 8px;
+      background: var(--ac-surface);
+      box-shadow: var(--ac-sh-sm);
+    }
+    .stat-card > .material-symbols-rounded {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: var(--ac-primary-light);
+      color: var(--ac-primary);
+      font-size: 22px;
+    }
+    .stat-card strong { display: block; font-size: 22px; line-height: 1.1; color: var(--ac-text); }
+    .stat-card p { margin: 4px 0 0; color: var(--ac-muted); font-size: 12px; font-weight: 800; }
+    .toolbar { display: grid; grid-template-columns: minmax(240px, 1fr) 44px 44px; align-items: end; padding: 14px; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; box-shadow: var(--ac-sh-sm); }
+    .toolbar label { min-width: 0; }
+    .toolbar label span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     label { display: flex; flex-direction: column; gap: 6px; color: var(--ac-text-2); font-size: 12px; font-weight: 700; }
     input, select { height: 38px; border: 1px solid var(--ac-border); border-radius: 8px; padding: 0 10px; background: var(--ac-surface); color: var(--ac-text); font: inherit; }
-    .content-grid { align-items: flex-start; }
-    .table-wrap { flex: 1 1 auto; overflow: auto; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; }
-    table { width: 100%; border-collapse: collapse; min-width: 760px; }
-    th, td { padding: 12px; border-bottom: 1px solid var(--ac-border); text-align: left; font-size: 13px; vertical-align: middle; }
-    th { color: var(--ac-muted); font-size: 11px; text-transform: uppercase; background: var(--ac-bg); }
-    tr.selected td { background: rgba(37,99,235,.06); }
+    input:focus, select:focus { outline: none; border-color: var(--ac-primary); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+    .content-grid { align-items: stretch; flex-direction: column; overflow: hidden; position: relative; min-height: clamp(300px, 38vh, 520px); border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: var(--ac-r); box-shadow: var(--ac-sh-sm); }
+    .table-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; background: var(--ac-surface); }
+    table { width: 100%; border-collapse: collapse; min-width: 880px; }
+    th, td { padding: 8px 16px; border-bottom: 1px solid var(--ac-border); text-align: left; font-size: 12.5px; vertical-align: middle; }
+    th { height: 38px; color: var(--ac-muted); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; background: var(--ac-surface-2); white-space: nowrap; }
+    tbody tr { height: 54px; }
+    tr.selected td { background: var(--ac-primary-light); }
     .role-link { border: 0; background: transparent; padding: 0; display: flex; flex-direction: column; gap: 3px; color: var(--ac-text); text-align: left; cursor: pointer; }
-    .role-link span { color: var(--ac-muted); font-size: 12px; }
-    .status { padding: 4px 8px; border-radius: 999px; background: rgba(22,163,74,.1); color: #15803d; font-size: 11px; font-weight: 800; }
+    .role-link strong { font-size: 12.5px; line-height: 1.2; }
+    .role-link span { color: var(--ac-muted); font-size: 11.5px; line-height: 1.2; }
+    .parent-pill, .count-pill {
+      min-height: 24px;
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 7px;
+      background: rgba(15,118,110,.1);
+      color: #0f766e;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .parent-pill { background: rgba(100,116,139,.1); color: #475569; }
+    .count-pill.muted { background: rgba(37,99,235,.09); color: var(--ac-primary); }
+    .status { display: inline-flex; align-items: center; min-height: 22px; padding: 2px 8px; border-radius: 999px; background: rgba(22,163,74,.1); color: #15803d; font-size: 11px; font-weight: 800; line-height: 1.2; }
     .status.inactive { background: rgba(100,116,139,.12); color: #475569; }
-    .icon-btn { width: 36px; height: 36px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-text-2); cursor: pointer; display: inline-grid; place-items: center; }
+    .row-actions { gap: 8px; align-items: center; }
+    .row-actions .icon-btn { width: 30px; height: 30px; border-radius: 7px; }
+    .icon-btn { width: 34px; height: 34px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-text-2); cursor: pointer; display: inline-grid; place-items: center; }
+    .icon-btn .material-symbols-rounded, .ac-btn .material-symbols-rounded { font-size: 17px; }
+    .icon-btn:hover { border-color: var(--ac-primary); color: var(--ac-primary); }
     .editor { width: min(420px, 100%); flex: 0 0 420px; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; padding: 16px; }
     .editor h2 { margin: 0 0 14px; font-size: 16px; }
     form { display: flex; flex-direction: column; gap: 12px; }
@@ -210,7 +299,8 @@ interface PermissionGroupView {
     .form-actions { justify-content: flex-end; }
     .error { margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--ac-error-light); color: var(--ac-error); font-size: 13px; }
     .empty { text-align: center; color: var(--ac-muted); padding: 32px; }
-    @media (max-width: 1120px) { .content-grid { flex-direction: column; } .editor { width: 100%; flex-basis: auto; } }
+    @media (max-width: 1280px) { .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 720px) { .page-head, .page-actions { flex-direction: column; align-items: stretch; } .toolbar, .stat-grid { grid-template-columns: 1fr; } .page-actions { width: 100%; margin-left: 0; } table { min-width: 760px; } }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -229,6 +319,9 @@ export class RoleManagementPageComponent implements OnInit {
   protected readonly saving = signal(false);
   protected readonly errorKey = signal<string | null>(null);
   protected readonly editorOpen = signal(false);
+  protected readonly activeRoleCount = computed(() => this.roles().filter(role => role.isActive).length);
+  protected readonly assignedPermissionCount = computed(() => this.roles().reduce((total, role) => total + role.permissionCount, 0));
+  protected readonly assignedUserCount = computed(() => this.roles().reduce((total, role) => total + role.userCount, 0));
   protected form = emptyForm();
   private originalParentRoleCode = '';
   private originalPermissionCodes: string[] = [];
