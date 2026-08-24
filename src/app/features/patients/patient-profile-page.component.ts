@@ -340,8 +340,9 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
     </section>
   `,
   styles: `
-    :host { display: block; height: 100%; min-height: 0; }
-    .patient-profile { height: 100%; min-height: 0; overflow: auto; display: grid; grid-auto-rows: max-content; align-content: start; gap: 16px; padding-bottom: 8px; animation: slideUp .25s ease; }
+    :host { display: block; height: 100%; min-height: 0; min-width: 0; overflow: hidden; }
+    .patient-profile { width: 100%; max-width: 100%; height: 100%; min-height: 0; min-width: 0; overflow: auto; overflow-x: hidden; display: grid; grid-auto-rows: max-content; align-content: start; gap: 16px; padding-bottom: 8px; animation: slideUp .25s ease; }
+    .patient-profile > * { min-width: 0; max-width: 100%; }
     .profile-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
     .back-link { display: inline-flex; align-items: center; gap: 7px; color: var(--ac-muted); font-weight: 800; font-size: 13px; }
     .back-link:hover { color: var(--ac-primary); }
@@ -629,8 +630,14 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
       font-size: 12.5px;
     }
     .tab-bar {
+      position: relative;
+      top: auto;
       display: flex;
       align-items: center;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
       min-height: 54px;
       padding: 6px 6px 10px;
       gap: 6px;
@@ -677,15 +684,22 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
       background: var(--ac-primary-light);
     }
     .tab-content {
+      position: relative;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      overflow: visible;
       min-height: 0;
       padding: 14px;
       border-radius: 12px;
     }
     .split-layout {
+      min-width: 0;
       gap: 14px;
     }
     .split-layout > article,
     .split-layout > section {
+      min-width: 0;
       padding: 16px;
       border: 1px solid color-mix(in srgb, var(--ac-border) 84%, var(--ac-surface));
       border-radius: 12px;
@@ -1102,6 +1116,201 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
         min-width: 0;
       }
       .summary-kpis {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .patient-profile {
+      --profile-accent: var(--ac-primary);
+      --profile-accent-2: #14b8a6;
+      --profile-success: #7c3aed;
+    }
+    .tab-bar {
+      position: relative;
+      top: auto;
+      isolation: isolate;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      min-height: 58px;
+      padding: 8px 8px 12px;
+      gap: 7px;
+      border: 1px solid color-mix(in srgb, var(--ac-border) 78%, var(--ac-surface));
+      border-radius: 16px;
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--ac-surface) 96%, white), color-mix(in srgb, var(--ac-subtle) 62%, var(--ac-surface))),
+        var(--ac-surface);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.72),
+        0 14px 34px rgba(15, 23, 42, 0.06);
+      overflow-x: scroll;
+      overflow-y: hidden;
+      scroll-padding-inline: 8px;
+      scrollbar-width: thin;
+      scrollbar-color: color-mix(in srgb, var(--profile-accent) 54%, var(--ac-border)) color-mix(in srgb, var(--ac-border) 38%, transparent);
+    }
+    .tab-bar::-webkit-scrollbar {
+      display: block;
+      height: 8px;
+    }
+    .tab-bar::-webkit-scrollbar-track {
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--ac-border) 34%, transparent);
+    }
+    .tab-bar::-webkit-scrollbar-thumb {
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--profile-accent), var(--profile-accent-2));
+    }
+    .tab-bar button {
+      position: relative;
+      flex: 0 0 auto;
+      min-height: 42px;
+      padding: 0 13px 0 10px;
+      border: 1px solid transparent;
+      border-radius: 13px;
+      color: var(--ac-muted);
+      font-size: 13.5px;
+      font-weight: 850;
+      background: transparent;
+      transition: transform 0.18s ease, color 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+    .tab-bar button:hover {
+      color: var(--ac-text);
+      background: color-mix(in srgb, var(--ac-surface) 78%, var(--ac-subtle));
+      border-color: color-mix(in srgb, var(--ac-border) 82%, var(--profile-accent));
+      transform: translateY(-1px);
+    }
+    .tab-bar button .material-symbols-rounded {
+      width: 28px;
+      height: 28px;
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+      background: color-mix(in srgb, var(--profile-accent) 8%, var(--ac-surface));
+      color: color-mix(in srgb, var(--ac-muted) 72%, var(--profile-accent));
+      font-size: 18px;
+      transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+    }
+    .tab-bar button.active {
+      color: var(--profile-accent);
+      background: linear-gradient(180deg, var(--ac-surface), color-mix(in srgb, var(--profile-accent) 7%, var(--ac-surface)));
+      border-color: color-mix(in srgb, var(--profile-accent) 22%, var(--ac-border));
+      box-shadow: 0 12px 28px color-mix(in srgb, var(--profile-accent) 16%, transparent);
+    }
+    .tab-bar button.active .material-symbols-rounded {
+      color: #fff;
+      background: linear-gradient(135deg, var(--profile-accent), var(--profile-accent-2));
+      box-shadow: 0 8px 18px color-mix(in srgb, var(--profile-accent) 25%, transparent);
+    }
+    .tab-content {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      padding: 18px;
+      border: 1px solid color-mix(in srgb, var(--ac-border) 82%, var(--ac-surface));
+      border-radius: 16px;
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--ac-surface) 98%, white), color-mix(in srgb, var(--ac-subtle) 34%, var(--ac-surface))),
+        var(--ac-surface);
+      box-shadow: 0 18px 46px rgba(15, 23, 42, 0.06);
+    }
+    .record-grid,
+    .billing-grid {
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 14px;
+    }
+    .record-card,
+    .billing-grid > div,
+    .detail-tile {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid color-mix(in srgb, var(--ac-border) 82%, var(--ac-surface));
+      border-radius: 14px;
+      background:
+        linear-gradient(145deg, color-mix(in srgb, var(--ac-surface) 96%, white), color-mix(in srgb, var(--profile-accent-2) 4%, var(--ac-surface))),
+        var(--ac-surface);
+      box-shadow: 0 10px 26px rgba(15, 23, 42, 0.045);
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+    .record-card::before,
+    .billing-grid > div::before,
+    .detail-tile::before {
+      content: '';
+      position: absolute;
+      inset: 0 0 auto;
+      height: 3px;
+      background: linear-gradient(90deg, var(--profile-accent), var(--profile-accent-2), var(--profile-success));
+      opacity: 0.76;
+    }
+    .record-card:hover,
+    .billing-grid > div:hover,
+    .detail-tile:hover {
+      border-color: color-mix(in srgb, var(--profile-accent) 26%, var(--ac-border));
+      box-shadow: 0 18px 38px rgba(15, 23, 42, 0.075);
+      transform: translateY(-2px);
+    }
+    .record-card {
+      min-height: 82px;
+      padding: 16px;
+      align-items: center;
+    }
+    .record-card .material-symbols-rounded {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--profile-accent) 10%, var(--ac-surface));
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--profile-accent) 10%, transparent);
+    }
+    .record-card h3 {
+      font-size: 15px;
+      line-height: 1.25;
+    }
+    .record-card p {
+      color: var(--ac-text-2);
+      font-size: 13px;
+    }
+    .billing-grid > div {
+      min-height: 112px;
+      display: grid;
+      align-content: center;
+      gap: 6px;
+      padding: 18px;
+    }
+    .billing-grid small {
+      color: var(--ac-muted);
+      font-size: 13px;
+      font-weight: 850;
+    }
+    .billing-grid strong {
+      color: var(--ac-text);
+      font-size: 31px;
+      line-height: 1;
+      letter-spacing: 0;
+    }
+    .detail-tile {
+      min-height: 96px;
+      padding: 15px 16px;
+    }
+    .empty-state {
+      min-height: 148px;
+      border-radius: 14px;
+      border-color: color-mix(in srgb, var(--profile-accent) 20%, var(--ac-border));
+      background:
+        linear-gradient(135deg, color-mix(in srgb, var(--profile-accent) 6%, var(--ac-surface)), color-mix(in srgb, var(--profile-accent-2) 5%, var(--ac-surface)));
+      color: var(--ac-text-2);
+      font-weight: 750;
+    }
+
+    @media (max-width: 620px) {
+      .tab-bar {
+        min-height: 52px;
+        padding: 7px 7px 11px;
+      }
+      .tab-content {
+        padding: 12px;
+      }
+      .record-grid,
+      .billing-grid {
         grid-template-columns: 1fr;
       }
     }
