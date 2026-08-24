@@ -23,7 +23,7 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
         <div>
           <p class="ac-eyebrow">Clinical</p>
           <h1 class="ac-page-title">Patient Registry</h1>
-          <p class="page-desc">Tenant-isolated patient master with history, documents, allergies, insurance, and billing context.</p>
+          <p class="page-desc">Tenant-isolated patient master with permanent MRN, demographics, emergency contact, and care context.</p>
         </div>
         <div class="header-actions">
           <button class="ac-btn ac-btn-secondary" type="button" (click)="exportCsv()" [disabled]="patients().length === 0">
@@ -64,6 +64,10 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
         </div>
         <ac-dropdown class="toolbar-select" name="genderFilter" [(ngModel)]="genderFilter" (ngModelChange)="loadPatients(1)" [options]="genderOptions" />
         <ac-dropdown class="toolbar-select" name="statusFilter" [(ngModel)]="statusFilter" (ngModelChange)="loadPatients(1)" [options]="statusOptions" />
+        <label class="date-filter" title="Registration date">
+          <span class="material-symbols-rounded">event</span>
+          <input type="date" name="registrationDateFilter" [(ngModel)]="registrationDateFilter" (ngModelChange)="loadPatients(1)" />
+        </label>
         <button class="icon-btn" type="button" (click)="loadPatients(1)" title="Refresh">
           <span class="material-symbols-rounded">refresh</span>
         </button>
@@ -112,6 +116,15 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
                         <button class="tbl-btn" type="button" title="Edit" (click)="openPatient(patient, 'edit')">
                           <span class="material-symbols-rounded">edit</span>
                         </button>
+                        <button class="tbl-btn" type="button" title="Create appointment" (click)="createAppointment(patient)">
+                          <span class="material-symbols-rounded">event_available</span>
+                        </button>
+                        <button class="tbl-btn" type="button" title="Start OPD visit" (click)="startOpdVisit(patient)">
+                          <span class="material-symbols-rounded">clinical_notes</span>
+                        </button>
+                        <button class="tbl-btn" type="button" title="Admit patient" (click)="admitPatient(patient)">
+                          <span class="material-symbols-rounded">bed</span>
+                        </button>
                         <button class="tbl-btn danger" type="button" title="Delete" (click)="deletePatient(patient)">
                           <span class="material-symbols-rounded">delete</span>
                         </button>
@@ -147,6 +160,15 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
                   </button>
                   <button class="tbl-btn" type="button" title="Edit" (click)="openPatient(patient, 'edit')">
                     <span class="material-symbols-rounded">edit</span>
+                  </button>
+                  <button class="tbl-btn" type="button" title="Create appointment" (click)="createAppointment(patient)">
+                    <span class="material-symbols-rounded">event_available</span>
+                  </button>
+                  <button class="tbl-btn" type="button" title="Start OPD visit" (click)="startOpdVisit(patient)">
+                    <span class="material-symbols-rounded">clinical_notes</span>
+                  </button>
+                  <button class="tbl-btn" type="button" title="Admit patient" (click)="admitPatient(patient)">
+                    <span class="material-symbols-rounded">bed</span>
                   </button>
                   <button class="tbl-btn danger" type="button" title="Delete" (click)="deletePatient(patient)">
                     <span class="material-symbols-rounded">delete</span>
@@ -198,12 +220,21 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
                 <section class="ac-admin-form-section">
                   <div class="ac-admin-section-title">
                     <span class="material-symbols-rounded">badge</span>
-                    <h3>Patient identity</h3>
+                    <h3>Basic information</h3>
                   </div>
                   <div class="ac-admin-form-grid">
                     <label>
                       <span>MRN</span>
                       <input name="medicalRecordNo" [(ngModel)]="patientForm.medicalRecordNo" readonly [disabled]="isViewMode()" placeholder="Auto generated" />
+                    </label>
+                    <label>
+                      <span>Status</span>
+                      <select name="statusCode" [(ngModel)]="patientForm.statusCode" [disabled]="isViewMode()">
+                        <option value="REGISTERED">Registered</option>
+                        <option value="ACTIVE">Active</option>
+                        <option value="INACTIVE">Inactive</option>
+                        <option value="ARCHIVED">Archived</option>
+                      </select>
                     </label>
                     <label class="mobile-field">
                       <span>Mobile</span>
@@ -246,12 +277,42 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
                       </div>
                     </label>
                     <label>
-                      <span>First name</span>
+                      <span>First name *</span>
                       <input name="firstName" [(ngModel)]="patientForm.firstName" [disabled]="isViewMode()" />
                     </label>
                     <label>
-                      <span>Last name</span>
+                      <span>Middle name</span>
+                      <input name="middleName" [(ngModel)]="patientForm.middleName" [disabled]="isViewMode()" />
+                    </label>
+                    <label>
+                      <span>Last name *</span>
                       <input name="lastName" [(ngModel)]="patientForm.lastName" [disabled]="isViewMode()" />
+                    </label>
+                    <label>
+                      <span>Date of birth *</span>
+                      <input type="date" name="dateOfBirth" [(ngModel)]="patientForm.dateOfBirth" [disabled]="isViewMode()" />
+                    </label>
+                    <label>
+                      <span>Age</span>
+                      <input [value]="displayFormAge(patientForm)" readonly disabled />
+                    </label>
+                    <label>
+                      <span>Gender *</span>
+                      <select name="genderCode" [(ngModel)]="patientForm.genderCode" [disabled]="isViewMode()">
+                        <option [ngValue]="null">Select gender</option>
+                        <option value="MALE">Male</option>
+                        <option value="FEMALE">Female</option>
+                        <option value="OTHER">Other</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>Blood group</span>
+                      <select name="bloodGroupCode" [(ngModel)]="patientForm.bloodGroupCode" [disabled]="isViewMode()">
+                        <option [ngValue]="null">Not specified</option>
+                        @for (blood of bloodGroupOptions; track blood) {
+                          <option [value]="blood">{{ blood }}</option>
+                        }
+                      </select>
                     </label>
                   </div>
                 </section>
@@ -282,32 +343,128 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
 
                 <section class="ac-admin-form-section">
                   <div class="ac-admin-section-title">
-                    <span class="material-symbols-rounded">personal_injury</span>
-                    <h3>Clinical basics</h3>
+                    <span class="material-symbols-rounded">contact_emergency</span>
+                    <h3>Contact details</h3>
                   </div>
                   <div class="ac-admin-form-grid">
                     <label>
-                      <span>Gender</span>
-                      <select name="genderCode" [(ngModel)]="patientForm.genderCode" [disabled]="isViewMode()">
-                        <option [ngValue]="null">Not specified</option>
-                        <option value="MALE">Male</option>
-                        <option value="FEMALE">Female</option>
-                        <option value="OTHER">Other</option>
-                      </select>
+                      <span>Email</span>
+                      <input type="email" name="email" [(ngModel)]="patientForm.email" [disabled]="isViewMode()" />
+                    </label>
+                    <label class="span-2">
+                      <span>Address</span>
+                      <textarea name="address" [(ngModel)]="patientForm.address" [disabled]="isViewMode()" rows="3" maxlength="500"></textarea>
                     </label>
                     <label>
-                      <span>Blood group</span>
-                      <select name="bloodGroupCode" [(ngModel)]="patientForm.bloodGroupCode" [disabled]="isViewMode()">
-                        <option [ngValue]="null">Not specified</option>
-                        @for (blood of bloodGroupOptions; track blood) {
-                          <option [value]="blood">{{ blood }}</option>
-                        }
-                      </select>
+                      <span>City</span>
+                      <input name="city" [(ngModel)]="patientForm.city" [disabled]="isViewMode()" />
                     </label>
                     <label>
-                      <span>Date of birth</span>
-                      <input type="date" name="dateOfBirth" [(ngModel)]="patientForm.dateOfBirth" [disabled]="isViewMode()" />
+                      <span>State</span>
+                      <input name="state" [(ngModel)]="patientForm.state" [disabled]="isViewMode()" />
                     </label>
+                    <label>
+                      <span>Country</span>
+                      <input name="country" [(ngModel)]="patientForm.country" [disabled]="isViewMode()" />
+                    </label>
+                    <label>
+                      <span>Pincode</span>
+                      <input name="pincode" [(ngModel)]="patientForm.pincode" [disabled]="isViewMode()" />
+                    </label>
+                  </div>
+                </section>
+
+                <section class="ac-admin-form-section">
+                  <div class="ac-admin-section-title">
+                    <span class="material-symbols-rounded">contact_emergency</span>
+                    <h3>Emergency contact</h3>
+                  </div>
+                  <div class="ac-admin-form-grid">
+                    <label>
+                      <span>Contact person</span>
+                      <input name="emergencyContactName" [(ngModel)]="patientForm.emergencyContactName" [disabled]="isViewMode()" />
+                    </label>
+                    <label>
+                      <span>Relationship</span>
+                      <input name="emergencyContactRelationship" [(ngModel)]="patientForm.emergencyContactRelationship" [disabled]="isViewMode()" />
+                    </label>
+                    <label>
+                      <span>Emergency mobile</span>
+                      <input name="emergencyContactMobile" [(ngModel)]="patientForm.emergencyContactMobile" [disabled]="isViewMode()" inputmode="tel" />
+                    </label>
+                  </div>
+                </section>
+
+                <section class="ac-admin-form-section">
+                  <div class="ac-admin-section-title">
+                    <span class="material-symbols-rounded">personal_injury</span>
+                    <h3>Medical information</h3>
+                  </div>
+                  <div class="ac-admin-form-grid">
+                    <label class="span-2">
+                      <span>Known allergies</span>
+                      <textarea name="knownAllergies" [(ngModel)]="patientForm.knownAllergies" [disabled]="isViewMode()" rows="2"></textarea>
+                    </label>
+                    <label class="span-2">
+                      <span>Existing conditions</span>
+                      <textarea name="knownConditions" [(ngModel)]="patientForm.knownConditions" [disabled]="isViewMode()" rows="2"></textarea>
+                    </label>
+                    <label class="span-2">
+                      <span>Chronic diseases</span>
+                      <textarea name="chronicDiseases" [(ngModel)]="patientForm.chronicDiseases" [disabled]="isViewMode()" rows="2"></textarea>
+                    </label>
+                    <label class="span-2">
+                      <span>Past medical history</span>
+                      <textarea name="pastMedicalHistory" [(ngModel)]="patientForm.pastMedicalHistory" [disabled]="isViewMode()" rows="2"></textarea>
+                    </label>
+                    <label class="span-2">
+                      <span>Family history</span>
+                      <textarea name="familyHistory" [(ngModel)]="patientForm.familyHistory" [disabled]="isViewMode()" rows="2"></textarea>
+                    </label>
+                    <label class="span-2">
+                      <span>Surgical history</span>
+                      <textarea name="surgicalHistory" [(ngModel)]="patientForm.surgicalHistory" [disabled]="isViewMode()" rows="2"></textarea>
+                    </label>
+                    <label class="span-2">
+                      <span>Medical notes</span>
+                      <textarea name="medicalNotes" [(ngModel)]="patientForm.medicalNotes" [disabled]="isViewMode()" rows="3"></textarea>
+                    </label>
+                  </div>
+                </section>
+
+                <section class="ac-admin-form-section">
+                  <div class="ac-admin-section-title">
+                    <span class="material-symbols-rounded">verified_user</span>
+                    <h3>Identification & insurance</h3>
+                  </div>
+                  <div class="ac-admin-form-grid">
+                    <label>
+                      <span>National ID</span>
+                      <input name="nationalId" [(ngModel)]="patientForm.nationalId" [disabled]="isViewMode()" />
+                    </label>
+                    <label>
+                      <span>Insurance provider</span>
+                      <input name="insuranceProvider" [(ngModel)]="patientForm.insuranceProvider" [disabled]="isViewMode()" />
+                    </label>
+                    <label>
+                      <span>Insurance number</span>
+                      <input name="insuranceNumber" [(ngModel)]="patientForm.insuranceNumber" [disabled]="isViewMode()" />
+                    </label>
+                  </div>
+                </section>
+
+                <section class="system-panel">
+                  <div>
+                    <small>PatientId</small>
+                    <strong>{{ patientForm.patientGuid || 'Generated on save' }}</strong>
+                  </div>
+                  <div>
+                    <small>Registration date</small>
+                    <strong>{{ patientForm.patientGuid ? formatVisit(patientForm.createdDate || null) : 'Generated on save' }}</strong>
+                  </div>
+                  <div>
+                    <small>Status</small>
+                    <strong>{{ patientForm.statusCode }}</strong>
                   </div>
                 </section>
               </div>
@@ -343,6 +500,9 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
     .clear-btn { position: absolute; right: 10px; color: var(--ac-muted); cursor: pointer; display: flex; align-items: center; }
     .clear-btn .material-symbols-rounded { font-size: 16px; }
     .toolbar-select { min-width: 140px; }
+    .date-filter { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 10px; border: 1px solid var(--ac-border); border-radius: var(--ac-r-sm); background: var(--ac-surface); color: var(--ac-muted); }
+    .date-filter .material-symbols-rounded { font-size: 18px; }
+    .date-filter input { width: 142px; height: 30px; border: 0; background: transparent; color: var(--ac-text); outline: none; }
     .toolbar-count { font-size: 12.5px; color: var(--ac-muted); padding: 0 4px; white-space: nowrap; }
     .icon-btn { width: 36px; height: 36px; border: 1px solid var(--ac-border); border-radius: var(--ac-r-sm); background: var(--ac-surface); color: var(--ac-muted); display: inline-grid; place-items: center; }
     .icon-btn .material-symbols-rounded { font-size: 19px; }
@@ -359,7 +519,7 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
     .table-scroll .ac-table th:nth-child(4), .table-scroll .ac-table td:nth-child(4) { width: 120px; }
     .table-scroll .ac-table th:nth-child(5), .table-scroll .ac-table td:nth-child(5) { width: 120px; }
     .table-scroll .ac-table th:nth-child(6), .table-scroll .ac-table td:nth-child(6) { width: 140px; }
-    .table-scroll .ac-table th:nth-child(7), .table-scroll .ac-table td:nth-child(7) { width: 120px; }
+    .table-scroll .ac-table th:nth-child(7), .table-scroll .ac-table td:nth-child(7) { width: 220px; }
     .mobile-patient-list { display: none; }
     .mrn-chip { font-family: monospace; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: var(--ac-r-sm); background: var(--ac-primary-light); color: var(--ac-primary); }
     .patient-cell { display: flex; align-items: center; gap: 8px; }
@@ -376,6 +536,9 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
     .sb-completed { background: var(--ac-success-light); color: var(--ac-success); }
     .sb-scheduled { background: var(--ac-secondary-light); color: var(--ac-secondary); }
     .sb-registered { background: var(--ac-info-light); color: var(--ac-info); }
+    .sb-active { background: var(--ac-success-light); color: var(--ac-success); }
+    .sb-inactive { background: var(--ac-warning-light); color: var(--ac-warning); }
+    .sb-archived { background: var(--ac-surface-2); color: var(--ac-muted); }
     .row-actions { display: flex; gap: 5px; }
     .tbl-btn { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: var(--ac-r-sm); border: 1px solid var(--ac-border); background: var(--ac-surface); color: var(--ac-muted); cursor: pointer; transition: all var(--ac-t); }
     .tbl-btn .material-symbols-rounded { font-size: 15px; }
@@ -387,6 +550,12 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
     .empty-title { font-size: 16px; font-weight: 700; color: var(--ac-text); }
     .empty-desc { font-size: 13.5px; color: var(--ac-muted); max-width: 340px; }
     input[readonly] { background: var(--ac-surface-2); color: var(--ac-text-2); cursor: not-allowed; font-weight: 800; }
+    textarea { min-height: 86px; resize: vertical; }
+    .system-panel { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 12px; border: 1px dashed var(--ac-border); border-radius: var(--ac-r); background: var(--ac-surface-2); }
+    .system-panel div { min-width: 0; }
+    .system-panel small { display: block; color: var(--ac-muted); font-weight: 800; }
+    .system-panel strong { display: block; margin-top: 4px; color: var(--ac-text); font-size: 12.5px; overflow-wrap: anywhere; }
+    .span-2 { grid-column: 1 / -1; }
     .mobile-field { grid-column: 1 / -1; }
     .mobile-control { display: grid; grid-template-columns: minmax(260px, .9fr) minmax(220px, 1.1fr); gap: 10px; width: 100%; min-width: 0; }
     .country-select-shell { position: relative; min-width: 0; }
@@ -541,6 +710,7 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
   protected searchQuery = '';
   protected genderFilter = '';
   protected statusFilter = '';
+  protected registrationDateFilter = '';
 
   protected readonly genderOptions = [
     { label: 'All Genders', value: '' },
@@ -551,11 +721,10 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
 
   protected readonly statusOptions = [
     { label: 'All Statuses', value: '' },
-    { label: 'Checked In', value: 'CHECKED_IN' },
-    { label: 'Waiting', value: 'WAITING' },
-    { label: 'Completed', value: 'COMPLETED' },
-    { label: 'Scheduled', value: 'SCHEDULED' },
-    { label: 'Registered', value: 'REGISTERED' }
+    { label: 'Registered', value: 'REGISTERED' },
+    { label: 'Active', value: 'ACTIVE' },
+    { label: 'Inactive', value: 'INACTIVE' },
+    { label: 'Archived', value: 'ARCHIVED' }
   ];
 
   protected readonly bloodGroupOptions = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -611,6 +780,7 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
       this.genderFilter,
       this.statusFilter,
       this.branchContext.selectedBranchCode() ?? '',
+      this.registrationDateFilter,
       pageNumber,
       this.pageSize()
     );
@@ -682,6 +852,18 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
     await this.router.navigate(['/patients', patient.patientGuid]);
   }
 
+  protected async createAppointment(patient: PatientSummary): Promise<void> {
+    await this.router.navigate(['/appointments'], { queryParams: { patientGuid: patient.patientGuid, mrn: patient.medicalRecordNo, action: 'create' } });
+  }
+
+  protected async startOpdVisit(patient: PatientSummary): Promise<void> {
+    await this.router.navigate(['/opd'], { queryParams: { patientGuid: patient.patientGuid, mrn: patient.medicalRecordNo, action: 'start-visit' } });
+  }
+
+  protected async admitPatient(patient: PatientSummary): Promise<void> {
+    await this.router.navigate(['/ipd'], { queryParams: { patientGuid: patient.patientGuid, mrn: patient.medicalRecordNo, action: 'admit' } });
+  }
+
   protected async openPatient(patient: PatientSummary, mode: PatientDrawerMode): Promise<void> {
     const response = await this.service.get(patient.patientGuid);
     if (!response.success || !response.data) {
@@ -722,7 +904,7 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
   }
 
   protected canSave(patient: PatientForm): boolean {
-    return Boolean(patient.firstName.trim() && patient.lastName.trim() && patient.mobileNumber.trim());
+    return Boolean(patient.firstName.trim() && patient.lastName.trim() && patient.mobileNumber.trim() && patient.dateOfBirth && patient.genderCode);
   }
 
   protected async save(): Promise<void> {
@@ -731,7 +913,7 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
     }
 
     if (!this.canSave(this.form())) {
-      this.toast.warning('Missing details', 'First name, last name, and mobile number are required.');
+      this.toast.warning('Missing details', 'First name, last name, date of birth, gender, and mobile number are required.');
       return;
     }
 
@@ -874,17 +1056,36 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
     return `${age} ${age === 1 ? 'yr' : 'yrs'}`;
   }
 
+  protected displayFormAge(patient: PatientForm): string {
+    const age = calculateAge(patient.dateOfBirth);
+    return age === null ? 'Auto-calculated' : `${age} ${age === 1 ? 'yr' : 'yrs'}`;
+  }
+
   protected exportCsv(): void {
     const rows = [
-      ['MRN', 'First Name', 'Last Name', 'Mobile', 'Gender', 'Date of Birth', 'Blood Group', 'Last Visit', 'Status'],
+      ['MRN', 'First Name', 'Middle Name', 'Last Name', 'Mobile', 'Email', 'Address', 'City', 'State', 'Country', 'Pincode', 'Emergency Contact', 'Emergency Relationship', 'Emergency Mobile', 'Gender', 'Date of Birth', 'Blood Group', 'National ID', 'Insurance Provider', 'Insurance Number', 'Registration Date', 'Last Visit', 'Status'],
       ...this.patients().map(patient => [
         patient.medicalRecordNo,
         patient.firstName,
+        patient.middleName ?? '',
         patient.lastName,
         patient.mobileNo,
+        patient.email ?? '',
+        patient.address ?? '',
+        patient.city ?? '',
+        patient.state ?? '',
+        patient.country ?? '',
+        patient.pincode ?? '',
+        patient.emergencyContactName ?? '',
+        patient.emergencyContactRelationship ?? '',
+        patient.emergencyContactMobile ?? '',
         patient.genderName,
         patient.dateOfBirth ?? '',
         patient.bloodGroupName,
+        patient.nationalId ?? '',
+        patient.insuranceProvider ?? '',
+        patient.insuranceNumber ?? '',
+        patient.createdDate ?? '',
         patient.lastVisitDate ?? '',
         patient.statusName
       ])
@@ -919,13 +1120,35 @@ function createEmptyPatient(): PatientForm {
     patientGuid: '',
     medicalRecordNo: '',
     firstName: '',
+    middleName: '',
     lastName: '',
+    email: '',
     countryIsoCode: 'IN',
     countryDialCode: '+91',
     mobileNumber: '',
+    address: '',
+    city: '',
+    state: '',
+    country: 'India',
+    pincode: '',
+    emergencyContactName: '',
+    emergencyContactRelationship: '',
+    emergencyContactMobile: '',
     genderCode: null,
     dateOfBirth: null,
     bloodGroupCode: null,
+    knownAllergies: '',
+    knownConditions: '',
+    chronicDiseases: '',
+    pastMedicalHistory: '',
+    familyHistory: '',
+    surgicalHistory: '',
+    medicalNotes: '',
+    nationalId: '',
+    insuranceProvider: '',
+    insuranceNumber: '',
+    statusCode: 'REGISTERED',
+    createdDate: null,
     rowVersion: null
   };
 }
@@ -935,11 +1158,33 @@ function mapProfileToForm(patient: PatientSummary): PatientForm {
     patientGuid: patient.patientGuid,
     medicalRecordNo: patient.medicalRecordNo,
     firstName: patient.firstName,
+    middleName: patient.middleName ?? '',
     lastName: patient.lastName,
+    email: patient.email ?? '',
     ...parseMobile(patient.mobileNo),
+    address: patient.address ?? '',
+    city: patient.city ?? '',
+    state: patient.state ?? '',
+    country: patient.country ?? '',
+    pincode: patient.pincode ?? '',
+    emergencyContactName: patient.emergencyContactName ?? '',
+    emergencyContactRelationship: patient.emergencyContactRelationship ?? '',
+    emergencyContactMobile: patient.emergencyContactMobile ?? '',
     genderCode: patient.genderCode,
     dateOfBirth: patient.dateOfBirth,
     bloodGroupCode: patient.bloodGroupCode,
+    knownAllergies: patient.knownAllergies ?? '',
+    knownConditions: patient.knownConditions ?? '',
+    chronicDiseases: patient.chronicDiseases ?? '',
+    pastMedicalHistory: patient.pastMedicalHistory ?? '',
+    familyHistory: patient.familyHistory ?? '',
+    surgicalHistory: patient.surgicalHistory ?? '',
+    medicalNotes: patient.medicalNotes ?? '',
+    nationalId: patient.nationalId ?? '',
+    insuranceProvider: patient.insuranceProvider ?? '',
+    insuranceNumber: patient.insuranceNumber ?? '',
+    statusCode: patient.statusCode || 'REGISTERED',
+    createdDate: patient.createdDate,
     rowVersion: patient.rowVersion
   };
 }

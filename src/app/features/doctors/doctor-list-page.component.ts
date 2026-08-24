@@ -61,6 +61,7 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
         </div>
         <ac-dropdown class="toolbar-select" name="departmentFilter" [(ngModel)]="departmentFilter" (ngModelChange)="loadDoctors(1)" [options]="departmentOptions" />
         <ac-dropdown class="toolbar-select" name="specializationFilter" [(ngModel)]="specializationFilter" (ngModelChange)="loadDoctors(1)" [options]="specializationOptions" />
+        <ac-dropdown class="toolbar-select" name="branchFilter" [(ngModel)]="branchFilter" (ngModelChange)="loadDoctors(1)" [options]="branchOptions()" />
         <ac-dropdown class="toolbar-select" name="statusFilter" [(ngModel)]="statusFilter" (ngModelChange)="loadDoctors(1)" [options]="statusOptions" />
         <button class="icon-btn" type="button" (click)="loadDoctors(1)" title="Refresh">
           <span class="material-symbols-rounded">refresh</span>
@@ -110,8 +111,8 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
                         <button class="tbl-btn" type="button" title="Edit" (click)="openDoctor(doctor, 'edit')">
                           <span class="material-symbols-rounded">edit</span>
                         </button>
-                        <button class="tbl-btn danger" type="button" title="Delete" (click)="deleteDoctor(doctor)">
-                          <span class="material-symbols-rounded">delete</span>
+                        <button class="tbl-btn" type="button" [title]="doctor.statusCode === 'ACTIVE' ? 'Deactivate' : 'Activate'" (click)="toggleDoctorStatus(doctor)">
+                          <span class="material-symbols-rounded">{{ doctor.statusCode === 'ACTIVE' ? 'toggle_off' : 'toggle_on' }}</span>
                         </button>
                       </div>
                     </td>
@@ -142,7 +143,7 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
                 <div class="mobile-card-actions">
                   <button class="tbl-btn" type="button" title="View profile" (click)="openDoctorProfile(doctor)"><span class="material-symbols-rounded">visibility</span></button>
                   <button class="tbl-btn" type="button" title="Edit" (click)="openDoctor(doctor, 'edit')"><span class="material-symbols-rounded">edit</span></button>
-                  <button class="tbl-btn danger" type="button" title="Delete" (click)="deleteDoctor(doctor)"><span class="material-symbols-rounded">delete</span></button>
+                  <button class="tbl-btn" type="button" [title]="doctor.statusCode === 'ACTIVE' ? 'Deactivate' : 'Activate'" (click)="toggleDoctorStatus(doctor)"><span class="material-symbols-rounded">{{ doctor.statusCode === 'ACTIVE' ? 'toggle_off' : 'toggle_on' }}</span></button>
                 </div>
               </article>
             }
@@ -189,17 +190,18 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
               <section class="form-section">
                 <div class="section-title">
                   <span class="material-symbols-rounded">person</span>
-                  <h3>Doctor identity</h3>
+                  <h3>Personal information</h3>
                 </div>
                 <div class="form-grid">
                   <label><span>Doctor code</span><input name="doctorCode" [(ngModel)]="doctorForm.doctorCode" readonly [disabled]="isViewMode()" /></label>
-                  <label><span>Registration no</span><input name="registrationNo" [(ngModel)]="doctorForm.registrationNo" [disabled]="isViewMode()" /></label>
-                  <label><span>First name</span><input name="firstName" [(ngModel)]="doctorForm.firstName" [disabled]="isViewMode()" /></label>
+                  <label><span>Mobile *</span><input name="mobileNo" [(ngModel)]="doctorForm.mobileNo" [disabled]="isViewMode()" inputmode="tel" /></label>
+                  <label><span>First name *</span><input name="firstName" [(ngModel)]="doctorForm.firstName" [disabled]="isViewMode()" /></label>
                   <label><span>Middle name</span><input name="middleName" [(ngModel)]="doctorForm.middleName" [disabled]="isViewMode()" /></label>
-                  <label><span>Last name</span><input name="lastName" [(ngModel)]="doctorForm.lastName" [disabled]="isViewMode()" /></label>
+                  <label><span>Last name *</span><input name="lastName" [(ngModel)]="doctorForm.lastName" [disabled]="isViewMode()" /></label>
                   <label><span>Display name</span><input name="displayName" [(ngModel)]="doctorForm.displayName" [disabled]="isViewMode()" placeholder="Optional" /></label>
                   <label><span>Gender</span><ac-dropdown name="genderCode" [(ngModel)]="doctorForm.genderCode" [disabled]="isViewMode()" [options]="genderOptions" /></label>
                   <label><span>Date of birth</span><input type="date" name="dateOfBirth" [(ngModel)]="doctorForm.dateOfBirth" [disabled]="isViewMode()" /></label>
+                  <label><span>Email</span><input type="email" name="email" [(ngModel)]="doctorForm.email" [disabled]="isViewMode()" /></label>
                 </div>
               </section>
 
@@ -209,31 +211,30 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
                   <h3>Professional details</h3>
                 </div>
                 <div class="form-grid">
-                  <label><span>Department</span><input name="departmentName" [(ngModel)]="doctorForm.departmentName" [disabled]="isViewMode()" /></label>
-                  <label><span>Specialization</span><input name="primarySpecialization" [(ngModel)]="doctorForm.primarySpecialization" [disabled]="isViewMode()" /></label>
-                  <label><span>Qualification</span><input name="qualification" [(ngModel)]="doctorForm.qualification" [disabled]="isViewMode()" /></label>
+                  <label><span>Department *</span><input name="departmentName" [(ngModel)]="doctorForm.departmentName" [disabled]="isViewMode()" /></label>
+                  <label><span>Specialization *</span><input name="primarySpecialization" [(ngModel)]="doctorForm.primarySpecialization" [disabled]="isViewMode()" /></label>
+                  <label><span>Qualification *</span><input name="qualification" [(ngModel)]="doctorForm.qualification" [disabled]="isViewMode()" /></label>
                   <label><span>Designation</span><input name="designation" [(ngModel)]="doctorForm.designation" [disabled]="isViewMode()" /></label>
                   <label><span>Experience years</span><input type="number" min="0" max="80" name="experienceYears" [(ngModel)]="doctorForm.experienceYears" [disabled]="isViewMode()" /></label>
-                  <label><span>Consultation fee</span><input type="number" min="0" name="consultationFee" [(ngModel)]="doctorForm.consultationFee" [disabled]="isViewMode()" /></label>
-                  <label><span>Employment</span><ac-dropdown name="employmentType" [(ngModel)]="doctorForm.employmentType" [disabled]="isViewMode()" [options]="employmentOptions" /></label>
-                  <label><span>Status</span><ac-dropdown name="doctorStatus" [(ngModel)]="doctorForm.statusCode" [disabled]="isViewMode()" [options]="statusEditOptions" /></label>
+                  <label><span>Medical registration number *</span><input name="registrationNo" [(ngModel)]="doctorForm.registrationNo" [disabled]="isViewMode()" /></label>
+                  <label><span>Registration authority</span><input name="registrationCouncil" [(ngModel)]="doctorForm.registrationCouncil" [disabled]="isViewMode()" /></label>
+                  <label><span>Registration expiry</span><input type="date" name="registrationExpiryDate" [(ngModel)]="doctorForm.registrationExpiryDate" [disabled]="isViewMode()" /></label>
                 </div>
               </section>
 
               <section class="form-section">
                 <div class="section-title">
                   <span class="material-symbols-rounded">contact_phone</span>
-                  <h3>Contact and credential dates</h3>
+                  <h3>Hospital information</h3>
                 </div>
                 <div class="form-grid">
-                  <label><span>Mobile</span><input name="mobileNo" [(ngModel)]="doctorForm.mobileNo" [disabled]="isViewMode()" inputmode="tel" /></label>
-                  <label><span>Alternate mobile</span><input name="alternateMobileNo" [(ngModel)]="doctorForm.alternateMobileNo" [disabled]="isViewMode()" inputmode="tel" /></label>
-                  <label><span>Email</span><input type="email" name="email" [(ngModel)]="doctorForm.email" [disabled]="isViewMode()" /></label>
-                  <label><span>Branch</span><input name="branchName" [(ngModel)]="doctorForm.branchName" [disabled]="isViewMode()" /></label>
-                  <label><span>Council</span><input name="registrationCouncil" [(ngModel)]="doctorForm.registrationCouncil" [disabled]="isViewMode()" /></label>
-                  <label><span>Issue date</span><input type="date" name="registrationIssueDate" [(ngModel)]="doctorForm.registrationIssueDate" [disabled]="isViewMode()" /></label>
-                  <label><span>Expiry date</span><input type="date" name="registrationExpiryDate" [(ngModel)]="doctorForm.registrationExpiryDate" [disabled]="isViewMode()" /></label>
+                  <label><span>Branch *</span><input name="branchName" [(ngModel)]="doctorForm.branchName" [disabled]="isViewMode()" /></label>
+                  <label><span>Employment type</span><ac-dropdown name="employmentType" [(ngModel)]="doctorForm.employmentType" [disabled]="isViewMode()" [options]="employmentOptions" /></label>
                   <label><span>Joining date</span><input type="date" name="joiningDate" [(ngModel)]="doctorForm.joiningDate" [disabled]="isViewMode()" /></label>
+                  <label><span>Consultation fee</span><input type="number" min="0" name="consultationFee" [(ngModel)]="doctorForm.consultationFee" [disabled]="isViewMode()" /></label>
+                  <label><span>Status</span><ac-dropdown name="doctorStatus" [(ngModel)]="doctorForm.statusCode" [disabled]="isViewMode()" [options]="statusEditOptions" /></label>
+                  <label><span>Alternate mobile</span><input name="alternateMobileNo" [(ngModel)]="doctorForm.alternateMobileNo" [disabled]="isViewMode()" inputmode="tel" /></label>
+                  <label><span>Issue date</span><input type="date" name="registrationIssueDate" [(ngModel)]="doctorForm.registrationIssueDate" [disabled]="isViewMode()" /></label>
                 </div>
                 <label class="wide-label">
                   <span>Address</span>
@@ -243,6 +244,18 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
                   <span>Bio</span>
                   <textarea name="bio" rows="3" [(ngModel)]="doctorForm.bio" [disabled]="isViewMode()" placeholder="Short clinical profile"></textarea>
                 </label>
+              </section>
+
+              <section class="form-section">
+                <div class="section-title">
+                  <span class="material-symbols-rounded">verified</span>
+                  <h3>Credentials</h3>
+                </div>
+                <div class="form-grid">
+                  <label><span>Certificates</span><input name="certificateDocumentUrl" [(ngModel)]="doctorForm.certificateDocumentUrl" [disabled]="isViewMode()" placeholder="Certificate document URL" /></label>
+                  <label><span>Registration documents</span><input name="registrationDocumentUrl" [(ngModel)]="doctorForm.registrationDocumentUrl" [disabled]="isViewMode()" placeholder="Registration document URL" /></label>
+                  <label><span>Qualification documents</span><input name="qualificationDocumentUrl" [(ngModel)]="doctorForm.qualificationDocumentUrl" [disabled]="isViewMode()" placeholder="Qualification document URL" /></label>
+                </div>
               </section>
             </div>
 
@@ -269,7 +282,7 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
     .stat-icon { width: 38px; height: 38px; border-radius: 8px; display: grid; place-items: center; font-size: 20px; }
     .stat-value { margin: 0; font-size: 22px; line-height: 1; font-weight: 900; color: var(--ac-text); }
     .stat-label { margin: 3px 0 0; color: var(--ac-muted); font-size: 12px; }
-    .toolbar { flex: 0 0 auto; display: grid; grid-template-columns: minmax(260px, 1fr) 180px 200px 160px 40px auto; gap: 8px; align-items: center; padding: 10px 14px; }
+    .toolbar { flex: 0 0 auto; display: grid; grid-template-columns: minmax(240px, 1fr) 170px 190px 170px 150px 40px auto; gap: 8px; align-items: center; padding: 10px 14px; }
     .search-field { min-width: 0; display: flex; align-items: center; gap: 8px; height: 40px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-input-bg, var(--ac-subtle)); padding: 0 10px; }
     .search-icon, .clear-btn span { color: var(--ac-muted); }
     .toolbar-input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ac-text); font: inherit; }
@@ -291,6 +304,7 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
     .code-chip { background: color-mix(in srgb, var(--ac-primary) 10%, transparent); color: var(--ac-primary); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
     .status-badge { background: color-mix(in srgb, var(--ac-muted) 14%, transparent); color: var(--ac-muted); }
     .sb-active { background: #E6F8EF; color: #05854D; }
+    .sb-inactive { background: #EEF2F7; color: #475569; }
     .sb-on-leave { background: #FFF7ED; color: #C2410C; }
     .sb-suspended, .sb-archived { background: #FEE2E2; color: #B91C1C; }
     :host-context(.dark) .sb-active { background: rgba(16,185,129,.16); color: #5EEAD4; }
@@ -376,6 +390,7 @@ export class DoctorListPageComponent implements OnInit, OnDestroy {
   protected searchQuery = '';
   protected departmentFilter = '';
   protected specializationFilter = '';
+  protected branchFilter = '';
   protected statusFilter = '';
 
   protected readonly departmentOptions: DropdownOption<string>[] = [
@@ -397,11 +412,16 @@ export class DoctorListPageComponent implements OnInit, OnDestroy {
   protected readonly statusOptions: DropdownOption<string>[] = [
     { label: 'All Statuses', value: '' },
     { label: 'Active', value: 'ACTIVE' },
+    { label: 'Inactive', value: 'INACTIVE' },
     { label: 'On Leave', value: 'ON_LEAVE' },
     { label: 'Suspended', value: 'SUSPENDED' },
     { label: 'Archived', value: 'ARCHIVED' }
   ];
   protected readonly statusEditOptions = this.statusOptions.filter(option => option.value);
+  protected readonly branchOptions = computed<DropdownOption<string>[]>(() => [
+    { label: 'All Branches', value: '' },
+    ...this.branchContext.branches().map(branch => ({ label: branch.branchName, value: branch.branchName }))
+  ]);
   protected readonly genderOptions: DropdownOption<string>[] = [
     { label: 'Not specified', value: '' },
     { label: 'Male', value: 'MALE' },
@@ -461,7 +481,7 @@ export class DoctorListPageComponent implements OnInit, OnDestroy {
       searchText: this.searchQuery,
       departmentName: this.departmentFilter,
       specializationName: this.specializationFilter,
-      branchName: this.branchContext.selectedBranch()?.branchName ?? '',
+      branchName: this.branchFilter,
       employmentType: '',
       statusCode: this.statusFilter,
       pageNumber,
@@ -534,6 +554,25 @@ export class DoctorListPageComponent implements OnInit, OnDestroy {
     void this.router.navigate(['/doctors', doctor.doctorGuid]);
   }
 
+  protected async toggleDoctorStatus(doctor: DoctorSummary): Promise<void> {
+    const response = await this.service.get(doctor.doctorGuid);
+    if (!response.success || !response.data) {
+      this.toast.error('Unable to update doctor', getApiErrorMessage(response, 'Doctor API failed'));
+      return;
+    }
+
+    const form = mapProfileToForm(response.data);
+    form.statusCode = doctor.statusCode === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    const updateResponse = await this.service.update(form);
+    if (!updateResponse.success) {
+      this.toast.error('Unable to update status', getApiErrorMessage(updateResponse, 'Doctor API failed'));
+      return;
+    }
+
+    this.toast.success(form.statusCode === 'ACTIVE' ? 'Doctor activated' : 'Doctor deactivated');
+    await this.loadDoctors(this.pageNumber());
+  }
+
   protected closeDrawer(): void {
     this.drawerOpen.set(false);
     this.form.set(null);
@@ -553,8 +592,8 @@ export class DoctorListPageComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (!doctor.firstName.trim() || !doctor.lastName.trim() || !doctor.registrationNo.trim() || !doctor.departmentName.trim() || !doctor.primarySpecialization.trim()) {
-      this.toast.warning('Missing details', 'Name, registration, department, and specialization are required.');
+    if (!doctor.firstName.trim() || !doctor.lastName.trim() || !doctor.mobileNo?.trim() || !doctor.registrationNo.trim() || !doctor.departmentName.trim() || !doctor.primarySpecialization.trim() || !doctor.qualification.trim() || !doctor.branchName.trim()) {
+      this.toast.warning('Missing details', 'Name, mobile, registration, department, specialization, qualification, and branch are required.');
       return;
     }
 
@@ -569,6 +608,7 @@ export class DoctorListPageComponent implements OnInit, OnDestroy {
       return;
     }
 
+    await this.saveCredentialDocuments(response.data.doctorGuid, doctor);
     this.toast.success('Doctor saved');
     this.closeDrawer();
     await this.loadDoctors(this.drawerMode() === 'create' ? 1 : this.pageNumber());
@@ -587,6 +627,25 @@ export class DoctorListPageComponent implements OnInit, OnDestroy {
 
     this.toast.success('Doctor deleted');
     await this.loadDoctors(this.pageNumber());
+  }
+
+  private async saveCredentialDocuments(doctorGuid: string, doctor: DoctorForm): Promise<void> {
+    const documents = [
+      { documentType: 'CERTIFICATE', documentName: 'Certificate', fileUrl: doctor.certificateDocumentUrl?.trim() ?? '' },
+      { documentType: 'REGISTRATION', documentName: 'Registration Document', fileUrl: doctor.registrationDocumentUrl?.trim() ?? '' },
+      { documentType: 'QUALIFICATION', documentName: 'Qualification Document', fileUrl: doctor.qualificationDocumentUrl?.trim() ?? '' }
+    ].filter(document => document.fileUrl);
+
+    for (const document of documents) {
+      await this.service.createDocument({
+        doctorId: doctorGuid,
+        ...document,
+        documentNo: doctor.registrationNo || null,
+        issueDate: doctor.registrationIssueDate,
+        expiryDate: doctor.registrationExpiryDate,
+        verificationStatus: 'PENDING'
+      });
+    }
   }
 
   protected isViewMode(): boolean {
@@ -675,6 +734,9 @@ function createEmptyDoctor(branchName = 'Main Branch'): DoctorForm {
     consultationFee: 0,
     statusCode: 'ACTIVE',
     bio: null,
+    certificateDocumentUrl: null,
+    registrationDocumentUrl: null,
+    qualificationDocumentUrl: null,
     rowVersion: null
   };
 }
@@ -710,6 +772,9 @@ function mapProfileToForm(doctor: DoctorProfile): DoctorForm {
     consultationFee: doctor.consultationFee,
     statusCode: doctor.statusCode,
     bio: doctor.bio,
+    certificateDocumentUrl: null,
+    registrationDocumentUrl: null,
+    qualificationDocumentUrl: null,
     rowVersion: doctor.rowVersion
   };
 }

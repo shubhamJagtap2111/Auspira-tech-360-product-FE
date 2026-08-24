@@ -4,10 +4,10 @@ import { ActivatedRoute } from '@angular/router';
 import { getApiErrorMessage } from '../../core/http/api-error-message';
 import { AcPageActionsComponent } from '../../shared/ui/page-actions/page-actions.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
-import { PatientProfile } from './patient-management.models';
+import { PatientAllergy, PatientConnectedRecord, PatientProfile } from './patient-management.models';
 import { PatientManagementService } from './patient-management.service';
 
-type PatientProfileTab = 'overview' | 'contacts' | 'safety' | 'insurance' | 'documents' | 'appointments' | 'visits' | 'billing' | 'activity';
+type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'insurance' | 'documents' | 'appointments' | 'opd' | 'ipd' | 'prescriptions' | 'lab-results' | 'billing' | 'activity';
 
 @Component({
   standalone: true,
@@ -78,8 +78,14 @@ type PatientProfileTab = 'overview' | 'contacts' | 'safety' | 'insurance' | 'doc
                   </div>
                   <div class="detail-grid overview-detail-grid">
                     <span class="detail-tile"><small>MRN</small><strong>{{ currentPatient.medicalRecordNo }}</strong><em>Master record</em></span>
+                    <span class="detail-tile"><small>Current status</small><strong>{{ currentPatient.statusName }}</strong><em>Patient registry status</em></span>
                     <span class="detail-tile"><small>Date of birth</small><strong>{{ currentPatient.dateOfBirth ? formatDate(currentPatient.dateOfBirth) : '-' }}</strong><em>{{ displayAge(currentPatient.age) }}</em></span>
+                    <span class="detail-tile"><small>Address</small><strong>{{ currentPatient.address || '-' }}</strong><em>Registered address</em></span>
+                    <span class="detail-tile"><small>Emergency contact</small><strong>{{ emergencyContact(currentPatient) }}</strong><em>Patient support</em></span>
                     <span class="detail-tile"><small>Last visit</small><strong>{{ formatDateTime(currentPatient.lastVisitDate) }}</strong><em>Clinical touchpoint</em></span>
+                    <span class="detail-tile"><small>Upcoming appointment</small><strong>{{ currentPatient.overview.upcomingAppointments }}</strong><em>Scheduled care</em></span>
+                    <span class="detail-tile"><small>Active admission</small><strong>{{ currentPatient.overview.activeAdmissions }}</strong><em>IPD status</em></span>
+                    <span class="detail-tile"><small>Critical alerts</small><strong>{{ criticalAlerts(currentPatient) }}</strong><em>Safety watch</em></span>
                     <span class="detail-tile"><small>Outstanding</small><strong>{{ currency(currentPatient.billingSummary.outstandingBalance) }}</strong><em>Billing exposure</em></span>
                   </div>
                 </article>
@@ -109,34 +115,72 @@ type PatientProfileTab = 'overview' | 'contacts' | 'safety' | 'insurance' | 'doc
                 </article>
               </div>
             }
-            @case ('contacts') {
-              <div class="record-grid">
-                @for (contact of currentPatient.contacts; track contact.contactGuid) {
-                  <article class="record-card">
-                    <span class="material-symbols-rounded">contact_phone</span>
-                    <div>
-                      <h3>{{ contact.fullName }}</h3>
-                      <p>{{ contact.relationship }} · {{ contact.mobileNo }}</p>
-                    </div>
-                  </article>
-                } @empty {
-                  <div class="empty-state">No patient contacts captured yet.</div>
-                }
+            @case ('personal') {
+              <div class="stacked-section">
+                <div class="detail-grid overview-detail-grid">
+                  <span class="detail-tile"><small>Name</small><strong>{{ currentPatient.fullName }}</strong><em>Permanent patient identity</em></span>
+                  <span class="detail-tile"><small>Mobile</small><strong>{{ currentPatient.mobileNo }}</strong><em>Primary contact</em></span>
+                  <span class="detail-tile"><small>Email</small><strong>{{ currentPatient.email || '-' }}</strong><em>Contact channel</em></span>
+                  <span class="detail-tile"><small>Address</small><strong>{{ patientAddress(currentPatient) }}</strong><em>Registered address</em></span>
+                  <span class="detail-tile"><small>Emergency contact</small><strong>{{ emergencyContact(currentPatient) }}</strong><em>{{ currentPatient.emergencyContactRelationship || 'Patient support' }}</em></span>
+                  <span class="detail-tile"><small>National ID</small><strong>{{ currentPatient.nationalId || '-' }}</strong><em>Identification</em></span>
+                </div>
+                <div class="record-grid">
+                  @for (contact of currentPatient.contacts; track contact.contactGuid) {
+                    <article class="record-card">
+                      <span class="material-symbols-rounded">contact_phone</span>
+                      <div>
+                        <h3>{{ contact.fullName }}</h3>
+                        <p>{{ contact.relationship }} · {{ contact.mobileNo }}</p>
+                      </div>
+                    </article>
+                  } @empty {
+                    <div class="empty-state">No additional patient contacts captured yet.</div>
+                  }
+                </div>
               </div>
             }
-            @case ('safety') {
-              <div class="record-grid">
-                @for (allergy of currentPatient.allergies; track allergy.allergyGuid) {
-                  <article class="record-card warning">
-                    <span class="material-symbols-rounded">warning</span>
-                    <div>
-                      <h3>{{ allergy.allergen }}</h3>
-                      <p>{{ allergy.allergyType }} · {{ allergy.severityName }} · {{ allergy.statusCode }}</p>
-                    </div>
-                  </article>
-                } @empty {
-                  <div class="empty-state">No allergy or safety records captured yet.</div>
-                }
+            @case ('medical') {
+              <div class="stacked-section">
+                <header class="tracker-head">
+                  <div>
+                    <p class="ac-eyebrow">Medical profile</p>
+                    <h2>Edit Medical Profile</h2>
+                  </div>
+                  <span class="tracker-count">{{ currentPatient.bloodGroupName }}</span>
+                </header>
+                <div class="medical-form-grid">
+                  <label><span>Blood Group</span><textarea readonly [value]="currentPatient.bloodGroupName"></textarea></label>
+                  <label><span>Known Conditions</span><textarea readonly [value]="currentPatient.knownConditions || '-'"></textarea></label>
+                  <label><span>Chronic Diseases</span><textarea readonly [value]="currentPatient.chronicDiseases || '-'"></textarea></label>
+                  <label><span>Past Medical History</span><textarea readonly [value]="currentPatient.pastMedicalHistory || '-'"></textarea></label>
+                  <label><span>Family History</span><textarea readonly [value]="currentPatient.familyHistory || '-'"></textarea></label>
+                  <label><span>Surgical History</span><textarea readonly [value]="currentPatient.surgicalHistory || '-'"></textarea></label>
+                  <label class="span-2"><span>Important Notes</span><textarea readonly [value]="currentPatient.medicalNotes || '-'"></textarea></label>
+                </div>
+              </div>
+            }
+            @case ('allergies') {
+              <div class="stacked-section">
+                <div class="allergy-actions">
+                  <button type="button" class="ac-btn ac-btn-primary" (click)="allergyAction('Add Allergy')"><span class="material-symbols-rounded">add</span>Add Allergy</button>
+                  <button type="button" class="ac-btn ac-btn-secondary" (click)="allergyAction('Edit Allergy')"><span class="material-symbols-rounded">edit</span>Edit Allergy</button>
+                  <button type="button" class="ac-btn ac-btn-secondary" (click)="allergyAction('Mark Critical')"><span class="material-symbols-rounded">priority_high</span>Mark Critical</button>
+                  <button type="button" class="ac-btn ac-btn-secondary" (click)="allergyAction('Deactivate Allergy')"><span class="material-symbols-rounded">block</span>Deactivate</button>
+                </div>
+                <div class="record-grid">
+                  @for (allergy of currentPatient.allergies; track allergy.allergyGuid) {
+                    <article class="record-card warning">
+                      <span class="material-symbols-rounded">warning</span>
+                      <div>
+                        <h3>{{ allergy.allergen }}</h3>
+                        <p>{{ allergy.allergyType }} · {{ allergy.reaction || 'Reaction not set' }} · {{ allergy.severityName }} · {{ allergy.statusCode }}{{ allergy.isCritical ? ' · Critical' : '' }}</p>
+                      </div>
+                    </article>
+                  } @empty {
+                    <div class="empty-state">No allergy or safety records captured yet.</div>
+                  }
+                </div>
               </div>
             }
             @case ('insurance') {
@@ -184,56 +228,64 @@ type PatientProfileTab = 'overview' | 'contacts' | 'safety' | 'insurance' | 'doc
                 }
               </div>
             }
-            @case ('visits') {
-              <div class="stacked-section">
-                <div>
-                  <h2>OPD/IPD visits</h2>
-                  <div class="record-grid">
-                    @for (record of currentPatient.visits; track record.recordGuid) {
-                      <article class="record-card">
-                        <span class="material-symbols-rounded">clinical_notes</span>
-                        <div>
-                          <h3>{{ record.recordType }} · {{ record.title }}</h3>
-                          <p>{{ record.statusCode }} · {{ formatDateTime(record.eventDate) }}</p>
-                        </div>
-                      </article>
-                    } @empty {
-                      <div class="empty-state">No OPD/IPD visits linked yet.</div>
-                    }
-                  </div>
-                </div>
-                <div>
-                  <h2>Lab orders</h2>
-                  <div class="record-grid">
-                    @for (record of currentPatient.labOrders; track record.recordGuid) {
-                      <article class="record-card">
-                        <span class="material-symbols-rounded">biotech</span>
-                        <div>
-                          <h3>{{ record.title }}</h3>
-                          <p>{{ record.statusCode }} · {{ formatDateTime(record.eventDate) }}</p>
-                        </div>
-                      </article>
-                    } @empty {
-                      <div class="empty-state">No lab orders linked yet.</div>
-                    }
-                  </div>
-                </div>
-                <div>
-                  <h2>Pharmacy</h2>
-                  <div class="record-grid">
-                    @for (record of currentPatient.pharmacySales; track record.recordGuid) {
-                      <article class="record-card">
-                        <span class="material-symbols-rounded">local_pharmacy</span>
-                        <div>
-                          <h3>{{ record.title }}</h3>
-                          <p>{{ record.subtitle || record.statusCode }} · {{ formatDateTime(record.eventDate) }}</p>
-                        </div>
-                      </article>
-                    } @empty {
-                      <div class="empty-state">No pharmacy sales linked yet.</div>
-                    }
-                  </div>
-                </div>
+            @case ('opd') {
+              <div class="record-grid">
+                @for (record of opdVisits(currentPatient); track record.recordGuid) {
+                  <article class="record-card">
+                    <span class="material-symbols-rounded">clinical_notes</span>
+                    <div>
+                      <h3>{{ record.title }}</h3>
+                      <p>{{ record.statusCode }} · {{ formatDateTime(record.eventDate) }}</p>
+                    </div>
+                  </article>
+                } @empty {
+                  <div class="empty-state">No OPD visits linked yet.</div>
+                }
+              </div>
+            }
+            @case ('ipd') {
+              <div class="record-grid">
+                @for (record of ipdAdmissions(currentPatient); track record.recordGuid) {
+                  <article class="record-card">
+                    <span class="material-symbols-rounded">bed</span>
+                    <div>
+                      <h3>{{ record.title }}</h3>
+                      <p>{{ record.statusCode }} · {{ formatDateTime(record.eventDate) }}</p>
+                    </div>
+                  </article>
+                } @empty {
+                  <div class="empty-state">No IPD admissions linked yet.</div>
+                }
+              </div>
+            }
+            @case ('prescriptions') {
+              <div class="record-grid">
+                @for (record of currentPatient.prescriptions; track record.recordGuid) {
+                  <article class="record-card">
+                    <span class="material-symbols-rounded">prescriptions</span>
+                    <div>
+                      <h3>{{ record.title }}</h3>
+                      <p>{{ record.subtitle || record.statusCode }} · {{ formatDateTime(record.eventDate) }}</p>
+                    </div>
+                  </article>
+                } @empty {
+                  <div class="empty-state">No prescriptions linked yet.</div>
+                }
+              </div>
+            }
+            @case ('lab-results') {
+              <div class="record-grid">
+                @for (record of currentPatient.labOrders; track record.recordGuid) {
+                  <article class="record-card">
+                    <span class="material-symbols-rounded">biotech</span>
+                    <div>
+                      <h3>{{ record.title }}</h3>
+                      <p>{{ record.statusCode }} · {{ formatDateTime(record.eventDate) }}</p>
+                    </div>
+                  </article>
+                } @empty {
+                  <div class="empty-state">No lab orders or results linked yet.</div>
+                }
               </div>
             }
             @case ('billing') {
@@ -328,6 +380,14 @@ type PatientProfileTab = 'overview' | 'contacts' | 'safety' | 'insurance' | 'doc
     .record-card.warning .material-symbols-rounded { background: rgba(244,63,94,.1); color: #e11d48; }
     .record-card h3 { margin: 0; color: var(--ac-text); font-size: 15px; }
     .record-card p { margin: 5px 0 0; color: var(--ac-muted); font-size: 13px; }
+    .medical-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .medical-form-grid label { display: grid; gap: 6px; }
+    .medical-form-grid span { color: var(--ac-muted); font-size: 12px; font-weight: 800; }
+    .medical-form-grid textarea { min-height: 82px; resize: vertical; border: 1px solid var(--ac-border); border-radius: var(--ac-r-sm); background: var(--ac-surface-2); color: var(--ac-text); padding: 11px 12px; font: inherit; }
+    .medical-form-grid .span-2 { grid-column: 1 / -1; }
+    .allergy-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .allergy-actions .ac-btn { min-height: 36px; padding-inline: 11px; }
+    .allergy-actions .material-symbols-rounded { font-size: 18px; }
     .timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
     .timeline li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 12px; padding: 0 0 18px; }
     .timeline li > span { width: 10px; height: 10px; border-radius: 50%; background: var(--ac-primary); margin-top: 6px; box-shadow: 0 0 0 5px var(--ac-primary-light); }
@@ -1041,12 +1101,16 @@ export class PatientProfilePageComponent implements OnInit {
   protected readonly activeTab = signal<PatientProfileTab>('overview');
   protected readonly tabs: { id: PatientProfileTab; label: string; icon: string }[] = [
     { id: 'overview', label: 'Overview', icon: 'dashboard' },
-    { id: 'contacts', label: 'Contacts', icon: 'contact_phone' },
-    { id: 'safety', label: 'Allergies', icon: 'emergency_home' },
+    { id: 'personal', label: 'Personal & Contacts', icon: 'contact_phone' },
+    { id: 'medical', label: 'Medical Profile', icon: 'clinical_notes' },
+    { id: 'allergies', label: 'Allergies', icon: 'emergency_home' },
     { id: 'insurance', label: 'Insurance', icon: 'health_and_safety' },
     { id: 'documents', label: 'Documents', icon: 'folder' },
     { id: 'appointments', label: 'Appointments', icon: 'event' },
-    { id: 'visits', label: 'Visits', icon: 'stethoscope' },
+    { id: 'opd', label: 'OPD Visits', icon: 'stethoscope' },
+    { id: 'ipd', label: 'IPD Admissions', icon: 'bed' },
+    { id: 'prescriptions', label: 'Prescriptions', icon: 'prescriptions' },
+    { id: 'lab-results', label: 'Lab Results', icon: 'biotech' },
     { id: 'billing', label: 'Billing', icon: 'payments' },
     { id: 'activity', label: 'Activity', icon: 'timeline' }
   ];
@@ -1103,6 +1167,101 @@ export class PatientProfilePageComponent implements OnInit {
 
   protected displayAge(age: number | null): string {
     return age === null || age === undefined ? 'Age not set' : `${age} ${age === 1 ? 'yr' : 'yrs'}`;
+  }
+
+  protected emergencyContact(patient: PatientProfile): string {
+    const name = patient.emergencyContactName?.trim();
+    const mobile = patient.emergencyContactMobile?.trim();
+
+    if (name && mobile) {
+      return `${name} · ${mobile}`;
+    }
+
+    return name || mobile || '-';
+  }
+
+  protected patientAddress(patient: PatientProfile): string {
+    const parts = [patient.address, patient.city, patient.state, patient.country, patient.pincode]
+      .map(part => part?.trim())
+      .filter(Boolean);
+
+    return parts.length > 0 ? parts.join(', ') : '-';
+  }
+
+  protected opdVisits(patient: PatientProfile): PatientConnectedRecord[] {
+    return patient.visits.filter(record => record.sourceModule === 'OPD' || record.recordType === 'Consultation');
+  }
+
+  protected ipdAdmissions(patient: PatientProfile): PatientConnectedRecord[] {
+    return patient.visits.filter(record => record.sourceModule === 'IPD' || record.recordType === 'Admission');
+  }
+
+  protected criticalAlerts(patient: PatientProfile): number {
+    return patient.allergies.filter(allergy => allergy.isCritical || ['HIGH', 'SEVERE'].includes(allergy.severityCode)).length;
+  }
+
+  protected async allergyAction(action: 'Add Allergy' | 'Edit Allergy' | 'Mark Critical' | 'Deactivate Allergy'): Promise<void> {
+    const currentPatient = this.patient();
+    if (!currentPatient) {
+      return;
+    }
+
+    try {
+      if (action === 'Add Allergy') {
+        const allergen = window.prompt('Allergen name');
+        if (!allergen?.trim()) {
+          return;
+        }
+
+        const allergyType = window.prompt('Allergy type', 'Drug') || 'General';
+        const reaction = window.prompt('Reaction', '') || '';
+        const severityCode = window.prompt('Severity: LOW, MILD, MODERATE, HIGH, SEVERE', 'MODERATE') || 'MODERATE';
+        await this.service.createAllergy(currentPatient.patientGuid, {
+          allergen,
+          allergyType,
+          reaction,
+          severityCode,
+          notes: '',
+          statusCode: 'ACTIVE',
+          isCritical: ['HIGH', 'SEVERE'].includes(severityCode.trim().toUpperCase())
+        });
+      } else {
+        const allergy = this.selectAllergy(currentPatient.allergies);
+        if (!allergy) {
+          return;
+        }
+
+        if (action === 'Edit Allergy') {
+          const reaction = window.prompt('Reaction', allergy.reaction || '') ?? allergy.reaction ?? '';
+          const notes = window.prompt('Notes', allergy.notes || '') ?? allergy.notes ?? '';
+          await this.service.updateAllergy(currentPatient.patientGuid, allergy, { reaction, notes });
+        } else if (action === 'Mark Critical') {
+          await this.service.updateAllergy(currentPatient.patientGuid, allergy, { isCritical: true, severityCode: allergy.severityCode === 'UNKNOWN' ? 'SEVERE' : allergy.severityCode });
+        } else {
+          await this.service.updateAllergy(currentPatient.patientGuid, allergy, { statusCode: 'INACTIVE' });
+        }
+      }
+
+      await this.reload();
+      this.toast.success(`${action} saved`);
+    } catch {
+      this.toast.error('Unable to save allergy');
+    }
+  }
+
+  private selectAllergy(allergies: PatientAllergy[]): PatientAllergy | null {
+    if (allergies.length === 0) {
+      this.toast.warning('No allergy selected', 'Add an allergy before editing or deactivating.');
+      return null;
+    }
+
+    if (allergies.length === 1) {
+      return allergies[0];
+    }
+
+    const selection = window.prompt(allergies.map((allergy, index) => `${index + 1}. ${allergy.allergen}`).join('\n'), '1');
+    const index = Number(selection) - 1;
+    return Number.isInteger(index) && allergies[index] ? allergies[index] : null;
   }
 
   protected formatDate(value: string): string {

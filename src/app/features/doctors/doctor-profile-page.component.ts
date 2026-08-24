@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { getApiErrorMessage } from '../../core/http/api-error-message';
 import { AcPageActionsComponent } from '../../shared/ui/page-actions/page-actions.component';
@@ -7,11 +8,11 @@ import { ToastService } from '../../shared/ui/toast/toast.service';
 import { DoctorProfile } from './doctor-management.models';
 import { DoctorManagementService } from './doctor-management.service';
 
-type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule' | 'fees' | 'credentials' | 'performance' | 'activity';
+type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule' | 'fees' | 'credentials' | 'appointments' | 'opd-patients' | 'ipd-patients' | 'performance' | 'activity';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, AcPageActionsComponent],
+  imports: [CommonModule, FormsModule, AcPageActionsComponent],
   template: `
     <section class="doctor-profile">
       <ac-page-actions backLink="/doctors" backLabel="Doctor Registry" (refreshed)="reload()" />
@@ -135,18 +136,59 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
               </div>
             }
             @case ('availability') {
-              <div class="record-grid">
-                @for (availability of currentDoctor.availability; track availability.availabilityGuid) {
-                  <article class="record-card">
-                    <span class="material-symbols-rounded">calendar_clock</span>
-                    <div>
-                      <h3>{{ availability.dayName }}</h3>
-                      <p>{{ availability.startsAt }} - {{ availability.endsAt }} · {{ availability.consultationType }} · {{ availability.branchName }}</p>
+              <div class="stacked-section">
+                <div class="availability-actions">
+                  <button type="button" class="ac-btn ac-btn-primary" (click)="addAvailability(currentDoctor, 'ACTIVE')"><span class="material-symbols-rounded">add</span>Add Schedule</button>
+                  <button type="button" class="ac-btn ac-btn-secondary" (click)="blockDate(currentDoctor)"><span class="material-symbols-rounded">event_busy</span>Block Date</button>
+                  <button type="button" class="ac-btn ac-btn-secondary" (click)="openLeaveForm(currentDoctor)"><span class="material-symbols-rounded">free_cancellation</span>Add Leave</button>
+                  <button type="button" class="ac-btn ac-btn-secondary" (click)="addAvailability(currentDoctor, 'OVERRIDE')"><span class="material-symbols-rounded">edit_calendar</span>Override Availability</button>
+                </div>
+                @if (leaveForm(); as form) {
+                  <form class="leave-form" (ngSubmit)="saveLeave(currentDoctor)">
+                    <label>
+                      <span>Doctor</span>
+                      <input [value]="currentDoctor.fullName" readonly />
+                    </label>
+                    <label>
+                      <span>Leave Start Date</span>
+                      <input type="datetime-local" name="leaveStartsAt" [(ngModel)]="form.startsAt" required />
+                    </label>
+                    <label>
+                      <span>Leave End Date</span>
+                      <input type="datetime-local" name="leaveEndsAt" [(ngModel)]="form.endsAt" required />
+                    </label>
+                    <label>
+                      <span>Status</span>
+                      <select name="leaveStatus" [(ngModel)]="form.statusCode">
+                        <option value="APPROVED">Approved</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="REJECTED">Rejected</option>
+                        <option value="CANCELLED">Cancelled</option>
+                      </select>
+                    </label>
+                    <label class="span-2">
+                      <span>Reason</span>
+                      <textarea name="leaveReason" rows="3" [(ngModel)]="form.reason"></textarea>
+                    </label>
+                    <div class="leave-form-actions span-2">
+                      <button type="button" class="ac-btn ac-btn-secondary" (click)="cancelLeaveForm()">Cancel</button>
+                      <button type="submit" class="ac-btn ac-btn-primary">Save Leave</button>
                     </div>
-                  </article>
-                } @empty {
-                  <div class="empty-state">No availability configured yet.</div>
+                  </form>
                 }
+                <div class="record-grid">
+                  @for (availability of currentDoctor.availability; track availability.availabilityGuid) {
+                    <article class="record-card">
+                      <span class="material-symbols-rounded">calendar_clock</span>
+                      <div>
+                        <h3>{{ availability.dayName }}</h3>
+                        <p>{{ availability.startsAt }} - {{ availability.endsAt }} · {{ availability.slotDurationMinutes }} min slots · {{ availability.maxPatients }} max · {{ availability.consultationType }} · {{ availability.branchName }}</p>
+                      </div>
+                    </article>
+                  } @empty {
+                    <div class="empty-state">No availability configured yet.</div>
+                  }
+                </div>
               </div>
             }
             @case ('schedule') {
@@ -234,6 +276,51 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
                     }
                   </div>
                 </div>
+              </div>
+            }
+            @case ('appointments') {
+              <div class="record-grid">
+                @for (record of currentDoctor.appointments; track record.recordGuid) {
+                  <article class="record-card">
+                    <span class="material-symbols-rounded">event</span>
+                    <div>
+                      <h3>{{ record.patientName }}</h3>
+                      <p>{{ record.medicalRecordNo }} · {{ record.mobileNo || '-' }} · {{ record.statusCode }} · {{ formatDateTime(record.eventDate) }}</p>
+                    </div>
+                  </article>
+                } @empty {
+                  <div class="empty-state">No appointment patients linked through the workflow yet.</div>
+                }
+              </div>
+            }
+            @case ('opd-patients') {
+              <div class="record-grid">
+                @for (record of currentDoctor.opdPatients; track record.recordGuid) {
+                  <article class="record-card cyan">
+                    <span class="material-symbols-rounded">stethoscope</span>
+                    <div>
+                      <h3>{{ record.patientName }}</h3>
+                      <p>{{ record.medicalRecordNo }} · {{ record.mobileNo || '-' }} · {{ record.statusCode }} · {{ formatDateTime(record.eventDate) }}</p>
+                    </div>
+                  </article>
+                } @empty {
+                  <div class="empty-state">No OPD patients linked through consultations yet.</div>
+                }
+              </div>
+            }
+            @case ('ipd-patients') {
+              <div class="record-grid">
+                @for (record of currentDoctor.ipdPatients; track record.recordGuid) {
+                  <article class="record-card warning">
+                    <span class="material-symbols-rounded">bed</span>
+                    <div>
+                      <h3>{{ record.patientName }}</h3>
+                      <p>{{ record.medicalRecordNo }} · {{ record.mobileNo || '-' }} · {{ record.statusCode }} · {{ formatDateTime(record.eventDate) }}</p>
+                    </div>
+                  </article>
+                } @empty {
+                  <div class="empty-state">No IPD patients linked through admissions yet.</div>
+                }
               </div>
             }
             @case ('performance') {
@@ -942,6 +1029,57 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
       margin-top: 3px;
       font-size: 12.5px;
     }
+    .availability-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .availability-actions .ac-btn {
+      min-height: 36px;
+      padding-inline: 11px;
+    }
+    .availability-actions .material-symbols-rounded {
+      font-size: 18px;
+    }
+    .leave-form {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--ac-border);
+      border-radius: 10px;
+      background: var(--ac-surface-2);
+    }
+    .leave-form label {
+      display: grid;
+      gap: 6px;
+      color: var(--ac-muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .leave-form input,
+    .leave-form select,
+    .leave-form textarea {
+      width: 100%;
+      border: 1px solid var(--ac-border);
+      border-radius: 8px;
+      background: var(--ac-surface);
+      color: var(--ac-text);
+      padding: 10px 11px;
+      font: inherit;
+      outline: 0;
+    }
+    .leave-form textarea {
+      resize: vertical;
+    }
+    .leave-form .span-2 {
+      grid-column: 1 / -1;
+    }
+    .leave-form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
     .empty-state {
       grid-column: 1 / -1;
       display: grid;
@@ -975,6 +1113,7 @@ export class DoctorProfilePageComponent implements OnInit {
   protected readonly doctor = signal<DoctorProfile | null>(null);
   protected readonly loading = signal(false);
   protected readonly activeTab = signal<DoctorProfileTab>('overview');
+  protected readonly leaveForm = signal<DoctorLeaveForm | null>(null);
   protected readonly tabs: Array<{ id: DoctorProfileTab; label: string; icon: string }> = [
     { id: 'overview', label: 'Overview', icon: 'dashboard' },
     { id: 'professional', label: 'Professional', icon: 'workspace_premium' },
@@ -982,6 +1121,9 @@ export class DoctorProfilePageComponent implements OnInit {
     { id: 'schedule', label: 'Schedule', icon: 'event_available' },
     { id: 'fees', label: 'Fees', icon: 'payments' },
     { id: 'credentials', label: 'Credentials', icon: 'verified' },
+    { id: 'appointments', label: 'Appointments', icon: 'event' },
+    { id: 'opd-patients', label: 'OPD Patients', icon: 'stethoscope' },
+    { id: 'ipd-patients', label: 'IPD Patients', icon: 'bed' },
     { id: 'performance', label: 'Performance', icon: 'monitoring' },
     { id: 'activity', label: 'Activity', icon: 'timeline' }
   ];
@@ -1058,6 +1200,109 @@ export class DoctorProfilePageComponent implements OnInit {
   protected formatTime(value: string): string {
     return new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
   }
+
+  protected async addAvailability(doctor: DoctorProfile, statusCode: 'ACTIVE' | 'OVERRIDE'): Promise<void> {
+    const dayOfWeek = Number(window.prompt('Day of week: Sunday=0, Monday=1 ... Saturday=6', '1'));
+    const startsAt = window.prompt('Start time', '09:00');
+    const endsAt = window.prompt('End time', '13:00');
+    if (!Number.isInteger(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6 || !startsAt || !endsAt) {
+      return;
+    }
+
+    const slotDurationMinutes = Number(window.prompt('Slot duration in minutes', '15')) || 15;
+    const maxPatients = Number(window.prompt('Maximum patients per slot', '1')) || 1;
+    await this.service.createAvailability({
+      doctorId: doctor.doctorGuid,
+      dayOfWeek,
+      startsAt,
+      endsAt,
+      branchName: doctor.branchName,
+      consultationType: 'OPD',
+      slotDurationMinutes,
+      maxPatients,
+      statusCode
+    });
+    await this.reload();
+    this.toast.success(statusCode === 'OVERRIDE' ? 'Availability override added' : 'Schedule added');
+  }
+
+  protected async blockDate(doctor: DoctorProfile): Promise<void> {
+    const scheduleDate = window.prompt('Date to block', new Date().toISOString().slice(0, 10));
+    if (!scheduleDate) {
+      return;
+    }
+
+    await this.service.createSchedule({
+      doctorId: doctor.doctorGuid,
+      scheduleDate,
+      startsAt: null,
+      endsAt: null,
+      scheduleType: 'BLOCK',
+      consultationType: 'OPD',
+      roomName: null,
+      branchName: doctor.branchName,
+      departmentName: doctor.departmentName,
+      statusCode: 'BLOCKED'
+    });
+    await this.reload();
+    this.toast.success('Date blocked');
+  }
+
+  protected openLeaveForm(doctor: DoctorProfile): void {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+    this.leaveForm.set({
+      doctorGuid: doctor.doctorGuid,
+      startsAt: toLocalInputValue(now),
+      endsAt: toLocalInputValue(tomorrow),
+      reason: '',
+      statusCode: 'APPROVED'
+    });
+  }
+
+  protected cancelLeaveForm(): void {
+    this.leaveForm.set(null);
+  }
+
+  protected async saveLeave(doctor: DoctorProfile): Promise<void> {
+    const form = this.leaveForm();
+    if (!form || !form.startsAt || !form.endsAt) {
+      return;
+    }
+
+    const startsAt = new Date(form.startsAt);
+    const endsAt = new Date(form.endsAt);
+    if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || endsAt <= startsAt) {
+      this.toast.warning('Invalid leave dates', 'Leave end date must be after the start date.');
+      return;
+    }
+
+    await this.service.createLeave({
+      doctorId: doctor.doctorGuid,
+      leaveType: 'LEAVE',
+      startsAt: startsAt.toISOString(),
+      endsAt: endsAt.toISOString(),
+      reason: form.reason.trim(),
+      statusCode: form.statusCode
+    });
+    this.leaveForm.set(null);
+    await this.reload();
+    this.toast.success('Leave added');
+  }
+}
+
+interface DoctorLeaveForm {
+  doctorGuid: string;
+  startsAt: string;
+  endsAt: string;
+  reason: string;
+  statusCode: string;
+}
+
+function toLocalInputValue(value: Date): string {
+  const offsetMs = value.getTimezoneOffset() * 60_000;
+  return new Date(value.getTime() - offsetMs).toISOString().slice(0, 16);
 }
 
 function formatNumber(value: number): string {

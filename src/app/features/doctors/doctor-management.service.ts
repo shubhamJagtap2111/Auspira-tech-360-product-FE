@@ -42,6 +42,22 @@ export class DoctorManagementService {
   delete(doctorGuid: string): Promise<DoctorApiResponse<boolean>> {
     return firstValueFrom(this.api.delete<DoctorApiResponse<boolean>>(`/doctors/${doctorGuid}`));
   }
+
+  createAvailability(request: DoctorAvailabilityRequest): Promise<DoctorAvailabilityRecord> {
+    return firstValueFrom(this.api.post<DoctorAvailabilityRecord>('/doctor-availability', request));
+  }
+
+  createSchedule(request: DoctorScheduleRequest): Promise<DoctorScheduleRecord> {
+    return firstValueFrom(this.api.post<DoctorScheduleRecord>('/doctor-schedules', request));
+  }
+
+  createLeave(request: DoctorLeaveRequest): Promise<DoctorLeaveRecord> {
+    return firstValueFrom(this.api.post<DoctorLeaveRecord>('/doctor-leaves', request));
+  }
+
+  createDocument(request: DoctorDocumentRequest): Promise<DoctorDocumentRecord> {
+    return firstValueFrom(this.api.post<DoctorDocumentRecord>('/doctor-documents', request));
+  }
 }
 
 export interface DoctorSearchFilters {
@@ -54,6 +70,59 @@ export interface DoctorSearchFilters {
   pageNumber: number;
   pageSize: number;
 }
+
+export interface DoctorAvailabilityRequest {
+  doctorId: string;
+  dayOfWeek: number;
+  startsAt: string;
+  endsAt: string;
+  branchName: string;
+  consultationType: string;
+  slotDurationMinutes: number;
+  maxPatients: number;
+  statusCode: string;
+}
+
+export interface DoctorAvailabilityRecord extends DoctorAvailabilityRequest { id: string; }
+
+export interface DoctorScheduleRequest {
+  doctorId: string;
+  scheduleDate: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  scheduleType: string;
+  consultationType: string;
+  roomName: string | null;
+  branchName: string;
+  departmentName: string | null;
+  statusCode: string;
+}
+
+export interface DoctorScheduleRecord extends DoctorScheduleRequest { id: string; }
+
+export interface DoctorLeaveRequest {
+  doctorId: string;
+  leaveType: string;
+  startsAt: string;
+  endsAt: string;
+  reason: string;
+  statusCode: string;
+}
+
+export interface DoctorLeaveRecord extends DoctorLeaveRequest { id: string; }
+
+export interface DoctorDocumentRequest {
+  doctorId: string;
+  documentType: string;
+  documentName: string;
+  fileUrl: string;
+  documentNo: string | null;
+  issueDate: string | null;
+  expiryDate: string | null;
+  verificationStatus: string;
+}
+
+export interface DoctorDocumentRecord extends DoctorDocumentRequest { id: string; }
 
 function createPayload(doctor: DoctorForm, includeDoctorCode: boolean): UpsertDoctorPayload {
   return {

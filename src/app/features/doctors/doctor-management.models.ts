@@ -64,6 +64,9 @@ export interface DoctorProfile extends DoctorSummary {
   fees: DoctorFee[];
   registrations: DoctorRegistration[];
   documents: DoctorDocument[];
+  appointments: DoctorWorkflowPatient[];
+  opdPatients: DoctorWorkflowPatient[];
+  ipdPatients: DoctorWorkflowPatient[];
   performance: DoctorPerformance;
   activity: DoctorActivity[];
 }
@@ -105,6 +108,8 @@ export interface DoctorAvailability {
   endsAt: string;
   branchName: string;
   consultationType: string;
+  slotDurationMinutes: number;
+  maxPatients: number;
   statusCode: string;
 }
 
@@ -173,6 +178,18 @@ export interface DoctorDocument {
   uploadedDate: string;
 }
 
+export interface DoctorWorkflowPatient {
+  recordGuid: string;
+  patientGuid: string;
+  medicalRecordNo: string;
+  patientName: string;
+  mobileNo: string | null;
+  statusCode: string;
+  eventDate: string;
+  sourceModule: string;
+  notes: string | null;
+}
+
 export interface DoctorPerformance {
   totalAppointments: number;
   completedAppointments: number;
@@ -223,6 +240,9 @@ export interface DoctorForm {
   consultationFee: number;
   statusCode: string | null;
   bio: string | null;
+  certificateDocumentUrl: string | null;
+  registrationDocumentUrl: string | null;
+  qualificationDocumentUrl: string | null;
   rowVersion: string | null;
 }
 
@@ -230,7 +250,7 @@ export interface DoctorNextCode {
   doctorCode: string;
 }
 
-export type UpsertDoctorPayload = Omit<DoctorForm, 'doctorGuid' | 'doctorCode'> & {
+export type UpsertDoctorPayload = Omit<DoctorForm, 'doctorGuid' | 'doctorCode' | 'certificateDocumentUrl' | 'registrationDocumentUrl' | 'qualificationDocumentUrl'> & {
   doctorGuid: string | null;
   doctorCode: string | null;
 };
