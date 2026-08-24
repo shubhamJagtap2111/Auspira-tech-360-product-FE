@@ -326,42 +326,42 @@ interface HospitalPulseItem {
                   </div>
                 </div>
               </article>
-            </div>
 
-            <article class="panel intelligence-panel">
-              <div class="section-head">
-                <div>
-                  <h2>AIRA operations insights</h2>
-                  <p>Auto-refreshing summary from safe aggregate dashboard signals.</p>
-                </div>
-                <button class="icon-btn" type="button" (click)="refreshAiInsights(model)" [disabled]="aiInsightLoading()" title="Refresh AI insights">
-                  <span class="material-symbols-rounded">{{ aiInsightLoading() ? 'progress_activity' : 'auto_awesome' }}</span>
-                </button>
-              </div>
-              <div class="ai-insight-card">
-                <div class="ai-card-head">
-                  <span class="ai-orb" aria-hidden="true">
-                    <span class="aira-message-icon"></span>
-                    <i></i>
-                  </span>
+              <article class="panel intelligence-panel">
+                <div class="section-head">
                   <div>
-                    <strong>{{ aiInsightTitle() }}</strong>
-                    <small>{{ aiInsightStamp() }}</small>
+                    <h2>AIRA operations insights</h2>
+                    <p>Auto-refreshing summary from safe aggregate dashboard signals.</p>
                   </div>
-                  <span class="ai-live-chip"><i></i>AIRA live</span>
+                  <button class="icon-btn" type="button" (click)="refreshAiInsights(model)" [disabled]="aiInsightLoading()" title="Refresh AI insights">
+                    <span class="material-symbols-rounded">{{ aiInsightLoading() ? 'progress_activity' : 'auto_awesome' }}</span>
+                  </button>
                 </div>
-                <p>{{ attentionItems(model).length }} insights require attention.</p>
-                <div class="ai-next-actions compact">
-                  @for (item of aiAttentionItems(model); track item.title) {
-                    <a [routerLink]="item.path">
-                      <span class="material-symbols-rounded">{{ item.icon }}</span>
-                      <p>{{ item.title }}</p>
-                    </a>
-                  }
+                <div class="ai-insight-card">
+                  <div class="ai-card-head">
+                    <span class="ai-orb" aria-hidden="true">
+                      <span class="aira-message-icon"></span>
+                      <i></i>
+                    </span>
+                    <div>
+                      <strong>{{ aiInsightTitle() }}</strong>
+                      <small>{{ aiInsightStamp() }}</small>
+                    </div>
+                    <span class="ai-live-chip"><i></i>AIRA live</span>
+                  </div>
+                  <p>{{ attentionItems(model).length }} insights require attention.</p>
+                  <div class="ai-next-actions compact">
+                    @for (item of aiAttentionItems(model); track item.title) {
+                      <a [routerLink]="item.path">
+                        <span class="material-symbols-rounded">{{ item.icon }}</span>
+                        <p>{{ item.title }}</p>
+                      </a>
+                    }
+                  </div>
+                  <a class="panel-action" routerLink="/reports">View AI insights</a>
                 </div>
-                <a class="panel-action" routerLink="/reports">View AI insights</a>
-              </div>
-            </article>
+              </article>
+            </div>
           </section>
         } @else {
           <section class="staff-kpi-grid">
@@ -457,6 +457,7 @@ interface HospitalPulseItem {
   styles: `
     .admin-dashboard { display: flex; flex-direction: column; gap: 16px; }
     .section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .section-head > * { min-width: 0; }
     .dashboard-hero { min-height: 190px; display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 18px; align-items: stretch; padding: 22px; border: 1px solid var(--ac-border); border-radius: 8px; background: linear-gradient(135deg, rgba(37,99,235,.1), rgba(20,184,166,.08) 55%, rgba(249,115,22,.08)); box-shadow: var(--ac-shadow-soft); overflow: hidden; position: relative; }
     .dashboard-hero.staff-hero { background: linear-gradient(135deg, rgba(20,184,166,.12), rgba(37,99,235,.08) 52%, rgba(217,119,6,.1)); }
     .hero-copy { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
@@ -498,7 +499,8 @@ interface HospitalPulseItem {
     .metric-card strong { display: block; font-size: 24px; line-height: 1.1; }
     .metric-card span { color: var(--ac-muted); font-size: 12px; }
     .main-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(360px, .7fr); gap: 16px; }
-    .lower-grid { display: grid; grid-template-columns: minmax(360px, 1.08fr) minmax(360px, .98fr) minmax(360px, .98fr); gap: 16px; align-items: start; }
+    .lower-grid { display: grid; grid-template-columns: minmax(620px, 1.25fr) minmax(340px, .75fr); gap: 16px; align-items: start; }
+    .lower-grid > *, .dashboard-side-stack > * { min-width: 0; }
     .dashboard-side-stack { display: grid; gap: 10px; min-width: 0; align-content: start; }
     .staff-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr); gap: 16px; align-items: start; }
     .panel { padding: 16px; min-width: 0; }
@@ -531,23 +533,24 @@ interface HospitalPulseItem {
     .chart-legend i { width: 9px; height: 9px; border-radius: 999px; background: var(--tone); }
     .health-row, .login-row, .template-row { display: flex; gap: 10px; align-items: center; padding: 10px; border: 1px solid var(--ac-border); border-radius: 8px; }
     .health-row p, .login-row p { margin: 3px 0 0; color: var(--ac-muted); font-size: 12px; }
-    .login-row { min-height: 58px; }
+    .login-row { min-height: 58px; min-width: 0; }
     .login-row > div { min-width: 0; flex: 1; }
-    .lower-grid .login-row { display: grid; grid-template-columns: 72px minmax(180px, 1fr) repeat(3, minmax(92px, auto)); }
-    .login-row > small { display: grid; gap: 2px; color: var(--ac-muted); font-size: 11px; white-space: nowrap; }
+    .login-row strong, .login-row p { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .lower-grid .login-row { display: grid; grid-template-columns: 78px minmax(150px, 1fr) repeat(3, minmax(74px, .42fr)); gap: 8px; }
+    .login-row > small { min-width: 0; display: grid; gap: 2px; color: var(--ac-muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .login-row > small b { color: var(--ac-text-2); font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
     .dot { width: 10px; height: 10px; border-radius: 999px; background: #16a34a; flex: 0 0 auto; }
     .dot.warning { background: #d97706; }
     .status, .login-state { margin-left: auto; padding: 4px 8px; border-radius: 999px; background: rgba(22,163,74,.1); color: #15803d; font-size: 11px; font-weight: 800; }
     .login-state { order: -1; margin-left: 0; min-width: 64px; text-align: center; }
     .status.warning, .login-state.failed { background: rgba(217,119,6,.12); color: #b45309; }
-    .login-pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--ac-border); color: var(--ac-muted); font-size: 12px; }
+    .login-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--ac-border); color: var(--ac-muted); font-size: 12px; }
     .login-pager div { display: flex; align-items: center; gap: 8px; }
     .login-pager strong { min-width: 34px; height: 34px; display: grid; place-items: center; border-radius: 8px; background: var(--ac-primary); color: #fff; }
     .icon-btn:disabled { opacity: .45; cursor: not-allowed; }
     .template-row { justify-content: space-between; }
     .template-row span { color: var(--ac-muted); font-size: 12px; }
-    .notification-empty { min-height: 168px; display: grid; place-items: center; align-content: center; gap: 8px; text-align: center; border: 1px dashed var(--ac-border); border-radius: 8px; background: linear-gradient(135deg, rgba(37,99,235,.06), rgba(20,184,166,.05)); padding: 16px; margin-top: 12px; }
+    .notification-empty { min-height: 168px; display: grid; place-items: center; align-content: center; gap: 8px; text-align: center; border: 1px dashed var(--ac-border); border-radius: 8px; background: linear-gradient(135deg, rgba(37,99,235,.06), rgba(20,184,166,.05)); padding: 16px; }
     .notification-empty .material-symbols-rounded { width: 54px; height: 54px; display: grid; place-items: center; border-radius: 16px; background: rgba(37,99,235,.1); color: var(--ac-primary); font-size: 28px; }
     .notification-empty strong { color: var(--ac-text); }
     .notification-empty p { max-width: 360px; margin: 0; color: var(--ac-muted); font-size: 13px; line-height: 1.45; }
