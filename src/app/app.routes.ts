@@ -81,6 +81,13 @@ export const routes: Routes = [
       import('./features/doctors/doctor-list-page.component').then(m => m.DoctorListPageComponent)
   },
   {
+    path: 'appointments',
+    canActivate: [authGuard, permissionGuard],
+    data: { permission: 'Appointments.View' },
+    loadComponent: () =>
+      import('./features/appointments/appointment-page.component').then(m => m.AppointmentPageComponent)
+  },
+  {
     path: 'administration/users',
     canActivate: [authGuard, permissionGuard],
     canDeactivate: [pendingChangesGuard],
@@ -138,8 +145,12 @@ export const routes: Routes = [
       import('./features/administration/system-configuration/system-configuration-page.component').then(m => m.SystemConfigurationPageComponent)
   },
   moduleRoute('administration', 'Administration', ['Hospital Management', 'User Management', 'Role Management', 'Permission Management', 'Branch Management', 'Localization']),
-  moduleRoute('appointments', 'Appointment Management', ['Calendar View', 'Slot Booking', 'Walk-In Registration', 'Follow-Ups', 'Queue Management']),
-  moduleRoute('opd', 'OPD', ['Symptoms', 'Diagnosis', 'Prescription', 'Consultation Notes', 'Attachments', 'Follow-Up Plan']),
+  {
+    path: 'opd',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/opd/opd-page.component').then(m => m.OpdPageComponent)
+  },
   moduleRoute('ipd', 'IPD', ['Admission', 'Discharge', 'Ward Allocation', 'Bed Tracking', 'Nursing Notes', 'Treatment Plans']),
   moduleRoute('emergency', 'Emergency', ['Emergency Triage', 'Critical Queue', 'Ambulance Intake', 'Bed Escalation', 'Incident Notes']),
   moduleRoute('laboratory', 'Laboratory', ['Test Master', 'Sample Collection', 'Result Entry', 'PDF Reports']),
