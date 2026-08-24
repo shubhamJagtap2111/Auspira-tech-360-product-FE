@@ -1298,19 +1298,28 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
       overflow-y: hidden;
       scroll-padding-inline: 8px;
       scrollbar-width: thin;
-      scrollbar-color: color-mix(in srgb, var(--profile-accent) 54%, var(--ac-border)) color-mix(in srgb, var(--ac-border) 38%, transparent);
+      scrollbar-color: color-mix(in srgb, #64748b 42%, var(--ac-border)) transparent;
     }
     .tab-bar::-webkit-scrollbar {
       display: block;
-      height: 8px;
+      height: 6px;
     }
     .tab-bar::-webkit-scrollbar-track {
       border-radius: 999px;
-      background: color-mix(in srgb, var(--ac-border) 34%, transparent);
+      background: transparent;
     }
     .tab-bar::-webkit-scrollbar-thumb {
       border-radius: 999px;
-      background: linear-gradient(90deg, var(--profile-accent), var(--profile-accent-2));
+      background: color-mix(in srgb, #64748b 38%, var(--ac-border));
+      border: 2px solid color-mix(in srgb, var(--ac-surface) 88%, transparent);
+    }
+    .tab-bar::-webkit-scrollbar-thumb:hover {
+      background: color-mix(in srgb, #475569 52%, var(--ac-border));
+    }
+    .tab-bar::-webkit-scrollbar-button {
+      display: none;
+      width: 0;
+      height: 0;
     }
     .tab-bar button {
       position: relative;

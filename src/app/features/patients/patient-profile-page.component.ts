@@ -99,9 +99,16 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
                     </div>
                   </div>
                   @if (currentPatient.allergies.length > 0) {
-                    <div class="chip-list">
+                    <div class="flag-list">
                       @for (allergy of currentPatient.allergies.slice(0, 4); track allergy.allergyGuid) {
-                        <span class="severity-chip">{{ allergy.allergen }} · {{ allergy.severityName }}</span>
+                        <article class="flag-card" [class.critical]="allergy.isCritical || allergy.severityCode === 'HIGH' || allergy.severityCode === 'SEVERE'">
+                          <span class="material-symbols-rounded">warning</span>
+                          <div>
+                            <strong>{{ allergy.allergen }}</strong>
+                            <p>{{ allergy.allergyType || 'Allergy' }} @if (allergy.reaction) { · {{ allergy.reaction }} }</p>
+                          </div>
+                          <small>{{ allergy.severityName || allergy.severityCode }}</small>
+                        </article>
                       }
                     </div>
                   } @else {
@@ -372,8 +379,69 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
     .detail-grid span, .billing-grid div { padding: 14px; border: 1px solid var(--ac-border); border-radius: var(--ac-r-sm); background: var(--ac-surface-2); }
     small { color: var(--ac-muted); }
     .detail-grid strong, .billing-grid strong { display: block; margin-top: 5px; color: var(--ac-text); font-size: 16px; }
-    .chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
-    .severity-chip { padding: 8px 10px; border-radius: var(--ac-r-full); background: rgba(244,63,94,.1); color: #e11d48; font-weight: 800; font-size: 12px; }
+    .chip-list { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; }
+    .severity-chip { display: inline-flex; align-items: center; max-width: 100%; padding: 8px 10px; border-radius: var(--ac-r-full); background: rgba(244,63,94,.1); color: #e11d48; font-weight: 800; font-size: 12px; }
+    .flag-list {
+      display: grid;
+      gap: 10px;
+      align-content: start;
+      margin-top: 4px;
+    }
+    .flag-card {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      min-height: 72px;
+      padding: 13px 14px;
+      border: 1px solid color-mix(in srgb, #f43f5e 18%, var(--ac-border));
+      border-radius: 14px;
+      background:
+        linear-gradient(135deg, color-mix(in srgb, #fff1f2 70%, var(--ac-surface)), var(--ac-surface));
+      box-shadow: 0 12px 28px rgba(244, 63, 94, 0.08);
+    }
+    .flag-card > .material-symbols-rounded {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: #ffe4e6;
+      color: #e11d48;
+      font-size: 20px;
+    }
+    .flag-card strong {
+      display: block;
+      color: var(--ac-text);
+      font-size: 15px;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+    .flag-card p {
+      margin: 4px 0 0;
+      color: var(--ac-muted);
+      font-size: 12.5px;
+      line-height: 1.35;
+    }
+    .flag-card small {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 28px;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: #e11d48;
+      color: #fff;
+      font-size: 11.5px;
+      font-weight: 900;
+      white-space: nowrap;
+      box-shadow: 0 8px 18px rgba(225, 29, 72, 0.18);
+    }
+    .flag-card.critical {
+      border-color: color-mix(in srgb, #e11d48 28%, var(--ac-border));
+      background:
+        linear-gradient(135deg, color-mix(in srgb, #ffe4e6 76%, var(--ac-surface)), color-mix(in srgb, #fff7ed 46%, var(--ac-surface)));
+    }
     .muted, .empty-state { color: var(--ac-muted); }
     .stacked-section { display: grid; gap: 18px; }
     .record-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -1147,19 +1215,28 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
       overflow-y: hidden;
       scroll-padding-inline: 8px;
       scrollbar-width: thin;
-      scrollbar-color: color-mix(in srgb, var(--profile-accent) 54%, var(--ac-border)) color-mix(in srgb, var(--ac-border) 38%, transparent);
+      scrollbar-color: color-mix(in srgb, #64748b 42%, var(--ac-border)) transparent;
     }
     .tab-bar::-webkit-scrollbar {
       display: block;
-      height: 8px;
+      height: 6px;
     }
     .tab-bar::-webkit-scrollbar-track {
       border-radius: 999px;
-      background: color-mix(in srgb, var(--ac-border) 34%, transparent);
+      background: transparent;
     }
     .tab-bar::-webkit-scrollbar-thumb {
       border-radius: 999px;
-      background: linear-gradient(90deg, var(--profile-accent), var(--profile-accent-2));
+      background: color-mix(in srgb, #64748b 38%, var(--ac-border));
+      border: 2px solid color-mix(in srgb, var(--ac-surface) 88%, transparent);
+    }
+    .tab-bar::-webkit-scrollbar-thumb:hover {
+      background: color-mix(in srgb, #475569 52%, var(--ac-border));
+    }
+    .tab-bar::-webkit-scrollbar-button {
+      display: none;
+      width: 0;
+      height: 0;
     }
     .tab-bar button {
       position: relative;
