@@ -138,10 +138,10 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
             @case ('availability') {
               <div class="stacked-section">
                 <div class="availability-actions">
-                  <button type="button" class="ac-btn ac-btn-primary" (click)="addAvailability(currentDoctor, 'ACTIVE')"><span class="material-symbols-rounded">add</span>Add Schedule</button>
+                  <button type="button" class="ac-btn ac-btn-primary" (click)="openAvailabilityForm(currentDoctor, 'ACTIVE')"><span class="material-symbols-rounded">add</span>Add Schedule</button>
                   <button type="button" class="ac-btn ac-btn-secondary" (click)="blockDate(currentDoctor)"><span class="material-symbols-rounded">event_busy</span>Block Date</button>
                   <button type="button" class="ac-btn ac-btn-secondary" (click)="openLeaveForm(currentDoctor)"><span class="material-symbols-rounded">free_cancellation</span>Add Leave</button>
-                  <button type="button" class="ac-btn ac-btn-secondary" (click)="addAvailability(currentDoctor, 'OVERRIDE')"><span class="material-symbols-rounded">edit_calendar</span>Override Availability</button>
+                  <button type="button" class="ac-btn ac-btn-secondary" (click)="openAvailabilityForm(currentDoctor, 'OVERRIDE')"><span class="material-symbols-rounded">edit_calendar</span>Override Availability</button>
                 </div>
                 @if (leaveForm(); as form) {
                   <form class="leave-form" (ngSubmit)="saveLeave(currentDoctor)">
@@ -370,6 +370,79 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
             }
           }
         </section>
+
+        @if (availabilityForm(); as form) {
+          <div class="modal-backdrop" (click)="cancelAvailabilityForm()">
+            <form class="availability-modal" (click)="$event.stopPropagation()" (ngSubmit)="saveAvailability(currentDoctor)">
+              <header class="availability-modal-head">
+                <span class="availability-modal-icon material-symbols-rounded">{{ form.statusCode === 'OVERRIDE' ? 'edit_calendar' : 'calendar_add_on' }}</span>
+                <div>
+                  <p class="ac-eyebrow">{{ form.statusCode === 'OVERRIDE' ? 'Availability override' : 'Reusable schedule' }}</p>
+                  <h2>{{ form.statusCode === 'OVERRIDE' ? 'Override Availability' : 'Add Schedule' }}</h2>
+                </div>
+                <button type="button" class="modal-close" aria-label="Close availability form" (click)="cancelAvailabilityForm()">
+                  <span class="material-symbols-rounded">close</span>
+                </button>
+              </header>
+
+              <div class="availability-modal-body">
+                <label>
+                  <span>Doctor</span>
+                  <input [value]="currentDoctor.fullName" readonly />
+                </label>
+                <label>
+                  <span>Branch</span>
+                  <input name="availabilityBranch" [(ngModel)]="form.branchName" required />
+                </label>
+                <label>
+                  <span>Day</span>
+                  <select name="availabilityDay" [(ngModel)]="form.dayOfWeek" required>
+                    <option [ngValue]="1">Monday</option>
+                    <option [ngValue]="2">Tuesday</option>
+                    <option [ngValue]="3">Wednesday</option>
+                    <option [ngValue]="4">Thursday</option>
+                    <option [ngValue]="5">Friday</option>
+                    <option [ngValue]="6">Saturday</option>
+                    <option [ngValue]="0">Sunday</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Consultation Type</span>
+                  <select name="availabilityConsultationType" [(ngModel)]="form.consultationType" required>
+                    <option value="OPD">OPD</option>
+                    <option value="FOLLOW_UP">Follow-up</option>
+                    <option value="TELECONSULT">Teleconsult</option>
+                    <option value="IPD_ROUND">IPD round</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Start Time</span>
+                  <input type="time" name="availabilityStartsAt" [(ngModel)]="form.startsAt" required />
+                </label>
+                <label>
+                  <span>End Time</span>
+                  <input type="time" name="availabilityEndsAt" [(ngModel)]="form.endsAt" required />
+                </label>
+                <label>
+                  <span>Slot Duration</span>
+                  <input type="number" name="availabilitySlotDuration" min="5" max="240" step="5" [(ngModel)]="form.slotDurationMinutes" required />
+                </label>
+                <label>
+                  <span>Maximum Patients</span>
+                  <input type="number" name="availabilityMaxPatients" min="1" max="100" [(ngModel)]="form.maxPatients" required />
+                </label>
+              </div>
+
+              <footer class="availability-modal-actions">
+                <button type="button" class="ac-btn ac-btn-secondary" (click)="cancelAvailabilityForm()">Cancel</button>
+                <button type="submit" class="ac-btn ac-btn-primary">
+                  <span class="material-symbols-rounded">save</span>
+                  Save Availability
+                </button>
+              </footer>
+            </form>
+          </div>
+        }
       } @else {
         <div class="profile-loader ac-card">Doctor profile was not found.</div>
       }
@@ -966,14 +1039,34 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
       display: flex;
       align-items: center;
       min-height: 54px;
-      padding: 6px;
+      padding: 6px 6px 10px;
       gap: 6px;
       border-radius: 12px;
-      overflow-x: auto;
+      overflow-x: scroll;
+      overflow-y: hidden;
+      scroll-snap-type: x proximity;
+      scrollbar-width: thin;
+      scrollbar-color: color-mix(in srgb, var(--ac-primary) 52%, var(--ac-border)) color-mix(in srgb, var(--ac-border) 42%, transparent);
       visibility: visible;
+    }
+    .tab-bar::-webkit-scrollbar {
+      display: block;
+      height: 8px;
+    }
+    .tab-bar::-webkit-scrollbar-track {
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--ac-border) 38%, transparent);
+    }
+    .tab-bar::-webkit-scrollbar-thumb {
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--ac-primary) 58%, var(--ac-border));
+    }
+    .tab-bar::-webkit-scrollbar-thumb:hover {
+      background: var(--ac-primary);
     }
     .tab-bar button {
       display: inline-flex;
+      flex: 0 0 auto;
       align-items: center;
       justify-content: center;
       gap: 6px;
@@ -984,6 +1077,7 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
       background: transparent;
       opacity: 1;
       visibility: visible;
+      scroll-snap-align: start;
     }
     .tab-bar button.active {
       color: var(--ac-primary);
@@ -1080,6 +1174,102 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
       justify-content: flex-end;
       gap: 8px;
     }
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(15, 23, 42, 0.44);
+      backdrop-filter: blur(4px);
+    }
+    .availability-modal {
+      width: min(760px, 100%);
+      max-height: min(86vh, 760px);
+      overflow: auto;
+      border: 1px solid color-mix(in srgb, var(--ac-border) 78%, var(--ac-primary));
+      border-radius: 18px;
+      background: var(--ac-surface);
+      box-shadow: 0 28px 80px rgba(15, 23, 42, 0.22);
+    }
+    .availability-modal-head {
+      position: relative;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 14px;
+      padding: 22px 24px;
+      border-bottom: 1px solid var(--ac-border);
+      background: linear-gradient(120deg, color-mix(in srgb, var(--ac-primary) 12%, var(--ac-surface)), color-mix(in srgb, #10b981 8%, var(--ac-surface)));
+    }
+    .availability-modal-head h2 {
+      margin: 2px 0 0;
+      font-size: 22px;
+      line-height: 1.15;
+    }
+    .availability-modal-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      color: var(--ac-primary);
+      background: color-mix(in srgb, var(--ac-primary) 12%, var(--ac-surface));
+      box-shadow: 0 14px 28px rgba(37, 99, 235, 0.14);
+    }
+    .modal-close {
+      width: 38px;
+      height: 38px;
+      border: 1px solid var(--ac-border);
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      color: var(--ac-muted);
+      background: color-mix(in srgb, var(--ac-surface) 88%, white);
+      cursor: pointer;
+    }
+    .modal-close:hover {
+      color: var(--ac-primary);
+      border-color: color-mix(in srgb, var(--ac-primary) 28%, var(--ac-border));
+      background: var(--ac-primary-light);
+    }
+    .availability-modal-body {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      padding: 22px 24px 10px;
+    }
+    .availability-modal-body label {
+      display: grid;
+      gap: 7px;
+      color: var(--ac-muted);
+      font-size: 12px;
+      font-weight: 850;
+    }
+    .availability-modal-body input,
+    .availability-modal-body select {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--ac-border);
+      border-radius: 10px;
+      background: var(--ac-surface);
+      color: var(--ac-text);
+      padding: 10px 12px;
+      font: inherit;
+      outline: 0;
+    }
+    .availability-modal-body input:focus,
+    .availability-modal-body select:focus {
+      border-color: color-mix(in srgb, var(--ac-primary) 58%, var(--ac-border));
+      box-shadow: 0 0 0 4px color-mix(in srgb, var(--ac-primary) 12%, transparent);
+    }
+    .availability-modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 16px 24px 22px;
+    }
     .empty-state {
       grid-column: 1 / -1;
       display: grid;
@@ -1105,6 +1295,36 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
       .tab-content {
         padding: 12px;
       }
+      .modal-backdrop {
+        align-items: end;
+        padding: 14px;
+      }
+      .availability-modal {
+        max-height: 92vh;
+        border-radius: 16px;
+      }
+      .availability-modal-head,
+      .availability-modal-body {
+        grid-template-columns: 1fr;
+      }
+      .availability-modal-head {
+        padding: 18px;
+      }
+      .modal-close {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+      }
+      .availability-modal-body {
+        padding: 18px 18px 8px;
+      }
+      .availability-modal-actions {
+        flex-direction: column-reverse;
+        padding: 14px 18px 18px;
+      }
+      .availability-modal-actions .ac-btn {
+        width: 100%;
+      }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -1113,6 +1333,7 @@ export class DoctorProfilePageComponent implements OnInit {
   protected readonly doctor = signal<DoctorProfile | null>(null);
   protected readonly loading = signal(false);
   protected readonly activeTab = signal<DoctorProfileTab>('overview');
+  protected readonly availabilityForm = signal<DoctorAvailabilityForm | null>(null);
   protected readonly leaveForm = signal<DoctorLeaveForm | null>(null);
   protected readonly tabs: Array<{ id: DoctorProfileTab; label: string; icon: string }> = [
     { id: 'overview', label: 'Overview', icon: 'dashboard' },
@@ -1201,29 +1422,52 @@ export class DoctorProfilePageComponent implements OnInit {
     return new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
   }
 
-  protected async addAvailability(doctor: DoctorProfile, statusCode: 'ACTIVE' | 'OVERRIDE'): Promise<void> {
-    const dayOfWeek = Number(window.prompt('Day of week: Sunday=0, Monday=1 ... Saturday=6', '1'));
-    const startsAt = window.prompt('Start time', '09:00');
-    const endsAt = window.prompt('End time', '13:00');
-    if (!Number.isInteger(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6 || !startsAt || !endsAt) {
+  protected openAvailabilityForm(doctor: DoctorProfile, statusCode: 'ACTIVE' | 'OVERRIDE'): void {
+    this.leaveForm.set(null);
+    this.availabilityForm.set({
+      doctorGuid: doctor.doctorGuid,
+      dayOfWeek: 1,
+      startsAt: statusCode === 'OVERRIDE' ? '16:00' : '09:00',
+      endsAt: statusCode === 'OVERRIDE' ? '20:00' : '13:00',
+      branchName: doctor.branchName,
+      consultationType: 'OPD',
+      slotDurationMinutes: 15,
+      maxPatients: 1,
+      statusCode
+    });
+  }
+
+  protected cancelAvailabilityForm(): void {
+    this.availabilityForm.set(null);
+  }
+
+  protected async saveAvailability(doctor: DoctorProfile): Promise<void> {
+    const form = this.availabilityForm();
+    if (!form || !Number.isInteger(Number(form.dayOfWeek)) || !form.startsAt || !form.endsAt || !form.branchName.trim()) {
       return;
     }
 
-    const slotDurationMinutes = Number(window.prompt('Slot duration in minutes', '15')) || 15;
-    const maxPatients = Number(window.prompt('Maximum patients per slot', '1')) || 1;
+    if (form.endsAt <= form.startsAt) {
+      this.toast.warning('Invalid schedule time', 'End time must be after the start time.');
+      return;
+    }
+
+    const slotDurationMinutes = Math.max(5, Number(form.slotDurationMinutes) || 15);
+    const maxPatients = Math.max(1, Number(form.maxPatients) || 1);
     await this.service.createAvailability({
       doctorId: doctor.doctorGuid,
-      dayOfWeek,
-      startsAt,
-      endsAt,
-      branchName: doctor.branchName,
-      consultationType: 'OPD',
+      dayOfWeek: Number(form.dayOfWeek),
+      startsAt: form.startsAt,
+      endsAt: form.endsAt,
+      branchName: form.branchName.trim(),
+      consultationType: form.consultationType,
       slotDurationMinutes,
       maxPatients,
-      statusCode
+      statusCode: form.statusCode
     });
+    this.availabilityForm.set(null);
     await this.reload();
-    this.toast.success(statusCode === 'OVERRIDE' ? 'Availability override added' : 'Schedule added');
+    this.toast.success(form.statusCode === 'OVERRIDE' ? 'Availability override added' : 'Schedule added');
   }
 
   protected async blockDate(doctor: DoctorProfile): Promise<void> {
@@ -1252,6 +1496,7 @@ export class DoctorProfilePageComponent implements OnInit {
     const now = new Date();
     const tomorrow = new Date(now);
     tomorrow.setDate(now.getDate() + 1);
+    this.availabilityForm.set(null);
     this.leaveForm.set({
       doctorGuid: doctor.doctorGuid,
       startsAt: toLocalInputValue(now),
@@ -1290,6 +1535,18 @@ export class DoctorProfilePageComponent implements OnInit {
     await this.reload();
     this.toast.success('Leave added');
   }
+}
+
+interface DoctorAvailabilityForm {
+  doctorGuid: string;
+  dayOfWeek: number;
+  startsAt: string;
+  endsAt: string;
+  branchName: string;
+  consultationType: string;
+  slotDurationMinutes: number;
+  maxPatients: number;
+  statusCode: 'ACTIVE' | 'OVERRIDE';
 }
 
 interface DoctorLeaveForm {

@@ -2,15 +2,24 @@ import { Injectable, computed, signal } from '@angular/core';
 
 @Injectable({ providedIn: 'root' })
 export class AppLoaderService {
+  private static readonly ShowDelayMs = 180;
+  private static readonly HideSettleMs = 220;
+  private static readonly MinimumVisibleMs = 520;
+  private static readonly EmergencyResetMs = 45_000;
+
   private readonly activeRequests = signal(0);
   private readonly visible = signal(false);
   private showTimer: ReturnType<typeof setTimeout> | null = null;
+  private hideTimer: ReturnType<typeof setTimeout> | null = null;
   private resetTimer: ReturnType<typeof setTimeout> | null = null;
+  private visibleSince = 0;
 
   readonly isVisible = computed(() => this.visible());
 
   show(): void {
     this.activeRequests.update(count => count + 1);
+
+    this.clearHideTimer();
 
     if (this.visible() || this.showTimer) {
       this.scheduleEmergencyReset();
@@ -20,10 +29,11 @@ export class AppLoaderService {
     this.showTimer = setTimeout(() => {
       this.showTimer = null;
       if (this.activeRequests() > 0) {
+        this.visibleSince = Date.now();
         this.visible.set(true);
         this.scheduleEmergencyReset();
       }
-    }, 180);
+    }, AppLoaderService.ShowDelayMs);
   }
 
   hide(): void {
@@ -38,8 +48,7 @@ export class AppLoaderService {
       this.showTimer = null;
     }
 
-    this.clearEmergencyReset();
-    this.visible.set(false);
+    this.scheduleHide();
   }
 
   reset(): void {
@@ -48,9 +57,39 @@ export class AppLoaderService {
       this.showTimer = null;
     }
 
+    this.clearHideTimer();
     this.clearEmergencyReset();
     this.activeRequests.set(0);
+    this.visibleSince = 0;
     this.visible.set(false);
+  }
+
+  private scheduleHide(): void {
+    if (!this.visible()) {
+      this.clearEmergencyReset();
+      return;
+    }
+
+    if (this.hideTimer) {
+      return;
+    }
+
+    const visibleForMs = Date.now() - this.visibleSince;
+    const delayMs = Math.max(
+      AppLoaderService.HideSettleMs,
+      AppLoaderService.MinimumVisibleMs - visibleForMs
+    );
+
+    this.hideTimer = setTimeout(() => {
+      this.hideTimer = null;
+      if (this.activeRequests() > 0) {
+        return;
+      }
+
+      this.clearEmergencyReset();
+      this.visibleSince = 0;
+      this.visible.set(false);
+    }, delayMs);
   }
 
   private scheduleEmergencyReset(): void {
@@ -58,7 +97,16 @@ export class AppLoaderService {
       return;
     }
 
-    this.resetTimer = setTimeout(() => this.reset(), 45_000);
+    this.resetTimer = setTimeout(() => this.reset(), AppLoaderService.EmergencyResetMs);
+  }
+
+  private clearHideTimer(): void {
+    if (!this.hideTimer) {
+      return;
+    }
+
+    clearTimeout(this.hideTimer);
+    this.hideTimer = null;
   }
 
   private clearEmergencyReset(): void {
