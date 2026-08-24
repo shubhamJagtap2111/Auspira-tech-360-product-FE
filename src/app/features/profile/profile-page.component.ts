@@ -39,6 +39,13 @@ interface PasswordFormModel {
   confirmPassword: string;
 }
 
+interface ProfileImagePreview {
+  file: File;
+  previewUrl: string;
+  base64Content: string;
+  sizeLabel: string;
+}
+
 interface ProfilePreference {
   code: PreferenceCode;
   icon: string;
@@ -70,12 +77,12 @@ interface ProfilePreference {
           <div class="avatar-upload">
             <div class="big-avatar">
               @if (profileImageUrl()) {
-                <img class="avatar-image" [src]="profileImageUrl()" alt="Profile photo" />
+                <img class="avatar-image" [src]="profileImageUrl()" alt="Profile photo" (error)="handleProfileImageError()" />
               } @else {
                 {{ userInitials() }}
               }
             </div>
-            <input #avatarInput type="file" accept="image/png,image/jpeg" hidden (change)="uploadProfileImage($event)" />
+            <input #avatarInput type="file" accept="image/png,image/jpeg" hidden (change)="openProfileImagePreview($event)" />
             <button type="button" class="upload-btn" title="Upload photo" (click)="avatarInput.click()" [disabled]="savingProfile()">
               <span class="material-symbols-rounded" style="font-size:16px">photo_camera</span>
             </button>
@@ -349,6 +356,33 @@ interface ProfilePreference {
 
         </div>
       </div>
+
+      @if (profileImagePreview(); as preview) {
+        <div class="profile-image-modal" role="dialog" aria-modal="true" aria-labelledby="profileImagePreviewTitle">
+          <div class="profile-image-dialog">
+            <div class="profile-image-head">
+              <div>
+                <h3 id="profileImagePreviewTitle">Profile Picture Preview</h3>
+                <p>{{ preview.file.name }} - {{ preview.sizeLabel }}</p>
+              </div>
+              <button type="button" class="modal-icon-btn" title="Close preview" (click)="closeProfileImagePreview()" [disabled]="savingProfile()">
+                <span class="material-symbols-rounded">close</span>
+              </button>
+            </div>
+            <div class="preview-avatar">
+              <img [src]="preview.previewUrl" alt="Selected profile photo preview" />
+            </div>
+            <div class="preview-actions">
+              <button type="button" class="ac-btn ac-btn-secondary" (click)="avatarInput.click()" [disabled]="savingProfile()">Choose another</button>
+              <button type="button" class="ac-btn ac-btn-secondary" (click)="closeProfileImagePreview()" [disabled]="savingProfile()">Cancel</button>
+              <button type="button" class="ac-btn ac-btn-primary" (click)="confirmProfileImageUpload()" [disabled]="savingProfile()">
+                <span class="material-symbols-rounded" style="font-size:16px">{{ savingProfile() ? 'progress_activity' : 'save' }}</span>
+                {{ savingProfile() ? 'Saving...' : 'Save Photo' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      }
     </div>
   `,
   styles: `
@@ -496,6 +530,70 @@ interface ProfilePreference {
     .revoke-btn { padding: 5px 12px; border-radius: var(--ac-r-sm); background: transparent; border: 1px solid var(--ac-error-light); color: var(--ac-error); font-size: 12.5px; font-weight: 600; cursor: pointer; transition: all 150ms; }
     .revoke-btn:hover { background: var(--ac-error-light); }
     .sessions-footer { display: flex; }
+
+    .profile-image-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 1200;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(15, 23, 42, .48);
+      backdrop-filter: blur(6px);
+    }
+    .profile-image-dialog {
+      width: min(420px, 100%);
+      display: grid;
+      gap: 18px;
+      padding: 20px;
+      border: 1px solid var(--ac-border);
+      border-radius: 8px;
+      background: var(--ac-surface);
+      box-shadow: 0 24px 70px rgba(15, 23, 42, .24);
+    }
+    .profile-image-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }
+    .profile-image-head h3 { margin: 0; font-size: 17px; color: var(--ac-text); }
+    .profile-image-head p { margin: 4px 0 0; color: var(--ac-muted); font-size: 12.5px; word-break: break-word; }
+    .modal-icon-btn {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--ac-border);
+      border-radius: 8px;
+      background: var(--ac-surface);
+      color: var(--ac-text-2);
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+    .preview-avatar {
+      width: 184px;
+      height: 184px;
+      margin: 0 auto;
+      border-radius: 50%;
+      overflow: hidden;
+      border: 4px solid var(--ac-surface);
+      outline: 1px solid var(--ac-border);
+      background: var(--ac-subtle);
+      box-shadow: 0 18px 38px rgba(15, 23, 42, .16);
+    }
+    .preview-avatar img { width: 100%; height: 100%; display: block; object-fit: cover; }
+    .preview-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px;
+      padding-top: 4px;
+    }
+    @media (max-width: 520px) {
+      .preview-actions { justify-content: stretch; }
+      .preview-actions .ac-btn { flex: 1 1 100%; }
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -515,6 +613,8 @@ export class ProfilePageComponent implements OnInit {
   protected readonly editingProfile = signal(false);
   protected readonly savingProfile = signal(false);
   protected readonly savingPassword = signal(false);
+  protected readonly profileImagePreview = signal<ProfileImagePreview | null>(null);
+  private readonly failedProfileImageUrl = signal('');
   protected profileForm: ProfileFormModel = { firstName: '', lastName: '', mobileNo: '' };
   protected passwordForm: PasswordFormModel = { currentPassword: '', newPassword: '', confirmPassword: '' };
   protected readonly displayName = computed(() => {
@@ -531,7 +631,10 @@ export class ProfilePageComponent implements OnInit {
   });
   protected readonly isAccountActive = computed(() => this.profile()?.isActive ?? true);
   protected readonly userInitials = computed(() => getInitials(this.displayName(), this.displayEmail()));
-  protected readonly profileImageUrl = computed(() => buildProfileImageUrl(this.profile(), this.apiBaseUrl));
+  protected readonly profileImageUrl = computed(() => {
+    const url = buildProfileImageUrl(this.profile(), this.apiBaseUrl);
+    return url && this.failedProfileImageUrl() !== url ? url : '';
+  });
   protected readonly firstName = computed(() => this.nameParts()[0] ?? '');
   protected readonly lastName = computed(() => this.nameParts().slice(1).join(' '));
   private readonly nameParts = computed(() => this.displayName().split(/\s+/).filter(Boolean));
@@ -656,7 +759,7 @@ export class ProfilePageComponent implements OnInit {
     }
   }
 
-  protected async uploadProfileImage(event: Event): Promise<void> {
+  protected async openProfileImagePreview(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     input.value = '';
@@ -664,17 +767,60 @@ export class ProfilePageComponent implements OnInit {
       return;
     }
 
+    if (!['image/png', 'image/jpeg'].includes(file.type)) {
+      this.toast.error('Profile image not selected', 'Please choose a PNG or JPEG image.');
+      return;
+    }
+
+    if (file.size > maxProfileImageBytes) {
+      this.toast.error('Profile image too large', 'Please choose an image smaller than 2 MB.');
+      return;
+    }
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      this.profileImagePreview.set({
+        file,
+        previewUrl: dataUrl,
+        base64Content: extractBase64(dataUrl),
+        sizeLabel: formatFileSize(file.size)
+      });
+    } catch {
+      this.toast.error('Profile image not selected', 'Unable to read the selected image.');
+    }
+  }
+
+  protected closeProfileImagePreview(): void {
+    if (!this.savingProfile()) {
+      this.profileImagePreview.set(null);
+    }
+  }
+
+  protected handleProfileImageError(): void {
+    const url = this.profileImageUrl();
+    if (url) {
+      this.failedProfileImageUrl.set(url);
+    }
+  }
+
+  protected async confirmProfileImageUpload(): Promise<void> {
+    const preview = this.profileImagePreview();
+    if (!preview || this.savingProfile()) {
+      return;
+    }
+
     this.savingProfile.set(true);
     try {
-      const base64Content = await readFileAsBase64(file);
-      const response = await this.authService.uploadCurrentUserProfileImage(file.name, file.type, base64Content);
+      const response = await this.authService.uploadCurrentUserProfileImage(preview.file.name, preview.file.type, preview.base64Content);
       if (!response.success || !response.data) {
         this.toast.error(response.message);
         return;
       }
 
+      this.failedProfileImageUrl.set('');
       this.profile.set(response.data);
       this.refreshStoredSession(response.data);
+      this.profileImagePreview.set(null);
       this.toast.success('Profile image uploaded');
     } finally {
       this.savingProfile.set(false);
@@ -907,17 +1053,35 @@ function mapSession(session: AuthenticationSession): ProfileSessionItem {
   };
 }
 
-function readFileAsBase64(file: File): Promise<string> {
+function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
-      const value = String(reader.result ?? '');
-      resolve(value.includes(',') ? value.split(',').pop() ?? '' : value);
+      resolve(String(reader.result ?? ''));
     };
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
   });
 }
+
+function extractBase64(dataUrl: string): string {
+  return dataUrl.includes(',') ? dataUrl.split(',').pop() ?? '' : dataUrl;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+
+  const kib = bytes / 1024;
+  if (kib < 1024) {
+    return `${kib.toFixed(1)} KB`;
+  }
+
+  return `${(kib / 1024).toFixed(1)} MB`;
+}
+
+const maxProfileImageBytes = 2 * 1024 * 1024;
 
 function formatSessionLocation(session: AuthenticationSession): string {
   const namedLocation = session.locationName?.trim();

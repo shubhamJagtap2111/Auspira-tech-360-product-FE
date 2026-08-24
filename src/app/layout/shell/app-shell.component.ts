@@ -198,7 +198,7 @@ const fallbackLanguages: Language[] = [
               <button class="profile-btn" (click)="toggleProfileMenu()">
                 <div class="avatar">
                   @if (profileImageUrl()) {
-                    <img class="avatar-image" [src]="profileImageUrl()" alt="Profile photo" />
+                    <img class="avatar-image" [src]="profileImageUrl()" alt="Profile photo" (error)="handleProfileImageError()" />
                   } @else {
                     <span>{{ userInitials() }}</span>
                   }
@@ -271,7 +271,7 @@ const fallbackLanguages: Language[] = [
               <div class="pd-user">
                 <div class="pd-avatar">
                   @if (profileImageUrl()) {
-                    <img class="pd-avatar-image" [src]="profileImageUrl()" alt="Profile photo" />
+                    <img class="pd-avatar-image" [src]="profileImageUrl()" alt="Profile photo" (error)="handleProfileImageError()" />
                   } @else {
                     {{ userInitials() }}
                   }
@@ -1929,6 +1929,7 @@ export class AppShellComponent implements OnInit {
   protected readonly selectedBranchCode = computed(() =>
     this.branchContext.selectedBranchCode() ?? this.branchContext.selectedBranch()?.branchCode ?? ''
   );
+  private readonly failedProfileImageUrl = signal('');
   protected readonly branchOptions = computed<DropdownOption<string>[]>(() => {
     const options = this.branchContext.branches().map(branch => ({
       label: branch.branchName,
@@ -1940,9 +1941,17 @@ export class AppShellComponent implements OnInit {
       : [{ label: this.branchHeaderLabel(), value: this.selectedBranchCode() }];
   });
   protected readonly userInitials = computed(() => getInitials(this.displayName(), this.displayEmail()));
-  protected readonly profileImageUrl = computed(() =>
-    buildProfileImageUrl(this.authStore.profile(), this.apiBaseUrl)
-  );
+  protected readonly profileImageUrl = computed(() => {
+    const url = buildProfileImageUrl(this.authStore.profile(), this.apiBaseUrl);
+    return url && this.failedProfileImageUrl() !== url ? url : '';
+  });
+
+  protected handleProfileImageError(): void {
+    const url = this.profileImageUrl();
+    if (url) {
+      this.failedProfileImageUrl.set(url);
+    }
+  }
 
   protected changeBranch(branchCode: string | null): void {
     this.branchContext.setSelectedBranchCode(branchCode);

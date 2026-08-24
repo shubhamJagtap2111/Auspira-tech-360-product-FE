@@ -328,8 +328,9 @@ export class HospitalManagementPageComponent implements OnInit {
       return;
     }
 
-    await this.save(() => this.service.updateBranding(current.branding), 'Administration.Hospital.Messages.BrandingUpdated');
-    this.closeDrawer();
+    if (await this.save(() => this.service.updateBranding(current.branding), 'Administration.Hospital.Messages.BrandingUpdated')) {
+      this.closeDrawer();
+    }
   }
 
   protected async saveSettings(): Promise<void> {
@@ -338,8 +339,9 @@ export class HospitalManagementPageComponent implements OnInit {
       return;
     }
 
-    await this.save(() => this.service.updateSettings(current.settings), 'Administration.Hospital.Messages.SettingsUpdated');
-    this.closeDrawer();
+    if (await this.save(() => this.service.updateSettings(current.settings), 'Administration.Hospital.Messages.SettingsUpdated')) {
+      this.closeDrawer();
+    }
   }
 
   protected async saveSubscription(): Promise<void> {
@@ -348,8 +350,9 @@ export class HospitalManagementPageComponent implements OnInit {
       return;
     }
 
-    await this.save(() => this.service.updateProfile(current), 'Administration.Hospital.Messages.Updated');
-    this.closeDrawer();
+    if (await this.save(() => this.service.updateProfile(current), 'Administration.Hospital.Messages.Updated')) {
+      this.closeDrawer();
+    }
   }
 
   protected addSetting(): void {
@@ -361,19 +364,26 @@ export class HospitalManagementPageComponent implements OnInit {
     this.profile.set({ ...current, settings: [...current.settings, createSetting()] });
   }
 
-  private async save(operation: () => Promise<{ success: boolean; message: string; data: HospitalProfile | null }>, successKey: string): Promise<void> {
+  private async save(operation: () => Promise<{ success: boolean; message: string; data: HospitalProfile | null }>, successKey: string): Promise<boolean> {
+    if (this.saving()) {
+      return false;
+    }
+
     this.saving.set(true);
     try {
       const response = await operation();
       if (!response.success || !response.data) {
         this.toast.error(this.t(response.message));
-        return;
+        return false;
       }
 
       this.profile.set(response.data);
       this.branchContext.setHospitalName(response.data.hospitalName);
-      await this.branchContext.refreshHospitalName();
       this.toast.success(this.t(successKey));
+      return true;
+    } catch {
+      this.toast.error(this.t('Administration.Hospital.Messages.SaveFailed'));
+      return false;
     } finally {
       this.saving.set(false);
     }

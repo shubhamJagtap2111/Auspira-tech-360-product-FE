@@ -291,6 +291,7 @@ const FALLBACK_RESOURCES: Record<string, string> = {
   'Administration.Hospital.Messages.Updated': 'Hospital profile updated.',
   'Administration.Hospital.Messages.BrandingUpdated': 'Hospital branding updated.',
   'Administration.Hospital.Messages.SettingsUpdated': 'Hospital settings updated.',
+  'Administration.Hospital.Messages.SaveFailed': 'Hospital management changes were not saved. Please check the API response and try again.',
   'Administration.Hospital.Errors.ProfileNotFound': 'Hospital profile was not found.',
   'Administration.Hospital.Errors.ConcurrencyConflict': 'Hospital profile was changed by another request. Reload and try again.',
   'Administration.Hospital.Validation.HospitalCodeRequired': 'Hospital code is required.',
