@@ -141,11 +141,14 @@ export const routes: Routes = [
   moduleRoute('appointments', 'Appointment Management', ['Calendar View', 'Slot Booking', 'Walk-In Registration', 'Follow-Ups', 'Queue Management']),
   moduleRoute('opd', 'OPD', ['Symptoms', 'Diagnosis', 'Prescription', 'Consultation Notes', 'Attachments', 'Follow-Up Plan']),
   moduleRoute('ipd', 'IPD', ['Admission', 'Discharge', 'Ward Allocation', 'Bed Tracking', 'Nursing Notes', 'Treatment Plans']),
+  moduleRoute('emergency', 'Emergency', ['Emergency Triage', 'Critical Queue', 'Ambulance Intake', 'Bed Escalation', 'Incident Notes']),
   moduleRoute('laboratory', 'Laboratory', ['Test Master', 'Sample Collection', 'Result Entry', 'PDF Reports']),
   moduleRoute('pharmacy', 'Pharmacy', ['Medicine Catalog', 'Stock Management', 'Purchase Entry', 'Sales Entry', 'Expiry Tracking', 'Low Stock Alerts']),
   moduleRoute('billing', 'Billing', ['Invoices', 'Payments', 'Refunds', 'Insurance', 'Discounts']),
   moduleRoute('inventory', 'Inventory', ['Assets', 'Medical Equipment', 'Consumables', 'Purchase Orders', 'Vendor Management']),
   moduleRoute('reports', 'Reports & Insights', ['Dashboards', 'Revenue Insights', 'Appointment Reports', 'Inventory Reports', 'Doctor Performance']),
+  moduleRoute('support', 'Help Center', ['Tickets', 'Knowledge Base', 'Implementation Help', 'Contact Support']),
+  moduleRoute('documentation', 'Documentation', ['User Guides', 'Workflow Manuals', 'Release Notes', 'API Reference']),
   { path: '**', redirectTo: '' }
 ];
 

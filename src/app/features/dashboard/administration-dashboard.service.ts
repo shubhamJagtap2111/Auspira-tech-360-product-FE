@@ -7,7 +7,7 @@ import { AdministrationDashboard, AdministrationDashboardApiResponse } from './a
 export class AdministrationDashboardService {
   private readonly api = inject(ApiClientService);
 
-  getDashboard(): Promise<AdministrationDashboardApiResponse<AdministrationDashboard>> {
-    return firstValueFrom(this.api.get<AdministrationDashboardApiResponse<AdministrationDashboard>>('/administration/dashboard'));
+  getDashboard(activityDays = 7): Promise<AdministrationDashboardApiResponse<AdministrationDashboard>> {
+    return firstValueFrom(this.api.get<AdministrationDashboardApiResponse<AdministrationDashboard>>(`/administration/dashboard?activityDays=${activityDays}`));
   }
 }

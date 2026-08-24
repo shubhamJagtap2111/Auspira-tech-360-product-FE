@@ -1,12 +1,13 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AiraChatService } from '../../core/ai/aira-chat.service';
 import { AuthStore } from '../../core/auth/auth.store';
 import { getUserRoleLabel, isHospitalAdminUser } from '../../core/auth/user-access';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { ToastService } from '../../shared/ui/toast/toast.service';
-import { AdministrationDashboard, AdministrationDashboardSummary } from './administration-dashboard.models';
+import { ActivityTrendItem, AdministrationDashboard, AdministrationDashboardSummary, AdministrationOperationalSummary, RecentLoginItem, SystemHealthItem } from './administration-dashboard.models';
 import { AdministrationDashboardService } from './administration-dashboard.service';
 
 interface DashboardCard {
@@ -32,6 +33,37 @@ interface StaffAction {
   tone: string;
 }
 
+interface QuickAction {
+  label: string;
+  path: string;
+  icon: string;
+  tone: string;
+}
+
+interface AttentionItem {
+  title: string;
+  detail: string;
+  actionLabel: string;
+  path: string;
+  icon: string;
+  severity: 'critical' | 'warning' | 'info';
+}
+
+interface OperationalMetric {
+  label: string;
+  value: string;
+  subLabel: string;
+  icon: string;
+  tone: string;
+  path: string;
+}
+
+interface ActivitySeries {
+  label: string;
+  key: keyof Pick<ActivityTrendItem, 'loginAttempts' | 'recordUpdates' | 'securityEvents'>;
+  tone: string;
+}
+
 interface HospitalPulseItem {
   title: string;
   detail: string;
@@ -44,7 +76,7 @@ interface HospitalPulseItem {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink],
   template: `
     <section class="admin-dashboard">
       <header class="dashboard-hero" [class.staff-hero]="!isHospitalAdmin()">
@@ -69,14 +101,56 @@ interface HospitalPulseItem {
 
       @if (dashboard(); as model) {
         @if (isHospitalAdmin()) {
+          <section class="quick-action-strip">
+            <div class="section-head">
+              <div>
+                <h2>Quick actions</h2>
+                <p>Start common hospital administration work without hunting through menus.</p>
+              </div>
+              <span>{{ adminQuickActions.length }} actions</span>
+            </div>
+            <div class="admin-quick-actions">
+              @for (action of adminQuickActions; track action.path + action.label) {
+                <a [routerLink]="action.path" class="admin-quick-action" [style.--tone]="action.tone">
+                  <span class="material-symbols-rounded">{{ action.icon }}</span>
+                  <strong>{{ action.label }}</strong>
+                </a>
+              }
+            </div>
+          </section>
+
+          <section class="attention-grid">
+            <article class="panel attention-panel">
+              <div class="section-head">
+                <div>
+                  <h2>Requires attention</h2>
+                  <p>Priority actions that can affect hospital operations today.</p>
+                </div>
+                <span>{{ attentionItems(model).length }} open</span>
+              </div>
+              <div class="attention-list">
+                @for (item of attentionItems(model); track item.title) {
+                  <div class="attention-row" [class.critical]="item.severity === 'critical'" [class.info]="item.severity === 'info'">
+                    <span class="material-symbols-rounded">{{ item.icon }}</span>
+                    <div>
+                      <strong>{{ item.title }}</strong>
+                      <p>{{ item.detail }}</p>
+                    </div>
+                    <a [routerLink]="item.path">{{ item.actionLabel }}</a>
+                  </div>
+                }
+              </div>
+            </article>
+          </section>
+
           <section class="kpi-grid">
-            @for (card of createCards(model.summary); track card.labelKey) {
+            @for (card of createOperationalCards(model.operationalSummary); track card.label) {
               <article class="metric-card" [style.--tone]="card.tone">
                 <div class="metric-icon"><span class="material-symbols-rounded">{{ card.icon }}</span></div>
                 <div>
-                  <p class="metric-label">{{ t(card.labelKey) }}</p>
+                  <p class="metric-label">{{ card.label }}</p>
                   <strong>{{ card.value }}</strong>
-                  <span>{{ t(card.subKey) }}</span>
+                  <span>{{ card.subLabel }}</span>
                 </div>
               </article>
             }
@@ -86,33 +160,48 @@ interface HospitalPulseItem {
             <article class="panel chart-panel">
               <div class="section-head">
                 <div>
-                  <h2>Hospital activity</h2>
-                  <p>Simple view of what happened in the workspace.</p>
+                  <h2>Activity overview</h2>
+                  <p>Login, record, and security movement by day.</p>
                 </div>
-                <span>{{ t('Administration.Dashboard.Labels.LastSevenDays') }}</span>
+                <div class="range-controls">
+                  <button type="button" [class.active]="activityDays() === 1" (click)="setActivityRange(1)">Today</button>
+                  <button type="button" [class.active]="activityDays() === 7" (click)="setActivityRange(7)">Last 7 days</button>
+                  <button type="button" [class.active]="activityDays() === 30" (click)="setActivityRange(30)">Last 30 days</button>
+                  <label>
+                    <span>Custom</span>
+                    <input type="number" min="1" max="30" [ngModel]="customActivityDays()" (ngModelChange)="setCustomActivityDays($event)" />
+                  </label>
+                </div>
               </div>
-              <div class="bar-list">
-                @for (item of model.auditSummary; track item.actionCode) {
-                  <div class="bar-row" [style.--tone]="auditTone(item.actionCode)">
-                    <span class="audit-name">
-                      <span class="audit-icon material-symbols-rounded">{{ auditIcon(item.actionCode) }}</span>
-                      <span>
-                        <strong>{{ auditLabel(item.actionCode) }}</strong>
-                        <small>{{ auditHelp(item.actionCode) }}</small>
-                      </span>
-                    </span>
-                    <div class="bar-track"><div class="bar-fill" [style.width.%]="barWidth(item.eventCount, model.auditSummary)"></div></div>
-                    <strong>{{ item.eventCount }}</strong>
+              <div class="activity-chart">
+                @for (day of model.activityTrend; track day.activityDate) {
+                  <div class="activity-day">
+                    <div class="activity-bars">
+                      @for (series of activitySeries; track series.key) {
+                        <span [style.--tone]="series.tone" [style.height.%]="activityHeight(day[series.key], model.activityTrend)">
+                          <i>{{ day[series.key] }}</i>
+                        </span>
+                      }
+                    </div>
+                    <small>{{ day.activityDate | date: 'EEE' }}</small>
                   </div>
                 } @empty {
                   <p class="empty">{{ t('Administration.Dashboard.Labels.NoData') }}</p>
+                }
+              </div>
+              <div class="chart-legend">
+                @for (series of activitySeries; track series.key) {
+                  <span [style.--tone]="series.tone"><i></i>{{ series.label }}</span>
                 }
               </div>
             </article>
 
             <article class="panel">
               <div class="section-head">
-                <h2>{{ t('Administration.Dashboard.Widgets.SystemHealth') }}</h2>
+                <div>
+                  <h2>{{ t('Administration.Dashboard.Widgets.SystemHealth') }}</h2>
+                  <p>Current service readiness and next action.</p>
+                </div>
                 <span class="status" [class.warning]="model.summary.systemHealthStatusCode !== 'HEALTHY'">
                   {{ t('Administration.Dashboard.Health.' + model.summary.systemHealthStatusCode) }}
                 </span>
@@ -122,10 +211,14 @@ interface HospitalPulseItem {
                   <div class="health-row">
                     <span class="dot" [class.warning]="item.statusCode !== 'HEALTHY'"></span>
                     <div>
-                      <strong>{{ item.componentCode }}</strong>
-                      <p>{{ t(item.messageKey) }}</p>
+                      <strong>{{ healthTitle(item) }}</strong>
+                      <p>{{ healthDetail(item) }}</p>
                     </div>
-                    <span class="status" [class.warning]="item.statusCode !== 'HEALTHY'">{{ t('Administration.Dashboard.Health.' + item.statusCode) }}</span>
+                    @if (healthAction(item); as action) {
+                      <a class="health-action" [routerLink]="action.path">{{ action.label }}</a>
+                    } @else {
+                      <span class="status" [class.warning]="item.statusCode !== 'HEALTHY'">{{ t('Administration.Dashboard.Health.' + item.statusCode) }}</span>
+                    }
                   </div>
                 }
               </div>
@@ -144,9 +237,11 @@ interface HospitalPulseItem {
                     <span class="login-state" [class.failed]="!login.wasSuccessful">{{ t(login.wasSuccessful ? 'Administration.Dashboard.Labels.Success' : 'Administration.Dashboard.Labels.Failed') }}</span>
                     <div>
                       <strong>{{ login.displayName }}</strong>
-                      <p>{{ login.email }} - {{ login.loginDate | date: 'short' }}</p>
+                      <p>{{ login.email }}</p>
                     </div>
-                    <small>{{ login.ipAddress || 'Secure session' }}</small>
+                    <small><b>Device</b>{{ loginDevice(login) }}</small>
+                    <small><b>Location</b>{{ loginLocation(login) }}</small>
+                    <small><b>Login</b>{{ login.loginDate | date: 'shortTime' }}</small>
                   </div>
                 } @empty {
                   <p class="empty">{{ t('Administration.Dashboard.Labels.NoData') }}</p>
@@ -154,6 +249,7 @@ interface HospitalPulseItem {
               </div>
               <footer class="login-pager">
                 <span>Showing {{ recentLoginRange(model) }} of {{ model.recentLogins.length }} logins</span>
+                <a routerLink="/profile/activity-logs">View all login activity</a>
                 <div>
                   <button class="icon-btn" type="button" (click)="changeLoginPage(-1, model)" [disabled]="loginPage() <= 1" title="Previous logins">
                     <span class="material-symbols-rounded">chevron_left</span>
@@ -167,22 +263,24 @@ interface HospitalPulseItem {
             </article>
 
             <div class="dashboard-side-stack">
-              <div class="status-stack">
-                <div class="status-block compact">
-                  <span class="material-symbols-rounded">verified</span>
-                  <p>{{ t('Administration.Dashboard.Widgets.LicenseStatus') }}</p>
-                  <strong class="status-value" [class]="statusToneClass(model.summary.licenseStatusCode)">
-                    <i></i>{{ t('Administration.Dashboard.License.' + model.summary.licenseStatusCode) }}
-                  </strong>
-                </div>
-                <div class="status-block compact">
-                  <span class="material-symbols-rounded">workspace_premium</span>
-                  <p>{{ t('Administration.Dashboard.Widgets.SubscriptionStatus') }}</p>
+              <article class="panel account-panel">
+                <div class="section-head">
+                  <div>
+                    <h2>Account & subscription</h2>
+                    <p>License, plan, and usage limits in one place.</p>
+                  </div>
                   <strong class="status-value" [class]="statusToneClass(model.summary.subscriptionStatusCode)">
                     <i></i>{{ t('Hospital.Subscription.Status.' + model.summary.subscriptionStatusCode) }}
                   </strong>
                 </div>
-              </div>
+                <div class="account-lines">
+                  <div><span>Plan</span><strong>Care360 Enterprise</strong></div>
+                  <div><span>Hospitals</span><strong>{{ model.summary.totalHospitals }} / 5</strong></div>
+                  <div><span>Users</span><strong>{{ model.summary.totalUsers }} / Unlimited</strong></div>
+                  <div><span>License</span><strong>{{ t('Administration.Dashboard.License.' + model.summary.licenseStatusCode) }}</strong></div>
+                </div>
+                <a class="panel-action" routerLink="/administration/hospital">Manage subscription</a>
+              </article>
 
               <article class="panel">
                 <div class="section-head">
@@ -198,9 +296,9 @@ interface HospitalPulseItem {
                   } @empty {
                     <div class="notification-empty">
                       <span class="material-symbols-rounded">notifications_active</span>
-                      <strong>No templates yet</strong>
-                      <p>Prepare SMS, email, and reminder templates so hospital communication can run without manual follow-up.</p>
-                      <a routerLink="/administration/system-configuration">Open configuration</a>
+                      <strong>Templates are not configured</strong>
+                      <p>Configure SMS, email, and reminder templates so hospital communication can run without manual follow-up.</p>
+                      <a routerLink="/administration/system-configuration">Configure</a>
                     </div>
                   }
                 </div>
@@ -252,53 +350,16 @@ interface HospitalPulseItem {
                   </div>
                   <span class="ai-live-chip"><i></i>AIRA live</span>
                 </div>
-                <p>{{ aiInsightText() }}</p>
-                <div class="ai-signal-grid">
-                  <span>
-                    <b>{{ model.summary.systemHealthStatusCode === 'HEALTHY' ? 'Stable' : 'Review' }}</b>
-                    System health
-                  </span>
-                  <span>
-                    <b>{{ model.summary.notificationTemplateCount }}</b>
-                    Templates
-                  </span>
-                  <span>
-                    <b>{{ model.summary.activeSessions }}</b>
-                    Sessions
-                  </span>
-                </div>
-                <div class="ai-next-actions">
-                  <div>
-                    <span class="material-symbols-rounded">task_alt</span>
-                    <p>{{ model.summary.notificationTemplateCount === 0 ? 'Create notification templates for alerts, reminders, and daily communication.' : 'Review recently updated notification templates before peak hours.' }}</p>
-                  </div>
-                  <div>
-                    <span class="material-symbols-rounded">monitor_heart</span>
-                    <p>{{ model.summary.systemHealthStatusCode === 'HEALTHY' ? 'Keep monitoring dashboard health and failed login movement.' : 'Open system health and resolve components needing attention.' }}</p>
-                  </div>
-                </div>
-              </div>
-              <div class="pulse-panel" [style.--tone]="currentPulse().tone">
-                <div class="pulse-topline">
-                  <span class="pulse-icon material-symbols-rounded">{{ currentPulse().icon }}</span>
-                  <div>
-                    <small>{{ currentPulse().region }} · {{ currentPulse().tag }}</small>
-                    <strong>Global care pulse</strong>
-                  </div>
-                  <span class="pulse-live"><i></i>Live</span>
-                </div>
-                <div class="pulse-story">
-                  <h3>{{ currentPulse().title }}</h3>
-                  <p>{{ currentPulse().detail }}</p>
-                </div>
-                <div class="pulse-rows">
-                  @for (row of currentPulse().rows; track row) {
-                    <div class="pulse-row">
-                      <span class="material-symbols-rounded">trending_up</span>
-                      <p>{{ row }}</p>
-                    </div>
+                <p>{{ attentionItems(model).length }} insights require attention.</p>
+                <div class="ai-next-actions compact">
+                  @for (item of aiAttentionItems(model); track item.title) {
+                    <a [routerLink]="item.path">
+                      <span class="material-symbols-rounded">{{ item.icon }}</span>
+                      <p>{{ item.title }}</p>
+                    </a>
                   }
                 </div>
+                <a class="panel-action" routerLink="/reports">View AI insights</a>
               </div>
             </article>
           </section>
@@ -409,6 +470,24 @@ interface HospitalPulseItem {
     .hero-panel strong { font-size: 18px; }
     .hero-panel p { margin: 0; font-size: 12px; color: var(--ac-muted); }
     .icon-btn { width: 36px; height: 36px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-text-2); cursor: pointer; display: inline-grid; place-items: center; }
+    .quick-action-strip { padding: 14px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); box-shadow: var(--ac-shadow-soft); }
+    .admin-quick-actions { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+    .admin-quick-action { min-height: 54px; display: grid; grid-template-columns: 32px minmax(0, 1fr); align-items: center; gap: 8px; padding: 10px; border: 1px solid var(--ac-border); border-radius: 8px; color: var(--ac-text); text-decoration: none; background: color-mix(in srgb, var(--tone) 6%, var(--ac-surface)); }
+    .admin-quick-action:hover { border-color: var(--tone); transform: translateY(-1px); }
+    .admin-quick-action .material-symbols-rounded { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; background: color-mix(in srgb, var(--tone) 13%, transparent); color: var(--tone); font-size: 19px; }
+    .admin-quick-action strong { font-size: 12.5px; line-height: 1.2; }
+    .attention-grid { display: grid; grid-template-columns: 1fr; }
+    .attention-panel { border-color: rgba(217,119,6,.22); background: linear-gradient(135deg, rgba(255,247,237,.75), var(--ac-surface)); }
+    .attention-list { display: grid; gap: 10px; margin-top: 12px; }
+    .attention-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px; border: 1px solid rgba(217,119,6,.22); border-radius: 8px; background: rgba(255,255,255,.72); }
+    .attention-row.critical { border-color: rgba(220,38,38,.24); background: rgba(254,242,242,.76); }
+    .attention-row.info { border-color: rgba(34,197,94,.22); background: rgba(240,253,244,.74); }
+    .attention-row > .material-symbols-rounded { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 8px; color: #b45309; background: rgba(245,158,11,.13); }
+    .attention-row.critical > .material-symbols-rounded { color: #dc2626; background: rgba(220,38,38,.1); }
+    .attention-row.info > .material-symbols-rounded { color: #15803d; background: rgba(34,197,94,.12); }
+    .attention-row strong { display: block; font-size: 13.5px; }
+    .attention-row p { margin: 3px 0 0; color: var(--ac-muted); font-size: 12px; line-height: 1.35; }
+    .attention-row a, .health-action, .panel-action, .login-pager a { min-height: 30px; display: inline-flex; align-items: center; justify-content: center; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--ac-border); background: var(--ac-surface); color: var(--ac-primary); text-decoration: none; font-size: 12px; font-weight: 900; white-space: nowrap; }
     .kpi-grid, .staff-kpi-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
     .staff-kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .metric-card, .panel { border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; }
@@ -435,11 +514,28 @@ interface HospitalPulseItem {
     .bar-track { height: 10px; border-radius: 999px; background: var(--ac-bg); overflow: hidden; }
     .bar-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--tone), color-mix(in srgb, var(--tone) 72%, #ffffff)); }
     .bar-row > strong { justify-self: end; min-width: 34px; padding: 4px 8px; border-radius: 999px; background: color-mix(in srgb, var(--tone) 10%, transparent); color: var(--tone); text-align: center; font-size: 12px; }
+    .range-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+    .range-controls button, .range-controls label { min-height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-text-2); font-size: 11px; font-weight: 900; }
+    .range-controls button { cursor: pointer; }
+    .range-controls button.active { border-color: var(--ac-primary); background: rgba(37,99,235,.1); color: var(--ac-primary); }
+    .range-controls input { width: 52px; border: 0; outline: 0; background: transparent; color: var(--ac-text); font-weight: 900; }
+    .activity-chart { min-height: 250px; display: grid; grid-template-columns: repeat(auto-fit, minmax(46px, 1fr)); align-items: end; gap: 10px; margin-top: 18px; padding: 14px 12px 8px; border: 1px solid var(--ac-border); border-radius: 8px; background: linear-gradient(180deg, color-mix(in srgb, #eff6ff 42%, var(--ac-surface)), var(--ac-surface)); }
+    .activity-day { min-width: 0; display: grid; gap: 8px; align-items: end; justify-items: center; }
+    .activity-bars { width: 100%; height: 190px; display: grid; grid-template-columns: repeat(3, minmax(7px, 1fr)); align-items: end; gap: 4px; }
+    .activity-bars span { position: relative; min-height: 6px; border-radius: 6px 6px 2px 2px; background: linear-gradient(180deg, var(--tone), color-mix(in srgb, var(--tone) 72%, #ffffff)); box-shadow: 0 8px 18px color-mix(in srgb, var(--tone) 18%, transparent); }
+    .activity-bars i { position: absolute; left: 50%; bottom: calc(100% + 4px); transform: translateX(-50%); color: var(--ac-muted); font-size: 10px; font-style: normal; font-weight: 900; opacity: 0; transition: opacity .16s ease; }
+    .activity-bars span:hover i { opacity: 1; }
+    .activity-day small { color: var(--ac-muted); font-size: 11px; font-weight: 900; }
+    .chart-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+    .chart-legend span { display: inline-flex; align-items: center; gap: 6px; color: var(--ac-text-2); font-size: 12px; font-weight: 800; }
+    .chart-legend i { width: 9px; height: 9px; border-radius: 999px; background: var(--tone); }
     .health-row, .login-row, .template-row { display: flex; gap: 10px; align-items: center; padding: 10px; border: 1px solid var(--ac-border); border-radius: 8px; }
     .health-row p, .login-row p { margin: 3px 0 0; color: var(--ac-muted); font-size: 12px; }
     .login-row { min-height: 58px; }
     .login-row > div { min-width: 0; flex: 1; }
-    .login-row > small { color: var(--ac-muted); font-size: 11px; white-space: nowrap; }
+    .lower-grid .login-row { display: grid; grid-template-columns: 72px minmax(180px, 1fr) repeat(3, minmax(92px, auto)); }
+    .login-row > small { display: grid; gap: 2px; color: var(--ac-muted); font-size: 11px; white-space: nowrap; }
+    .login-row > small b { color: var(--ac-text-2); font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
     .dot { width: 10px; height: 10px; border-radius: 999px; background: #16a34a; flex: 0 0 auto; }
     .dot.warning { background: #d97706; }
     .status, .login-state { margin-left: auto; padding: 4px 8px; border-radius: 999px; background: rgba(22,163,74,.1); color: #15803d; font-size: 11px; font-weight: 800; }
@@ -475,8 +571,14 @@ interface HospitalPulseItem {
     .ai-signal-grid b { color: var(--ac-text); font-size: 14px; line-height: 1; }
     .ai-next-actions { display: grid; gap: 9px; }
     .ai-next-actions div { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 8px; align-items: center; padding: 9px; border-radius: 8px; background: rgba(255,255,255,.54); border: 1px solid rgba(37,99,235,.1); }
+    .ai-next-actions.compact a { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 8px; align-items: center; padding: 9px; border-radius: 8px; background: rgba(255,255,255,.54); border: 1px solid rgba(37,99,235,.1); color: var(--ac-text); text-decoration: none; }
     .ai-next-actions .material-symbols-rounded { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; color: #2563eb; background: rgba(37,99,235,.1); font-size: 18px; }
     .ai-next-actions p { margin: 0; color: var(--ac-text-2); font-size: 12px; line-height: 1.35; }
+    .account-panel { display: grid; gap: 12px; }
+    .account-lines { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+    .account-lines div { min-height: 54px; display: grid; align-content: center; gap: 3px; padding: 9px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-subtle); }
+    .account-lines span { color: var(--ac-muted); font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; }
+    .account-lines strong { color: var(--ac-text); font-size: 13px; }
     .status-stack { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
     .readiness-panel { background: linear-gradient(135deg, rgba(20,184,166,.05), rgba(37,99,235,.04)); }
     .readiness-list { display: grid; gap: 9px; margin-top: 12px; }
@@ -732,6 +834,40 @@ interface HospitalPulseItem {
       border-color: rgba(148,163,184,.16);
       background: rgba(15,23,42,.42);
     }
+    :host-context(.dark) .quick-action-strip,
+    :host-context(.dark) .attention-panel,
+    :host-context(.dark) .activity-chart {
+      border-color: rgba(148,163,184,.18);
+      background: linear-gradient(180deg, rgba(22,30,42,.96), rgba(17,24,34,.96));
+    }
+    :host-context(.dark) .admin-quick-action,
+    :host-context(.dark) .attention-row,
+    :host-context(.dark) .range-controls button,
+    :host-context(.dark) .range-controls label,
+    :host-context(.dark) .account-lines div,
+    :host-context(.dark) .health-action,
+    :host-context(.dark) .panel-action,
+    :host-context(.dark) .login-pager a,
+    :host-context(.dark) .ai-next-actions.compact a {
+      border-color: rgba(148,163,184,.16);
+      background: rgba(15,23,42,.48);
+    }
+    :host-context(.dark) .attention-row p,
+    :host-context(.dark) .activity-day small,
+    :host-context(.dark) .chart-legend span,
+    :host-context(.dark) .account-lines span {
+      color: #94a3b8;
+    }
+    :host-context(.dark) .attention-row strong,
+    :host-context(.dark) .admin-quick-action,
+    :host-context(.dark) .account-lines strong {
+      color: #f8fafc;
+    }
+    :host-context(.dark) .range-controls button.active {
+      border-color: rgba(96,165,250,.45);
+      background: rgba(37,99,235,.22);
+      color: #bfdbfe;
+    }
     :host-context(.dark) .readiness-panel {
       background: linear-gradient(135deg, rgba(20,184,166,.08), rgba(37,99,235,.08));
     }
@@ -754,8 +890,9 @@ interface HospitalPulseItem {
         rgba(15,23,42,.54);
       border: 1px solid rgba(148,163,184,.14);
     }
-    @media (max-width: 1280px) { .kpi-grid, .staff-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .main-grid, .lower-grid, .staff-grid { grid-template-columns: 1fr; } }
-    @media (max-width: 760px) { .dashboard-hero { grid-template-columns: 1fr; } .kpi-grid, .staff-kpi-grid, .quick-actions { grid-template-columns: 1fr; } .section-head { flex-direction: column; } .bar-row { grid-template-columns: 1fr; } .audit-name small { white-space: normal; } }
+    @media (max-width: 1280px) { .kpi-grid, .staff-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .admin-quick-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); } .main-grid, .lower-grid, .staff-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 900px) { .lower-grid .login-row { grid-template-columns: 72px minmax(0, 1fr); } .login-row > small { white-space: normal; } }
+    @media (max-width: 760px) { .dashboard-hero { grid-template-columns: 1fr; } .kpi-grid, .staff-kpi-grid, .quick-actions, .admin-quick-actions, .account-lines { grid-template-columns: 1fr; } .section-head { flex-direction: column; } .range-controls { justify-content: flex-start; } .attention-row { grid-template-columns: 34px minmax(0, 1fr); } .attention-row a { grid-column: 2; justify-self: start; } .bar-row { grid-template-columns: 1fr; } .audit-name small { white-space: normal; } }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -776,12 +913,16 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
   protected readonly staffActions = computed(() => createStaffActions(this.authStore.permissions()));
   protected readonly accessModules = computed(() => createAccessModules(this.authStore.permissions()));
   protected readonly loginPage = signal(1);
+  protected readonly activityDays = signal(7);
+  protected readonly customActivityDays = signal(14);
   protected readonly aiInsightLoading = signal(false);
   protected readonly aiInsightTitle = signal('Morning command brief');
   protected readonly aiInsightText = signal('AIRA is ready to read aggregate dashboard signals and suggest operational focus areas.');
   protected readonly aiInsightStamp = signal('Waiting for first refresh');
   protected readonly pulseIndex = signal(0);
   protected readonly currentPulse = computed(() => hospitalPulseItems[this.pulseIndex() % hospitalPulseItems.length]);
+  protected readonly adminQuickActions = adminQuickActions;
+  protected readonly activitySeries = activitySeries;
 
   async ngOnInit(): Promise<void> {
     await this.load();
@@ -812,7 +953,7 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
   }
 
   protected async load(): Promise<void> {
-    const response = await this.service.getDashboard();
+    const response = await this.service.getDashboard(this.activityDays());
     if (response.success && response.data) {
       this.dashboard.set(response.data);
       this.loginPage.set(1);
@@ -879,6 +1020,24 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
     }
   }
 
+  protected async setActivityRange(days: number): Promise<void> {
+    const normalized = clampDashboardDays(days);
+    this.activityDays.set(normalized);
+    if (normalized !== 1 && normalized !== 7 && normalized !== 30) {
+      this.customActivityDays.set(normalized);
+    }
+    await this.load();
+  }
+
+  protected setCustomActivityDays(value: string | number): void {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      return;
+    }
+
+    void this.setActivityRange(parsed);
+  }
+
   private setFallbackInsight(model: AdministrationDashboard): void {
     const failedLogins = model.recentLogins.filter(login => !login.wasSuccessful).length;
     const unhealthy = model.systemHealth.filter(item => item.statusCode !== 'HEALTHY').length;
@@ -905,6 +1064,138 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
       { labelKey: 'Administration.Dashboard.Widgets.BranchCount', value: formatNumber(summary.branchCount), subKey: 'Navigation.BranchManagement', icon: 'account_tree', tone: '#d97706' },
       { labelKey: 'Administration.Dashboard.Widgets.DepartmentCount', value: formatNumber(summary.departmentCount), subKey: 'Navigation.DepartmentManagement', icon: 'business', tone: '#be123c' }
     ];
+  }
+
+  protected createOperationalCards(summary: AdministrationOperationalSummary): OperationalMetric[] {
+    return [
+      { label: 'Total patients', value: formatNumber(summary.totalPatients), subLabel: `${formatNumber(summary.patientsToday)} registered today`, icon: 'patient_list', tone: '#2563eb', path: '/patients' },
+      { label: "Today's appointments", value: formatNumber(summary.todaysAppointments), subLabel: `${formatNumber(summary.todaysOpdVisits)} OPD visits today`, icon: 'event_available', tone: '#7c3aed', path: '/appointments' },
+      { label: 'Doctors available', value: `${formatNumber(summary.doctorsAvailable)} / ${formatNumber(summary.totalDoctors)}`, subLabel: 'active doctors', icon: 'stethoscope', tone: '#0f766e', path: '/doctors' },
+      { label: 'Current IPD patients', value: formatNumber(summary.currentIpdPatients), subLabel: `${formatNumber(summary.availableBeds)} / ${formatNumber(summary.totalBeds)} beds available`, icon: 'king_bed', tone: '#0891b2', path: '/ipd' },
+      { label: 'Pending bills', value: formatCurrency(summary.pendingBillAmount), subLabel: `${formatNumber(summary.pendingBills)} invoices need follow-up`, icon: 'receipt_long', tone: '#d97706', path: '/billing' },
+      { label: 'Care queue', value: formatNumber(summary.pendingLabTests + summary.pharmacyOrdersToday + summary.emergencyCasesToday), subLabel: `${formatNumber(summary.pendingLabTests)} lab, ${formatNumber(summary.pharmacyOrdersToday)} pharmacy, ${formatNumber(summary.emergencyCasesToday)} emergency`, icon: 'medical_information', tone: '#be123c', path: '/reports' }
+    ];
+  }
+
+  protected attentionItems(model: AdministrationDashboard): AttentionItem[] {
+    const failedLogins = model.recentLogins.filter(login => !login.wasSuccessful).length;
+    const unhealthy = model.systemHealth.filter(item => item.statusCode !== 'HEALTHY').length;
+    const items: AttentionItem[] = [];
+
+    if (unhealthy > 0) {
+      items.push({
+        title: `${unhealthy} system component${unhealthy === 1 ? '' : 's'} need review`,
+        detail: 'Resolve service warnings before peak clinical workflows.',
+        actionLabel: 'Review health',
+        path: '/administration/system-configuration',
+        icon: 'monitor_heart',
+        severity: 'critical'
+      });
+    }
+
+    if (model.summary.notificationTemplateCount === 0) {
+      items.push({
+        title: 'Notification templates are not configured',
+        detail: 'Configure SMS, email, and reminder templates for patient communication.',
+        actionLabel: 'Configure',
+        path: '/administration/system-configuration',
+        icon: 'notifications_active',
+        severity: 'warning'
+      });
+    }
+
+    if (model.summary.departmentCount === 0) {
+      items.push({
+        title: 'Departments are not configured',
+        detail: 'Add departments to organize doctors, visits, billing, and reports.',
+        actionLabel: 'Add department',
+        path: '/administration/departments',
+        icon: 'business',
+        severity: 'warning'
+      });
+    }
+
+    if (failedLogins > 0) {
+      items.push({
+        title: `${failedLogins} failed sign-in ${failedLogins === 1 ? 'attempt' : 'attempts'}`,
+        detail: 'Review access activity for blocked users or incorrect passwords.',
+        actionLabel: 'Review users',
+        path: '/administration/users',
+        icon: 'lock',
+        severity: 'critical'
+      });
+    }
+
+    if (model.summary.licenseStatusCode !== 'ACTIVE' || model.summary.subscriptionStatusCode !== 'ACTIVE') {
+      items.push({
+        title: 'Account status needs review',
+        detail: 'License or subscription is not marked active.',
+        actionLabel: 'Manage',
+        path: '/administration/hospital',
+        icon: 'workspace_premium',
+        severity: 'critical'
+      });
+    }
+
+    return items.length > 0 ? items.slice(0, 4) : [{
+      title: 'No critical setup items',
+      detail: 'System health, access, and setup signals look stable.',
+      actionLabel: 'Open reports',
+      path: '/reports',
+      icon: 'task_alt',
+      severity: 'info'
+    }];
+  }
+
+  protected aiAttentionItems(model: AdministrationDashboard): AttentionItem[] {
+    return this.attentionItems(model).slice(0, 3);
+  }
+
+  protected healthTitle(item: SystemHealthItem): string {
+    const titles: Record<string, string> = {
+      HospitalDatabase: 'Database',
+      Localization: 'Localization',
+      Notifications: 'Notifications'
+    };
+
+    return titles[item.componentCode] ?? humanizeAction(item.componentCode);
+  }
+
+  protected healthDetail(item: SystemHealthItem): string {
+    if (item.componentCode === 'HospitalDatabase') {
+      return item.statusCode === 'HEALTHY' ? 'Healthy - connected successfully.' : 'Action required - hospital profile is missing.';
+    }
+    if (item.componentCode === 'Localization') {
+      return item.statusCode === 'HEALTHY' ? 'Healthy - display resources are configured.' : 'Action required - localization resources are missing.';
+    }
+    if (item.componentCode === 'Notifications') {
+      return item.statusCode === 'HEALTHY' ? 'Healthy - notification templates exist.' : 'Action required - templates are not configured.';
+    }
+
+    return this.t(item.messageKey);
+  }
+
+  protected healthAction(item: SystemHealthItem): { label: string; path: string } | null {
+    if (item.statusCode === 'HEALTHY') {
+      return null;
+    }
+
+    return item.componentCode === 'HospitalDatabase'
+      ? { label: 'Open hospital', path: '/administration/hospital' }
+      : { label: 'Configure', path: '/administration/system-configuration' };
+  }
+
+  protected activityHeight(value: number, items: ActivityTrendItem[]): number {
+    const max = Math.max(...items.flatMap(item => this.activitySeries.map(series => Number(item[series.key]) || 0)), 1);
+    return Math.max(value > 0 ? 14 : 4, Math.round((value / max) * 100));
+  }
+
+  protected loginDevice(login: RecentLoginItem): string {
+    return login.machineName?.trim() || 'Browser session';
+  }
+
+  protected loginLocation(login: RecentLoginItem): string {
+    return login.ipAddress?.trim() || 'Location unavailable';
   }
 
   protected createStaffCards(summary: AdministrationDashboardSummary): StaffCard[] {
@@ -957,7 +1248,34 @@ function formatNumber(value: number): string {
   return new Intl.NumberFormat().format(value);
 }
 
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0
+  }).format(value);
+}
+
+function clampDashboardDays(value: number): number {
+  return Math.min(30, Math.max(1, Math.round(value)));
+}
+
 const recentLoginPageSize = 6;
+
+const adminQuickActions: QuickAction[] = [
+  { label: 'Add patient', path: '/patients', icon: 'person_add', tone: '#2563eb' },
+  { label: 'Add doctor', path: '/doctors', icon: 'medical_services', tone: '#0f766e' },
+  { label: 'Create appointment', path: '/appointments', icon: 'event_available', tone: '#7c3aed' },
+  { label: 'Add user', path: '/administration/users', icon: 'manage_accounts', tone: '#0891b2' },
+  { label: 'Add department', path: '/administration/departments', icon: 'business', tone: '#d97706' },
+  { label: 'Configure notifications', path: '/administration/system-configuration', icon: 'notifications_active', tone: '#be123c' }
+];
+
+const activitySeries: ActivitySeries[] = [
+  { label: 'Login activity', key: 'loginAttempts', tone: '#2563eb' },
+  { label: 'Patient / record updates', key: 'recordUpdates', tone: '#0f766e' },
+  { label: 'Security reviews', key: 'securityEvents', tone: '#d97706' }
+];
 
 const hospitalPulseItems: HospitalPulseItem[] = [
   {

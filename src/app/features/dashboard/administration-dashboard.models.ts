@@ -4,6 +4,8 @@ export type AdministrationDashboardApiResponse<T> = ApiResponse<T>;
 
 export interface AdministrationDashboard {
   summary: AdministrationDashboardSummary;
+  operationalSummary: AdministrationOperationalSummary;
+  activityTrend: ActivityTrendItem[];
   auditSummary: AuditSummaryItem[];
   recentLogins: RecentLoginItem[];
   notifications: NotificationStatusItem[];
@@ -25,6 +27,32 @@ export interface AdministrationDashboardSummary {
   licenseStatusCode: string;
   systemHealthStatusCode: string;
   generatedAt: string;
+}
+
+export interface AdministrationOperationalSummary {
+  totalPatients: number;
+  patientsToday: number;
+  todaysAppointments: number;
+  todaysOpdVisits: number;
+  currentIpdPatients: number;
+  doctorsAvailable: number;
+  totalDoctors: number;
+  availableBeds: number;
+  totalBeds: number;
+  emergencyCasesToday: number;
+  pendingBills: number;
+  pendingBillAmount: number;
+  pharmacyOrdersToday: number;
+  pendingLabTests: number;
+}
+
+export interface ActivityTrendItem {
+  activityDate: string;
+  loginAttempts: number;
+  successfulSignIns: number;
+  failedSignIns: number;
+  recordUpdates: number;
+  securityEvents: number;
 }
 
 export interface AuditSummaryItem {

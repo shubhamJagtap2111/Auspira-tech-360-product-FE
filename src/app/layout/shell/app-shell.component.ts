@@ -129,18 +129,6 @@ const fallbackLanguages: Language[] = [
             }
           </nav>
 
-          <!-- Sidebar Footer -->
-          <div class="sidebar-footer">
-            <a class="nav-item" [title]="sidebarCollapsed() ? 'Support' : ''">
-              <span class="material-symbols-rounded nav-icon">support_agent</span>
-              @if (!sidebarCollapsed()) { <span class="nav-label">Support</span> }
-            </a>
-            <a class="nav-item" [title]="sidebarCollapsed() ? 'Documentation' : ''">
-              <span class="material-symbols-rounded nav-icon">menu_book</span>
-              @if (!sidebarCollapsed()) { <span class="nav-label">Documentation</span> }
-            </a>
-          </div>
-
           <!-- Toggle -->
           <button class="sidebar-toggle" (click)="toggleSidebar()"
                   [title]="sidebarCollapsed() ? 'Expand' : 'Collapse'">
@@ -1963,19 +1951,20 @@ export class AppShellComponent implements OnInit {
   /* ── Navigation Groups ── */
   protected readonly navGroups: NavGroup[] = [
     {
-      label: 'Dashboard',
+      label: 'Overview',
       items: [
         { path: '/', label: 'Dashboard', icon: 'dashboard' }
       ]
     },
     {
-      label: 'Clinical',
+      label: 'Clinical Management',
       items: [
         { path: '/patients',     label: 'Patients',     icon: 'people' },
         { path: '/doctors',      label: 'Doctors',      icon: 'medical_services' },
         { path: '/appointments', label: 'Appointments', icon: 'event' },
         { path: '/opd',          label: 'OPD',          icon: 'local_hospital' },
-        { path: '/ipd',          label: 'IPD',          icon: 'king_bed' }
+        { path: '/ipd',          label: 'IPD',          icon: 'king_bed' },
+        { path: '/emergency',    label: 'Emergency',    icon: 'emergency' }
       ]
     },
     {
@@ -1990,29 +1979,33 @@ export class AppShellComponent implements OnInit {
     {
       label: 'Administration',
       items: [
-        {
-          path: '/administration/users',
-          label: 'Hospital Admin',
-          icon: 'manage_accounts',
-          requiredPermission: 'Administration.UserManagement.View',
-          hospitalAdminOnly: true,
-          children: [
-            { path: '/administration/hospital', label: 'Hospital Profile', icon: 'local_hospital', requiredPermission: 'Administration.Hospital.View' },
-            { path: '/administration/branches', label: 'Branches', icon: 'account_tree', requiredPermission: 'Administration.Branch.View' },
-            { path: '/administration/users', label: 'Users', icon: 'manage_accounts', requiredPermission: 'Administration.UserManagement.View' },
-            { path: '/administration/roles', label: 'Roles', icon: 'admin_panel_settings', requiredPermission: 'Administration.Roles.View' },
-            { path: '/administration/permissions', label: 'Permissions', icon: 'rule', requiredPermission: 'Administration.Permissions.View' },
-            { path: '/administration/departments', label: 'Departments', icon: 'business', requiredPermission: 'Administration.Department.View' },
-            { path: '/administration/designations', label: 'Designations', icon: 'badge', requiredPermission: 'Administration.Designation.View' },
-            { path: '/administration/system-configuration', label: 'System Configuration', icon: 'settings', requiredPermission: 'Administration.SystemConfiguration.View' }
-          ]
-        }
+        { path: '/administration/hospital', label: 'Hospital Management', icon: 'local_hospital', requiredPermission: 'Administration.Hospital.View', hospitalAdminOnly: true },
+        { path: '/administration/users', label: 'User Management', icon: 'manage_accounts', requiredPermission: 'Administration.UserManagement.View', hospitalAdminOnly: true },
+        { path: '/administration/roles', label: 'Roles & Permissions', icon: 'admin_panel_settings', requiredPermission: 'Administration.Roles.View', hospitalAdminOnly: true },
+        { path: '/administration/permissions', label: 'Permission Matrix', icon: 'rule', requiredPermission: 'Administration.Permissions.View', hospitalAdminOnly: true },
+        { path: '/administration/departments', label: 'Departments', icon: 'business', requiredPermission: 'Administration.Department.View', hospitalAdminOnly: true },
+        { path: '/administration/branches', label: 'Branches', icon: 'account_tree', requiredPermission: 'Administration.Branch.View', hospitalAdminOnly: true }
+      ]
+    },
+    {
+      label: 'System',
+      items: [
+        { path: '/administration/system-configuration', label: 'Notifications', icon: 'notifications_active', requiredPermission: 'Administration.SystemConfiguration.View', hospitalAdminOnly: true },
+        { path: '/profile/activity-logs', label: 'Audit Logs', icon: 'history' },
+        { path: '/profile/account-settings', label: 'Settings', icon: 'settings' }
       ]
     },
     {
       label: 'Analytics',
       items: [
         { path: '/reports', label: 'Reports & Insights', icon: 'analytics' }
+      ]
+    },
+    {
+      label: 'Support',
+      items: [
+        { path: '/support', label: 'Help Center', icon: 'support_agent' },
+        { path: '/documentation', label: 'Documentation', icon: 'menu_book' }
       ]
     }
   ];
