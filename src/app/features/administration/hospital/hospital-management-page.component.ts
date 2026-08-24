@@ -28,6 +28,12 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
           <p>{{ t('Administration.Hospital.Subtitle') }}</p>
         </div>
         <div class="head-actions">
+          @if (profile() && can(permissions.edit)) {
+            <button class="ac-btn ac-btn-primary" type="button" (click)="saveProfile()" [disabled]="saving()">
+              <span class="material-symbols-rounded">save</span>
+              {{ t('Administration.Hospital.Actions.SaveProfile') }}
+            </button>
+          }
           <button class="icon-btn" type="button" (click)="loadProfile()" [attr.title]="t('Administration.Rbac.Actions.Refresh')">
             <span class="material-symbols-rounded">refresh</span>
           </button>
@@ -177,6 +183,19 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
           </div>
 
           <aside class="profile-rail">
+            @if (can(permissions.edit)) {
+              <section class="panel save-card">
+                <div>
+                  <strong>Ready to update?</strong>
+                  <p>Changes are saved to the hospital profile and reflected in the header.</p>
+                </div>
+                <button class="ac-btn ac-btn-primary" type="button" (click)="saveProfile()" [disabled]="saving()">
+                  <span class="material-symbols-rounded">save</span>
+                  {{ t('Administration.Hospital.Actions.SaveProfile') }}
+                </button>
+              </section>
+            }
+
             <section class="panel rail-card">
               <div class="rail-head">
                 <span class="material-symbols-rounded">task_alt</span>
@@ -228,19 +247,6 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
                 </div>
               </div>
             </section>
-
-            @if (can(permissions.edit)) {
-              <section class="panel save-card">
-                <div>
-                  <strong>Ready to update?</strong>
-                  <p>Changes are saved to the hospital profile and reflected in the header.</p>
-                </div>
-                <button class="ac-btn ac-btn-primary" type="button" (click)="saveProfile()" [disabled]="saving()">
-                  <span class="material-symbols-rounded">save</span>
-                  {{ t('Administration.Hospital.Actions.SaveProfile') }}
-                </button>
-              </section>
-            }
           </aside>
 
           @if (profileDrawer(); as drawer) {
@@ -317,7 +323,8 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
     .page-head, .head-actions, .overview-panel, .overview-actions, .layout { display: flex; gap: 12px; }
     .page-head { align-items: flex-start; justify-content: space-between; }
     .page-head p { margin: 4px 0 0; color: var(--ac-muted); font-size: 13px; }
-    .head-actions { align-items: center; }
+    .head-actions { align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+    .head-actions .ac-btn { white-space: nowrap; }
     .overview-panel {
       align-items: center;
       padding: 16px;
@@ -459,6 +466,8 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
     }
     @media (max-width: 760px) {
       .page-head { flex-direction: column; }
+      .head-actions, .head-actions .ac-btn { width: 100%; }
+      .head-actions .ac-btn { justify-content: center; }
       .overview-panel { padding: 14px; }
       .overview-actions .ac-btn { width: 100%; justify-content: center; }
       .color-grid { grid-template-columns: 1fr; }

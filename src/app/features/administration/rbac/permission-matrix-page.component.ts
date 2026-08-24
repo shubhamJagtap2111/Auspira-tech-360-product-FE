@@ -193,14 +193,21 @@ interface PermissionModuleGroup {
       white-space: nowrap;
     }
     .toggle-row input { width: 16px; height: 16px; }
-    .permission-board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+    .permission-board {
+      column-width: 420px;
+      column-gap: 14px;
+    }
     .module-card {
       min-width: 0;
+      display: inline-block;
+      width: 100%;
+      margin: 0 0 14px;
       border: 1px solid var(--ac-border);
       border-radius: 8px;
       background: var(--ac-surface);
       box-shadow: var(--ac-sh-sm);
       overflow: hidden;
+      break-inside: avoid;
     }
     .module-card header {
       display: flex;
@@ -257,7 +264,7 @@ interface PermissionModuleGroup {
       place-items: center;
       align-content: center;
       gap: 8px;
-      grid-column: 1 / -1;
+      column-span: all;
       border: 1px dashed var(--ac-border);
       border-radius: 8px;
       background: var(--ac-surface);
@@ -272,7 +279,8 @@ interface PermissionModuleGroup {
     .detail-grid span { color: var(--ac-muted); font-size: 11px; font-weight: 800; text-transform: uppercase; }
     .detail-grid strong { color: var(--ac-text); font-size: 13px; }
     .detail-grid small { color: var(--ac-muted); word-break: break-word; }
-    @media (max-width: 1280px) { .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .permission-board { grid-template-columns: 1fr; } }
+    @media (min-width: 1680px) { .permission-board { column-width: 380px; } }
+    @media (max-width: 1280px) { .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .permission-board { column-width: 360px; } }
     @media (max-width: 760px) { .page-head { flex-direction: column; } .toolbar, .summary-grid { grid-template-columns: 1fr; } .toggle-row { justify-content: flex-start; } .permission-row { grid-template-columns: 28px minmax(0, 1fr); } .permission-row .status { grid-column: 2; justify-self: start; } .detail-grid { grid-template-columns: 1fr; } }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush

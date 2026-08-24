@@ -873,7 +873,6 @@ const fallbackLanguages: Language[] = [
     .hdr-btn .material-symbols-rounded { font-size: 20px !important; }
     .aira-toggle {
       overflow: hidden;
-      color: var(--ac-primary);
       border: 0;
       background: transparent;
       box-shadow: none;
@@ -896,7 +895,7 @@ const fallbackLanguages: Language[] = [
       border-radius: 999px;
     }
     .aira-toggle.active {
-      color: var(--ac-primary);
+      color: var(--ac-muted);
       background: transparent;
       box-shadow: none;
     }
@@ -906,7 +905,7 @@ const fallbackLanguages: Language[] = [
       box-shadow: 0 0 0 2px var(--ac-header-bg), 0 0 14px rgba(34,197,94,.82);
     }
     .aira-toggle:hover {
-      color: var(--ac-primary);
+      color: var(--ac-text);
       background: var(--ac-surface-2);
     }
 
