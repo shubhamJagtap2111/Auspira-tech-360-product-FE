@@ -938,9 +938,10 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
         return;
       }
 
+      const wasCreate = !patient.patientGuid;
       this.form.set(mapProfileToForm(response.data));
+      this.upsertPatient(response.data, wasCreate);
       this.drawerOpen.set(false);
-      await this.loadPatients(this.pageNumber());
       this.toast.success('Patient saved');
     } finally {
       this.saving.set(false);
@@ -979,8 +980,40 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
       return;
     }
 
-    await this.loadPatients(this.pageNumber());
+    this.removePatient(patient);
     this.toast.success('Patient deleted');
+  }
+
+  private upsertPatient(patient: PatientSummary, isNew: boolean): void {
+    const nextPatient = applyCalculatedAge(patient);
+    this.patients.update(patients => {
+      const existingIndex = patients.findIndex(item => item.patientGuid === nextPatient.patientGuid);
+      if (existingIndex >= 0) {
+        return patients.map(item => item.patientGuid === nextPatient.patientGuid ? nextPatient : item);
+      }
+
+      const nextPatients = [nextPatient, ...patients];
+      return nextPatients.slice(0, this.pageSize());
+    });
+
+    if (isNew) {
+      this.totalCount.update(count => count + 1);
+      this.stats.update(stats => ({
+        ...stats,
+        totalPatients: stats.totalPatients + 1,
+        newThisMonth: isCurrentMonth(nextPatient.createdDate) ? stats.newThisMonth + 1 : stats.newThisMonth
+      }));
+    }
+  }
+
+  private removePatient(patient: PatientSummary): void {
+    this.patients.update(patients => patients.filter(item => item.patientGuid !== patient.patientGuid));
+    this.totalCount.update(count => Math.max(0, count - 1));
+    this.stats.update(stats => ({
+      ...stats,
+      totalPatients: Math.max(0, stats.totalPatients - 1),
+      newThisMonth: isCurrentMonth(patient.createdDate) ? Math.max(0, stats.newThisMonth - 1) : stats.newThisMonth
+    }));
   }
 
   protected drawerTitle(patient: PatientForm): string {
@@ -1209,6 +1242,16 @@ function applyCalculatedAge(patient: PatientSummary): PatientSummary {
     ...patient,
     age: calculatedAge ?? patient.age
   };
+}
+
+function isCurrentMonth(value: string | null): boolean {
+  if (!value) {
+    return false;
+  }
+
+  const date = new Date(value);
+  const now = new Date();
+  return !Number.isNaN(date.getTime()) && date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
 }
 
 function calculateAge(dateOfBirth: string | null): number | null {

@@ -69,8 +69,8 @@ export class PatientManagementService {
     return firstValueFrom(this.api.delete<PatientApiResponse<boolean>>(`/patients/${patientGuid}`));
   }
 
-  createAllergy(patientGuid: string, allergy: PatientAllergyForm): Promise<PatientAllergyRecord> {
-    return firstValueFrom(this.api.post<PatientAllergyRecord>('/patient-allergies', {
+  createAllergy(patientGuid: string, allergy: PatientAllergyForm): Promise<PatientApiResponse<PatientAllergyRecord>> {
+    return firstValueFrom(this.api.post<PatientApiResponse<PatientAllergyRecord>>('/patient-allergies', {
       patientId: patientGuid,
       allergyName: allergy.allergen.trim(),
       allergyType: allergy.allergyType.trim() || 'General',
@@ -82,8 +82,8 @@ export class PatientManagementService {
     }));
   }
 
-  updateAllergy(patientGuid: string, allergy: PatientAllergy, changes: Partial<PatientAllergyForm>): Promise<PatientAllergyRecord> {
-    return firstValueFrom(this.api.put<PatientAllergyRecord>(`/patient-allergies/${allergy.allergyGuid}`, {
+  updateAllergy(patientGuid: string, allergy: PatientAllergy, changes: Partial<PatientAllergyForm>): Promise<PatientApiResponse<PatientAllergyRecord>> {
+    return firstValueFrom(this.api.put<PatientApiResponse<PatientAllergyRecord>>(`/patient-allergies/${allergy.allergyGuid}`, {
       id: allergy.allergyGuid,
       patientId: patientGuid,
       allergyName: changes.allergen ?? allergy.allergen,

@@ -43,20 +43,20 @@ export class DoctorManagementService {
     return firstValueFrom(this.api.delete<DoctorApiResponse<boolean>>(`/doctors/${doctorGuid}`));
   }
 
-  createAvailability(request: DoctorAvailabilityRequest): Promise<DoctorAvailabilityRecord> {
-    return firstValueFrom(this.api.post<DoctorAvailabilityRecord>('/doctor-availability', request));
+  createAvailability(request: DoctorAvailabilityRequest): Promise<DoctorApiResponse<DoctorAvailabilityRecord>> {
+    return firstValueFrom(this.api.post<DoctorApiResponse<DoctorAvailabilityRecord>>('/doctor-availability', request));
   }
 
-  createSchedule(request: DoctorScheduleRequest): Promise<DoctorScheduleRecord> {
-    return firstValueFrom(this.api.post<DoctorScheduleRecord>('/doctor-schedules', request));
+  createSchedule(request: DoctorScheduleRequest): Promise<DoctorApiResponse<DoctorScheduleRecord>> {
+    return firstValueFrom(this.api.post<DoctorApiResponse<DoctorScheduleRecord>>('/doctor-schedules', request));
   }
 
-  createLeave(request: DoctorLeaveRequest): Promise<DoctorLeaveRecord> {
-    return firstValueFrom(this.api.post<DoctorLeaveRecord>('/doctor-leaves', request));
+  createLeave(request: DoctorLeaveRequest): Promise<DoctorApiResponse<DoctorLeaveRecord>> {
+    return firstValueFrom(this.api.post<DoctorApiResponse<DoctorLeaveRecord>>('/doctor-leaves', request));
   }
 
-  createDocument(request: DoctorDocumentRequest): Promise<DoctorDocumentRecord> {
-    return firstValueFrom(this.api.post<DoctorDocumentRecord>('/doctor-documents', request));
+  createDocument(request: DoctorDocumentRequest): Promise<DoctorApiResponse<DoctorDocumentRecord>> {
+    return firstValueFrom(this.api.post<DoctorApiResponse<DoctorDocumentRecord>>('/doctor-documents', request));
   }
 }
 

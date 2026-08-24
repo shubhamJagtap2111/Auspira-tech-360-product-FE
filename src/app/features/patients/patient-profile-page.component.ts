@@ -5,7 +5,8 @@ import { getApiErrorMessage } from '../../core/http/api-error-message';
 import { DialogFieldOption, DialogService } from '../../shared/ui/dialog/dialog.service';
 import { AcPageActionsComponent } from '../../shared/ui/page-actions/page-actions.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
-import { PatientAllergy, PatientConnectedRecord, PatientProfile } from './patient-management.models';
+import { PatientAllergy, PatientConnectedRecord, PatientProfile, PatientProfileOverview } from './patient-management.models';
+import { PatientAllergyRecord } from './patient-management.service';
 import { PatientManagementService } from './patient-management.service';
 
 type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'insurance' | 'documents' | 'appointments' | 'opd' | 'ipd' | 'prescriptions' | 'lab-results' | 'billing' | 'activity';
@@ -1552,7 +1553,7 @@ export class PatientProfilePageComponent implements OnInit {
         }
 
         const severityCode = normalizeSeverity(values['severityCode']);
-        await this.service.createAllergy(currentPatient.patientGuid, {
+        const response = await this.service.createAllergy(currentPatient.patientGuid, {
           allergen: values['allergen'],
           allergyType: values['allergyType'] || 'General',
           reaction: values['reaction'] || '',
@@ -1561,6 +1562,12 @@ export class PatientProfilePageComponent implements OnInit {
           statusCode: 'ACTIVE',
           isCritical: isCriticalSeverity(severityCode)
         });
+        if (!response.success || !response.data) {
+          this.toast.error('Unable to save allergy', getApiErrorMessage(response, 'Patient allergy API failed'));
+          return;
+        }
+
+        this.upsertAllergy(mapAllergyRecord(response.data), null);
       } else {
         const allergy = await this.selectAllergy(currentPatient.allergies);
         if (!allergy) {
@@ -1588,7 +1595,7 @@ export class PatientProfilePageComponent implements OnInit {
           }
 
           const severityCode = normalizeSeverity(values['severityCode']);
-          await this.service.updateAllergy(currentPatient.patientGuid, allergy, {
+          const response = await this.service.updateAllergy(currentPatient.patientGuid, allergy, {
             allergen: values['allergen'],
             allergyType: values['allergyType'] || 'General',
             reaction: values['reaction'],
@@ -1596,6 +1603,12 @@ export class PatientProfilePageComponent implements OnInit {
             notes: values['notes'],
             isCritical: allergy.isCritical || isCriticalSeverity(severityCode)
           });
+          if (!response.success || !response.data) {
+            this.toast.error('Unable to save allergy', getApiErrorMessage(response, 'Patient allergy API failed'));
+            return;
+          }
+
+          this.upsertAllergy(mapAllergyRecord(response.data), allergy);
         } else if (action === 'Mark Critical') {
           const confirmed = await this.dialog.confirm({
             title: 'Mark allergy as critical?',
@@ -1609,7 +1622,13 @@ export class PatientProfilePageComponent implements OnInit {
             return;
           }
 
-          await this.service.updateAllergy(currentPatient.patientGuid, allergy, { isCritical: true, severityCode: allergy.severityCode === 'UNKNOWN' ? 'SEVERE' : allergy.severityCode });
+          const response = await this.service.updateAllergy(currentPatient.patientGuid, allergy, { isCritical: true, severityCode: allergy.severityCode === 'UNKNOWN' ? 'SEVERE' : allergy.severityCode });
+          if (!response.success || !response.data) {
+            this.toast.error('Unable to save allergy', getApiErrorMessage(response, 'Patient allergy API failed'));
+            return;
+          }
+
+          this.upsertAllergy(mapAllergyRecord(response.data), allergy);
         } else {
           const confirmed = await this.dialog.confirm({
             title: 'Deactivate allergy?',
@@ -1623,11 +1642,16 @@ export class PatientProfilePageComponent implements OnInit {
             return;
           }
 
-          await this.service.updateAllergy(currentPatient.patientGuid, allergy, { statusCode: 'INACTIVE' });
+          const response = await this.service.updateAllergy(currentPatient.patientGuid, allergy, { statusCode: 'INACTIVE' });
+          if (!response.success || !response.data) {
+            this.toast.error('Unable to save allergy', getApiErrorMessage(response, 'Patient allergy API failed'));
+            return;
+          }
+
+          this.upsertAllergy(mapAllergyRecord(response.data), allergy);
         }
       }
 
-      await this.reload();
       this.toast.success(`${action} saved`);
     } catch {
       this.toast.error('Unable to save allergy');
@@ -1685,6 +1709,24 @@ export class PatientProfilePageComponent implements OnInit {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value ?? 0);
   }
 
+  private upsertAllergy(allergy: PatientAllergy, previous: PatientAllergy | null): void {
+    this.patient.update(current => {
+      if (!current) {
+        return current;
+      }
+
+      const exists = current.allergies.some(item => item.allergyGuid === allergy.allergyGuid);
+      const allergies = exists
+        ? current.allergies.map(item => item.allergyGuid === allergy.allergyGuid ? allergy : item)
+        : [allergy, ...current.allergies];
+
+      return {
+        ...current,
+        allergies,
+        overview: updateAllergyOverview(current.overview, previous, allergy)
+      };
+    });
+  }
 }
 
 function normalizeSeverity(value: string | null | undefined): string {
@@ -1694,4 +1736,35 @@ function normalizeSeverity(value: string | null | undefined): string {
 
 function isCriticalSeverity(value: string): boolean {
   return ['HIGH', 'SEVERE'].includes(normalizeSeverity(value));
+}
+
+function mapAllergyRecord(record: PatientAllergyRecord): PatientAllergy {
+  const severityCode = normalizeSeverity(record.severityCode);
+  return {
+    allergyGuid: record.id,
+    allergyType: record.allergyType || 'General',
+    allergen: record.allergyName,
+    reaction: record.reaction,
+    severityCode,
+    severityName: severityName(severityCode),
+    statusCode: record.statusCode || 'ACTIVE',
+    isCritical: Boolean(record.isCritical),
+    recordedOn: null,
+    notes: record.notes
+  };
+}
+
+function updateAllergyOverview(overview: PatientProfileOverview, previous: PatientAllergy | null, next: PatientAllergy): PatientProfileOverview {
+  const previousActive = previous && previous.statusCode !== 'INACTIVE' ? 1 : 0;
+  const nextActive = next.statusCode !== 'INACTIVE' ? 1 : 0;
+
+  return {
+    ...overview,
+    activeAllergies: Math.max(0, overview.activeAllergies + nextActive - previousActive)
+  };
+}
+
+function severityName(severityCode: string): string {
+  const label = severityCode.toLowerCase().replace(/_/g, ' ');
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }

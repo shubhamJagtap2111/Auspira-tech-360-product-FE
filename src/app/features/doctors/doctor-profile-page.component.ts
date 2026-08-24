@@ -7,7 +7,7 @@ import { DialogService } from '../../shared/ui/dialog/dialog.service';
 import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dropdown.component';
 import { AcPageActionsComponent } from '../../shared/ui/page-actions/page-actions.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
-import { DoctorProfile } from './doctor-management.models';
+import { DoctorAvailability, DoctorLeave, DoctorProfile, DoctorSchedule } from './doctor-management.models';
 import { DoctorManagementService } from './doctor-management.service';
 
 type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule' | 'fees' | 'credentials' | 'appointments' | 'opd-patients' | 'ipd-patients' | 'performance' | 'activity';
@@ -1650,7 +1650,7 @@ export class DoctorProfilePageComponent implements OnInit {
 
     const slotDurationMinutes = Math.max(5, Number(form.slotDurationMinutes) || 15);
     const maxPatients = Math.max(1, Number(form.maxPatients) || 1);
-    await this.service.createAvailability({
+    const response = await this.service.createAvailability({
       doctorId: doctor.doctorGuid,
       dayOfWeek: Number(form.dayOfWeek),
       startsAt: form.startsAt,
@@ -1661,8 +1661,17 @@ export class DoctorProfilePageComponent implements OnInit {
       maxPatients,
       statusCode: form.statusCode
     });
+    if (!response.success || !response.data) {
+      this.toast.error('Unable to save availability', getApiErrorMessage(response, 'Doctor availability API failed'));
+      return;
+    }
+
+    const availability = mapAvailabilityRecord(response.data);
+    this.updateDoctor(current => ({
+      ...current,
+      availability: upsertBy(current.availability, availability, item => item.availabilityGuid)
+    }));
     this.availabilityForm.set(null);
-    await this.reload();
     this.toast.success(form.statusCode === 'OVERRIDE' ? 'Availability override added' : 'Schedule added');
   }
 
@@ -1683,7 +1692,7 @@ export class DoctorProfilePageComponent implements OnInit {
       return;
     }
 
-    await this.service.createSchedule({
+    const response = await this.service.createSchedule({
       doctorId: doctor.doctorGuid,
       scheduleDate,
       startsAt: null,
@@ -1695,7 +1704,16 @@ export class DoctorProfilePageComponent implements OnInit {
       departmentName: doctor.departmentName,
       statusCode: 'BLOCKED'
     });
-    await this.reload();
+    if (!response.success || !response.data) {
+      this.toast.error('Unable to block date', getApiErrorMessage(response, 'Doctor schedule API failed'));
+      return;
+    }
+
+    const schedule = mapScheduleRecord(response.data);
+    this.updateDoctor(current => ({
+      ...current,
+      schedules: upsertBy(current.schedules, schedule, item => item.scheduleGuid)
+    }));
     this.toast.success('Date blocked');
   }
 
@@ -1730,7 +1748,7 @@ export class DoctorProfilePageComponent implements OnInit {
       return;
     }
 
-    await this.service.createLeave({
+    const response = await this.service.createLeave({
       doctorId: doctor.doctorGuid,
       leaveType: 'LEAVE',
       startsAt: startsAt.toISOString(),
@@ -1738,9 +1756,22 @@ export class DoctorProfilePageComponent implements OnInit {
       reason: form.reason.trim(),
       statusCode: form.statusCode
     });
+    if (!response.success || !response.data) {
+      this.toast.error('Unable to save leave', getApiErrorMessage(response, 'Doctor leave API failed'));
+      return;
+    }
+
+    const leave = mapLeaveRecord(response.data);
+    this.updateDoctor(current => ({
+      ...current,
+      leaves: upsertBy(current.leaves, leave, item => item.leaveGuid)
+    }));
     this.leaveForm.set(null);
-    await this.reload();
     this.toast.success('Leave added');
+  }
+
+  private updateDoctor(updater: (doctor: DoctorProfile) => DoctorProfile): void {
+    this.doctor.update(current => current ? updater(current) : current);
   }
 }
 
@@ -1767,6 +1798,57 @@ interface DoctorLeaveForm {
 function toLocalInputValue(value: Date): string {
   const offsetMs = value.getTimezoneOffset() * 60_000;
   return new Date(value.getTime() - offsetMs).toISOString().slice(0, 16);
+}
+
+function mapAvailabilityRecord(record: { id: string; dayOfWeek: number; startsAt: string; endsAt: string; branchName: string; consultationType: string; slotDurationMinutes: number; maxPatients: number; statusCode: string }): DoctorAvailability {
+  return {
+    availabilityGuid: record.id,
+    dayOfWeek: Number(record.dayOfWeek),
+    dayName: dayName(Number(record.dayOfWeek)),
+    startsAt: record.startsAt,
+    endsAt: record.endsAt,
+    branchName: record.branchName,
+    consultationType: record.consultationType,
+    slotDurationMinutes: Number(record.slotDurationMinutes) || 15,
+    maxPatients: Number(record.maxPatients) || 1,
+    statusCode: record.statusCode
+  };
+}
+
+function mapScheduleRecord(record: { id: string; scheduleDate: string; startsAt: string | null; endsAt: string | null; scheduleType: string; consultationType: string; roomName: string | null; statusCode: string }): DoctorSchedule {
+  return {
+    scheduleGuid: record.id,
+    scheduleDate: record.scheduleDate,
+    startsAt: record.startsAt,
+    endsAt: record.endsAt,
+    scheduleType: record.scheduleType,
+    consultationType: record.consultationType,
+    roomName: record.roomName ?? '',
+    statusCode: record.statusCode
+  };
+}
+
+function mapLeaveRecord(record: { id: string; leaveType: string; startsAt: string; endsAt: string; reason: string; statusCode: string }): DoctorLeave {
+  return {
+    leaveGuid: record.id,
+    leaveType: record.leaveType,
+    startsAt: record.startsAt,
+    endsAt: record.endsAt,
+    reason: record.reason,
+    statusCode: record.statusCode
+  };
+}
+
+function upsertBy<T>(items: T[], nextItem: T, getId: (item: T) => string): T[] {
+  const id = getId(nextItem);
+  const exists = items.some(item => getId(item) === id);
+  return exists
+    ? items.map(item => getId(item) === id ? nextItem : item)
+    : [nextItem, ...items];
+}
+
+function dayName(dayOfWeek: number): string {
+  return ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayOfWeek] ?? 'Scheduled day';
 }
 
 function formatNumber(value: number): string {

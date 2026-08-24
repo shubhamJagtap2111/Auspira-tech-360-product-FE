@@ -566,13 +566,13 @@ export class DoctorListPageComponent implements OnInit, OnDestroy {
     const form = mapProfileToForm(response.data);
     form.statusCode = doctor.statusCode === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     const updateResponse = await this.service.update(form);
-    if (!updateResponse.success) {
+    if (!updateResponse.success || !updateResponse.data) {
       this.toast.error('Unable to update status', getApiErrorMessage(updateResponse, 'Doctor API failed'));
       return;
     }
 
+    this.upsertDoctor(updateResponse.data, false);
     this.toast.success(form.statusCode === 'ACTIVE' ? 'Doctor activated' : 'Doctor deactivated');
-    await this.loadDoctors(this.pageNumber());
   }
 
   protected closeDrawer(): void {
@@ -600,7 +600,8 @@ export class DoctorListPageComponent implements OnInit, OnDestroy {
     }
 
     this.saving.set(true);
-    const response = this.drawerMode() === 'create'
+    const wasCreate = this.drawerMode() === 'create';
+    const response = wasCreate
       ? await this.service.create(doctor)
       : await this.service.update(doctor);
     this.saving.set(false);
@@ -611,9 +612,9 @@ export class DoctorListPageComponent implements OnInit, OnDestroy {
     }
 
     await this.saveCredentialDocuments(response.data.doctorGuid, doctor);
+    this.upsertDoctor(response.data, wasCreate);
     this.toast.success('Doctor saved');
     this.closeDrawer();
-    await this.loadDoctors(this.drawerMode() === 'create' ? 1 : this.pageNumber());
   }
 
   protected async deleteDoctor(doctor: DoctorSummary): Promise<void> {
@@ -636,8 +637,8 @@ export class DoctorListPageComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.removeDoctor(doctor);
     this.toast.success('Doctor deleted');
-    await this.loadDoctors(this.pageNumber());
   }
 
   private async saveCredentialDocuments(doctorGuid: string, doctor: DoctorForm): Promise<void> {
@@ -648,7 +649,7 @@ export class DoctorListPageComponent implements OnInit, OnDestroy {
     ].filter(document => document.fileUrl);
 
     for (const document of documents) {
-      await this.service.createDocument({
+      const response = await this.service.createDocument({
         doctorId: doctorGuid,
         ...document,
         documentNo: doctor.registrationNo || null,
@@ -656,7 +657,47 @@ export class DoctorListPageComponent implements OnInit, OnDestroy {
         expiryDate: doctor.registrationExpiryDate,
         verificationStatus: 'PENDING'
       });
+      if (!response.success) {
+        this.toast.warning('Credential upload skipped', getApiErrorMessage(response, 'Doctor document API failed'));
+      }
     }
+  }
+
+  private upsertDoctor(doctor: DoctorProfile, isNew: boolean): void {
+    const previous = this.doctors().find(item => item.doctorGuid === doctor.doctorGuid) ?? null;
+    this.doctors.update(doctors => {
+      const existingIndex = doctors.findIndex(item => item.doctorGuid === doctor.doctorGuid);
+      if (existingIndex >= 0) {
+        return doctors.map(item => item.doctorGuid === doctor.doctorGuid ? doctor : item);
+      }
+
+      const nextDoctors = [doctor, ...doctors];
+      return nextDoctors.slice(0, this.pageSize());
+    });
+
+    if (isNew) {
+      this.totalCount.update(count => count + 1);
+      this.stats.update(stats => ({
+        ...stats,
+        totalDoctors: stats.totalDoctors + 1,
+        activeDoctors: doctor.statusCode === 'ACTIVE' ? stats.activeDoctors + 1 : stats.activeDoctors,
+        onLeaveDoctors: doctor.statusCode === 'ON_LEAVE' ? stats.onLeaveDoctors + 1 : stats.onLeaveDoctors
+      }));
+      return;
+    }
+
+    if (previous && previous.statusCode !== doctor.statusCode) {
+      this.stats.update(stats => adjustDoctorStatusStats(stats, previous.statusCode, doctor.statusCode));
+    }
+  }
+
+  private removeDoctor(doctor: DoctorSummary): void {
+    this.doctors.update(doctors => doctors.filter(item => item.doctorGuid !== doctor.doctorGuid));
+    this.totalCount.update(count => Math.max(0, count - 1));
+    this.stats.update(stats => ({
+      ...adjustDoctorStatusStats(stats, doctor.statusCode, ''),
+      totalDoctors: Math.max(0, stats.totalDoctors - 1)
+    }));
   }
 
   protected isViewMode(): boolean {
@@ -801,6 +842,17 @@ function emptyStats(): DoctorRegistryStats {
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat('en-IN').format(value);
+}
+
+function adjustDoctorStatusStats(stats: DoctorRegistryStats, previousStatus: string, nextStatus: string): DoctorRegistryStats {
+  const activeDelta = (nextStatus === 'ACTIVE' ? 1 : 0) - (previousStatus === 'ACTIVE' ? 1 : 0);
+  const leaveDelta = (nextStatus === 'ON_LEAVE' ? 1 : 0) - (previousStatus === 'ON_LEAVE' ? 1 : 0);
+
+  return {
+    ...stats,
+    activeDoctors: Math.max(0, stats.activeDoctors + activeDelta),
+    onLeaveDoctors: Math.max(0, stats.onLeaveDoctors + leaveDelta)
+  };
 }
 
 function escapeCsv(value: string): string {
