@@ -4,6 +4,7 @@ import { AuthStore } from '../auth/auth.store';
 import { ApiClientService } from '../http/api-client.service';
 
 export const selectedBranchStorageKey = 'care360.selectedBranchCode';
+const hospitalNameStorageKey = 'care360.hospitalName';
 const fallbackMainBranchCode = 'MAIN';
 const fallbackMainBranchName = 'Main Branch';
 
@@ -38,7 +39,7 @@ export class BranchContextService {
   private readonly authStore = inject(AuthStore);
   private readonly branchesSignal = signal<BranchContextOption[]>([]);
   private readonly selectedBranchCodeSignal = signal<string | null>(readSelectedBranchCode());
-  private readonly hospitalNameSignal = signal<string | null>(null);
+  private readonly hospitalNameSignal = signal<string | null>(readStoredHospitalName(this.authStore.session()?.tenantCode));
   private loadingPromise: Promise<void> | null = null;
   private loadedBranchesSuccessfully = false;
 
@@ -88,6 +89,7 @@ export class BranchContextService {
     const normalized = hospitalName?.trim();
     if (normalized) {
       this.hospitalNameSignal.set(normalized);
+      writeStoredHospitalName(this.authStore.session()?.tenantCode, normalized);
     }
   }
 
@@ -118,6 +120,7 @@ export class BranchContextService {
       const hospitalName = response.success ? response.data?.hospitalName?.trim() : null;
       if (hospitalName) {
         this.hospitalNameSignal.set(hospitalName);
+        writeStoredHospitalName(this.authStore.session()?.tenantCode, hospitalName);
       }
     } catch {
       this.hospitalNameSignal.set(
@@ -216,6 +219,30 @@ function readSelectedBranchCode(): string | null {
   } catch {
     return null;
   }
+}
+
+function readStoredHospitalName(tenantCode: string | null | undefined): string | null {
+  try {
+    const value = typeof window === 'undefined' ? null : window.localStorage.getItem(hospitalNameStorageKeyForTenant(tenantCode))?.trim();
+    return value || null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredHospitalName(tenantCode: string | null | undefined, hospitalName: string): void {
+  try {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(hospitalNameStorageKeyForTenant(tenantCode), hospitalName);
+    }
+  } catch {
+    // Hospital name still updates in memory when browser storage is unavailable.
+  }
+}
+
+function hospitalNameStorageKeyForTenant(tenantCode: string | null | undefined): string {
+  const normalized = tenantCode?.trim().toLowerCase();
+  return normalized ? `${hospitalNameStorageKey}.${normalized}` : hospitalNameStorageKey;
 }
 
 function writeSelectedBranchCode(branchCode: string | null): void {

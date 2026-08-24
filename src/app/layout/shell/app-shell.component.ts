@@ -1868,6 +1868,7 @@ export class AppShellComponent implements OnInit {
   );
   protected readonly isAuthenticated = computed(() => this.authStore.isAuthenticated());
   private aiConversationHydrated = false;
+  private headerContextHydrated = false;
 
   /* ── Dark mode effect ── */
   constructor() {
@@ -1882,12 +1883,24 @@ export class AppShellComponent implements OnInit {
 
       this.persistAiConversation(this.aiMessages());
     });
+
+    effect(() => {
+      if (!this.isAuthenticated() || this.isAuthPage()) {
+        this.headerContextHydrated = false;
+        return;
+      }
+
+      if (this.headerContextHydrated) {
+        return;
+      }
+
+      this.headerContextHydrated = true;
+      void this.hydrateHeaderContext();
+    });
   }
 
   ngOnInit(): void {
     document.documentElement.classList.toggle('dark', this.dark());
-    void this.loadCurrentUserProfile();
-    void this.branchContext.loadBranches();
     this.aiMessages.set(this.loadAiConversation());
     this.aiChatHistory.set(this.loadAiConversationHistory());
     this.aiConversationHydrated = true;
@@ -2298,6 +2311,13 @@ export class AppShellComponent implements OnInit {
     } catch {
       // Header profile details are best-effort; auth guards/interceptors handle invalid sessions.
     }
+  }
+
+  private async hydrateHeaderContext(): Promise<void> {
+    await Promise.all([
+      this.loadCurrentUserProfile(),
+      this.branchContext.refresh()
+    ]);
   }
 
   private loadAiConversation(): AiChatMessage[] {
