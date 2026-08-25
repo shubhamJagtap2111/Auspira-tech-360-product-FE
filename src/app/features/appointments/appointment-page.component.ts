@@ -870,11 +870,24 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
 
   protected canSave(): boolean {
     const current = this.form();
-    return Boolean(current.patientId && current.branchName && current.departmentName && current.doctorId && current.appointmentDate && current.appointmentTime);
+    return Boolean(current.patientId && current.branchName && current.departmentName && current.doctorId && current.appointmentDate && current.appointmentTime)
+      && !this.isSelectedSlotUnavailable()
+      && !this.hasPatientTimeConflict();
   }
 
   protected async save(): Promise<void> {
     if (!this.canSave()) {
+      const current = this.form();
+      if (current.patientId && current.branchName && current.departmentName && current.doctorId && current.appointmentDate && current.appointmentTime) {
+        if (this.hasPatientTimeConflict()) {
+          this.toast.warning('Patient already booked', 'This patient already has an active appointment at the selected date and time.');
+          return;
+        }
+
+        this.toast.warning('Slot unavailable', 'Select an available doctor slot before saving the appointment.');
+        return;
+      }
+
       this.toast.warning('Missing details', 'Patient, branch, department, doctor, date, and time slot are required.');
       return;
     }
@@ -887,6 +900,12 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
         : await this.appointmentService.create(current);
 
       if (!response.success || !response.data) {
+        if (response.statusCode === 409) {
+          await this.reload();
+          this.toast.warning('Slot already booked', 'This appointment slot was just taken or conflicts with an existing booking. Please select another available slot.');
+          return;
+        }
+
         this.toast.error('Unable to save appointment', getApiErrorMessage(response, 'Appointment API failed'));
         return;
       }
@@ -1020,6 +1039,29 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
     this.form.update(form => ({ ...form, appointmentTime: time }));
   }
 
+  protected isSelectedSlotUnavailable(): boolean {
+    const current = this.form();
+    if (!current.doctorId || !current.appointmentDate || !current.appointmentTime || !this.selectedDoctorProfile()) {
+      return false;
+    }
+
+    const slot = this.availableSlots().find(item => item.value === current.appointmentTime);
+    return !slot || slot.booked;
+  }
+
+  protected hasPatientTimeConflict(): boolean {
+    const current = this.form();
+    if (!current.patientId || !current.appointmentDate || !current.appointmentTime) {
+      return false;
+    }
+
+    return this.appointments()
+      .filter(appointment => appointment.patientId === current.patientId)
+      .filter(appointment => appointment.id !== current.appointmentId)
+      .filter(appointment => !['CANCELLED', 'NO_SHOW', 'NOSHOW'].includes(String(appointment.statusCode).toUpperCase()))
+      .some(appointment => dateKey(appointment.startsAt) === current.appointmentDate && timeInputValue(new Date(appointment.startsAt)) === current.appointmentTime);
+  }
+
   protected slotHelperText(): string {
     const form = this.form();
     if (!form.doctorId) {
@@ -1032,6 +1074,14 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
 
     if (!this.selectedDoctorProfile()) {
       return 'Loading doctor availability...';
+    }
+
+    if (this.hasPatientTimeConflict()) {
+      return 'Patient already has an active appointment at this time.';
+    }
+
+    if (this.isSelectedSlotUnavailable()) {
+      return 'Selected time is not available. Choose another slot.';
     }
 
     return `${this.availableSlots().filter(slot => !slot.booked).length} slots available`;
