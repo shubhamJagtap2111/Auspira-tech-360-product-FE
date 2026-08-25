@@ -5,6 +5,7 @@ import { ActivatedRoute } from '@angular/router';
 import { getApiErrorMessage } from '../../core/http/api-error-message';
 import { DialogService } from '../../shared/ui/dialog/dialog.service';
 import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dropdown.component';
+import { AcGridLoaderComponent } from '../../shared/ui/grid-loader/grid-loader.component';
 import { AcPageActionsComponent } from '../../shared/ui/page-actions/page-actions.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { DoctorAvailability, DoctorLeave, DoctorProfile, DoctorSchedule } from './doctor-management.models';
@@ -14,13 +15,15 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcDropdownComponent, AcPageActionsComponent],
+  imports: [CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent, AcPageActionsComponent],
   template: `
     <section class="doctor-profile">
       <ac-page-actions backLink="/doctors" backLabel="Doctor Registry" (refreshed)="reload()" />
 
       @if (loading()) {
-        <div class="profile-loader ac-card">Loading doctor profile...</div>
+        <div class="ac-card">
+          <ac-grid-loader title="Loading doctor profile..." message="Preparing Doctor 360 schedules, queues, and patient linkage." [compact]="true" />
+        </div>
       } @else if (doctor(); as currentDoctor) {
         <section class="doctor-summary-card ac-card">
           <div class="hero-card">

@@ -6,6 +6,7 @@ import { AiraChatService } from '../../core/ai/aira-chat.service';
 import { AuthStore } from '../../core/auth/auth.store';
 import { getUserRoleLabel, isHospitalAdminUser } from '../../core/auth/user-access';
 import { I18nService } from '../../core/i18n/i18n.service';
+import { AppLoaderService } from '../../shared/ui/app-loader/app-loader.service';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { ActivityTrendItem, AdministrationDashboard, AdministrationDashboardSummary, AdministrationOperationalSummary, RecentLoginItem, SystemHealthItem } from './administration-dashboard.models';
 import { AdministrationDashboardService } from './administration-dashboard.service';
@@ -907,6 +908,7 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
   private readonly i18n = inject(I18nService);
   private readonly toast = inject(ToastService);
   private readonly authStore = inject(AuthStore);
+  private readonly appLoader = inject(AppLoaderService);
   private aiTimer: ReturnType<typeof setInterval> | null = null;
   private pulseTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -956,18 +958,23 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
   }
 
   protected async load(): Promise<void> {
-    const response = await this.service.getDashboard(this.activityDays());
-    if (response.success && response.data) {
-      this.dashboard.set(response.data);
-      this.loginPage.set(1);
-      this.setFallbackInsight(response.data);
-      if (this.isHospitalAdmin()) {
-        void this.refreshAiInsights(response.data, false);
+    this.appLoader.showImmediate();
+    try {
+      const response = await this.service.getDashboard(this.activityDays());
+      if (response.success && response.data) {
+        this.dashboard.set(response.data);
+        this.loginPage.set(1);
+        this.setFallbackInsight(response.data);
+        if (this.isHospitalAdmin()) {
+          void this.refreshAiInsights(response.data, false);
+        }
+        return;
       }
-      return;
-    }
 
-    this.toast.error(this.t(response.message));
+      this.toast.error(this.t(response.message));
+    } finally {
+      this.appLoader.hide();
+    }
   }
 
   protected pagedRecentLogins(model: AdministrationDashboard) {

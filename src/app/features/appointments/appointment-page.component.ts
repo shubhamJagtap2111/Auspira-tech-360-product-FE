@@ -7,6 +7,7 @@ import { getApiErrorMessage } from '../../core/http/api-error-message';
 import { AcAdminDrawerComponent } from '../../shared/ui/admin-drawer/admin-drawer.component';
 import { DialogService } from '../../shared/ui/dialog/dialog.service';
 import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dropdown.component';
+import { AcGridLoaderComponent } from '../../shared/ui/grid-loader/grid-loader.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { DoctorProfile, DoctorSummary } from '../doctors/doctor-management.models';
 import { DoctorManagementService } from '../doctors/doctor-management.service';
@@ -30,7 +31,7 @@ import { AppointmentManagementService } from './appointment-management.service';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcDropdownComponent, AcAdminDrawerComponent],
+  imports: [CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent, AcAdminDrawerComponent],
   template: `
     <section class="appointment-page">
       <header class="page-header">
@@ -93,11 +94,7 @@ import { AppointmentManagementService } from './appointment-management.service';
         </div>
 
         @if (initialLoading()) {
-          <div class="registry-loader">
-            <span class="loader-mark material-symbols-rounded">monitor_heart</span>
-            <strong>Loading appointments...</strong>
-            <p>Preparing patient and doctor links for the calendar.</p>
-          </div>
+          <ac-grid-loader title="Loading appointments..." message="Preparing patient and doctor links for the calendar." />
         } @else {
           @if (viewMode() === 'calendar') {
             <section class="calendar-view">
@@ -455,12 +452,10 @@ import { AppointmentManagementService } from './appointment-management.service';
     .icon-btn:hover, .tbl-btn:hover { color: var(--ac-primary); border-color: color-mix(in srgb, var(--ac-primary) 36%, var(--ac-border)); }
     .tbl-btn.danger:hover { color: #dc2626; border-color: #fca5a5; }
     .tbl-btn:disabled, .ac-btn:disabled { opacity: .48; cursor: not-allowed; }
-    .registry-loader, .empty-state { min-height: 280px; display: grid; place-items: center; align-content: center; gap: 10px; padding: 34px 24px; text-align: center; color: var(--ac-muted); }
-    .registry-loader strong, .empty-state h3 { margin: 0; color: var(--ac-text); font-size: 17px; }
-    .registry-loader p, .empty-state p { margin: 0; max-width: 420px; }
-    .loader-mark, .empty-icon { width: 60px; height: 60px; border-radius: 16px; display: grid; place-items: center; background: color-mix(in srgb, var(--ac-primary) 9%, var(--ac-surface)); color: var(--ac-primary); font-size: 34px; }
-    .loader-mark { animation: loaderPulse 1.15s ease-in-out infinite; box-shadow: 0 14px 34px color-mix(in srgb, var(--ac-primary) 14%, transparent); }
-    @keyframes loaderPulse { 0%, 100% { transform: translateY(0); opacity: .72; } 50% { transform: translateY(-2px); opacity: 1; } }
+    .empty-state { min-height: 280px; display: grid; place-items: center; align-content: center; gap: 10px; padding: 34px 24px; text-align: center; color: var(--ac-muted); }
+    .empty-state h3 { margin: 0; color: var(--ac-text); font-size: 17px; }
+    .empty-state p { margin: 0; max-width: 420px; }
+    .empty-icon { width: 60px; height: 60px; border-radius: 16px; display: grid; place-items: center; background: color-mix(in srgb, var(--ac-primary) 9%, var(--ac-surface)); color: var(--ac-primary); font-size: 34px; }
     .calendar-view, .list-view { min-width: 0; }
     .calendar-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
     .calendar-range { margin-left: auto; color: var(--ac-muted); font-weight: 800; font-size: 13px; }

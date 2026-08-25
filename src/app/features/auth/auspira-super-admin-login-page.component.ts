@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { AuthStore } from '../../core/auth/auth.store';
+import { AppLoaderService } from '../../shared/ui/app-loader/app-loader.service';
 
 @Component({
   standalone: true,
@@ -201,6 +202,7 @@ export class AuspiraSuperAdminLoginPageComponent {
   private readonly authService = inject(AuthService);
   private readonly authStore = inject(AuthStore);
   private readonly router = inject(Router);
+  private readonly appLoader = inject(AppLoaderService);
 
   protected email = '';
   protected password = '';
@@ -219,6 +221,7 @@ export class AuspiraSuperAdminLoginPageComponent {
   protected async onLogin(): Promise<void> {
     this.loading.set(true);
     this.error.set(null);
+    this.appLoader.showImmediate();
 
     try {
       const response = await this.authService.auspiraSuperAdminLogin({ email: this.email, password: this.password, rememberMe: this.rememberMe });
@@ -233,6 +236,7 @@ export class AuspiraSuperAdminLoginPageComponent {
       this.error.set('Invalid email or password.');
     } finally {
       this.loading.set(false);
+      this.appLoader.hide();
     }
   }
 

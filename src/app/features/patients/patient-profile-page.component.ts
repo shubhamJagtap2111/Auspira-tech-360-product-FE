@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { ActivatedRoute } from '@angular/router';
 import { getApiErrorMessage } from '../../core/http/api-error-message';
 import { DialogFieldOption, DialogService } from '../../shared/ui/dialog/dialog.service';
+import { AcGridLoaderComponent } from '../../shared/ui/grid-loader/grid-loader.component';
 import { AcPageActionsComponent } from '../../shared/ui/page-actions/page-actions.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { PatientAllergy, PatientConnectedRecord, PatientProfile, PatientProfileOverview } from './patient-management.models';
@@ -13,13 +14,15 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
 
 @Component({
   standalone: true,
-  imports: [CommonModule, AcPageActionsComponent],
+  imports: [CommonModule, AcGridLoaderComponent, AcPageActionsComponent],
   template: `
     <section class="patient-profile">
       <ac-page-actions backLink="/patients" backLabel="Patient Registry" (refreshed)="reload()" />
 
       @if (loading()) {
-        <div class="profile-loader ac-card">Loading patient profile...</div>
+        <div class="ac-card">
+          <ac-grid-loader title="Loading patient profile..." message="Preparing Patient 360 timeline, clinical records, and billing context." [compact]="true" />
+        </div>
       } @else if (patient(); as currentPatient) {
         <section class="patient-summary-card ac-card">
           <div class="hero-card">

@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ToastService } from '../../shared/ui/toast/toast.service';
+import { AcGridLoaderComponent } from '../../shared/ui/grid-loader/grid-loader.component';
 import { GlobalSettingItem, GlobalSettingsSnapshot } from './global-settings.models';
 import { GlobalSettingsService } from './global-settings.service';
 
@@ -20,7 +21,7 @@ const categories = [
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, AcGridLoaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="settings-page">
@@ -132,7 +133,7 @@ const categories = [
           </aside>
         </section>
       } @else {
-        <section class="loading">Loading global settings...</section>
+        <ac-grid-loader title="Loading global settings..." message="Preparing platform settings and configuration." />
       }
     </section>
   `,

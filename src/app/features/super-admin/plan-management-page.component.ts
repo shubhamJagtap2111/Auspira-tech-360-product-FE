@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { DialogService } from '../../shared/ui/dialog/dialog.service';
+import { AcGridLoaderComponent } from '../../shared/ui/grid-loader/grid-loader.component';
 import {
   Feature,
   LimitDefinition,
@@ -19,7 +20,7 @@ type PlanTab = 'plans' | 'features' | 'pricing' | 'limits';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, AcGridLoaderComponent],
   template: `
     <section class="plan-page">
       <header class="page-head">
@@ -305,7 +306,7 @@ type PlanTab = 'plans' | 'features' | 'pricing' | 'limits';
           </main>
         </section>
       } @else {
-        <section class="loading">Loading plans...</section>
+        <ac-grid-loader title="Loading plans..." message="Preparing subscription plans, limits, and feature rules." />
       }
     </section>
   `,

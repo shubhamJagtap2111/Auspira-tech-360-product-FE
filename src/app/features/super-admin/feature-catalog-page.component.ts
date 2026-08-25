@@ -4,12 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
+import { AcGridLoaderComponent } from '../../shared/ui/grid-loader/grid-loader.component';
 import { Feature, Plan, PlanCatalog, UpsertFeatureRequest } from './plan-management.models';
 import { FeatureCatalogService } from './feature-catalog.service';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent],
+  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
   template: `
     <section class="feature-page">
       <header class="page-head">
@@ -162,7 +163,7 @@ import { FeatureCatalogService } from './feature-catalog.service';
           </aside>
         </section>
       } @else {
-        <section class="loading">Loading feature catalog...</section>
+        <ac-grid-loader title="Loading feature catalog..." message="Preparing feature modules and plan availability." />
       }
     </section>
   `,

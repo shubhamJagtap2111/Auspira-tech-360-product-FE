@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { getApiErrorMessage } from '../../core/http/api-error-message';
 import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dropdown.component';
+import { AcGridLoaderComponent } from '../../shared/ui/grid-loader/grid-loader.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { AppointmentCheckInForm, AppointmentForm, AppointmentQueueRecord, AppointmentRecord, appointmentPriorityOptions } from '../appointments/appointment-management.models';
 import { AppointmentManagementService } from '../appointments/appointment-management.service';
@@ -30,7 +31,7 @@ import { OpdManagementService } from './opd-management.service';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcDropdownComponent],
+  imports: [CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent],
   template: `
     <section class="opd-page">
       <header class="page-header">
@@ -85,10 +86,7 @@ import { OpdManagementService } from './opd-management.service';
         </div>
 
         @if (loading()) {
-          <div class="loader-state">
-            <span class="material-symbols-rounded">stethoscope</span>
-            <strong>Loading OPD workspace...</strong>
-          </div>
+          <ac-grid-loader title="Loading OPD workspace..." message="Preparing queue, check-ins, consultations, and lab context." />
         } @else {
           @switch (activeTab()) {
             @case ('dashboard') {
@@ -554,9 +552,7 @@ import { OpdManagementService } from './opd-management.service';
     .search-field { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 12px; border: 1px solid var(--ac-border); border-radius: 9px; background: var(--ac-surface); color: var(--ac-muted); }
     .search-field input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ac-text); font: inherit; font-weight: 750; }
     .icon-btn { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--ac-border); border-radius: 9px; background: var(--ac-surface); color: var(--ac-muted); cursor: pointer; }
-    .loader-state, .empty-state { min-height: 240px; display: grid; place-items: center; align-content: center; gap: 10px; color: var(--ac-muted); text-align: center; }
-    .loader-state span { width: 58px; height: 58px; display: grid; place-items: center; border-radius: 16px; background: color-mix(in srgb, var(--ac-primary) 9%, var(--ac-surface)); color: var(--ac-primary); font-size: 34px; animation: loaderPulse 1.15s ease-in-out infinite; }
-    @keyframes loaderPulse { 0%, 100% { transform: translateY(0); opacity: .72; } 50% { transform: translateY(-2px); opacity: 1; } }
+    .empty-state { min-height: 240px; display: grid; place-items: center; align-content: center; gap: 10px; color: var(--ac-muted); text-align: center; }
     .dashboard-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .panel, .encounter-card, .encounter-list, .queue-card { border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-surface); box-shadow: 0 16px 34px rgba(15, 23, 42, .05); }
     .panel { padding: 16px; }

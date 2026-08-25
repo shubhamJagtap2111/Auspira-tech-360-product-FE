@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ToastService } from '../../shared/ui/toast/toast.service';
+import { AcGridLoaderComponent } from '../../shared/ui/grid-loader/grid-loader.component';
 import { SuperAdminDashboard, SuperAdminDashboardSummary } from './super-admin-dashboard.models';
 import { SuperAdminDashboardService } from './super-admin-dashboard.service';
 
@@ -14,7 +15,7 @@ interface KpiCard {
 
 @Component({
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, AcGridLoaderComponent],
   template: `
     <section class="super-admin-page">
       <header class="page-head">
@@ -144,7 +145,9 @@ interface KpiCard {
 
         <footer class="generated">Generated at {{ model.summary.generatedAt | date:'medium' }}</footer>
       } @else {
-        <section class="panel loading">Loading control plane...</section>
+        <section class="panel">
+          <ac-grid-loader title="Loading control plane..." message="Preparing tenant, platform, and revenue signals." [compact]="true" />
+        </section>
       }
     </section>
   `,

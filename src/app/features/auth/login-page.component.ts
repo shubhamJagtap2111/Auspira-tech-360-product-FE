@@ -4,6 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { AuthStore } from '../../core/auth/auth.store';
 import { I18nService } from '../../core/i18n/i18n.service';
+import { AppLoaderService } from '../../shared/ui/app-loader/app-loader.service';
 
 @Component({
   standalone: true,
@@ -270,6 +271,7 @@ export class LoginPageComponent {
   private readonly authStore = inject(AuthStore);
   private readonly i18n = inject(I18nService);
   private readonly router = inject(Router);
+  private readonly appLoader = inject(AppLoaderService);
 
   protected readonly featureHighlights = [
     { icon: 'groups', label: 'Patient Management' },
@@ -294,6 +296,7 @@ export class LoginPageComponent {
   protected async onLogin(): Promise<void> {
     this.loading.set(true);
     this.errorKey.set(null);
+    this.appLoader.showImmediate();
 
     try {
       const response = await this.authService.login({
@@ -314,6 +317,7 @@ export class LoginPageComponent {
       this.errorKey.set('Auth.Errors.InvalidCredentials');
     } finally {
       this.loading.set(false);
+      this.appLoader.hide();
     }
   }
 

@@ -2,12 +2,13 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ToastService } from '../../shared/ui/toast/toast.service';
+import { AcGridLoaderComponent } from '../../shared/ui/grid-loader/grid-loader.component';
 import { MonitoringMetricCard, MonitoringSnapshot } from './monitoring.models';
 import { MonitoringService } from './monitoring.service';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, AcGridLoaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="monitoring-page">
@@ -118,7 +119,7 @@ import { MonitoringService } from './monitoring.service';
           </article>
         </section>
       } @else {
-        <section class="loading">Loading monitoring dashboard...</section>
+        <ac-grid-loader title="Loading monitoring dashboard..." message="Preparing health checks, incidents, and telemetry." />
       }
     </section>
   `,

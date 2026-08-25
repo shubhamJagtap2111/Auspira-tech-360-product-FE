@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
+import { AcGridLoaderComponent } from '../../shared/ui/grid-loader/grid-loader.component';
 import {
   SubscriptionCoupon,
   SubscriptionInvoice,
@@ -18,7 +19,7 @@ type SubscriptionTab = 'subscriptions' | 'invoices' | 'payments' | 'renewals' | 
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent],
+  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
   template: `
     <section class="subscription-page">
       <header class="page-head">
@@ -468,7 +469,7 @@ type SubscriptionTab = 'subscriptions' | 'invoices' | 'payments' | 'renewals' | 
           </aside>
         </section>
       } @else {
-        <section class="loading">Loading subscriptions...</section>
+        <ac-grid-loader title="Loading subscriptions..." message="Preparing tenants, invoices, and subscription status." />
       }
     </section>
   `,

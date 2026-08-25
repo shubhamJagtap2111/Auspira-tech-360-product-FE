@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
+import { AcGridLoaderComponent } from '../../shared/ui/grid-loader/grid-loader.component';
 import {
   BillingManagementSnapshot,
   BillingPayment,
@@ -15,7 +16,7 @@ type BillingTab = 'invoices' | 'payments' | 'taxes' | 'gst' | 'refunds' | 'credi
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent],
+  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="billing-page">
@@ -199,7 +200,7 @@ type BillingTab = 'invoices' | 'payments' | 'taxes' | 'gst' | 'refunds' | 'credi
           </aside>
         </section>
       } @else {
-        <section class="loading">Loading billing workspace...</section>
+        <ac-grid-loader title="Loading billing workspace..." message="Preparing invoices, payments, taxes, and billing signals." />
       }
     </section>
   `,

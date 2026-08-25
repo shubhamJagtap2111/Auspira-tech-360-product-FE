@@ -7,6 +7,7 @@ import { getApiErrorMessage } from '../../core/http/api-error-message';
 import { AcAdminDrawerComponent } from '../../shared/ui/admin-drawer/admin-drawer.component';
 import { DialogService } from '../../shared/ui/dialog/dialog.service';
 import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dropdown.component';
+import { AcGridLoaderComponent } from '../../shared/ui/grid-loader/grid-loader.component';
 import { AcPaginationComponent } from '../../shared/ui/pagination/pagination.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { DoctorForm, DoctorProfile, DoctorRegistryStats, DoctorSummary } from './doctor-management.models';
@@ -16,7 +17,7 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcDropdownComponent, AcPaginationComponent, AcAdminDrawerComponent],
+  imports: [CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent, AcPaginationComponent, AcAdminDrawerComponent],
   template: `
     <section class="doctor-registry">
       <header class="page-header">
@@ -72,11 +73,7 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
 
       <section class="ac-card doctor-table-card">
         @if (initialLoading()) {
-          <div class="registry-loader">
-            <span class="loader-mark material-symbols-rounded">monitor_heart</span>
-            <strong>Loading doctor registry...</strong>
-            <p>Preparing departments, schedules, and doctor records.</p>
-          </div>
+          <ac-grid-loader title="Loading doctor registry..." message="Preparing departments, schedules, and doctor records." />
         } @else if (doctors().length > 0) {
           <div class="table-scroll">
             <table class="ac-table doctor-table">
@@ -333,41 +330,6 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
     .empty-state h3 { margin: 0; color: var(--ac-text); }
     .empty-state p { max-width: 420px; margin: 0; }
     .empty-icon { width: 58px; height: 58px; border-radius: 14px; display: grid; place-items: center; background: var(--ac-subtle); color: var(--ac-muted); font-size: 31px; }
-    .registry-loader {
-      min-height: 260px;
-      display: grid;
-      place-items: center;
-      align-content: center;
-      gap: 10px;
-      padding: 34px 24px;
-      text-align: center;
-      color: var(--ac-muted);
-    }
-    .registry-loader strong {
-      color: var(--ac-text);
-      font-size: 16px;
-    }
-    .registry-loader p {
-      margin: 0;
-      max-width: 390px;
-      font-size: 13.5px;
-    }
-    .loader-mark {
-      width: 58px;
-      height: 58px;
-      border-radius: 16px;
-      display: grid;
-      place-items: center;
-      background: color-mix(in srgb, var(--ac-primary) 9%, var(--ac-surface));
-      color: var(--ac-primary);
-      font-size: 34px;
-      box-shadow: 0 14px 34px color-mix(in srgb, var(--ac-primary) 14%, transparent);
-      animation: loaderPulse 1.15s ease-in-out infinite;
-    }
-    @keyframes loaderPulse {
-      0%, 100% { transform: translateY(0); opacity: .72; }
-      50% { transform: translateY(-2px); opacity: 1; }
-    }
     .drawer-form { display: flex; flex-direction: column; gap: 18px; }
     .form-section { border: 1px solid var(--ac-border); border-radius: 8px; padding: 18px; background: var(--ac-surface); }
     .section-title { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }

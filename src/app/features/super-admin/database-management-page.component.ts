@@ -4,12 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
+import { AcGridLoaderComponent } from '../../shared/ui/grid-loader/grid-loader.component';
 import { DatabaseGridItem, DatabaseManagementSnapshot } from './database-management.models';
 import { DatabaseManagementService } from './database-management.service';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent],
+  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="database-page">
@@ -115,7 +116,7 @@ import { DatabaseManagementService } from './database-management.service';
           </aside>
         </section>
       } @else {
-        <section class="loading">Loading database console...</section>
+        <ac-grid-loader title="Loading database console..." message="Preparing tenant database health and operations." />
       }
     </section>
   `,

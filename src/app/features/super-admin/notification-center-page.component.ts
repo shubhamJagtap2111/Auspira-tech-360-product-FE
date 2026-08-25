@@ -4,12 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
+import { AcGridLoaderComponent } from '../../shared/ui/grid-loader/grid-loader.component';
 import { NotificationCenterService } from './notification-center.service';
 import { NotificationCenterSnapshot, NotificationTemplateItem } from './notification-center.models';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent],
+  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="notification-page">
@@ -227,7 +228,7 @@ import { NotificationCenterSnapshot, NotificationTemplateItem } from './notifica
           </article>
         </section>
       } @else {
-        <section class="loading">Loading notification center...</section>
+        <ac-grid-loader title="Loading notification center..." message="Preparing notifications, templates, and delivery queues." />
       }
     </section>
   `,

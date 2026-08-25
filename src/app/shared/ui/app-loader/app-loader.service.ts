@@ -36,6 +36,23 @@ export class AppLoaderService {
     }, AppLoaderService.ShowDelayMs);
   }
 
+  showImmediate(): void {
+    this.activeRequests.update(count => count + 1);
+    this.clearHideTimer();
+
+    if (this.showTimer) {
+      clearTimeout(this.showTimer);
+      this.showTimer = null;
+    }
+
+    if (!this.visible()) {
+      this.visibleSince = Date.now();
+      this.visible.set(true);
+    }
+
+    this.scheduleEmergencyReset();
+  }
+
   hide(): void {
     this.activeRequests.update(count => Math.max(0, count - 1));
 

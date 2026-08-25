@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
+import { AcGridLoaderComponent } from '../../shared/ui/grid-loader/grid-loader.component';
 import {
   ProvisionTenantResponse,
   ProvisioningFeatureOption,
@@ -16,7 +17,7 @@ type WizardStep = 'basic' | 'plan' | 'database' | 'admin' | 'features' | 'review
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent],
+  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="provision-page">
@@ -261,7 +262,7 @@ type WizardStep = 'basic' | 'plan' | 'database' | 'admin' | 'features' | 'review
           </aside>
         </section>
       } @else {
-        <section class="loading">Loading provisioning workspace...</section>
+        <ac-grid-loader title="Loading provisioning workspace..." message="Preparing tenant setup, database status, and onboarding tasks." />
       }
     </section>
   `,
