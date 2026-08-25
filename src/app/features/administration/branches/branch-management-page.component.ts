@@ -6,6 +6,7 @@ import { BranchContextService } from '../../../core/context/branch-context.servi
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
 import { AcAdminDrawerComponent } from '../../../shared/ui/admin-drawer/admin-drawer.component';
+import { AcDropdownComponent, DropdownOption } from '../../../shared/ui/dropdown/dropdown.component';
 import { AcPaginationComponent } from '../../../shared/ui/pagination/pagination.component';
 import { BranchConfiguration, BranchProfile, BranchSummary, BranchWorkingHour } from './branch-management.models';
 import { BranchManagementService } from './branch-management.service';
@@ -21,7 +22,7 @@ const permissions = {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcAdminDrawerComponent, AcPaginationComponent],
+  imports: [CommonModule, FormsModule, AcAdminDrawerComponent, AcDropdownComponent, AcPaginationComponent],
   template: `
     <section class="branch-page">
       <header class="page-head">
@@ -77,11 +78,7 @@ const permissions = {
         </label>
         <label>
           <span>{{ t('Administration.UserManagement.Columns.Status') }}</span>
-          <select name="statusFilter" [(ngModel)]="statusFilter" (change)="applyBranchPage(1)">
-            <option value="all">All statuses</option>
-            <option value="active">{{ t('Administration.UserManagement.Status.Active') }}</option>
-            <option value="inactive">{{ t('Administration.UserManagement.Status.Inactive') }}</option>
-          </select>
+          <ac-dropdown name="statusFilter" [(ngModel)]="statusFilter" (ngModelChange)="applyBranchPage(1)" [options]="statusFilterOptions" />
         </label>
         <button class="icon-btn" type="button" (click)="loadBranches(1)" [attr.title]="t('Common.Actions.Updating')">
           <span class="material-symbols-rounded">search</span>
@@ -408,6 +405,11 @@ export class BranchManagementPageComponent implements OnInit {
   protected readonly locationCount = computed(() => new Set(this.allBranches().filter(branch => branch.cityName || branch.stateName).map(branch => `${branch.cityName ?? ''}|${branch.stateName ?? ''}`)).size);
   protected searchText = '';
   protected statusFilter: 'all' | 'active' | 'inactive' = 'all';
+  protected readonly statusFilterOptions: DropdownOption<'all' | 'active' | 'inactive'>[] = [
+    { label: 'All statuses', value: 'all' },
+    { label: 'Active', value: 'active' },
+    { label: 'Inactive', value: 'inactive' }
+  ];
 
   private readonly service = inject(BranchManagementService);
   private readonly i18n = inject(I18nService);

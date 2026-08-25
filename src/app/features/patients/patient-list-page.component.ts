@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AcAdminDrawerComponent } from '../../shared/ui/admin-drawer/admin-drawer.component';
 import { DialogService } from '../../shared/ui/dialog/dialog.service';
-import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
+import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dropdown.component';
 import { AcGridLoaderComponent } from '../../shared/ui/grid-loader/grid-loader.component';
 import { AcPaginationComponent } from '../../shared/ui/pagination/pagination.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
@@ -232,12 +232,7 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
                     </label>
                     <label>
                       <span>Status</span>
-                      <select name="statusCode" [(ngModel)]="patientForm.statusCode" [disabled]="isViewMode()">
-                        <option value="REGISTERED">Registered</option>
-                        <option value="ACTIVE">Active</option>
-                        <option value="INACTIVE">Inactive</option>
-                        <option value="ARCHIVED">Archived</option>
-                      </select>
+                      <ac-dropdown name="statusCode" [(ngModel)]="patientForm.statusCode" [disabled]="isViewMode()" [options]="patientStatusOptions" />
                     </label>
                     <label class="mobile-field">
                       <span>Mobile</span>
@@ -301,21 +296,11 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
                     </label>
                     <label>
                       <span>Gender *</span>
-                      <select name="genderCode" [(ngModel)]="patientForm.genderCode" [disabled]="isViewMode()">
-                        <option [ngValue]="null">Select gender</option>
-                        <option value="MALE">Male</option>
-                        <option value="FEMALE">Female</option>
-                        <option value="OTHER">Other</option>
-                      </select>
+                      <ac-dropdown name="genderCode" [(ngModel)]="patientForm.genderCode" [disabled]="isViewMode()" [options]="patientGenderOptions" />
                     </label>
                     <label>
                       <span>Blood group</span>
-                      <select name="bloodGroupCode" [(ngModel)]="patientForm.bloodGroupCode" [disabled]="isViewMode()">
-                        <option [ngValue]="null">Not specified</option>
-                        @for (blood of bloodGroupOptions; track blood) {
-                          <option [value]="blood">{{ blood }}</option>
-                        }
-                      </select>
+                      <ac-dropdown name="bloodGroupCode" [(ngModel)]="patientForm.bloodGroupCode" [disabled]="isViewMode()" [options]="patientBloodGroupOptions" />
                     </label>
                   </div>
                 </section>
@@ -716,14 +701,14 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
   protected statusFilter = '';
   protected registrationDateFilter = '';
 
-  protected readonly genderOptions = [
+  protected readonly genderOptions: DropdownOption<string>[] = [
     { label: 'All Genders', value: '' },
     { label: 'Male', value: 'MALE' },
     { label: 'Female', value: 'FEMALE' },
     { label: 'Other', value: 'OTHER' }
   ];
 
-  protected readonly statusOptions = [
+  protected readonly statusOptions: DropdownOption<string>[] = [
     { label: 'All Statuses', value: '' },
     { label: 'Registered', value: 'REGISTERED' },
     { label: 'Active', value: 'ACTIVE' },
@@ -732,6 +717,15 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
   ];
 
   protected readonly bloodGroupOptions = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+  protected readonly patientStatusOptions: DropdownOption<string>[] = this.statusOptions.filter(option => option.value !== '');
+  protected readonly patientGenderOptions: DropdownOption<string | null>[] = [
+    { label: 'Select gender', value: null },
+    ...this.genderOptions.filter(option => option.value !== '')
+  ];
+  protected readonly patientBloodGroupOptions: DropdownOption<string | null>[] = [
+    { label: 'Not specified', value: null },
+    ...this.bloodGroupOptions.map(bloodGroup => ({ label: bloodGroup, value: bloodGroup }))
+  ];
   protected readonly countryCodeOptions = signal<CountryCodeOption[]>(fallbackCountryCodeOptions);
 
   protected readonly statCards = computed(() => {

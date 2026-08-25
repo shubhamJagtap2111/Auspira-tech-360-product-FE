@@ -364,7 +364,7 @@ import { OpdManagementService } from './opd-management.service';
                               <div class="clinical-grid">
                                 <label class="field"><span>Complaint</span><input name="complaint" [(ngModel)]="clinicalForm().complaintDraft.complaint" placeholder="Body pain" /></label>
                                 <label class="field"><span>Duration</span><input name="complaintDuration" [(ngModel)]="clinicalForm().complaintDraft.duration" placeholder="2 days" /></label>
-                                <label class="field"><span>Severity</span><select name="complaintSeverity" [(ngModel)]="clinicalForm().complaintDraft.severity"><option>Low</option><option>Moderate</option><option>High</option><option>Critical</option></select></label>
+                                <label class="field"><span>Severity</span><ac-dropdown name="complaintSeverity" [(ngModel)]="clinicalForm().complaintDraft.severity" [options]="complaintSeverityOptions" /></label>
                                 <label class="field wide"><span>Notes</span><input name="complaintNotes" [(ngModel)]="clinicalForm().complaintDraft.notes" placeholder="Associated symptoms or trigger" /></label>
                               </div>
                               <button class="ac-btn ac-btn-secondary" type="button" (click)="addComplaint()"><span class="material-symbols-rounded">add</span>Add Complaint</button>
@@ -396,7 +396,7 @@ import { OpdManagementService } from './opd-management.service';
                               <div class="clinical-grid">
                                 <label class="field"><span>Diagnosis Code</span><input name="diagnosisCode" [(ngModel)]="clinicalForm().diagnosisDraft.diagnosisCode" placeholder="ICD / internal code" /></label>
                                 <label class="field"><span>Diagnosis Name</span><input name="diagnosisName" [(ngModel)]="clinicalForm().diagnosisDraft.diagnosisName" placeholder="Viral fever" /></label>
-                                <label class="field"><span>Type</span><select name="diagnosisType" [(ngModel)]="clinicalForm().diagnosisDraft.diagnosisType"><option value="PRIMARY">Primary</option><option value="SECONDARY">Secondary</option></select></label>
+                                <label class="field"><span>Type</span><ac-dropdown name="diagnosisType" [(ngModel)]="clinicalForm().diagnosisDraft.diagnosisType" [options]="diagnosisTypeOptions" /></label>
                                 <label class="field wide"><span>Notes</span><input name="diagnosisNotes" [(ngModel)]="clinicalForm().diagnosisDraft.notes" /></label>
                               </div>
                               <button class="ac-btn ac-btn-secondary" type="button" (click)="addDiagnosis()"><span class="material-symbols-rounded">add</span>Add Diagnosis</button>
@@ -424,15 +424,25 @@ import { OpdManagementService } from './opd-management.service';
                               </div>
                             }
                             @case ('lab-orders') {
-                              <div class="section-title"><h3>Lab Orders</h3><p>Submitted tests create a laboratory queue order.</p></div>
-                              <div class="clinical-grid">
-                                <label class="field"><span>Test Category</span><input name="testCategory" [(ngModel)]="clinicalForm().labOrderDraft.testCategory" placeholder="Hematology" /></label>
-                                <label class="field"><span>Test</span><ac-dropdown name="labTest" [(ngModel)]="clinicalForm().labOrderDraft.testId" [options]="labTestOptions()" /></label>
-                                <label class="field"><span>Priority</span><select name="labPriority" [(ngModel)]="clinicalForm().labOrderDraft.priority"><option>Routine</option><option>Urgent</option><option>STAT</option></select></label>
-                                <label class="field wide"><span>Notes</span><input name="labNotes" [(ngModel)]="clinicalForm().labOrderDraft.notes" /></label>
+                              <div class="lab-order-composer">
+                                <div class="section-title lab-order-title">
+                                  <span class="material-symbols-rounded">biotech</span>
+                                  <div>
+                                    <h3>Lab Orders</h3>
+                                    <p>Submitted tests create a laboratory queue order.</p>
+                                  </div>
+                                </div>
+                                <div class="clinical-grid lab-order-grid">
+                                  <label class="field"><span>Test Category</span><input name="testCategory" [(ngModel)]="clinicalForm().labOrderDraft.testCategory" placeholder="Hematology" /></label>
+                                  <label class="field"><span>Test</span><ac-dropdown name="labTest" [(ngModel)]="clinicalForm().labOrderDraft.testId" [options]="labTestOptions()" /></label>
+                                  <label class="field"><span>Priority</span><ac-dropdown name="labPriority" [(ngModel)]="clinicalForm().labOrderDraft.priority" [options]="labPriorityOptions" /></label>
+                                  <label class="field wide"><span>Notes</span><input name="labNotes" [(ngModel)]="clinicalForm().labOrderDraft.notes" placeholder="Special instructions for laboratory team" /></label>
+                                </div>
+                                <div class="lab-order-actions">
+                                  <button class="ac-btn ac-btn-secondary" type="button" (click)="addLabOrderDraft()"><span class="material-symbols-rounded">add</span>Add Test</button>
+                                  <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="createLabOrder(visit)"><span class="material-symbols-rounded">biotech</span>Create Lab Order</button>
+                                </div>
                               </div>
-                              <button class="ac-btn ac-btn-secondary" type="button" (click)="addLabOrderDraft()"><span class="material-symbols-rounded">add</span>Add Test</button>
-                              <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="createLabOrder(visit)"><span class="material-symbols-rounded">biotech</span>Create Lab Order</button>
                               <div class="record-list">
                                 @for (item of clinicalForm().labOrders; track $index) {
                                   <span><strong>{{ labTestName(item.testId) }}</strong><small>{{ item.testCategory || '-' }} · {{ item.priority }}</small><button type="button" (click)="removeLabOrder($index)">Remove</button></span>
@@ -631,6 +641,42 @@ import { OpdManagementService } from './opd-management.service';
     .field.wide { grid-column: span 2; }
     .field input, .field select { width: 100%; min-height: 42px; border: 1px solid var(--ac-border); border-radius: 10px; padding: 0 12px; background: var(--ac-surface); color: var(--ac-text); font: inherit; font-weight: 760; outline: 0; }
     .field input:focus, .field select:focus { border-color: var(--ac-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ac-primary) 14%, transparent); }
+    .lab-order-composer {
+      display: grid;
+      gap: 14px;
+      margin-bottom: 12px;
+      padding: 14px;
+      border: 1px solid color-mix(in srgb, var(--ac-primary) 18%, var(--ac-border));
+      border-radius: 14px;
+      background:
+        linear-gradient(135deg, color-mix(in srgb, var(--ac-primary) 5%, var(--ac-surface)), color-mix(in srgb, #10b981 4%, var(--ac-surface)));
+      box-shadow: 0 14px 30px rgba(15, 23, 42, .05);
+    }
+    .lab-order-title {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      margin-bottom: 0;
+    }
+    .lab-order-title > span {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      border-radius: 11px;
+      background: var(--ac-primary-light);
+      color: var(--ac-primary);
+      box-shadow: 0 12px 24px color-mix(in srgb, var(--ac-primary) 12%, transparent);
+    }
+    .lab-order-grid {
+      margin-bottom: 0;
+    }
+    .lab-order-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-start;
+    }
     .check-field { min-height: 42px; grid-auto-flow: column; justify-content: start; align-items: center; padding: 10px 12px; border: 1px solid var(--ac-border); border-radius: 10px; background: var(--ac-subtle); color: var(--ac-text); }
     .chip-list, .record-list { display: grid; gap: 8px; margin-top: 10px; }
     .chip-list span, .record-list span { display: flex; gap: 10px; align-items: center; justify-content: space-between; min-width: 0; padding: 10px 12px; border: 1px solid var(--ac-border); border-radius: 10px; background: var(--ac-subtle); color: var(--ac-text); font-weight: 850; }
@@ -677,6 +723,21 @@ export class OpdPageComponent implements OnInit {
   protected searchQuery = '';
   protected doctorFilter = '';
   protected transferDoctorId = '';
+  protected readonly complaintSeverityOptions: DropdownOption<string>[] = [
+    { label: 'Low', value: 'Low' },
+    { label: 'Moderate', value: 'Moderate' },
+    { label: 'High', value: 'High' },
+    { label: 'Critical', value: 'Critical' }
+  ];
+  protected readonly diagnosisTypeOptions: DropdownOption<string>[] = [
+    { label: 'Primary', value: 'PRIMARY' },
+    { label: 'Secondary', value: 'SECONDARY' }
+  ];
+  protected readonly labPriorityOptions: DropdownOption<string>[] = [
+    { label: 'Routine', value: 'Routine' },
+    { label: 'Urgent', value: 'Urgent' },
+    { label: 'STAT', value: 'STAT' }
+  ];
 
   protected readonly tabs: Array<{ id: OpdTab; label: string; icon: string }> = [
     { id: 'dashboard', label: 'OPD Dashboard', icon: 'dashboard' },

@@ -164,12 +164,7 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
                     </label>
                     <label>
                       <span>Status</span>
-                      <select name="leaveStatus" [(ngModel)]="form.statusCode">
-                        <option value="APPROVED">Approved</option>
-                        <option value="PENDING">Pending</option>
-                        <option value="REJECTED">Rejected</option>
-                        <option value="CANCELLED">Cancelled</option>
-                      </select>
+                      <ac-dropdown name="leaveStatus" [(ngModel)]="form.statusCode" [options]="leaveStatusOptions" />
                     </label>
                     <label class="span-2">
                       <span>Reason</span>
@@ -183,12 +178,15 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
                 }
                 <div class="record-grid">
                   @for (availability of currentDoctor.availability; track availability.availabilityGuid) {
-                    <article class="record-card">
+                    <article class="record-card availability-card">
                       <span class="material-symbols-rounded">calendar_clock</span>
                       <div>
                         <h3>{{ availability.dayName }}</h3>
                         <p>{{ availability.startsAt }} - {{ availability.endsAt }} · {{ availability.slotDurationMinutes }} min slots · {{ availability.maxPatients }} max · {{ availability.consultationType }} · {{ availability.branchName }}</p>
                       </div>
+                      <button type="button" class="record-card-action" aria-label="Edit availability" (click)="openEditAvailabilityForm(availability)">
+                        <span class="material-symbols-rounded">edit</span>
+                      </button>
                     </article>
                   } @empty {
                     <div class="empty-state">No availability configured yet.</div>
@@ -380,10 +378,10 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
           <div class="modal-backdrop" (click)="cancelAvailabilityForm()">
             <form class="availability-modal" (click)="$event.stopPropagation()" (ngSubmit)="saveAvailability(currentDoctor)">
               <header class="availability-modal-head">
-                <span class="availability-modal-icon material-symbols-rounded">{{ form.statusCode === 'OVERRIDE' ? 'edit_calendar' : 'calendar_add_on' }}</span>
+                <span class="availability-modal-icon material-symbols-rounded">{{ form.availabilityGuid ? 'edit_calendar' : form.statusCode === 'OVERRIDE' ? 'edit_calendar' : 'calendar_add_on' }}</span>
                 <div>
-                  <p class="ac-eyebrow">{{ form.statusCode === 'OVERRIDE' ? 'Availability override' : 'Reusable schedule' }}</p>
-                  <h2>{{ form.statusCode === 'OVERRIDE' ? 'Override Availability' : 'Add Schedule' }}</h2>
+                  <p class="ac-eyebrow">{{ form.availabilityGuid ? 'Update schedule' : form.statusCode === 'OVERRIDE' ? 'Availability override' : 'Reusable schedule' }}</p>
+                  <h2>{{ form.availabilityGuid ? 'Edit Availability' : form.statusCode === 'OVERRIDE' ? 'Override Availability' : 'Add Schedule' }}</h2>
                 </div>
                 <button type="button" class="modal-close" aria-label="Close availability form" (click)="cancelAvailabilityForm()">
                   <span class="material-symbols-rounded">close</span>
@@ -399,10 +397,25 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
                   <span>Branch</span>
                   <input name="availabilityBranch" [(ngModel)]="form.branchName" required />
                 </label>
-                <label>
-                  <span>Day</span>
-                  <ac-dropdown name="availabilityDay" [(ngModel)]="form.dayOfWeek" [options]="availabilityDayOptions" />
-                </label>
+                <fieldset class="availability-day-picker">
+                  <legend>
+                    <span>Days</span>
+                    <small>{{ form.availabilityGuid ? 'Editing this saved availability entry.' : form.dayOfWeeks.length + ' selected. Each day will create a separate availability entry.' }}</small>
+                  </legend>
+                  <div class="availability-day-options">
+                    @for (day of availabilityDayOptions; track day.value) {
+                      <button
+                        type="button"
+                        class="availability-day-option"
+                        [class.selected]="isAvailabilityDaySelected(day.value)"
+                        [attr.aria-pressed]="isAvailabilityDaySelected(day.value)"
+                        (click)="toggleAvailabilityDay(day.value)">
+                        <span class="material-symbols-rounded">{{ isAvailabilityDaySelected(day.value) ? 'check_circle' : 'radio_button_unchecked' }}</span>
+                        {{ day.label }}
+                      </button>
+                    }
+                  </div>
+                </fieldset>
                 <label>
                   <span>Consultation Type</span>
                   <ac-dropdown name="availabilityConsultationType" [(ngModel)]="form.consultationType" [options]="consultationTypeOptions" />
@@ -429,7 +442,7 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
                 <button type="button" class="ac-btn ac-btn-secondary" (click)="cancelAvailabilityForm()">Cancel</button>
                 <button type="submit" class="ac-btn ac-btn-primary">
                   <span class="material-symbols-rounded">save</span>
-                  Save Availability
+                  {{ form.availabilityGuid ? 'Update Availability' : 'Save Availability' }}
                 </button>
               </footer>
             </form>
@@ -479,8 +492,37 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
     .detail-grid small, .performance-grid small { display: block; margin-bottom: 5px; }
     .detail-grid strong, .performance-grid strong { color: var(--ac-text); overflow-wrap: anywhere; }
     .record-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-    .record-card { border: 1px solid var(--ac-border); border-radius: 8px; padding: 16px; display: flex; gap: 12px; align-items: flex-start; background: var(--ac-surface); }
+    .record-card { position: relative; border: 1px solid var(--ac-border); border-radius: 8px; padding: 16px; display: flex; gap: 12px; align-items: flex-start; background: var(--ac-surface); }
     .record-card > .material-symbols-rounded { width: 42px; height: 42px; border-radius: 10px; display: grid; place-items: center; background: var(--ac-primary-light); color: var(--ac-primary); flex: 0 0 42px; }
+    .availability-card > div { min-width: 0; flex: 1 1 auto; padding-right: 36px; }
+    .record-card-action {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 34px;
+      height: 34px;
+      border: 1px solid var(--ac-border);
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      color: var(--ac-muted);
+      background: color-mix(in srgb, var(--ac-surface) 92%, var(--ac-primary-light));
+      cursor: pointer;
+      opacity: 0;
+      transform: translateY(-2px);
+      transition: opacity 0.18s ease, transform 0.18s ease, border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
+    }
+    .availability-card:hover .record-card-action,
+    .record-card-action:focus-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .record-card-action:hover {
+      color: var(--ac-primary);
+      border-color: color-mix(in srgb, var(--ac-primary) 36%, var(--ac-border));
+      background: var(--ac-primary-light);
+    }
+    .record-card-action .material-symbols-rounded { font-size: 18px; }
     .record-card.warning > .material-symbols-rounded { background: #FFF7ED; color: #EA580C; }
     .record-card.cyan > .material-symbols-rounded { background: #E6F8FC; color: #0891B2; }
     .record-card h3 { margin: 0; color: var(--ac-text); font-size: 16px; }
@@ -1263,6 +1305,72 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
       border-color: color-mix(in srgb, var(--ac-primary) 58%, var(--ac-border));
       box-shadow: 0 0 0 4px color-mix(in srgb, var(--ac-primary) 12%, transparent);
     }
+    .availability-day-picker {
+      grid-column: 1 / -1;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      display: grid;
+      gap: 10px;
+      min-width: 0;
+    }
+    .availability-day-picker legend {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 0;
+      color: var(--ac-muted);
+      font-size: 12px;
+      font-weight: 850;
+    }
+    .availability-day-picker small {
+      color: color-mix(in srgb, var(--ac-muted) 78%, white);
+      font-size: 11px;
+      font-weight: 750;
+      text-align: right;
+    }
+    .availability-day-options {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .availability-day-option {
+      min-height: 42px;
+      border: 1px solid var(--ac-border);
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      background: color-mix(in srgb, var(--ac-surface) 92%, var(--ac-primary-light));
+      color: var(--ac-text);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 850;
+      cursor: pointer;
+      transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+    }
+    .availability-day-option .material-symbols-rounded {
+      font-size: 18px;
+      color: var(--ac-muted);
+    }
+    .availability-day-option:hover {
+      border-color: color-mix(in srgb, var(--ac-primary) 36%, var(--ac-border));
+      background: color-mix(in srgb, var(--ac-primary) 7%, var(--ac-surface));
+      transform: translateY(-1px);
+    }
+    .availability-day-option.selected {
+      border-color: color-mix(in srgb, var(--ac-primary) 62%, var(--ac-border));
+      background: linear-gradient(135deg, color-mix(in srgb, var(--ac-primary) 13%, var(--ac-surface)), color-mix(in srgb, #10b981 8%, var(--ac-surface)));
+      color: var(--ac-primary);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ac-primary) 12%, transparent);
+    }
+    .availability-day-option.selected .material-symbols-rounded {
+      color: var(--ac-primary);
+      font-variation-settings: 'FILL' 1;
+    }
     .availability-modal-actions {
       display: flex;
       justify-content: flex-end;
@@ -1508,6 +1616,16 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
       .availability-modal-body {
         padding: 18px 18px 8px;
       }
+      .availability-day-picker legend {
+        display: grid;
+        gap: 4px;
+      }
+      .availability-day-picker small {
+        text-align: left;
+      }
+      .availability-day-options {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
       .availability-modal-actions {
         flex-direction: column-reverse;
         padding: 14px 18px 18px;
@@ -1539,6 +1657,12 @@ export class DoctorProfilePageComponent implements OnInit {
     { label: 'Follow-up', value: 'FOLLOW_UP' },
     { label: 'Teleconsult', value: 'TELECONSULT' },
     { label: 'IPD round', value: 'IPD_ROUND' }
+  ];
+  protected readonly leaveStatusOptions: DropdownOption<string>[] = [
+    { label: 'Approved', value: 'APPROVED' },
+    { label: 'Pending', value: 'PENDING' },
+    { label: 'Rejected', value: 'REJECTED' },
+    { label: 'Cancelled', value: 'CANCELLED' }
   ];
   protected readonly tabs: Array<{ id: DoctorProfileTab; label: string; icon: string }> = [
     { id: 'overview', label: 'Overview', icon: 'dashboard' },
@@ -1632,7 +1756,9 @@ export class DoctorProfilePageComponent implements OnInit {
     this.leaveForm.set(null);
     this.availabilityForm.set({
       doctorGuid: doctor.doctorGuid,
+      availabilityGuid: null,
       dayOfWeek: 1,
+      dayOfWeeks: [1],
       startsAt: statusCode === 'OVERRIDE' ? '16:00' : '09:00',
       endsAt: statusCode === 'OVERRIDE' ? '20:00' : '13:00',
       branchName: doctor.branchName,
@@ -1643,13 +1769,58 @@ export class DoctorProfilePageComponent implements OnInit {
     });
   }
 
+  protected openEditAvailabilityForm(availability: DoctorAvailability): void {
+    this.leaveForm.set(null);
+    this.availabilityForm.set({
+      doctorGuid: this.doctor()?.doctorGuid ?? '',
+      availabilityGuid: availability.availabilityGuid,
+      dayOfWeek: availability.dayOfWeek,
+      dayOfWeeks: [availability.dayOfWeek],
+      startsAt: availability.startsAt,
+      endsAt: availability.endsAt,
+      branchName: availability.branchName,
+      consultationType: availability.consultationType,
+      slotDurationMinutes: availability.slotDurationMinutes,
+      maxPatients: availability.maxPatients,
+      statusCode: availability.statusCode === 'OVERRIDE' ? 'OVERRIDE' : 'ACTIVE'
+    });
+  }
+
   protected cancelAvailabilityForm(): void {
     this.availabilityForm.set(null);
   }
 
+  protected isAvailabilityDaySelected(dayOfWeek: number): boolean {
+    return this.availabilityForm()?.dayOfWeeks.includes(dayOfWeek) ?? false;
+  }
+
+  protected toggleAvailabilityDay(dayOfWeek: number): void {
+    this.availabilityForm.update(form => {
+      if (!form) {
+        return form;
+      }
+
+      const dayOfWeeks = form.availabilityGuid
+        ? [dayOfWeek]
+        : form.dayOfWeeks.includes(dayOfWeek)
+        ? form.dayOfWeeks.filter(day => day !== dayOfWeek)
+        : sortAvailabilityDays([...form.dayOfWeeks, dayOfWeek]);
+
+      return {
+        ...form,
+        dayOfWeek: dayOfWeeks[0] ?? form.dayOfWeek,
+        dayOfWeeks
+      };
+    });
+  }
+
   protected async saveAvailability(doctor: DoctorProfile): Promise<void> {
     const form = this.availabilityForm();
-    if (!form || !Number.isInteger(Number(form.dayOfWeek)) || !form.startsAt || !form.endsAt || !form.branchName.trim()) {
+    const selectedDays = uniqueAvailabilityDays(form?.dayOfWeeks ?? []);
+    if (!form || selectedDays.length === 0 || !form.startsAt || !form.endsAt || !form.branchName.trim()) {
+      if (form && selectedDays.length === 0) {
+        this.toast.warning('Select schedule days', 'Choose at least one day for this availability.');
+      }
       return;
     }
 
@@ -1660,29 +1831,93 @@ export class DoctorProfilePageComponent implements OnInit {
 
     const slotDurationMinutes = Math.max(5, Number(form.slotDurationMinutes) || 15);
     const maxPatients = Math.max(1, Number(form.maxPatients) || 1);
-    const response = await this.service.createAvailability({
-      doctorId: doctor.doctorGuid,
-      dayOfWeek: Number(form.dayOfWeek),
-      startsAt: form.startsAt,
-      endsAt: form.endsAt,
-      branchName: form.branchName.trim(),
-      consultationType: form.consultationType,
-      slotDurationMinutes,
-      maxPatients,
-      statusCode: form.statusCode
-    });
-    if (!response.success || !response.data) {
-      this.toast.error('Unable to save availability', getApiErrorMessage(response, 'Doctor availability API failed'));
+
+    if (form.availabilityGuid) {
+      const response = await this.service.updateAvailability(form.availabilityGuid, {
+        doctorId: doctor.doctorGuid,
+        dayOfWeek: selectedDays[0],
+        startsAt: form.startsAt,
+        endsAt: form.endsAt,
+        branchName: form.branchName.trim(),
+        consultationType: form.consultationType,
+        slotDurationMinutes,
+        maxPatients,
+        statusCode: form.statusCode
+      });
+
+      if (!response.success || !response.data) {
+        this.toast.error('Unable to update availability', getApiErrorMessage(response, 'Doctor availability API failed'));
+        return;
+      }
+
+      const availability = mapAvailabilityRecord(response.data);
+      this.updateDoctor(current => ({
+        ...current,
+        availability: upsertBy(current.availability, availability, item => item.availabilityGuid)
+      }));
+      this.availabilityForm.set(null);
+      this.toast.success('Availability updated', `${availability.dayName} schedule has been updated.`);
       return;
     }
 
-    const availability = mapAvailabilityRecord(response.data);
-    this.updateDoctor(current => ({
-      ...current,
-      availability: upsertBy(current.availability, availability, item => item.availabilityGuid)
-    }));
+    const results = await Promise.all(selectedDays.map(async dayOfWeek => ({
+      dayOfWeek,
+      response: await this.service.createAvailability({
+        doctorId: doctor.doctorGuid,
+        dayOfWeek,
+        startsAt: form.startsAt,
+        endsAt: form.endsAt,
+        branchName: form.branchName.trim(),
+        consultationType: form.consultationType,
+        slotDurationMinutes,
+        maxPatients,
+        statusCode: form.statusCode
+      })
+    })));
+
+    const savedAvailability = results
+      .map(result => result.response.data)
+      .filter((record): record is NonNullable<typeof record> => Boolean(record))
+      .map(mapAvailabilityRecord);
+
+    if (savedAvailability.length > 0) {
+      this.updateDoctor(current => ({
+        ...current,
+        availability: savedAvailability.reduce(
+          (items, availability) => upsertBy(items, availability, item => item.availabilityGuid),
+          current.availability
+        )
+      }));
+    }
+
+    const failedResult = results.find(result => !result.response.success || !result.response.data);
+    if (failedResult) {
+      const failedDays = results
+        .filter(result => !result.response.success || !result.response.data)
+        .map(result => result.dayOfWeek);
+
+      this.availabilityForm.update(current => current ? {
+        ...current,
+        dayOfWeek: failedDays[0] ?? current.dayOfWeek,
+        dayOfWeeks: failedDays
+      } : current);
+      this.toast.error(
+        'Unable to save all availability',
+        getApiErrorMessage(
+          failedResult.response,
+          savedAvailability.length > 0
+            ? `${savedAvailability.length} selected ${savedAvailability.length === 1 ? 'day was' : 'days were'} saved. Review remaining days.`
+            : 'Doctor availability API failed'
+        )
+      );
+      return;
+    }
+
     this.availabilityForm.set(null);
-    this.toast.success(form.statusCode === 'OVERRIDE' ? 'Availability override added' : 'Schedule added');
+    this.toast.success(
+      form.statusCode === 'OVERRIDE' ? 'Availability override added' : 'Schedule added',
+      `${savedAvailability.length} ${savedAvailability.length === 1 ? 'day' : 'days'} configured.`
+    );
   }
 
   protected async blockDate(doctor: DoctorProfile): Promise<void> {
@@ -1787,7 +2022,9 @@ export class DoctorProfilePageComponent implements OnInit {
 
 interface DoctorAvailabilityForm {
   doctorGuid: string;
+  availabilityGuid: string | null;
   dayOfWeek: number;
+  dayOfWeeks: number[];
   startsAt: string;
   endsAt: string;
   branchName: string;
@@ -1859,6 +2096,15 @@ function upsertBy<T>(items: T[], nextItem: T, getId: (item: T) => string): T[] {
 
 function dayName(dayOfWeek: number): string {
   return ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayOfWeek] ?? 'Scheduled day';
+}
+
+function sortAvailabilityDays(days: number[]): number[] {
+  const weekOrder = [1, 2, 3, 4, 5, 6, 0];
+  return [...days].sort((left, right) => weekOrder.indexOf(left) - weekOrder.indexOf(right));
+}
+
+function uniqueAvailabilityDays(days: number[]): number[] {
+  return sortAvailabilityDays([...new Set(days.map(Number).filter(day => Number.isInteger(day) && day >= 0 && day <= 6))]);
 }
 
 function formatNumber(value: number): string {

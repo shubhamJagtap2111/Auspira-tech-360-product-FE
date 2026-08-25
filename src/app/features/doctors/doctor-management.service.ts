@@ -47,6 +47,10 @@ export class DoctorManagementService {
     return firstValueFrom(this.api.post<DoctorApiResponse<DoctorAvailabilityRecord>>('/doctor-availability', request));
   }
 
+  updateAvailability(availabilityGuid: string, request: DoctorAvailabilityRequest): Promise<DoctorApiResponse<DoctorAvailabilityRecord>> {
+    return firstValueFrom(this.api.put<DoctorApiResponse<DoctorAvailabilityRecord>>(`/doctor-availability/${availabilityGuid}`, request));
+  }
+
   createSchedule(request: DoctorScheduleRequest): Promise<DoctorApiResponse<DoctorScheduleRecord>> {
     return firstValueFrom(this.api.post<DoctorApiResponse<DoctorScheduleRecord>>('/doctor-schedules', request));
   }
