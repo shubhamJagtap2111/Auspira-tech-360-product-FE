@@ -27,15 +27,30 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
       place-items: center;
       padding: 24px;
       pointer-events: all;
-      background: color-mix(in srgb, var(--ac-bg) 78%, transparent);
-      animation: loaderFade .16s ease;
+      background: transparent;
     }
 
     .grid-loader.compact {
       padding: 24px;
     }
 
+    .grid-loader::before {
+      content: '';
+      position: fixed;
+      top: var(--ac-header-h);
+      right: 0;
+      bottom: 0;
+      left: var(--ac-sidebar-w);
+      background: color-mix(in srgb, var(--ac-bg) 88%, transparent);
+    }
+
+    :host-context(.shell.collapsed) .grid-loader::before {
+      left: var(--ac-sidebar-w-sm);
+    }
+
     .loader-card {
+      position: relative;
+      z-index: 1;
       min-width: 166px;
       min-height: 108px;
       display: grid;
@@ -84,7 +99,7 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
       color: #cbd5e1;
     }
 
-    :host-context(.dark) .grid-loader {
+    :host-context(.dark) .grid-loader::before {
       background: rgba(2,6,23,.72);
     }
 
@@ -93,9 +108,13 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
       to { stroke-dashoffset: 0; }
     }
 
-    @keyframes loaderFade {
-      from { opacity: 0; }
-      to { opacity: 1; }
+    @media (max-width: 760px) {
+      .grid-loader::before {
+        top: 58px;
+        right: 0;
+        bottom: 68px;
+        left: 0;
+      }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
