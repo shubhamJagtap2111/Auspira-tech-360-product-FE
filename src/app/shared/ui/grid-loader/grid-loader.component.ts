@@ -20,16 +20,19 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
     :host { display: block; min-width: 0; }
 
     .grid-loader {
-      min-height: 260px;
+      position: fixed;
+      inset: 0;
+      z-index: 1800;
       display: grid;
       place-items: center;
-      padding: 28px;
-      background: color-mix(in srgb, var(--ac-surface) 86%, transparent);
+      padding: 24px;
+      pointer-events: all;
+      background: color-mix(in srgb, var(--ac-bg) 78%, transparent);
+      animation: loaderFade .16s ease;
     }
 
     .grid-loader.compact {
-      min-height: 160px;
-      padding: 18px;
+      padding: 24px;
     }
 
     .loader-card {
@@ -81,9 +84,18 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
       color: #cbd5e1;
     }
 
+    :host-context(.dark) .grid-loader {
+      background: rgba(2,6,23,.72);
+    }
+
     @keyframes heartbeatDash {
       72.5% { opacity: 0; }
       to { stroke-dashoffset: 0; }
+    }
+
+    @keyframes loaderFade {
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
