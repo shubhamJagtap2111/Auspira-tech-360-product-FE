@@ -271,19 +271,51 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
               </div>
             }
             @case ('prescriptions') {
-              <div class="record-grid">
-                @for (record of currentPatient.prescriptions; track record.recordGuid) {
-                  <article class="record-card">
-                    <span class="material-symbols-rounded">prescriptions</span>
-                    <div>
-                      <h3>{{ record.title }}</h3>
-                      <p>{{ record.subtitle || record.statusCode }} · {{ formatDateTime(record.eventDate) }}</p>
+              <section class="prescription-history">
+                <header class="tracker-head">
+                  <div>
+                    <p class="ac-eyebrow">Patient-wise prescriptions</p>
+                    <h2>Prescription History</h2>
+                  </div>
+                  <span class="tracker-count">{{ currentPatient.prescriptions.length }} records</span>
+                </header>
+
+                @if (currentPatient.prescriptions.length > 0) {
+                  <div class="prescription-history-table">
+                    <div class="prescription-history-head">
+                      <span>Prescription No.</span>
+                      <span>Doctor</span>
+                      <span>Date</span>
+                      <span>Status</span>
+                      <span>Actions</span>
                     </div>
-                  </article>
-                } @empty {
+                    @for (record of currentPatient.prescriptions; track record.recordGuid; let index = $index) {
+                      <div class="prescription-history-row">
+                        <span><strong>{{ prescriptionNo(record, index) }}</strong><small>{{ record.recordType }}</small></span>
+                        <span>{{ prescriptionDoctor(record) }}</span>
+                        <span>{{ formatDate(record.eventDate) }}</span>
+                        <span><mark>{{ prescriptionStatus(record) }}</mark></span>
+                        <span class="prescription-actions">
+                          <button type="button" title="View prescription" (click)="viewPrescription(currentPatient, record, index)">
+                            <span class="material-symbols-rounded">visibility</span>
+                          </button>
+                          <button type="button" title="Print prescription" (click)="printPatientPrescription(currentPatient, record, index)">
+                            <span class="material-symbols-rounded">print</span>
+                          </button>
+                          <button type="button" title="Download PDF" (click)="downloadPatientPrescription(currentPatient, record, index)">
+                            <span class="material-symbols-rounded">picture_as_pdf</span>
+                          </button>
+                          <button type="button" title="Share prescription" (click)="sharePatientPrescription(currentPatient, record, index)">
+                            <span class="material-symbols-rounded">ios_share</span>
+                          </button>
+                        </span>
+                      </div>
+                    }
+                  </div>
+                } @else {
                   <div class="empty-state">No prescriptions linked yet.</div>
                 }
-              </div>
+              </section>
             }
             @case ('lab-results') {
               <div class="record-grid">
@@ -347,6 +379,59 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
         </section>
       } @else {
         <div class="profile-loader ac-card">Patient profile is not available.</div>
+      }
+
+      @if (selectedPrescription(); as prescription) {
+        <div class="patient-modal-backdrop" (click)="closePrescriptionView()">
+          <section class="patient-prescription-modal" (click)="$event.stopPropagation()" aria-label="Prescription preview">
+            <header>
+              <div>
+                <p class="ac-eyebrow">Prescription Preview</p>
+                <h2>{{ prescription.prescriptionNo }}</h2>
+                <span>{{ prescription.patientName }} · {{ prescription.mrn }} · {{ prescription.date }}</span>
+              </div>
+              <button type="button" class="modal-close" aria-label="Close prescription preview" (click)="closePrescriptionView()">
+                <span class="material-symbols-rounded">close</span>
+              </button>
+            </header>
+            <div class="patient-prescription-sheet">
+              <div class="sheet-row">
+                <small>Patient</small>
+                <strong>{{ prescription.patientName }}</strong>
+              </div>
+              <div class="sheet-row">
+                <small>MRN</small>
+                <strong>{{ prescription.mrn }}</strong>
+              </div>
+              <div class="sheet-row">
+                <small>Doctor</small>
+                <strong>{{ prescription.doctor }}</strong>
+              </div>
+              <div class="sheet-row">
+                <small>Status</small>
+                <strong>{{ prescription.status }}</strong>
+              </div>
+              <article>
+                <small>Prescription Summary</small>
+                <p>{{ prescription.summary }}</p>
+              </article>
+            </div>
+            <footer>
+              <button class="ac-btn ac-btn-secondary" type="button" (click)="shareSelectedPrescription()">
+                <span class="material-symbols-rounded">ios_share</span>
+                Share
+              </button>
+              <button class="ac-btn ac-btn-secondary" type="button" (click)="downloadSelectedPrescription()">
+                <span class="material-symbols-rounded">picture_as_pdf</span>
+                PDF
+              </button>
+              <button class="ac-btn ac-btn-primary" type="button" (click)="printSelectedPrescription()">
+                <span class="material-symbols-rounded">print</span>
+                Print
+              </button>
+            </footer>
+          </section>
+        </div>
       }
     </section>
   `,
@@ -1381,6 +1466,170 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
       color: var(--ac-text-2);
       font-weight: 750;
     }
+    .prescription-history {
+      display: grid;
+      gap: 14px;
+    }
+    .prescription-history-table {
+      overflow: hidden;
+      border: 1px solid color-mix(in srgb, var(--profile-accent) 18%, var(--ac-border));
+      border-radius: 16px;
+      background: var(--ac-surface);
+      box-shadow: 0 14px 34px rgba(15, 23, 42, 0.055);
+    }
+    .prescription-history-head,
+    .prescription-history-row {
+      display: grid;
+      grid-template-columns: minmax(170px, 1.1fr) minmax(150px, 1fr) minmax(120px, .75fr) minmax(105px, .65fr) minmax(190px, auto);
+      gap: 12px;
+      align-items: center;
+      padding: 13px 16px;
+    }
+    .prescription-history-head {
+      background: color-mix(in srgb, var(--profile-accent) 8%, var(--ac-subtle));
+      color: var(--ac-muted);
+      font-size: 11px;
+      font-weight: 950;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+    .prescription-history-row {
+      border-top: 1px solid var(--ac-border);
+      color: var(--ac-text);
+      font-weight: 820;
+    }
+    .prescription-history-row > span {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    .prescription-history-row strong,
+    .prescription-history-row small {
+      display: block;
+    }
+    .prescription-history-row small {
+      margin-top: 3px;
+      color: var(--ac-muted);
+      font-size: 11.5px;
+      font-weight: 850;
+    }
+    .prescription-history-row mark {
+      display: inline-flex;
+      min-height: 28px;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: color-mix(in srgb, #10b981 12%, var(--ac-surface));
+      color: #047857;
+      font-weight: 950;
+    }
+    .prescription-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .prescription-actions button,
+    .modal-close {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--ac-border);
+      border-radius: 10px;
+      background: var(--ac-surface);
+      color: var(--ac-muted);
+      cursor: pointer;
+      transition: color .16s ease, background .16s ease, border-color .16s ease, transform .16s ease;
+    }
+    .prescription-actions button:hover,
+    .modal-close:hover {
+      color: var(--profile-accent);
+      border-color: color-mix(in srgb, var(--profile-accent) 26%, var(--ac-border));
+      background: var(--ac-primary-light);
+      transform: translateY(-1px);
+    }
+    .prescription-actions .material-symbols-rounded,
+    .modal-close .material-symbols-rounded {
+      font-size: 19px;
+    }
+    .patient-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 90;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(15, 23, 42, .42);
+      backdrop-filter: blur(6px);
+    }
+    .patient-prescription-modal {
+      width: min(720px, 100%);
+      overflow: hidden;
+      border: 1px solid color-mix(in srgb, var(--profile-accent) 20%, var(--ac-border));
+      border-radius: 18px;
+      background: var(--ac-surface);
+      box-shadow: 0 30px 90px rgba(15, 23, 42, .24);
+    }
+    .patient-prescription-modal > header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 22px 24px;
+      border-bottom: 1px solid var(--ac-border);
+      background: linear-gradient(120deg, color-mix(in srgb, var(--profile-accent) 11%, var(--ac-surface)), color-mix(in srgb, var(--profile-accent-2) 7%, var(--ac-surface)));
+    }
+    .patient-prescription-modal h2 {
+      margin: 2px 0 3px;
+      color: var(--ac-text);
+      font-size: 24px;
+    }
+    .patient-prescription-modal header span {
+      color: var(--ac-muted);
+      font-weight: 850;
+    }
+    .patient-prescription-sheet {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      padding: 20px 24px;
+    }
+    .patient-prescription-sheet .sheet-row,
+    .patient-prescription-sheet article {
+      min-width: 0;
+      display: grid;
+      gap: 5px;
+      padding: 13px;
+      border: 1px solid var(--ac-border);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--profile-accent) 3%, var(--ac-surface));
+    }
+    .patient-prescription-sheet small {
+      color: var(--ac-muted);
+      font-size: 11px;
+      font-weight: 950;
+      text-transform: uppercase;
+    }
+    .patient-prescription-sheet strong {
+      color: var(--ac-text);
+      overflow-wrap: anywhere;
+    }
+    .patient-prescription-sheet article {
+      grid-column: 1 / -1;
+    }
+    .patient-prescription-sheet article p {
+      margin: 0;
+      color: var(--ac-text-2);
+      font-weight: 780;
+      line-height: 1.5;
+    }
+    .patient-prescription-modal footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 16px 24px;
+      border-top: 1px solid var(--ac-border);
+      background: color-mix(in srgb, var(--ac-surface) 94%, white);
+    }
 
     @media (max-width: 620px) {
       .tab-bar {
@@ -1393,6 +1642,29 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
       .record-grid,
       .billing-grid {
         grid-template-columns: 1fr;
+      }
+      .prescription-history-head {
+        display: none;
+      }
+      .prescription-history-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+      .prescription-actions {
+        justify-content: flex-start;
+      }
+      .patient-modal-backdrop {
+        padding: 12px;
+      }
+      .patient-prescription-sheet {
+        grid-template-columns: 1fr;
+        padding: 14px;
+      }
+      .patient-prescription-modal footer {
+        flex-direction: column-reverse;
+      }
+      .patient-prescription-modal .ac-btn {
+        width: 100%;
       }
     }
 
@@ -1419,6 +1691,7 @@ export class PatientProfilePageComponent implements OnInit {
   protected readonly loading = signal(true);
   protected readonly patient = signal<PatientProfile | null>(null);
   protected readonly activeTab = signal<PatientProfileTab>('overview');
+  protected readonly selectedPrescription = signal<PatientPrescriptionPreview | null>(null);
   protected readonly allergyTypeOptions: DialogFieldOption[] = [
     { label: 'Drug', value: 'Drug' },
     { label: 'Food', value: 'Food' },
@@ -1441,10 +1714,10 @@ export class PatientProfilePageComponent implements OnInit {
     { id: 'insurance', label: 'Insurance', icon: 'health_and_safety' },
     { id: 'documents', label: 'Documents', icon: 'folder' },
     { id: 'appointments', label: 'Appointments', icon: 'event' },
-    { id: 'opd', label: 'OPD Visits', icon: 'stethoscope' },
-    { id: 'ipd', label: 'IPD Admissions', icon: 'bed' },
+    { id: 'opd', label: 'OPD History', icon: 'stethoscope' },
+    { id: 'ipd', label: 'IPD History', icon: 'bed' },
     { id: 'prescriptions', label: 'Prescriptions', icon: 'prescriptions' },
-    { id: 'lab-results', label: 'Lab Results', icon: 'biotech' },
+    { id: 'lab-results', label: 'Lab Reports', icon: 'biotech' },
     { id: 'billing', label: 'Billing', icon: 'payments' },
     { id: 'activity', label: 'Activity', icon: 'timeline' }
   ];
@@ -1531,8 +1804,98 @@ export class PatientProfilePageComponent implements OnInit {
     return patient.visits.filter(record => record.sourceModule === 'IPD' || record.recordType === 'Admission');
   }
 
+  protected prescriptionNo(record: PatientConnectedRecord, index: number): string {
+    return buildPatientPrescriptionPreview(this.patient(), record, index).prescriptionNo;
+  }
+
+  protected prescriptionDoctor(record: PatientConnectedRecord): string {
+    return extractPrescriptionDoctor(record);
+  }
+
+  protected prescriptionStatus(record: PatientConnectedRecord): string {
+    return titleCase(record.statusCode || 'Finalized');
+  }
+
+  protected viewPrescription(patient: PatientProfile, record: PatientConnectedRecord, index: number): void {
+    this.selectedPrescription.set(buildPatientPrescriptionPreview(patient, record, index));
+  }
+
+  protected closePrescriptionView(): void {
+    this.selectedPrescription.set(null);
+  }
+
+  protected printPatientPrescription(patient: PatientProfile, record: PatientConnectedRecord, index: number): void {
+    const prescription = buildPatientPrescriptionPreview(patient, record, index);
+    if (!openPatientPrescriptionDocument(prescription, true)) {
+      this.toast.error('Unable to open prescription', 'Allow pop-ups for this site and try again.');
+    }
+  }
+
+  protected downloadPatientPrescription(patient: PatientProfile, record: PatientConnectedRecord, index: number): void {
+    const prescription = buildPatientPrescriptionPreview(patient, record, index);
+    if (openPatientPrescriptionDocument(prescription, true)) {
+      this.toast.info('Download prescription', 'Use the print dialog and choose Save as PDF.');
+    } else {
+      this.toast.error('Unable to open prescription', 'Allow pop-ups for this site and try again.');
+    }
+  }
+
+  protected async sharePatientPrescription(patient: PatientProfile, record: PatientConnectedRecord, index: number): Promise<void> {
+    await this.sharePrescriptionPreview(buildPatientPrescriptionPreview(patient, record, index));
+  }
+
+  protected printSelectedPrescription(): void {
+    const prescription = this.selectedPrescription();
+    if (!prescription) {
+      return;
+    }
+
+    if (!openPatientPrescriptionDocument(prescription, true)) {
+      this.toast.error('Unable to open prescription', 'Allow pop-ups for this site and try again.');
+    }
+  }
+
+  protected downloadSelectedPrescription(): void {
+    const prescription = this.selectedPrescription();
+    if (!prescription) {
+      return;
+    }
+
+    if (openPatientPrescriptionDocument(prescription, true)) {
+      this.toast.info('Download prescription', 'Use the print dialog and choose Save as PDF.');
+    } else {
+      this.toast.error('Unable to open prescription', 'Allow pop-ups for this site and try again.');
+    }
+  }
+
+  protected async shareSelectedPrescription(): Promise<void> {
+    const prescription = this.selectedPrescription();
+    if (!prescription) {
+      return;
+    }
+
+    await this.sharePrescriptionPreview(prescription);
+  }
+
   protected criticalAlerts(patient: PatientProfile): number {
     return patient.allergies.filter(allergy => allergy.isCritical || ['HIGH', 'SEVERE'].includes(allergy.severityCode)).length;
+  }
+
+  private async sharePrescriptionPreview(prescription: PatientPrescriptionPreview): Promise<void> {
+    const text = patientPrescriptionPlainText(prescription);
+    try {
+      const browserNavigator = navigator as PatientPrescriptionNavigator;
+      if (browserNavigator.share) {
+        await browserNavigator.share({ title: `Prescription - ${prescription.prescriptionNo}`, text });
+        this.toast.success('Prescription shared');
+        return;
+      }
+
+      await browserNavigator.clipboard?.writeText(text);
+      this.toast.success('Prescription copied', 'Prescription details copied to clipboard.');
+    } catch {
+      this.toast.error('Unable to share prescription');
+    }
   }
 
   protected async allergyAction(action: 'Add Allergy' | 'Edit Allergy' | 'Mark Critical' | 'Deactivate Allergy'): Promise<void> {
@@ -1737,6 +2100,160 @@ export class PatientProfilePageComponent implements OnInit {
       };
     });
   }
+}
+
+interface PatientPrescriptionPreview {
+  prescriptionNo: string;
+  patientName: string;
+  mrn: string;
+  doctor: string;
+  date: string;
+  status: string;
+  sourceModule: string;
+  recordType: string;
+  summary: string;
+}
+
+interface PatientPrescriptionNavigator {
+  share?: (data: ShareData) => Promise<void>;
+  clipboard?: Clipboard;
+}
+
+function buildPatientPrescriptionPreview(patient: PatientProfile | null, record: PatientConnectedRecord, index: number): PatientPrescriptionPreview {
+  return {
+    prescriptionNo: extractPrescriptionNo(record, index),
+    patientName: patient?.fullName || 'Patient',
+    mrn: patient?.medicalRecordNo || '-',
+    doctor: extractPrescriptionDoctor(record),
+    date: formatPatientPrescriptionDate(record.eventDate),
+    status: titleCase(record.statusCode || 'Finalized'),
+    sourceModule: record.sourceModule || 'OPD',
+    recordType: record.recordType || 'Prescription',
+    summary: record.subtitle || record.title || 'Prescription linked to patient OPD encounter.'
+  };
+}
+
+function extractPrescriptionNo(record: PatientConnectedRecord, index: number): string {
+  const source = [record.title, record.subtitle, record.recordGuid].filter(Boolean).join(' ');
+  const matched = source.match(/\bRX[-\w]*\d+\b/i);
+  if (matched) {
+    return matched[0].toUpperCase();
+  }
+
+  const digits = record.recordGuid.replace(/\D/g, '').slice(-6);
+  return `RX-${(digits || String(index + 1)).padStart(6, '0')}`;
+}
+
+function extractPrescriptionDoctor(record: PatientConnectedRecord): string {
+  const source = record.subtitle || record.title || '';
+  const doctorMatch = source.match(/Dr\.?\s+[A-Za-z .]+/i);
+  if (doctorMatch) {
+    return doctorMatch[0].trim();
+  }
+
+  const parts = source.split(/[·|,-]/).map(part => part.trim()).filter(Boolean);
+  const probableDoctor = parts.find(part => /doctor|dr\.?/i.test(part)) || parts.find(part => /^[A-Za-z .]{3,}$/.test(part));
+  return probableDoctor || 'Doctor not available';
+}
+
+function formatPatientPrescriptionDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '-';
+  }
+
+  return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
+}
+
+function titleCase(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[_-]/g, ' ')
+    .replace(/\b\w/g, char => char.toUpperCase());
+}
+
+function patientPrescriptionPlainText(prescription: PatientPrescriptionPreview): string {
+  return [
+    'Care360 Prescription',
+    `Prescription No: ${prescription.prescriptionNo}`,
+    `Patient: ${prescription.patientName}`,
+    `MRN: ${prescription.mrn}`,
+    `Doctor: ${prescription.doctor}`,
+    `Date: ${prescription.date}`,
+    `Status: ${prescription.status}`,
+    `Summary: ${prescription.summary}`
+  ].join('\n');
+}
+
+function openPatientPrescriptionDocument(prescription: PatientPrescriptionPreview, autoPrint: boolean): boolean {
+  const popup = window.open('', '_blank', 'width=900,height=780');
+  if (!popup) {
+    return false;
+  }
+
+  popup.document.open();
+  popup.document.write(printablePatientPrescriptionHtml(prescription, autoPrint));
+  popup.document.close();
+  popup.focus();
+  return true;
+}
+
+function printablePatientPrescriptionHtml(prescription: PatientPrescriptionPreview, autoPrint: boolean): string {
+  return `<!doctype html>
+<html>
+<head>
+  <title>${escapeHtml(prescription.prescriptionNo)}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 28px; color: #0f172a; font-family: Arial, sans-serif; background: #f8fafc; }
+    main { max-width: 760px; margin: 0 auto; overflow: hidden; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; }
+    header { padding: 24px 28px; border-bottom: 1px solid #dbe4f0; background: linear-gradient(120deg, #eff6ff, #f0fdfa); }
+    h1, h2, p { margin: 0; }
+    .eyebrow { color: #2563eb; font-size: 12px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { margin-top: 6px; font-size: 26px; }
+    .muted { color: #64748b; font-weight: 700; }
+    section { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 28px; padding: 20px 28px; border-bottom: 1px solid #dbe4f0; }
+    div { display: grid; gap: 4px; padding-bottom: 7px; border-bottom: 1px dashed #cbd5e1; }
+    small { color: #64748b; font-weight: 800; text-transform: uppercase; }
+    strong { font-size: 16px; }
+    article { padding: 20px 28px; }
+    article p { margin-top: 8px; color: #334155; font-weight: 700; line-height: 1.55; }
+    footer { padding: 14px 28px; color: #64748b; font-size: 12px; font-weight: 700; }
+    @media print { body { padding: 0; background: white; } main { border-radius: 0; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">Care360 Patient Prescription</p>
+      <h1>${escapeHtml(prescription.prescriptionNo)}</h1>
+      <p class="muted">${escapeHtml(prescription.status)} · ${escapeHtml(prescription.date)}</p>
+    </header>
+    <section>
+      <div><small>Patient</small><strong>${escapeHtml(prescription.patientName)}</strong></div>
+      <div><small>MRN</small><strong>${escapeHtml(prescription.mrn)}</strong></div>
+      <div><small>Doctor</small><strong>${escapeHtml(prescription.doctor)}</strong></div>
+      <div><small>Source</small><strong>${escapeHtml(prescription.sourceModule)} · ${escapeHtml(prescription.recordType)}</strong></div>
+    </section>
+    <article>
+      <small>Prescription Summary</small>
+      <p>${escapeHtml(prescription.summary)}</p>
+    </article>
+    <footer>This prescription history item is linked patient-wise from Care360 clinical workflow records.</footer>
+  </main>
+  ${autoPrint ? '<script>window.addEventListener("load", () => setTimeout(() => window.print(), 150));</script>' : ''}
+</body>
+</html>`;
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, char => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[char] || char);
 }
 
 function normalizeSeverity(value: string | null | undefined): string {

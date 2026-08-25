@@ -6,7 +6,7 @@ import { PatientSummary } from '../patients/patient-management.models';
 export type OpdApiResponse<T> = ApiResponse<T>;
 export type OpdTab = 'dashboard' | 'queue' | 'check-in' | 'active' | 'completed' | 'encounter';
 export type OpdConsultationStatus = 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
-export type OpdEncounterSection = 'snapshot' | 'vitals' | 'complaints' | 'history' | 'examination' | 'diagnosis' | 'prescription' | 'lab-orders' | 'procedures' | 'notes' | 'follow-up';
+export type OpdEncounterSection = 'snapshot' | 'vitals' | 'consultation' | 'diagnosis' | 'lab-orders' | 'procedures' | 'notes' | 'prescription' | 'follow-up';
 
 export interface OpdConsultationRecord {
   id: string;
@@ -70,6 +70,16 @@ export interface OpdPrescriptionItemRecord {
   dosage: string;
   frequency: string;
   days: number;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface OpdMedicineRecord {
+  id: string;
+  name: string;
+  genericName: string;
+  unit: string;
+  salePrice: number;
   createdAt: string;
   updatedAt: string | null;
 }
@@ -176,11 +186,15 @@ export interface OpdDiagnosisForm {
 
 export interface OpdPrescriptionItemForm {
   id?: string;
+  medicineId?: string | null;
   medicine: string;
+  strength: string;
+  dosageForm: string;
   dosage: string;
   route: string;
   frequency: string;
   duration: string;
+  quantity: string;
   instructions: string;
 }
 
@@ -200,14 +214,17 @@ export interface OpdProcedureForm {
 
 export interface OpdFollowUpForm {
   followUpRequired: boolean;
+  followUpAfterDays: string;
   followUpDate: string;
   preferredDoctorId: string;
+  reason: string;
   notes: string;
   createAppointment: boolean;
 }
 
 export interface OpdClinicalForm {
   vitals: OpdVitalsForm;
+  includeVitalsInPrescription: boolean;
   complaints: OpdComplaintForm[];
   complaintDraft: OpdComplaintForm;
   history: OpdHistoryForm;
@@ -217,6 +234,14 @@ export interface OpdClinicalForm {
   prescriptions: OpdPrescriptionItemForm[];
   prescriptionDraft: OpdPrescriptionItemForm;
   prescriptionId: string;
+  prescriptionNo: string;
+  includeInvestigationsInPrescription: boolean;
+  investigationDraft: string;
+  prescriptionInvestigations: string[];
+  adviceDraft: string;
+  adviceList: string[];
+  dietAdviceDraft: string;
+  dietAdviceList: string[];
   labOrders: OpdLabOrderForm[];
   labOrderDraft: OpdLabOrderForm;
   procedures: OpdProcedureForm[];

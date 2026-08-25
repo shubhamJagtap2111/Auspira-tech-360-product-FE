@@ -16,6 +16,7 @@ import {
   OpdLabOrderItemRecord,
   OpdLabOrderRecord,
   OpdLabTestRecord,
+  OpdMedicineRecord,
   OpdPrescriptionItemForm,
   OpdPrescriptionItemRecord,
   OpdPrescriptionRecord,
@@ -36,6 +37,10 @@ export class OpdManagementService {
 
   listLabTests(pageNumber = 1, pageSize = 100): Promise<OpdApiResponse<OpdLabTestRecord[]>> {
     return firstValueFrom(this.api.get<OpdApiResponse<OpdLabTestRecord[]>>(`/laboratory/tests?pageNumber=${pageNumber}&pageSize=${pageSize}`));
+  }
+
+  listMedicines(pageNumber = 1, pageSize = 100): Promise<OpdApiResponse<OpdMedicineRecord[]>> {
+    return firstValueFrom(this.api.get<OpdApiResponse<OpdMedicineRecord[]>>(`/pharmacy/medicines?pageNumber=${pageNumber}&pageSize=${pageSize}`));
   }
 
   createConsultation(form: OpdEncounterForm): Promise<OpdApiResponse<OpdConsultationRecord>> {
@@ -67,10 +72,10 @@ export class OpdManagementService {
   createPrescriptionItem(prescriptionId: string, item: OpdPrescriptionItemForm): Promise<OpdApiResponse<OpdPrescriptionItemRecord>> {
     return firstValueFrom(this.api.post<OpdApiResponse<OpdPrescriptionItemRecord>>('/opd/prescription-items', {
       prescriptionId,
-      medicineId: null,
+      medicineId: item.medicineId || null,
       medicineName: item.medicine.trim(),
-      dosage: item.dosage.trim(),
-      frequency: [item.route, item.frequency, item.instructions].filter(Boolean).join(' · '),
+      dosage: [item.dosage, item.strength, item.dosageForm, item.quantity ? `Qty ${item.quantity}` : ''].filter(Boolean).join(' · '),
+      frequency: [item.frequency, item.route, item.instructions].filter(Boolean).join(' · '),
       days: parseDurationDays(item.duration)
     }));
   }
