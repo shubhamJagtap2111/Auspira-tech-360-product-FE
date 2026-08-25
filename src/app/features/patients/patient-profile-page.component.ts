@@ -413,7 +413,86 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
               </div>
               <article>
                 <small>Prescription Summary</small>
-                <p>{{ prescription.summary }}</p>
+                @if (prescription.details.hasStructuredContent) {
+                  <div class="prescription-section-grid">
+                    @if (prescription.details.context.length) {
+                      <section class="rx-preview-section">
+                        <h3>Prescription Context</h3>
+                        <div class="rx-key-grid">
+                          @for (item of prescription.details.context; track item.label) {
+                            <span><small>{{ item.label }}</small><strong>{{ item.value }}</strong></span>
+                          }
+                        </div>
+                      </section>
+                    }
+
+                    @if (prescription.details.vitals.length) {
+                      <section class="rx-preview-section">
+                        <h3>Vitals</h3>
+                        <div class="rx-key-grid compact">
+                          @for (item of prescription.details.vitals; track item.label) {
+                            <span><small>{{ item.label }}</small><strong>{{ item.value }}</strong></span>
+                          }
+                        </div>
+                      </section>
+                    }
+
+                    @if (prescription.details.medicines.length) {
+                      <section class="rx-preview-section">
+                        <h3>Medicines</h3>
+                        <div class="rx-medicine-list">
+                          @for (medicine of prescription.details.medicines; track medicine.name + medicine.instruction) {
+                            <div>
+                              <strong>{{ medicine.name }}</strong>
+                              <p>{{ medicine.instruction }}</p>
+                            </div>
+                          }
+                        </div>
+                      </section>
+                    }
+
+                    @if (prescription.details.investigations.length || prescription.details.procedures.length) {
+                      <section class="rx-preview-section">
+                        <h3>Orders & Procedures</h3>
+                        <div class="rx-chip-list">
+                          @for (item of prescription.details.investigations; track item) {
+                            <span>{{ item }}</span>
+                          }
+                          @for (item of prescription.details.procedures; track item) {
+                            <span>{{ item }}</span>
+                          }
+                        </div>
+                      </section>
+                    }
+
+                    @if (prescription.details.advice.length || prescription.details.dietAdvice.length) {
+                      <section class="rx-preview-section">
+                        <h3>Advice</h3>
+                        <div class="rx-chip-list">
+                          @for (item of prescription.details.advice; track item) {
+                            <span>{{ item }}</span>
+                          }
+                          @for (item of prescription.details.dietAdvice; track item) {
+                            <span>{{ item }}</span>
+                          }
+                        </div>
+                      </section>
+                    }
+
+                    @if (prescription.details.followUp.length) {
+                      <section class="rx-preview-section">
+                        <h3>Follow-up</h3>
+                        <div class="rx-key-grid compact">
+                          @for (item of prescription.details.followUp; track item.label) {
+                            <span><small>{{ item.label }}</small><strong>{{ item.value }}</strong></span>
+                          }
+                        </div>
+                      </section>
+                    }
+                  </div>
+                } @else {
+                  <p>{{ prescription.summary }}</p>
+                }
               </article>
             </div>
             <footer>
@@ -1563,7 +1642,8 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
       backdrop-filter: blur(6px);
     }
     .patient-prescription-modal {
-      width: min(720px, 100%);
+      width: min(900px, 100%);
+      max-height: min(90vh, 860px);
       overflow: hidden;
       border: 1px solid color-mix(in srgb, var(--profile-accent) 20%, var(--ac-border));
       border-radius: 18px;
@@ -1592,6 +1672,8 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
       padding: 20px 24px;
+      max-height: calc(90vh - 176px);
+      overflow: auto;
     }
     .patient-prescription-sheet .sheet-row,
     .patient-prescription-sheet article {
@@ -1621,6 +1703,84 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
       color: var(--ac-text-2);
       font-weight: 780;
       line-height: 1.5;
+    }
+    .prescription-section-grid {
+      display: grid;
+      gap: 12px;
+    }
+    .rx-preview-section {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid var(--ac-border);
+      border-radius: 12px;
+      background: var(--ac-surface);
+    }
+    .rx-preview-section h3 {
+      margin: 0;
+      color: var(--ac-text);
+      font-size: 15px;
+    }
+    .rx-key-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .rx-key-grid.compact {
+      grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+    }
+    .rx-key-grid span {
+      min-width: 0;
+      display: grid;
+      gap: 3px;
+      padding: 9px 10px;
+      border: 1px solid var(--ac-border);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--profile-accent) 3%, var(--ac-surface));
+    }
+    .rx-key-grid strong {
+      color: var(--ac-text);
+      overflow-wrap: anywhere;
+    }
+    .rx-medicine-list {
+      display: grid;
+      gap: 8px;
+    }
+    .rx-medicine-list div {
+      display: grid;
+      gap: 4px;
+      padding: 10px 12px;
+      border: 1px solid var(--ac-border);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--profile-accent) 3%, var(--ac-surface));
+    }
+    .rx-medicine-list strong {
+      color: var(--ac-text);
+      font-size: 14px;
+    }
+    .rx-medicine-list p {
+      margin: 0;
+      color: var(--ac-muted);
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.45;
+    }
+    .rx-chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .rx-chip-list span {
+      min-height: 30px;
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 10px;
+      border: 1px solid var(--ac-border);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--profile-accent) 5%, var(--ac-surface));
+      color: var(--ac-text);
+      font-size: 12.5px;
+      font-weight: 850;
     }
     .patient-prescription-modal footer {
       display: flex;
@@ -1659,6 +1819,9 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
       .patient-prescription-sheet {
         grid-template-columns: 1fr;
         padding: 14px;
+      }
+      .rx-key-grid {
+        grid-template-columns: 1fr;
       }
       .patient-prescription-modal footer {
         flex-direction: column-reverse;
@@ -2112,6 +2275,29 @@ interface PatientPrescriptionPreview {
   sourceModule: string;
   recordType: string;
   summary: string;
+  details: PatientPrescriptionDetails;
+}
+
+interface PrescriptionKeyValue {
+  label: string;
+  value: string;
+}
+
+interface PrescriptionMedicinePreview {
+  name: string;
+  instruction: string;
+}
+
+interface PatientPrescriptionDetails {
+  context: PrescriptionKeyValue[];
+  vitals: PrescriptionKeyValue[];
+  medicines: PrescriptionMedicinePreview[];
+  investigations: string[];
+  procedures: string[];
+  advice: string[];
+  dietAdvice: string[];
+  followUp: PrescriptionKeyValue[];
+  hasStructuredContent: boolean;
 }
 
 interface PatientPrescriptionNavigator {
@@ -2120,6 +2306,7 @@ interface PatientPrescriptionNavigator {
 }
 
 function buildPatientPrescriptionPreview(patient: PatientProfile | null, record: PatientConnectedRecord, index: number): PatientPrescriptionPreview {
+  const summary = record.subtitle || record.title || 'Prescription linked to patient OPD encounter.';
   return {
     prescriptionNo: extractPrescriptionNo(record, index),
     patientName: patient?.fullName || 'Patient',
@@ -2129,7 +2316,8 @@ function buildPatientPrescriptionPreview(patient: PatientProfile | null, record:
     status: titleCase(record.statusCode || 'Finalized'),
     sourceModule: record.sourceModule || 'OPD',
     recordType: record.recordType || 'Prescription',
-    summary: record.subtitle || record.title || 'Prescription linked to patient OPD encounter.'
+    summary,
+    details: parsePatientPrescriptionDetails(summary)
   };
 }
 
@@ -2172,6 +2360,88 @@ function titleCase(value: string): string {
     .replace(/\b\w/g, char => char.toUpperCase());
 }
 
+function parsePatientPrescriptionDetails(summary: string): PatientPrescriptionDetails {
+  const sections = splitPrescriptionSections(summary);
+  const details: PatientPrescriptionDetails = {
+    context: parseKeyValues(sections.get('prescription context') ?? []),
+    vitals: parseKeyValues(sections.get('vitals') ?? []),
+    medicines: parseMedicines(sections.get('medicines') ?? []),
+    investigations: sections.get('investigations') ?? [],
+    procedures: sections.get('procedures') ?? [],
+    advice: sections.get('advice') ?? [],
+    dietAdvice: sections.get('diet advice') ?? [],
+    followUp: parseKeyValues(sections.get('follow-up') ?? []),
+    hasStructuredContent: false
+  };
+
+  details.hasStructuredContent = Boolean(
+    details.context.length ||
+    details.vitals.length ||
+    details.medicines.length ||
+    details.investigations.length ||
+    details.procedures.length ||
+    details.advice.length ||
+    details.dietAdvice.length ||
+    details.followUp.length
+  );
+  return details;
+}
+
+function splitPrescriptionSections(summary: string): Map<string, string[]> {
+  const normalized = summary.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+  const headingPattern = /##\s+([A-Za-z][A-Za-z /-]*?)(?=\s+-\s+|$)/g;
+  const headings = [...normalized.matchAll(headingPattern)];
+  const sections = new Map<string, string[]>();
+
+  headings.forEach((heading, index) => {
+    const title = normalizePrescriptionHeading(heading[1]);
+    const contentStart = (heading.index ?? 0) + heading[0].length;
+    const contentEnd = headings[index + 1]?.index ?? normalized.length;
+    const items = normalized
+      .slice(contentStart, contentEnd)
+      .split(/\s+-\s+/)
+      .map(item => item.trim())
+      .filter(Boolean);
+
+    if (items.length) {
+      sections.set(title, items);
+    }
+  });
+
+  return sections;
+}
+
+function normalizePrescriptionHeading(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function parseKeyValues(items: string[]): PrescriptionKeyValue[] {
+  return items
+    .map(item => {
+      const separatorIndex = item.indexOf(':');
+      if (separatorIndex < 1) {
+        return { label: 'Detail', value: item };
+      }
+
+      return {
+        label: item.slice(0, separatorIndex).trim(),
+        value: item.slice(separatorIndex + 1).trim() || '-'
+      };
+    })
+    .filter(item => item.value && item.value !== '-');
+}
+
+function parseMedicines(items: string[]): PrescriptionMedicinePreview[] {
+  return items
+    .map(item => {
+      const parts = item.split('|').map(part => part.trim()).filter(Boolean);
+      const name = parts.slice(0, 3).join(' ') || item;
+      const instruction = parts.slice(3).join(' · ') || parts.slice(1).join(' · ') || '-';
+      return { name, instruction };
+    })
+    .filter(item => item.name.length > 0);
+}
+
 function patientPrescriptionPlainText(prescription: PatientPrescriptionPreview): string {
   return [
     'Care360 Prescription',
@@ -2206,19 +2476,32 @@ function printablePatientPrescriptionHtml(prescription: PatientPrescriptionPrevi
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; padding: 28px; color: #0f172a; font-family: Arial, sans-serif; background: #f8fafc; }
-    main { max-width: 760px; margin: 0 auto; overflow: hidden; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; }
+    main { max-width: 860px; margin: 0 auto; overflow: hidden; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; }
     header { padding: 24px 28px; border-bottom: 1px solid #dbe4f0; background: linear-gradient(120deg, #eff6ff, #f0fdfa); }
     h1, h2, p { margin: 0; }
     .eyebrow { color: #2563eb; font-size: 12px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
     h1 { margin-top: 6px; font-size: 26px; }
     .muted { color: #64748b; font-weight: 700; }
-    section { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 28px; padding: 20px 28px; border-bottom: 1px solid #dbe4f0; }
-    div { display: grid; gap: 4px; padding-bottom: 7px; border-bottom: 1px dashed #cbd5e1; }
+    .meta-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 28px; padding: 20px 28px; border-bottom: 1px solid #dbe4f0; }
+    .meta-grid > div { display: grid; gap: 4px; padding-bottom: 7px; border-bottom: 1px dashed #cbd5e1; }
     small { color: #64748b; font-weight: 800; text-transform: uppercase; }
     strong { font-size: 16px; }
     article { padding: 20px 28px; }
     article p { margin-top: 8px; color: #334155; font-weight: 700; line-height: 1.55; }
+    .rx-section { margin-top: 12px; padding: 14px; border: 1px solid #dbe4f0; border-radius: 10px; background: #f8fafc; }
+    .rx-section h2 { margin: 0 0 10px; font-size: 16px; color: #0f172a; }
+    .rx-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .rx-grid.compact { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .rx-grid div, .rx-med, .rx-chip { border: 1px solid #dbe4f0; border-radius: 8px; background: #fff; }
+    .rx-grid div { padding: 9px 10px; }
+    .rx-grid strong, .rx-med strong { overflow-wrap: anywhere; }
+    .rx-med-list { display: grid; gap: 8px; }
+    .rx-med { padding: 10px 12px; }
+    .rx-med p { margin: 4px 0 0; color: #64748b; font-size: 13px; }
+    .rx-chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .rx-chip { padding: 7px 10px; color: #334155; font-size: 13px; font-weight: 700; }
     footer { padding: 14px 28px; color: #64748b; font-size: 12px; font-weight: 700; }
+    @media (max-width: 700px) { .rx-grid, .rx-grid.compact, .meta-grid { grid-template-columns: 1fr; } }
     @media print { body { padding: 0; background: white; } main { border-radius: 0; } }
   </style>
 </head>
@@ -2229,7 +2512,7 @@ function printablePatientPrescriptionHtml(prescription: PatientPrescriptionPrevi
       <h1>${escapeHtml(prescription.prescriptionNo)}</h1>
       <p class="muted">${escapeHtml(prescription.status)} · ${escapeHtml(prescription.date)}</p>
     </header>
-    <section>
+    <section class="meta-grid">
       <div><small>Patient</small><strong>${escapeHtml(prescription.patientName)}</strong></div>
       <div><small>MRN</small><strong>${escapeHtml(prescription.mrn)}</strong></div>
       <div><small>Doctor</small><strong>${escapeHtml(prescription.doctor)}</strong></div>
@@ -2237,13 +2520,59 @@ function printablePatientPrescriptionHtml(prescription: PatientPrescriptionPrevi
     </section>
     <article>
       <small>Prescription Summary</small>
-      <p>${escapeHtml(prescription.summary)}</p>
+      ${patientPrescriptionPrintableContent(prescription)}
     </article>
     <footer>This prescription history item is linked patient-wise from Care360 clinical workflow records.</footer>
   </main>
   ${autoPrint ? '<script>window.addEventListener("load", () => setTimeout(() => window.print(), 150));</script>' : ''}
 </body>
 </html>`;
+}
+
+function patientPrescriptionPrintableContent(prescription: PatientPrescriptionPreview): string {
+  const details = prescription.details;
+  if (!details.hasStructuredContent) {
+    return `<p>${escapeHtml(prescription.summary)}</p>`;
+  }
+
+  return [
+    printableKeyValueSection('Prescription Context', details.context),
+    printableKeyValueSection('Vitals', details.vitals, 'compact'),
+    printableMedicineSection(details.medicines),
+    printableChipSection('Orders & Procedures', [...details.investigations, ...details.procedures]),
+    printableChipSection('Advice', [...details.advice, ...details.dietAdvice]),
+    printableKeyValueSection('Follow-up', details.followUp, 'compact')
+  ].filter(Boolean).join('');
+}
+
+function printableKeyValueSection(title: string, items: PrescriptionKeyValue[], className = ''): string {
+  if (!items.length) {
+    return '';
+  }
+
+  return `<div class="rx-section"><h2>${escapeHtml(title)}</h2><div class="rx-grid ${className}">${items.map(item => `
+    <div><small>${escapeHtml(item.label)}</small><strong>${escapeHtml(item.value)}</strong></div>
+  `).join('')}</div></div>`;
+}
+
+function printableMedicineSection(items: PrescriptionMedicinePreview[]): string {
+  if (!items.length) {
+    return '';
+  }
+
+  return `<div class="rx-section"><h2>Medicines</h2><div class="rx-med-list">${items.map(item => `
+    <div class="rx-med"><strong>${escapeHtml(item.name)}</strong><p>${escapeHtml(item.instruction)}</p></div>
+  `).join('')}</div></div>`;
+}
+
+function printableChipSection(title: string, items: string[]): string {
+  if (!items.length) {
+    return '';
+  }
+
+  return `<div class="rx-section"><h2>${escapeHtml(title)}</h2><div class="rx-chip-list">${items.map(item => `
+    <span class="rx-chip">${escapeHtml(item)}</span>
+  `).join('')}</div></div>`;
 }
 
 function escapeHtml(value: string): string {

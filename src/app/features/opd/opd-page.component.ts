@@ -1261,13 +1261,15 @@ import { OpdManagementService } from './opd-management.service';
     .empty-state.compact { min-height: 72px; margin-top: 12px; border: 1px dashed var(--ac-border); border-radius: 12px; background: var(--ac-subtle); font-weight: 850; }
     .dashboard-grid, .opd-command-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .opd-command-grid { align-items: stretch; }
-    .command-panel { grid-column: span 2; display: grid; gap: 14px; }
-    .command-head { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; }
+    .command-panel { grid-column: span 2; min-width: 0; display: grid; gap: 14px; overflow: hidden; }
+    .command-head { min-width: 0; display: flex; justify-content: space-between; gap: 14px; align-items: center; }
+    .command-head > div { min-width: 0; }
     .command-head h2 { margin: 0; color: var(--ac-text); font-size: 25px; }
     .command-head small { display: block; margin-top: 4px; color: var(--ac-muted); font-weight: 800; }
-    .command-score { min-width: 70px; min-height: 48px; display: grid; place-items: center; border-radius: 12px; background: var(--ac-surface); color: var(--ac-primary); font-size: 22px; font-weight: 950; box-shadow: 0 12px 28px rgba(15, 23, 42, .08); }
+    .command-score { flex: 0 0 auto; min-height: 34px; display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border: 1px solid color-mix(in srgb, var(--ac-primary) 20%, var(--ac-border)); border-radius: 999px; background: var(--ac-surface); color: var(--ac-primary); font-size: 18px; font-weight: 950; line-height: 1; box-shadow: 0 10px 22px rgba(15, 23, 42, .07); }
+    .command-score::after { content: 'complete'; color: var(--ac-muted); font-size: 11px; font-weight: 900; letter-spacing: .03em; text-transform: uppercase; }
     .progress-track { height: 10px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--ac-primary) 12%, var(--ac-border)); }
-    .progress-track span { display: block; height: 100%; min-width: 10px; border-radius: inherit; background: linear-gradient(90deg, #2563eb, #10b981); transition: width .24s ease; }
+    .progress-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2563eb, #10b981); transition: width .24s ease; }
     .panel, .encounter-card, .encounter-list, .queue-card { min-width: 0; border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-surface); box-shadow: 0 16px 34px rgba(15, 23, 42, .05); }
     .panel { padding: 16px; }
     .panel-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
@@ -1573,34 +1575,58 @@ import { OpdManagementService } from './opd-management.service';
     .field input, .field select { width: 100%; min-height: 42px; border: 1px solid var(--ac-border); border-radius: 10px; padding: 0 12px; background: var(--ac-surface); color: var(--ac-text); font: inherit; font-weight: 760; outline: 0; }
     .field input:focus, .field select:focus { border-color: var(--ac-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ac-primary) 14%, transparent); }
     .radio-segment {
-      min-height: 42px;
+      min-height: 38px;
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 6px;
-      padding: 4px;
+      gap: 4px;
+      padding: 3px;
       border: 1px solid var(--ac-border);
       border-radius: 10px;
       background: var(--ac-subtle);
     }
     .radio-segment label {
+      position: relative;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
       min-width: 0;
       border-radius: 8px;
-      padding: 6px 8px;
+      padding: 5px 8px;
       color: var(--ac-muted);
       font-size: 12px;
       font-weight: 900;
       cursor: pointer;
+    }
+    .radio-segment label::before {
+      content: '';
+      width: 14px;
+      height: 14px;
+      flex: 0 0 auto;
+      border: 1.5px solid color-mix(in srgb, var(--ac-muted) 68%, var(--ac-border));
+      border-radius: 999px;
+      background: var(--ac-surface);
+      box-shadow: inset 0 0 0 3px var(--ac-surface);
     }
     .radio-segment label:has(input:checked) {
       background: var(--ac-surface);
       color: var(--ac-primary);
       box-shadow: 0 8px 18px rgba(15, 23, 42, .07);
     }
-    .radio-segment input { accent-color: var(--ac-primary); }
+    .radio-segment label:has(input:checked)::before {
+      border-color: var(--ac-primary);
+      background: var(--ac-primary);
+    }
+    .radio-segment input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      min-height: 1px;
+      margin: 0;
+      padding: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
     .lab-order-composer {
       display: grid;
       gap: 14px;
@@ -1700,9 +1726,9 @@ import { OpdManagementService } from './opd-management.service';
     }
     .template-panel-head {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(260px, 380px);
-      gap: 14px;
-      align-items: end;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+      align-items: start;
     }
     .template-panel-title {
       min-width: 0;
@@ -1734,10 +1760,12 @@ import { OpdManagementService } from './opd-management.service';
     }
     .template-apply-row {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto auto;
+      grid-template-columns: minmax(260px, 1fr) auto auto;
       gap: 10px;
       align-items: center;
     }
+    .template-apply-row ac-dropdown { min-width: 260px; }
+    .template-apply-row .ac-btn { min-width: 150px; }
     .template-save-form {
       display: grid;
       gap: 14px;

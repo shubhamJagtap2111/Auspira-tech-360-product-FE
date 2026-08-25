@@ -227,41 +227,78 @@ interface HospitalPulseItem {
           </section>
 
           <section class="lower-grid">
-            <article class="panel">
-              <div class="section-head">
-                <h2>{{ t('Administration.Dashboard.Widgets.RecentLogins') }}</h2>
-                <span>{{ model.summary.loginsToday }} {{ t('Administration.Dashboard.Labels.Today') }} · Page {{ loginPage() }} of {{ recentLoginTotalPages(model) }}</span>
-              </div>
-              <div class="login-list">
-                @for (login of pagedRecentLogins(model); track login.email + login.loginDate) {
-                  <div class="login-row">
-                    <span class="login-state" [class.failed]="!login.wasSuccessful">{{ t(login.wasSuccessful ? 'Administration.Dashboard.Labels.Success' : 'Administration.Dashboard.Labels.Failed') }}</span>
-                    <div>
-                      <strong>{{ login.displayName }}</strong>
-                      <p>{{ login.email }}</p>
+            <div class="dashboard-main-stack">
+              <article class="panel">
+                <div class="section-head">
+                  <h2>{{ t('Administration.Dashboard.Widgets.RecentLogins') }}</h2>
+                  <span>{{ model.summary.loginsToday }} {{ t('Administration.Dashboard.Labels.Today') }} · Page {{ loginPage() }} of {{ recentLoginTotalPages(model) }}</span>
+                </div>
+                <div class="login-list">
+                  @for (login of pagedRecentLogins(model); track login.email + login.loginDate) {
+                    <div class="login-row">
+                      <span class="login-state" [class.failed]="!login.wasSuccessful">{{ t(login.wasSuccessful ? 'Administration.Dashboard.Labels.Success' : 'Administration.Dashboard.Labels.Failed') }}</span>
+                      <div>
+                        <strong>{{ login.displayName }}</strong>
+                        <p>{{ login.email }}</p>
+                      </div>
+                      <small><b>Device</b>{{ loginDevice(login) }}</small>
+                      <small><b>Location</b>{{ loginLocation(login) }}</small>
+                      <small><b>Login</b>{{ login.loginDate | date: 'shortTime' }}</small>
                     </div>
-                    <small><b>Device</b>{{ loginDevice(login) }}</small>
-                    <small><b>Location</b>{{ loginLocation(login) }}</small>
-                    <small><b>Login</b>{{ login.loginDate | date: 'shortTime' }}</small>
+                  } @empty {
+                    <p class="empty">{{ t('Administration.Dashboard.Labels.NoData') }}</p>
+                  }
+                </div>
+                <footer class="login-pager">
+                  <span>Showing {{ recentLoginRange(model) }} of {{ model.recentLogins.length }} logins</span>
+                  <a routerLink="/profile/activity-logs">View all login activity</a>
+                  <div>
+                    <button class="icon-btn" type="button" (click)="changeLoginPage(-1, model)" [disabled]="loginPage() <= 1" title="Previous logins">
+                      <span class="material-symbols-rounded">chevron_left</span>
+                    </button>
+                    <strong>{{ loginPage() }}</strong>
+                    <button class="icon-btn" type="button" (click)="changeLoginPage(1, model)" [disabled]="loginPage() >= recentLoginTotalPages(model)" title="Next logins">
+                      <span class="material-symbols-rounded">chevron_right</span>
+                    </button>
                   </div>
-                } @empty {
-                  <p class="empty">{{ t('Administration.Dashboard.Labels.NoData') }}</p>
-                }
-              </div>
-              <footer class="login-pager">
-                <span>Showing {{ recentLoginRange(model) }} of {{ model.recentLogins.length }} logins</span>
-                <a routerLink="/profile/activity-logs">View all login activity</a>
-                <div>
-                  <button class="icon-btn" type="button" (click)="changeLoginPage(-1, model)" [disabled]="loginPage() <= 1" title="Previous logins">
-                    <span class="material-symbols-rounded">chevron_left</span>
-                  </button>
-                  <strong>{{ loginPage() }}</strong>
-                  <button class="icon-btn" type="button" (click)="changeLoginPage(1, model)" [disabled]="loginPage() >= recentLoginTotalPages(model)" title="Next logins">
-                    <span class="material-symbols-rounded">chevron_right</span>
+                </footer>
+              </article>
+
+              <article class="panel intelligence-panel">
+                <div class="section-head">
+                  <div>
+                    <h2>AIRA operations insights</h2>
+                    <p>Auto-refreshing summary from safe aggregate dashboard signals.</p>
+                  </div>
+                  <button class="icon-btn" type="button" (click)="refreshAiInsights(model)" [disabled]="aiInsightLoading()" title="Refresh AI insights">
+                    <span class="material-symbols-rounded">{{ aiInsightLoading() ? 'progress_activity' : 'auto_awesome' }}</span>
                   </button>
                 </div>
-              </footer>
-            </article>
+                <div class="ai-insight-card">
+                  <div class="ai-card-head">
+                    <span class="ai-orb" aria-hidden="true">
+                      <span class="aira-message-icon"></span>
+                      <i></i>
+                    </span>
+                    <div>
+                      <strong>{{ aiInsightTitle() }}</strong>
+                      <small>{{ aiInsightStamp() }}</small>
+                    </div>
+                    <span class="ai-live-chip"><i></i>AIRA live</span>
+                  </div>
+                  <p>{{ attentionItems(model).length }} insights require attention.</p>
+                  <div class="ai-next-actions compact">
+                    @for (item of aiAttentionItems(model); track item.title) {
+                      <a [routerLink]="item.path">
+                        <span class="material-symbols-rounded">{{ item.icon }}</span>
+                        <p>{{ item.title }}</p>
+                      </a>
+                    }
+                  </div>
+                  <a class="panel-action" routerLink="/reports">View AI insights</a>
+                </div>
+              </article>
+            </div>
 
             <div class="dashboard-side-stack">
               <article class="panel account-panel">
@@ -325,41 +362,6 @@ interface HospitalPulseItem {
                     <span class="material-symbols-rounded">health_and_safety</span>
                     <p>{{ model.summary.systemHealthStatusCode === 'HEALTHY' ? 'Core services are healthy for today’s administration work.' : 'System health needs review before peak workflow hours.' }}</p>
                   </div>
-                </div>
-              </article>
-
-              <article class="panel intelligence-panel">
-                <div class="section-head">
-                  <div>
-                    <h2>AIRA operations insights</h2>
-                    <p>Auto-refreshing summary from safe aggregate dashboard signals.</p>
-                  </div>
-                  <button class="icon-btn" type="button" (click)="refreshAiInsights(model)" [disabled]="aiInsightLoading()" title="Refresh AI insights">
-                    <span class="material-symbols-rounded">{{ aiInsightLoading() ? 'progress_activity' : 'auto_awesome' }}</span>
-                  </button>
-                </div>
-                <div class="ai-insight-card">
-                  <div class="ai-card-head">
-                    <span class="ai-orb" aria-hidden="true">
-                      <span class="aira-message-icon"></span>
-                      <i></i>
-                    </span>
-                    <div>
-                      <strong>{{ aiInsightTitle() }}</strong>
-                      <small>{{ aiInsightStamp() }}</small>
-                    </div>
-                    <span class="ai-live-chip"><i></i>AIRA live</span>
-                  </div>
-                  <p>{{ attentionItems(model).length }} insights require attention.</p>
-                  <div class="ai-next-actions compact">
-                    @for (item of aiAttentionItems(model); track item.title) {
-                      <a [routerLink]="item.path">
-                        <span class="material-symbols-rounded">{{ item.icon }}</span>
-                        <p>{{ item.title }}</p>
-                      </a>
-                    }
-                  </div>
-                  <a class="panel-action" routerLink="/reports">View AI insights</a>
                 </div>
               </article>
             </div>
@@ -500,8 +502,9 @@ interface HospitalPulseItem {
     .metric-card strong { display: block; font-size: 24px; line-height: 1.1; }
     .metric-card span { color: var(--ac-muted); font-size: 12px; }
     .main-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(360px, .7fr); gap: 16px; }
-    .lower-grid { display: grid; grid-template-columns: minmax(620px, 1.25fr) minmax(340px, .75fr); gap: 16px; align-items: start; }
-    .lower-grid > *, .dashboard-side-stack > * { min-width: 0; }
+    .lower-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(340px, .65fr); gap: 16px; align-items: start; }
+    .lower-grid > *, .dashboard-main-stack > *, .dashboard-side-stack > * { min-width: 0; }
+    .dashboard-main-stack { display: grid; gap: 16px; min-width: 0; align-content: start; }
     .dashboard-side-stack { display: grid; gap: 10px; min-width: 0; align-content: start; }
     .staff-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr); gap: 16px; align-items: start; }
     .panel { padding: 16px; min-width: 0; }

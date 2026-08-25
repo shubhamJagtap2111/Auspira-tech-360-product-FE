@@ -95,15 +95,17 @@ export interface DropdownOption<T = string> {
     .clear:hover { background: var(--ac-subtle); color: var(--ac-text); }
     .ac-dropdown-panel {
       position: absolute;
-      z-index: 80;
+      z-index: 120;
       top: calc(100% + 5px);
       left: 0;
-      right: 0;
+      right: auto;
+      width: max(100%, 260px);
+      min-width: 100%;
       max-height: 260px;
       overflow: auto;
       padding: 6px;
       border: 1px solid var(--ac-border);
-      border-radius: 8px;
+      border-radius: 10px;
       background: var(--ac-surface);
       box-shadow: 0 18px 38px rgba(15,23,42,.16);
       animation: acDropdownIn .12s ease-out;
@@ -116,9 +118,9 @@ export interface DropdownOption<T = string> {
     }
     .ac-dropdown-option {
       width: 100%;
-      min-height: 38px;
+      min-height: 36px;
       border: 0;
-      border-radius: 6px;
+      border-radius: 8px;
       background: transparent;
       color: var(--ac-text);
       display: flex;
@@ -128,7 +130,19 @@ export interface DropdownOption<T = string> {
       padding: 8px 10px;
       text-align: left;
       font: inherit;
+      font-size: 13px;
+      font-weight: 750;
       cursor: pointer;
+    }
+    .ac-dropdown-option span:first-child {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .ac-dropdown-option .material-symbols-rounded {
+      flex: 0 0 auto;
+      font-size: 18px;
     }
     .ac-dropdown-option:hover { background: var(--ac-subtle); }
     .ac-dropdown-option.selected { background: color-mix(in srgb, var(--ac-primary) 20%, transparent); color: var(--ac-primary); font-weight: 800; }
