@@ -777,7 +777,7 @@ export class OpdPageComponent implements OnInit {
         const left = a.queueNo ?? 9999;
         const right = b.queueNo ?? 9999;
         return left === right
-          ? new Date(a.appointment.startsAt).getTime() - new Date(b.appointment.startsAt).getTime()
+          ? safeTime(a.appointment.startsAt) - safeTime(b.appointment.startsAt)
           : left - right;
       });
   });
@@ -1764,31 +1764,54 @@ function todayInputValue(): string {
 }
 
 function inputValue(date: Date): string {
-  const value = new Date(date);
+  const value = safeDate(date);
+  if (!value) {
+    return '';
+  }
   value.setMinutes(value.getMinutes() - value.getTimezoneOffset());
   return value.toISOString().slice(0, 10);
 }
 
 function timeInputValue(date: Date): string {
-  const value = new Date(date);
+  const value = safeDate(date);
+  if (!value) {
+    return '09:00';
+  }
   value.setMinutes(value.getMinutes() - value.getTimezoneOffset());
   return value.toISOString().slice(11, 16);
 }
 
 function dateKey(value: string): string {
-  return inputValue(new Date(value));
+  const date = safeDate(value);
+  return date ? inputValue(date) : '';
 }
 
 function isToday(value: string): boolean {
-  return dateKey(value) === todayInputValue();
+  const key = dateKey(value);
+  return Boolean(key) && key === todayInputValue();
 }
 
 function isDateTodayOrFuture(value: string): boolean {
-  return dateKey(value) >= todayInputValue();
+  const key = dateKey(value);
+  return Boolean(key) && key >= todayInputValue();
 }
 
 function formatTime(value: string): string {
-  return new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+  const date = safeDate(value);
+  return date ? new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit' }).format(date) : '-';
+}
+
+function safeDate(value: string | Date | null | undefined): Date | null {
+  if (!value) {
+    return null;
+  }
+
+  const date = value instanceof Date ? new Date(value) : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function safeTime(value: string | Date | null | undefined): number {
+  return safeDate(value)?.getTime() ?? Number.MAX_SAFE_INTEGER;
 }
 
 function formatNumber(value: number): string {
