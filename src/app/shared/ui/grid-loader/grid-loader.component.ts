@@ -21,30 +21,23 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
 
     .grid-loader {
       position: fixed;
-      inset: 0;
+      top: var(--ac-header-h);
+      right: 0;
+      bottom: 0;
+      left: var(--ac-sidebar-w);
       z-index: 1800;
       display: grid;
       place-items: center;
       padding: 24px;
       pointer-events: all;
-      background: transparent;
+      background: color-mix(in srgb, var(--ac-bg) 88%, transparent);
     }
 
     .grid-loader.compact {
       padding: 24px;
     }
 
-    .grid-loader::before {
-      content: '';
-      position: fixed;
-      top: var(--ac-header-h);
-      right: 0;
-      bottom: 0;
-      left: var(--ac-sidebar-w);
-      background: color-mix(in srgb, var(--ac-bg) 88%, transparent);
-    }
-
-    :host-context(.shell.collapsed) .grid-loader::before {
+    :host-context(.shell.collapsed) .grid-loader {
       left: var(--ac-sidebar-w-sm);
     }
 
@@ -99,7 +92,7 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
       color: #cbd5e1;
     }
 
-    :host-context(.dark) .grid-loader::before {
+    :host-context(.dark) .grid-loader {
       background: rgba(2,6,23,.72);
     }
 
@@ -109,7 +102,7 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
     }
 
     @media (max-width: 760px) {
-      .grid-loader::before {
+      .grid-loader {
         top: 58px;
         right: 0;
         bottom: 68px;
