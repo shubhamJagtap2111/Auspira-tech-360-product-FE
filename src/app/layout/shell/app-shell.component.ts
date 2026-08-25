@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, HostListener, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { RouterLink, RouterLinkActive, RouterOutlet, Router, NavigationEnd } from '@angular/router';
+import { RouterLink, RouterLinkActive, RouterOutlet, Router, NavigationCancel, NavigationEnd, NavigationError } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { filter, map, startWith } from 'rxjs';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -16,6 +16,7 @@ import { AiraChatService } from '../../core/ai/aira-chat.service';
 import { BranchContextService } from '../../core/context/branch-context.service';
 import { Language } from '../../core/i18n/i18n.models';
 import { AppLoaderComponent } from '../../shared/ui/app-loader/app-loader.component';
+import { AppLoaderService } from '../../shared/ui/app-loader/app-loader.service';
 import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dropdown.component';
 
 interface NavItem {
@@ -1826,6 +1827,7 @@ export class AppShellComponent implements OnInit {
   private   readonly airaChatService = inject(AiraChatService);
   private   readonly branchContext = inject(BranchContextService);
   private   readonly apiBaseUrl = inject(API_BASE_URL);
+  private   readonly appLoader = inject(AppLoaderService);
 
   /* ── State ── */
   protected readonly sidebarCollapsed = signal<boolean>(
@@ -1903,6 +1905,9 @@ export class AppShellComponent implements OnInit {
     document.documentElement.classList.toggle('dark', this.dark());
     this.aiMessages.set(this.loadAiConversation());
     this.aiChatHistory.set(this.loadAiConversationHistory());
+    this.router.events
+      .pipe(filter(event => event instanceof NavigationEnd || event instanceof NavigationCancel || event instanceof NavigationError))
+      .subscribe(() => this.appLoader.reset());
     this.aiConversationHydrated = true;
     this.persistAiConversation(this.aiMessages());
   }
