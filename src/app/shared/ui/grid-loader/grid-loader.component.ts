@@ -5,23 +5,14 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
   standalone: true,
   template: `
     <div class="grid-loader" [class.compact]="compact" aria-live="polite" aria-busy="true">
-      <div class="pulse-wrap" aria-hidden="true">
-        <svg viewBox="0 0 280 150" role="img">
-          <path class="pulse-track" d="M10 76 H96 L108 118 L120 30 L145 126 L158 10 L181 100 L194 48 L204 82 L216 76 H270" />
-          <path class="pulse-active" d="M96 76 L108 118 L120 30 L145 126 L158 10 L181 100 L194 48 L204 82" />
-        </svg>
-        @if (showBrand) {
-          <div class="brand-card">
-            <span class="material-symbols-rounded">health_and_safety</span>
-            <strong>Care360</strong>
-          </div>
-        }
-      </div>
-      <div class="loader-copy">
-        <strong>{{ title }}</strong>
-        @if (message) {
-          <span>{{ message }}</span>
-        }
+      <div class="loader-card">
+        <div class="loading" aria-hidden="true">
+          <svg width="64px" height="48px" viewBox="0 0 64 48" role="img">
+            <polyline points="0.157 23.954, 14 23.954, 21.843 48, 43 0, 50 24, 64 24" class="back"></polyline>
+            <polyline points="0.157 23.954, 14 23.954, 21.843 48, 43 0, 50 24, 64 24" class="front"></polyline>
+          </svg>
+        </div>
+        <span>Working securely...</span>
       </div>
     </div>
   `,
@@ -32,11 +23,7 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
       min-height: 260px;
       display: grid;
       place-items: center;
-      align-content: center;
-      gap: 14px;
       padding: 28px;
-      color: var(--ac-muted);
-      text-align: center;
       background: color-mix(in srgb, var(--ac-surface) 86%, transparent);
     }
 
@@ -45,118 +32,65 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
       padding: 18px;
     }
 
-    .pulse-wrap {
-      position: relative;
-      width: min(320px, 76vw);
-      height: 170px;
+    .loader-card {
+      min-width: 166px;
+      min-height: 108px;
       display: grid;
       place-items: center;
+      gap: 8px;
+      padding: 18px 22px;
+      border: 1px solid color-mix(in srgb, var(--ac-primary) 18%, var(--ac-border));
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--ac-surface) 96%, var(--ac-primary-light));
+      box-shadow: 0 18px 42px rgba(15,23,42,.12);
     }
 
-    .pulse-wrap svg {
-      width: 100%;
-      height: 100%;
-      overflow: visible;
+    .loader-card span {
+      color: var(--ac-text-2);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .02em;
     }
 
-    .pulse-track,
-    .pulse-active {
+    .loading svg polyline {
       fill: none;
+      stroke-width: 3;
       stroke-linecap: round;
       stroke-linejoin: round;
     }
 
-    .pulse-track {
-      stroke: color-mix(in srgb, var(--ac-muted) 24%, transparent);
-      stroke-width: 4;
+    .loading svg polyline.back {
+      stroke: color-mix(in srgb, var(--ac-primary) 18%, transparent);
     }
 
-    .pulse-active {
-      stroke: #166534;
-      stroke-width: 4.5;
-      stroke-dasharray: 210;
-      stroke-dashoffset: 210;
-      animation: gridHeartbeat 1.5s ease-in-out infinite;
-      filter: drop-shadow(0 0 5px rgba(22, 101, 52, .2));
+    .loading svg polyline.front {
+      stroke: color-mix(in srgb, var(--ac-primary) 78%, var(--ac-secondary));
+      stroke-dasharray: 48, 144;
+      stroke-dashoffset: 192;
+      animation: heartbeatDash 1.4s linear infinite;
+      filter: drop-shadow(0 0 6px color-mix(in srgb, var(--ac-primary) 38%, transparent));
     }
 
-    .brand-card {
-      position: absolute;
-      inset: 50% auto auto 50%;
-      transform: translate(-50%, -50%);
-      min-width: 118px;
-      height: 52px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 7px;
-      border-radius: 4px;
-      color: color-mix(in srgb, var(--ac-muted) 62%, transparent);
-      background: color-mix(in srgb, var(--ac-surface) 70%, transparent);
-      backdrop-filter: blur(2px);
-      font-size: 12px;
-      font-weight: 900;
-      opacity: .72;
+    :host-context(.dark) .loader-card {
+      background: color-mix(in srgb, var(--ac-surface) 92%, var(--ac-bg));
+      border-color: rgba(96,165,250,.26);
+      box-shadow: 0 22px 58px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.05);
     }
 
-    .brand-card .material-symbols-rounded {
-      font-size: 22px;
+    :host-context(.dark) .loader-card span {
+      color: #cbd5e1;
     }
 
-    .loader-copy {
-      display: grid;
-      gap: 4px;
-    }
-
-    .loader-copy strong {
-      color: var(--ac-text);
-      font-size: 14px;
-      font-weight: 900;
-    }
-
-    .loader-copy span {
-      color: var(--ac-muted);
-      font-size: 12.5px;
-      font-weight: 750;
-    }
-
-    :host-context(.dark) .pulse-track {
-      stroke: rgba(148, 163, 184, .28);
-    }
-
-    :host-context(.dark) .pulse-active {
-      stroke: #22c55e;
-      filter: drop-shadow(0 0 7px rgba(34, 197, 94, .26));
-    }
-
-    :host-context(.dark) .brand-card {
-      background: rgba(15, 23, 42, .58);
-      color: rgba(203, 213, 225, .68);
-    }
-
-    @keyframes gridHeartbeat {
-      0% {
-        stroke-dashoffset: 210;
-        opacity: .2;
-      }
-      18% {
-        opacity: 1;
-      }
-      58% {
-        stroke-dashoffset: 0;
-        opacity: 1;
-      }
-      100% {
-        stroke-dashoffset: -210;
-        opacity: .12;
-      }
+    @keyframes heartbeatDash {
+      72.5% { opacity: 0; }
+      to { stroke-dashoffset: 0; }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AcGridLoaderComponent {
-  @Input() title = 'Loading records...';
-  @Input() message = 'Preparing grid data.';
+  @Input() title = 'Working securely...';
+  @Input() message = '';
   @Input() compact = false;
   @Input() showBrand = true;
 }
