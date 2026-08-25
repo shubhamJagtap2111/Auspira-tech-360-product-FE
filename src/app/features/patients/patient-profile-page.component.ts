@@ -352,7 +352,7 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
   `,
   styles: `
     :host { display: block; height: 100%; min-height: 0; min-width: 0; overflow: hidden; }
-    .patient-profile { width: 100%; max-width: 100%; height: 100%; min-height: 0; min-width: 0; overflow: auto; overflow-x: hidden; display: grid; grid-auto-rows: max-content; align-content: start; gap: 16px; padding-bottom: 8px; animation: slideUp .25s ease; }
+    .patient-profile { width: 100%; max-width: 100%; height: 100%; min-height: 0; min-width: 0; overflow: auto; overflow-x: hidden; display: grid; grid-auto-rows: max-content; align-content: start; gap: 16px; padding-bottom: 8px; }
     .patient-profile > * { min-width: 0; max-width: 100%; }
     .profile-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
     .back-link { display: inline-flex; align-items: center; gap: 7px; color: var(--ac-muted); font-weight: 800; font-size: 13px; }

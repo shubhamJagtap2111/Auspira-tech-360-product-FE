@@ -535,7 +535,7 @@ import { OpdManagementService } from './opd-management.service';
   `,
   styles: `
     :host { display: block; min-width: 0; }
-    .opd-page { display: grid; gap: 14px; animation: slideUp .24s ease; }
+    .opd-page { display: grid; gap: 14px; }
     .page-header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
     .page-desc { margin: 6px 0 0; max-width: 760px; color: var(--ac-muted); }
     .header-actions, .queue-actions, .encounter-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }

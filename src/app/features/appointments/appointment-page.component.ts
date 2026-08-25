@@ -428,7 +428,7 @@ import { AppointmentManagementService } from './appointment-management.service';
   `,
   styles: `
     :host { display: block; min-width: 0; height: 100%; }
-    .appointment-page { display: grid; gap: 14px; min-width: 0; animation: slideUp .24s ease; }
+    .appointment-page { display: grid; gap: 14px; min-width: 0; }
     .page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
     .page-desc { margin: 6px 0 0; max-width: 740px; color: var(--ac-muted); }
     .header-actions { display: flex; gap: 10px; align-items: center; }

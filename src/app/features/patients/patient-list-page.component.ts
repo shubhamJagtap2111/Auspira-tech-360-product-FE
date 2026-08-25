@@ -485,7 +485,7 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
   `,
   styles: `
     :host { display: block; height: 100%; min-height: 0; }
-    .patients { height: 100%; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 12px; animation: slideUp 0.3s ease; }
+    .patients { height: 100%; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 12px; }
     .page-header { flex: 0 0 auto; display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
     .page-desc { font-size: 13.5px; line-height: 1.35; color: var(--ac-muted); margin-top: 3px; max-width: 560px; }
     .header-actions { display: flex; gap: 8px; flex-shrink: 0; }
