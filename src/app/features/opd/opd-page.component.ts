@@ -56,13 +56,13 @@ import { OpdManagementService } from './opd-management.service';
 
       <div class="stats-row">
         @for (card of statCards(); track card.label) {
-          <article class="stat-card ac-card">
+          <button type="button" class="stat-card ac-card" (click)="openStatCard(card.tab)">
             <span class="stat-icon material-symbols-rounded" [style.background]="card.bg" [style.color]="card.color">{{ card.icon }}</span>
             <div>
               <strong>{{ card.value }}</strong>
               <span>{{ card.label }}</span>
             </div>
-          </article>
+          </button>
         }
       </div>
 
@@ -92,42 +92,100 @@ import { OpdManagementService } from './opd-management.service';
         } @else {
           @switch (activeTab()) {
             @case ('dashboard') {
-              <section class="dashboard-grid">
-                <article class="panel doctor-queue-panel">
-                  <div class="panel-head">
-                    <span class="material-symbols-rounded">stethoscope</span>
+              <section class="opd-command-grid">
+                <article class="panel command-panel doctor-queue-panel">
+                  <div class="command-head">
                     <div>
-                      <p class="ac-eyebrow">Doctor view</p>
-                      <h2>My Queue</h2>
-                      <small>{{ doctorQueueSummary().doctorName }}</small>
+                      <p class="ac-eyebrow">Live OPD command</p>
+                      <h2>{{ doctorQueueSummary().doctorName }}</h2>
+                      <small>{{ formatNumberValue(totalOperationalVisits()) }} visits in the current workspace</small>
                     </div>
+                    <span class="command-score">{{ completionPercent() }}%</span>
                   </div>
+
+                  <div class="progress-track" aria-label="OPD completion progress">
+                    <span [style.width.%]="completionPercent()"></span>
+                  </div>
+
                   <div class="doctor-metrics">
-                    <span>
+                    <button type="button" (click)="activeTab.set('queue')">
                       <small>Waiting</small>
                       <strong>{{ doctorQueueSummary().waiting }}</strong>
-                    </span>
-                    <span>
+                    </button>
+                    <button type="button" (click)="activeTab.set('active')">
                       <small>Current</small>
                       <strong>{{ doctorQueueSummary().current }}</strong>
-                    </span>
-                    <span>
+                    </button>
+                    <button type="button" (click)="activeTab.set('completed')">
                       <small>Completed</small>
                       <strong>{{ doctorQueueSummary().completed }}</strong>
-                    </span>
+                    </button>
                   </div>
                 </article>
 
-                <article class="panel">
-                  <div class="panel-head">
+                <article class="panel next-patient-panel">
+                  <div class="panel-head compact">
+                    <span class="material-symbols-rounded">groups</span>
+                    <div>
+                      <p class="ac-eyebrow">Next action</p>
+                      <h2>Ready patient</h2>
+                    </div>
+                  </div>
+                  @if (nextWaitingVisit(); as visit) {
+                    <button type="button" class="next-patient-card" (click)="startEncounter(visit)">
+                      <span class="token-pill">{{ visit.tokenNumber }}</span>
+                      <strong>{{ visit.patientName }}</strong>
+                      <small>{{ visit.doctorName }} · Queue #{{ visit.queueNo || '-' }} · {{ visit.arrivalTime || '-' }}</small>
+                      <span class="next-action"><span class="material-symbols-rounded">play_arrow</span>Start consultation</span>
+                    </button>
+                  } @else if (activeConsultations().length) {
+                    @if (activeConsultations()[0]; as visit) {
+                      <button type="button" class="next-patient-card active" (click)="selectVisit(visit, 'encounter')">
+                        <span class="token-pill consultation">{{ visit.tokenNumber }}</span>
+                        <strong>{{ visit.patientName }}</strong>
+                        <small>{{ visit.doctorName }} · Consultation in progress</small>
+                        <span class="next-action"><span class="material-symbols-rounded">clinical_notes</span>Continue encounter</span>
+                      </button>
+                    }
+                  } @else {
+                    <div class="empty-state compact">No patient needs action right now.</div>
+                  }
+                </article>
+
+                <article class="panel dashboard-lane-panel">
+                  <div class="panel-head compact">
+                    <span class="material-symbols-rounded">route</span>
+                    <div>
+                      <p class="ac-eyebrow">Queue flow</p>
+                      <h2>Patient movement</h2>
+                    </div>
+                  </div>
+                  <div class="queue-lanes">
+                    <button type="button" class="queue-lane waiting" (click)="activeTab.set('queue')">
+                      <small>Waiting</small>
+                      <strong>{{ stats().waiting }}</strong>
+                    </button>
+                    <button type="button" class="queue-lane active" (click)="activeTab.set('active')">
+                      <small>Active</small>
+                      <strong>{{ stats().inConsultation }}</strong>
+                    </button>
+                    <button type="button" class="queue-lane complete" (click)="activeTab.set('completed')">
+                      <small>Done</small>
+                      <strong>{{ stats().completed }}</strong>
+                    </button>
+                  </div>
+                </article>
+
+                <article class="panel dashboard-list-panel">
+                  <div class="panel-head compact">
                     <span class="material-symbols-rounded">queue</span>
                     <div>
                       <p class="ac-eyebrow">Today's Queue</p>
                       <h2>Waiting for doctor</h2>
                     </div>
                   </div>
-                  <div class="compact-list">
-                    @for (visit of waitingQueue().slice(0, 5); track visit.appointment.id) {
+                  <div class="compact-list dashboard-visit-list">
+                    @for (visit of waitingQueue().slice(0, 4); track visit.appointment.id) {
                       <button type="button" class="visit-row" (click)="selectVisit(visit, 'encounter')">
                         <span class="token-pill">{{ visit.tokenNumber }}</span>
                         <strong>{{ visit.patientName }}</strong>
@@ -139,16 +197,16 @@ import { OpdManagementService } from './opd-management.service';
                   </div>
                 </article>
 
-                <article class="panel">
-                  <div class="panel-head">
+                <article class="panel dashboard-list-panel">
+                  <div class="panel-head compact">
                     <span class="material-symbols-rounded">clinical_notes</span>
                     <div>
                       <p class="ac-eyebrow">Active Consultations</p>
                       <h2>In progress</h2>
                     </div>
                   </div>
-                  <div class="compact-list">
-                    @for (visit of activeConsultations().slice(0, 5); track visit.appointment.id) {
+                  <div class="compact-list dashboard-visit-list">
+                    @for (visit of activeConsultations().slice(0, 4); track visit.appointment.id) {
                       <button type="button" class="visit-row" (click)="selectVisit(visit, 'encounter')">
                         <span class="token-pill consultation">{{ visit.tokenNumber }}</span>
                         <strong>{{ visit.patientName }}</strong>
@@ -156,6 +214,27 @@ import { OpdManagementService } from './opd-management.service';
                       </button>
                     } @empty {
                       <p class="empty-copy">No active consultations.</p>
+                    }
+                  </div>
+                </article>
+
+                <article class="panel dashboard-list-panel">
+                  <div class="panel-head compact">
+                    <span class="material-symbols-rounded">task_alt</span>
+                    <div>
+                      <p class="ac-eyebrow">Completed</p>
+                      <h2>Recently completed</h2>
+                    </div>
+                  </div>
+                  <div class="compact-list dashboard-visit-list">
+                    @for (visit of recentCompletedVisits(); track visit.appointment.id) {
+                      <button type="button" class="visit-row completed" (click)="selectVisit(visit, 'encounter')">
+                        <span class="token-pill done">{{ visit.tokenNumber }}</span>
+                        <strong>{{ visit.patientName }}</strong>
+                        <small>{{ visit.doctorName }} · {{ visit.appointmentTime }}</small>
+                      </button>
+                    } @empty {
+                      <p class="empty-copy">No completed visits yet.</p>
                     }
                   </div>
                 </article>
@@ -1160,27 +1239,36 @@ import { OpdManagementService } from './opd-management.service';
   `,
   styles: `
     :host { display: block; min-width: 0; }
-    .opd-page { display: grid; gap: 14px; }
+    .opd-page { width: 100%; max-width: 100%; min-width: 0; display: grid; gap: 14px; overflow-x: hidden; }
     .page-header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
     .page-desc { margin: 6px 0 0; max-width: 760px; color: var(--ac-muted); }
     .header-actions, .queue-actions, .encounter-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .stats-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
-    .stat-card { min-height: 76px; display: flex; gap: 12px; align-items: center; padding: 14px 16px; }
+    .stat-card { min-height: 76px; display: flex; gap: 12px; align-items: center; padding: 14px 16px; border: 1px solid var(--ac-border); color: inherit; text-align: left; cursor: pointer; }
+    .stat-card:hover { transform: translateY(-1px); box-shadow: 0 18px 36px rgba(15, 23, 42, .09); }
     .stat-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 10px; font-size: 22px; }
     .stat-card strong { display: block; color: var(--ac-text); font-size: 24px; line-height: 1; }
     .stat-card span:last-child { display: block; margin-top: 4px; color: var(--ac-muted); font-size: 12.5px; font-weight: 750; }
-    .opd-shell { display: grid; gap: 12px; padding: 14px; overflow: visible; }
-    .opd-tabs { display: flex; gap: 8px; overflow-x: auto; padding: 6px; border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-subtle); scrollbar-color: color-mix(in srgb, var(--ac-primary) 30%, #cbd5e1) transparent; scrollbar-width: thin; }
+    .opd-shell { min-width: 0; display: grid; gap: 12px; padding: 12px; overflow: hidden; }
+    .opd-tabs { min-width: 0; display: flex; flex-wrap: wrap; gap: 8px; padding: 6px; border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-subtle); }
     .opd-tabs button { min-height: 40px; display: inline-flex; align-items: center; gap: 8px; border: 0; border-radius: 9px; padding: 0 12px; white-space: nowrap; background: transparent; color: var(--ac-muted); font: inherit; font-weight: 850; cursor: pointer; }
     .opd-tabs button.active { background: var(--ac-surface); color: var(--ac-primary); box-shadow: 0 10px 22px rgba(15, 23, 42, .08); }
-    .toolbar { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(180px, 260px) 40px; gap: 8px; align-items: center; }
+    .toolbar { min-width: 0; display: grid; grid-template-columns: minmax(220px, 1fr) minmax(170px, 240px) 40px; gap: 8px; align-items: center; }
     .search-field { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 12px; border: 1px solid var(--ac-border); border-radius: 9px; background: var(--ac-surface); color: var(--ac-muted); }
     .search-field input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ac-text); font: inherit; font-weight: 750; }
     .icon-btn { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--ac-border); border-radius: 9px; background: var(--ac-surface); color: var(--ac-muted); cursor: pointer; }
     .empty-state { min-height: 240px; display: grid; place-items: center; align-content: center; gap: 10px; color: var(--ac-muted); text-align: center; }
     .empty-state.compact { min-height: 72px; margin-top: 12px; border: 1px dashed var(--ac-border); border-radius: 12px; background: var(--ac-subtle); font-weight: 850; }
-    .dashboard-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-    .panel, .encounter-card, .encounter-list, .queue-card { border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-surface); box-shadow: 0 16px 34px rgba(15, 23, 42, .05); }
+    .dashboard-grid, .opd-command-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .opd-command-grid { align-items: stretch; }
+    .command-panel { grid-column: span 2; display: grid; gap: 14px; }
+    .command-head { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; }
+    .command-head h2 { margin: 0; color: var(--ac-text); font-size: 25px; }
+    .command-head small { display: block; margin-top: 4px; color: var(--ac-muted); font-weight: 800; }
+    .command-score { min-width: 70px; min-height: 48px; display: grid; place-items: center; border-radius: 12px; background: var(--ac-surface); color: var(--ac-primary); font-size: 22px; font-weight: 950; box-shadow: 0 12px 28px rgba(15, 23, 42, .08); }
+    .progress-track { height: 10px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--ac-primary) 12%, var(--ac-border)); }
+    .progress-track span { display: block; height: 100%; min-width: 10px; border-radius: inherit; background: linear-gradient(90deg, #2563eb, #10b981); transition: width .24s ease; }
+    .panel, .encounter-card, .encounter-list, .queue-card { min-width: 0; border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-surface); box-shadow: 0 16px 34px rgba(15, 23, 42, .05); }
     .panel { padding: 16px; }
     .panel-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
     .panel-head > span { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 10px; background: var(--ac-primary-light); color: var(--ac-primary); }
@@ -1188,14 +1276,60 @@ import { OpdManagementService } from './opd-management.service';
     .panel-head small { display: block; margin-top: 3px; color: var(--ac-muted); font-weight: 800; }
     .doctor-queue-panel { background: linear-gradient(135deg, color-mix(in srgb, var(--ac-primary) 7%, var(--ac-surface)), var(--ac-surface)); }
     .doctor-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-    .doctor-metrics span { min-height: 86px; display: grid; align-content: center; gap: 6px; padding: 14px; border: 1px solid color-mix(in srgb, var(--ac-primary) 18%, var(--ac-border)); border-radius: 11px; background: var(--ac-surface); }
+    .doctor-metrics span, .doctor-metrics button { min-height: 86px; display: grid; align-content: center; gap: 6px; padding: 14px; border: 1px solid color-mix(in srgb, var(--ac-primary) 18%, var(--ac-border)); border-radius: 11px; background: var(--ac-surface); color: inherit; text-align: left; cursor: pointer; }
+    .doctor-metrics button:hover { border-color: color-mix(in srgb, var(--ac-primary) 42%, var(--ac-border)); box-shadow: 0 14px 30px rgba(15, 23, 42, .08); transform: translateY(-1px); }
     .doctor-metrics small { color: var(--ac-muted); font-weight: 900; text-transform: uppercase; font-size: 11px; letter-spacing: .04em; }
     .doctor-metrics strong { color: var(--ac-text); font-size: 28px; line-height: 1; }
+    .panel-head.compact { margin-bottom: 12px; }
+    .panel-head.compact > span { width: 38px; height: 38px; border-radius: 10px; }
+    .next-patient-panel, .dashboard-lane-panel, .dashboard-list-panel { min-height: 0; }
+    .next-patient-card {
+      width: 100%;
+      min-height: 146px;
+      display: grid;
+      gap: 8px;
+      padding: 16px;
+      border: 1px solid color-mix(in srgb, var(--ac-primary) 26%, var(--ac-border));
+      border-radius: 12px;
+      background: linear-gradient(135deg, color-mix(in srgb, var(--ac-primary) 7%, var(--ac-surface)), color-mix(in srgb, #10b981 5%, var(--ac-surface)));
+      color: var(--ac-text);
+      text-align: left;
+      cursor: pointer;
+      box-shadow: 0 16px 34px rgba(15, 23, 42, .06);
+    }
+    .next-patient-card:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--ac-primary) 46%, var(--ac-border)); }
+    .next-patient-card strong { font-size: 20px; overflow-wrap: anywhere; }
+    .next-patient-card small { color: var(--ac-muted); font-weight: 800; }
+    .next-patient-card.active { background: linear-gradient(135deg, color-mix(in srgb, #10b981 8%, var(--ac-surface)), var(--ac-surface)); }
+    .next-action { width: fit-content; min-height: 34px; display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; padding: 6px 10px; border-radius: 999px; background: var(--ac-primary); color: white; font-size: 12px; font-weight: 900; }
+    .next-action .material-symbols-rounded { font-size: 18px; }
+    .queue-lanes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .queue-lane {
+      min-height: 112px;
+      display: grid;
+      align-content: center;
+      gap: 8px;
+      padding: 16px;
+      border: 1px solid var(--ac-border);
+      border-radius: 12px;
+      background: var(--ac-subtle);
+      color: var(--ac-text);
+      text-align: left;
+      cursor: pointer;
+    }
+    .queue-lane:hover { transform: translateY(-1px); box-shadow: 0 14px 30px rgba(15, 23, 42, .08); }
+    .queue-lane small { color: var(--ac-muted); font-size: 11px; font-weight: 950; letter-spacing: .05em; text-transform: uppercase; }
+    .queue-lane strong { font-size: 32px; line-height: 1; }
+    .queue-lane.waiting { background: #eff6ff; border-color: #bfdbfe; }
+    .queue-lane.active { background: #f0fdfa; border-color: #99f6e4; }
+    .queue-lane.complete { background: #ecfdf5; border-color: #bbf7d0; }
+    .dashboard-visit-list { max-height: 310px; overflow: auto; padding-right: 2px; }
     .compact-list, .queue-workspace { display: grid; gap: 10px; }
-    .visit-row, .encounter-list button { width: 100%; min-width: 0; display: grid; gap: 4px; border: 1px solid var(--ac-border); border-radius: 10px; padding: 11px; background: color-mix(in srgb, var(--ac-surface) 88%, transparent); color: var(--ac-text); text-align: left; cursor: pointer; }
+    .visit-row, .encounter-list button { width: 100%; min-width: 0; display: grid; gap: 4px; border: 1px solid var(--ac-border); border-radius: 10px; padding: 10px; background: color-mix(in srgb, var(--ac-surface) 88%, transparent); color: var(--ac-text); text-align: left; cursor: pointer; }
     .visit-row:hover, .encounter-list button:hover, .encounter-list button.active { border-color: color-mix(in srgb, var(--ac-primary) 38%, var(--ac-border)); box-shadow: 0 12px 24px color-mix(in srgb, var(--ac-primary) 8%, transparent); }
     .token-pill { width: fit-content; border-radius: 999px; padding: 4px 9px; background: #eff6ff; color: #1d4ed8; font-size: 11px; font-weight: 900; }
     .token-pill.consultation { background: #f0fdfa; color: #0f766e; }
+    .token-pill.done { background: #ecfdf5; color: #047857; }
     .visit-row small, .encounter-list small, .queue-copy p, .queue-copy span, .summary-strip small, .table-row small, .empty-copy { color: var(--ac-muted); }
     .transfer-panel { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(220px, 320px) auto auto; gap: 10px; align-items: center; padding: 13px; border: 1px solid color-mix(in srgb, var(--ac-primary) 24%, var(--ac-border)); border-radius: 12px; background: color-mix(in srgb, var(--ac-primary) 5%, var(--ac-surface)); }
     .transfer-panel strong, .transfer-panel small { display: block; }
@@ -1224,47 +1358,52 @@ import { OpdManagementService } from './opd-management.service';
     .table-row { border-top: 1px solid var(--ac-border); background: var(--ac-surface); }
     .table-row > span { min-width: 0; }
     .table-row strong, .table-row small { display: block; overflow-wrap: anywhere; }
-    .encounter-layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 12px; align-items: start; }
-    .encounter-list { display: grid; gap: 10px; padding: 14px; max-height: 640px; overflow: auto; }
-    .encounter-card { padding: 16px; min-height: 420px; }
+    .encounter-layout { min-width: 0; display: grid; grid-template-columns: minmax(220px, 260px) minmax(0, 1fr); gap: 12px; align-items: start; }
+    .encounter-list { display: grid; gap: 8px; padding: 12px; max-height: 620px; overflow: auto; }
+    .encounter-list h2 { font-size: 19px; }
+    .encounter-list strong, .encounter-list small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .encounter-card { container-type: inline-size; padding: 14px; min-height: 420px; overflow: hidden; }
     .encounter-head { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; margin-bottom: 14px; }
     .encounter-head span { color: var(--ac-muted); }
+    .encounter-head h2 { font-size: 25px; line-height: 1.12; overflow-wrap: anywhere; }
     .status-badge { display: inline-flex; min-height: 28px; align-items: center; border-radius: 999px; padding: 4px 10px; background: #f0fdfa; color: #0f766e; font-size: 12px; font-weight: 900; }
-    .summary-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
-    .summary-strip span { display: grid; gap: 4px; padding: 12px; border: 1px solid var(--ac-border); border-radius: 10px; background: var(--ac-subtle); }
-    .summary-strip strong { color: var(--ac-text); }
-    .encounter-workspace { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 12px; align-items: start; }
-    .patient-snapshot { position: sticky; top: 10px; display: grid; gap: 12px; padding: 14px; border: 1px solid color-mix(in srgb, var(--ac-primary) 18%, var(--ac-border)); border-radius: 12px; background: linear-gradient(135deg, color-mix(in srgb, var(--ac-primary) 5%, var(--ac-surface)), var(--ac-surface)); }
+    .summary-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 14px; }
+    .summary-strip span { min-width: 0; display: grid; gap: 4px; padding: 10px 11px; border: 1px solid var(--ac-border); border-radius: 10px; background: var(--ac-subtle); }
+    .summary-strip strong { min-width: 0; color: var(--ac-text); overflow-wrap: anywhere; }
+    .encounter-workspace { min-width: 0; display: grid; grid-template-columns: minmax(210px, 240px) minmax(0, 1fr); gap: 12px; align-items: start; }
+    .patient-snapshot { min-width: 0; position: sticky; top: 10px; display: grid; gap: 10px; padding: 12px; border: 1px solid color-mix(in srgb, var(--ac-primary) 18%, var(--ac-border)); border-radius: 12px; background: linear-gradient(135deg, color-mix(in srgb, var(--ac-primary) 5%, var(--ac-surface)), var(--ac-surface)); }
     .snapshot-head { display: flex; gap: 10px; align-items: center; }
     .snapshot-head > span { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 10px; background: var(--ac-primary-light); color: var(--ac-primary); }
     .snapshot-head h3, .section-title h3 { margin: 0; color: var(--ac-text); }
     .snapshot-grid, .snapshot-detail-grid { display: grid; gap: 8px; }
-    .snapshot-grid span, .snapshot-detail-grid span, .metric-tile { display: grid; gap: 3px; min-width: 0; padding: 10px; border: 1px solid var(--ac-border); border-radius: 10px; background: var(--ac-surface); }
+    .snapshot-grid span, .snapshot-detail-grid span, .metric-tile { display: grid; gap: 3px; min-width: 0; padding: 9px 10px; border: 1px solid var(--ac-border); border-radius: 10px; background: var(--ac-surface); }
     .snapshot-grid small, .snapshot-detail-grid small, .metric-tile small { color: var(--ac-muted); font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .03em; }
     .snapshot-grid strong, .snapshot-detail-grid strong, .metric-tile strong { color: var(--ac-text); overflow-wrap: anywhere; }
     .snapshot-detail-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    .clinical-board { min-width: 0; display: grid; gap: 10px; }
-    .encounter-section-tabs { display: flex; gap: 7px; overflow-x: auto; padding: 6px; border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-subtle); scrollbar-color: color-mix(in srgb, var(--ac-primary) 24%, #cbd5e1) transparent; scrollbar-width: thin; }
-    .encounter-section-tabs button { min-height: 38px; display: inline-flex; align-items: center; gap: 7px; border: 0; border-radius: 9px; padding: 0 11px; white-space: nowrap; background: transparent; color: var(--ac-muted); font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
+    .clinical-board { width: 100%; min-width: 0; max-width: 100%; display: grid; gap: 10px; overflow: hidden; }
+    .encounter-section-tabs { min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-subtle); }
+    .encounter-section-tabs button { min-height: 36px; display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 9px; padding: 0 10px; white-space: nowrap; background: transparent; color: var(--ac-muted); font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
     .encounter-section-tabs button.active { background: var(--ac-surface); color: var(--ac-primary); box-shadow: 0 10px 22px rgba(15, 23, 42, .08); }
     .encounter-section-tabs .material-symbols-rounded { font-size: 19px; }
-    .section-panel { min-height: 360px; padding: 14px; border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-surface); }
+    .section-panel { min-width: 0; min-height: 360px; padding: 14px; border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-surface); overflow: hidden; }
     .section-title { margin-bottom: 12px; }
     .section-title p { margin: 4px 0 0; color: var(--ac-muted); }
     .consultation-stack { display: grid; gap: 18px; }
     .consultation-stack > section { padding: 14px; border: 1px solid color-mix(in srgb, var(--ac-primary) 12%, var(--ac-border)); border-radius: 12px; background: color-mix(in srgb, var(--ac-subtle) 56%, var(--ac-surface)); }
     .consultation-stack > section:first-child { background: linear-gradient(135deg, color-mix(in srgb, var(--ac-primary) 5%, var(--ac-surface)), var(--ac-surface)); }
     .prescription-header-card {
+      min-width: 0;
       display: grid;
       gap: 14px;
       margin-bottom: 14px;
-      padding: 14px;
+      padding: 12px;
       border: 1px solid color-mix(in srgb, var(--ac-primary) 20%, var(--ac-border));
       border-radius: 14px;
       background: linear-gradient(135deg, color-mix(in srgb, var(--ac-primary) 5%, var(--ac-surface)), color-mix(in srgb, #10b981 4%, var(--ac-surface)));
       box-shadow: 0 14px 30px rgba(15, 23, 42, .05);
     }
     .prescription-header-title {
+      min-width: 0;
       display: flex;
       align-items: center;
       gap: 11px;
@@ -1272,6 +1411,7 @@ import { OpdManagementService } from './opd-management.service';
       border-bottom: 1px solid color-mix(in srgb, var(--ac-primary) 14%, var(--ac-border));
     }
     .prescription-header-title > span {
+      flex: 0 0 auto;
       width: 42px;
       height: 42px;
       display: grid;
@@ -1281,17 +1421,19 @@ import { OpdManagementService } from './opd-management.service';
       color: var(--ac-primary);
     }
     .prescription-header-title h3, .prescription-header-grid h4 { margin: 0; color: var(--ac-text); }
+    .prescription-header-title h3 { overflow-wrap: anywhere; }
     .prescription-header-grid {
+      min-width: 0;
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 10px;
     }
     .prescription-header-grid article {
       min-width: 0;
       display: grid;
       gap: 8px;
       align-content: start;
-      padding: 12px;
+      padding: 10px;
       border: 1px solid var(--ac-border);
       border-radius: 12px;
       background: color-mix(in srgb, var(--ac-surface) 92%, white);
@@ -1322,6 +1464,7 @@ import { OpdManagementService } from './opd-management.service';
       overflow-wrap: anywhere;
     }
     .clinical-info-card {
+      min-width: 0;
       display: grid;
       gap: 14px;
       margin-bottom: 14px;
@@ -1367,6 +1510,7 @@ import { OpdManagementService } from './opd-management.service';
     }
     .quick-complaints button:hover { background: var(--ac-primary-light); }
     .prescription-vitals-card {
+      min-width: 0;
       display: grid;
       gap: 12px;
       margin-bottom: 14px;
@@ -1397,8 +1541,9 @@ import { OpdManagementService } from './opd-management.service';
     }
     .include-toggle input { accent-color: #10b981; }
     .prescription-vitals-grid {
+      min-width: 0;
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
       gap: 8px;
     }
     .prescription-vitals-grid span {
@@ -1420,9 +1565,9 @@ import { OpdManagementService } from './opd-management.service';
       color: var(--ac-text);
       overflow-wrap: anywhere;
     }
-    .clinical-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+    .clinical-grid { min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 12px; }
     .clinical-grid.single { grid-template-columns: 1fr; }
-    .clinical-grid.medicine-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .clinical-grid.medicine-grid { grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); }
     .field, .check-field { min-width: 0; display: grid; gap: 7px; color: var(--ac-muted); font-weight: 850; }
     .field.wide { grid-column: span 2; }
     .field input, .field select { width: 100%; min-height: 42px; border: 1px solid var(--ac-border); border-radius: 10px; padding: 0 12px; background: var(--ac-surface); color: var(--ac-text); font: inherit; font-weight: 760; outline: 0; }
@@ -1493,6 +1638,7 @@ import { OpdManagementService } from './opd-management.service';
       justify-content: flex-start;
     }
     .medicine-composer {
+      min-width: 0;
       display: grid;
       gap: 12px;
       margin-bottom: 14px;
@@ -1503,6 +1649,7 @@ import { OpdManagementService } from './opd-management.service';
     }
     .medicine-composer .clinical-grid { margin-bottom: 0; }
     .prescription-extra-card {
+      min-width: 0;
       display: grid;
       gap: 12px;
       margin-bottom: 14px;
@@ -1540,6 +1687,7 @@ import { OpdManagementService } from './opd-management.service';
     .prescription-lock-banner strong { display: block; margin-bottom: 3px; font-weight: 950; }
     .prescription-lock-banner p { margin: 0; color: var(--ac-muted); font-size: 12.5px; font-weight: 800; }
     .prescription-template-panel {
+      min-width: 0;
       display: grid;
       gap: 14px;
       margin-bottom: 14px;
@@ -1552,7 +1700,7 @@ import { OpdManagementService } from './opd-management.service';
     }
     .template-panel-head {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+      grid-template-columns: minmax(0, 1fr) minmax(260px, 380px);
       gap: 14px;
       align-items: end;
     }
@@ -1689,6 +1837,9 @@ import { OpdManagementService } from './opd-management.service';
       font-weight: 800;
     }
     .medicine-table {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
       display: grid;
       margin-bottom: 14px;
       border: 1px solid var(--ac-border);
@@ -1698,10 +1849,10 @@ import { OpdManagementService } from './opd-management.service';
     }
     .medicine-table-head, .medicine-table-row {
       display: grid;
-      grid-template-columns: 44px minmax(170px, 1.3fr) minmax(100px, .8fr) minmax(90px, .7fr) minmax(130px, .9fr) minmax(90px, .7fr) minmax(100px, .75fr) minmax(140px, 1fr) 86px;
-      gap: 10px;
-      min-width: 1080px;
-      padding: 11px 12px;
+      grid-template-columns: 38px minmax(145px, 1.3fr) minmax(88px, .8fr) minmax(80px, .7fr) minmax(112px, .9fr) minmax(78px, .7fr) minmax(88px, .75fr) minmax(118px, 1fr) 72px;
+      gap: 8px;
+      min-width: 880px;
+      padding: 10px;
       align-items: center;
     }
     .medicine-table-head {
@@ -1733,6 +1884,7 @@ import { OpdManagementService } from './opd-management.service';
     .encounter-actions { margin-top: 14px; justify-content: flex-end; }
     .prescription-action-bar {
       width: 100%;
+      min-width: 0;
       display: grid;
       gap: 14px;
       padding: 16px;
@@ -1788,7 +1940,7 @@ import { OpdManagementService } from './opd-management.service';
     }
     .prescription-action-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, auto));
+      grid-template-columns: repeat(auto-fit, minmax(150px, max-content));
       justify-content: start;
       gap: 10px;
     }
@@ -1796,8 +1948,7 @@ import { OpdManagementService } from './opd-management.service';
       min-height: 42px;
     }
     .prescription-action-grid .complete-action {
-      grid-column: 1 / -1;
-      justify-self: end;
+      justify-self: start;
       margin-top: 2px;
     }
     .prescription-backdrop {
@@ -2116,8 +2267,21 @@ import { OpdManagementService } from './opd-management.service';
       border-top: 1px solid var(--ac-border);
       background: color-mix(in srgb, var(--ac-surface) 94%, white);
     }
+    @container (max-width: 1120px) {
+      .encounter-workspace { grid-template-columns: 1fr; }
+      .patient-snapshot { position: static; }
+      .snapshot-grid { grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); }
+      .clinical-board { overflow: visible; }
+    }
+    @media (max-width: 1480px) {
+      .encounter-layout { grid-template-columns: minmax(200px, 240px) minmax(0, 1fr); }
+      .encounter-list { padding: 10px; }
+      .encounter-card { padding: 12px; }
+      .encounter-head h2 { font-size: 23px; }
+    }
     @media (max-width: 1180px) {
       .stats-row, .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .opd-command-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .toolbar, .encounter-layout, .encounter-workspace { grid-template-columns: 1fr; }
       .patient-snapshot { position: static; }
       .transfer-panel { grid-template-columns: 1fr; }
@@ -2133,7 +2297,15 @@ import { OpdManagementService } from './opd-management.service';
     }
     @media (max-width: 720px) {
       .page-header, .header-actions { flex-direction: column; align-items: stretch; }
-      .stats-row, .dashboard-grid, .summary-strip, .doctor-metrics { grid-template-columns: 1fr; }
+      .stats-row, .dashboard-grid, .opd-command-grid, .summary-strip, .doctor-metrics, .queue-lanes { grid-template-columns: 1fr; }
+      .command-panel { grid-column: auto; }
+      .command-head { display: grid; }
+      .command-score { width: fit-content; min-width: 64px; }
+      .opd-shell { padding: 10px; }
+      .opd-tabs button, .encounter-section-tabs button { flex: 1 1 150px; justify-content: center; }
+      .encounter-head { display: grid; }
+      .status-badge { width: fit-content; }
+      .section-panel, .prescription-header-card, .clinical-info-card, .prescription-vitals-card, .medicine-composer, .prescription-extra-card, .prescription-template-panel, .prescription-action-bar { padding: 12px; }
       .prescription-action-status { display: grid; }
       .prescription-action-status > span { width: fit-content; }
       .template-apply-row { grid-template-columns: 1fr; }
@@ -2401,14 +2573,22 @@ export class OpdPageComponent implements OnInit {
   ));
 
   protected readonly noShowVisits = computed(() => this.visitModels().filter(visit =>
-    isToday(visit.appointment.startsAt)
-    && ['NO_SHOW', 'NOSHOW'].includes(visit.statusCode)
+    ['NO_SHOW', 'NOSHOW'].includes(visit.statusCode)
+    || ['NO_SHOW', 'NOSHOW'].includes(String(visit.queue?.statusCode || '').toUpperCase())
   ));
 
   protected readonly encounterCandidates = computed(() => [
     ...this.activeConsultations(),
     ...this.waitingQueue()
   ]);
+
+  protected readonly nextWaitingVisit = computed(() => this.waitingQueue()[0] ?? null);
+
+  protected readonly recentCompletedVisits = computed(() =>
+    [...this.completedVisits()]
+      .sort((a, b) => Math.max(safeTime(b.queue?.updatedAt), safeTime(b.appointment.updatedAt), safeTime(b.appointment.startsAt)) - Math.max(safeTime(a.queue?.updatedAt), safeTime(a.appointment.updatedAt), safeTime(a.appointment.startsAt)))
+      .slice(0, 4)
+  );
 
   protected readonly visibleFollowUps = computed(() => {
     const appointmentMap = new Map(this.appointments().map(appointment => [appointment.id, appointment]));
@@ -2422,19 +2602,29 @@ export class OpdPageComponent implements OnInit {
   protected readonly stats = computed<OpdStats>(() => ({
     waiting: this.waitingQueue().length,
     inConsultation: this.activeConsultations().length,
-    completed: this.completedVisits().filter(visit => isToday(visit.appointment.startsAt) || (visit.queue?.arrivedAt && isToday(visit.queue.arrivedAt))).length,
+    completed: this.completedVisits().length,
     followUps: this.visibleFollowUps().length,
     noShows: this.noShowVisits().length
   }));
 
+  protected readonly totalOperationalVisits = computed(() => {
+    const stats = this.stats();
+    return stats.waiting + stats.inConsultation + stats.completed + stats.noShows;
+  });
+
+  protected readonly completionPercent = computed(() => {
+    const total = this.totalOperationalVisits();
+    return total ? Math.round((this.stats().completed / total) * 100) : 0;
+  });
+
   protected readonly statCards = computed(() => {
     const stats = this.stats();
     return [
-      { label: 'Waiting', value: formatNumber(stats.waiting), icon: 'queue', color: '#2563eb', bg: '#eff6ff' },
-      { label: 'In Consultation', value: formatNumber(stats.inConsultation), icon: 'clinical_notes', color: '#0f766e', bg: '#f0fdfa' },
-      { label: 'Completed', value: formatNumber(stats.completed), icon: 'task_alt', color: '#059669', bg: '#ecfdf5' },
-      { label: 'Follow-ups', value: formatNumber(stats.followUps), icon: 'event_repeat', color: '#7c3aed', bg: '#f5f3ff' },
-      { label: 'No Shows', value: formatNumber(stats.noShows), icon: 'event_busy', color: '#dc2626', bg: '#fef2f2' }
+      { label: 'Waiting', value: formatNumber(stats.waiting), icon: 'queue', color: '#2563eb', bg: '#eff6ff', tab: 'queue' as OpdTab },
+      { label: 'In Consultation', value: formatNumber(stats.inConsultation), icon: 'clinical_notes', color: '#0f766e', bg: '#f0fdfa', tab: 'active' as OpdTab },
+      { label: 'Completed', value: formatNumber(stats.completed), icon: 'task_alt', color: '#059669', bg: '#ecfdf5', tab: 'completed' as OpdTab },
+      { label: 'Follow-ups', value: formatNumber(stats.followUps), icon: 'event_repeat', color: '#7c3aed', bg: '#f5f3ff', tab: 'dashboard' as OpdTab },
+      { label: 'No Shows', value: formatNumber(stats.noShows), icon: 'event_busy', color: '#dc2626', bg: '#fef2f2', tab: 'queue' as OpdTab }
     ];
   });
 
@@ -2445,7 +2635,7 @@ export class OpdPageComponent implements OnInit {
       doctorName: doctor ? `${doctor.fullName} · ${doctor.departmentName}` : 'All doctors',
       waiting: formatNumber(visits.filter(visit => this.waitingQueue().some(item => item.appointment.id === visit.appointment.id)).length),
       current: formatNumber(visits.filter(visit => ['DRAFT', 'IN_PROGRESS', 'IN_CONSULTATION'].includes(visit.consultationStatus)).length),
-      completed: formatNumber(visits.filter(visit => (visit.consultationStatus === 'COMPLETED' || visit.statusCode === 'COMPLETED') && (isToday(visit.appointment.startsAt) || (visit.queue?.arrivedAt && isToday(visit.queue.arrivedAt)))).length)
+      completed: formatNumber(visits.filter(visit => this.completedVisits().some(item => item.appointment.id === visit.appointment.id)).length)
     };
   });
 
@@ -2523,6 +2713,14 @@ export class OpdPageComponent implements OnInit {
   protected clearFilters(): void {
     this.searchQuery = '';
     this.doctorFilter = '';
+  }
+
+  protected openStatCard(tab: OpdTab): void {
+    this.activeTab.set(tab);
+  }
+
+  protected formatNumberValue(value: number): string {
+    return formatNumber(value);
   }
 
   protected goToAppointments(): void {
