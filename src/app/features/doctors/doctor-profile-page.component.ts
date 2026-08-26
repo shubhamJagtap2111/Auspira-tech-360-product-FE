@@ -8,7 +8,7 @@ import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dr
 import { AcGridLoaderComponent } from '../../shared/ui/grid-loader/grid-loader.component';
 import { AcPageActionsComponent } from '../../shared/ui/page-actions/page-actions.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
-import { DoctorAvailability, DoctorLeave, DoctorProfile, DoctorSchedule } from './doctor-management.models';
+import { DoctorAvailability, DoctorLeave, DoctorPerformance, DoctorProfile, DoctorSchedule } from './doctor-management.models';
 import { DoctorManagementService } from './doctor-management.service';
 
 type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule' | 'fees' | 'credentials' | 'appointments' | 'opd-patients' | 'ipd-patients' | 'performance' | 'activity';
@@ -327,14 +327,27 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
               </div>
             }
             @case ('performance') {
-              <div class="performance-grid">
-                <div><small>Total appointments</small><strong>{{ currentDoctor.performance.totalAppointments }}</strong></div>
-                <div><small>Completed</small><strong>{{ currentDoctor.performance.completedAppointments }}</strong></div>
-                <div><small>Cancelled</small><strong>{{ currentDoctor.performance.cancelledAppointments }}</strong></div>
-                <div><small>No show</small><strong>{{ currentDoctor.performance.noShowAppointments }}</strong></div>
-                <div><small>Slot utilization</small><strong>{{ currentDoctor.performance.slotUtilization | number:'1.0-0' }}%</strong></div>
-                <div><small>Revenue</small><strong>{{ currency(currentDoctor.performance.revenue) }}</strong></div>
-              </div>
+              <section class="performance-panel">
+                <header class="performance-head">
+                  <div>
+                    <p class="ac-eyebrow">Performance KPIs</p>
+                    <h2>Doctor performance snapshot</h2>
+                  </div>
+                  <span>{{ performanceCompletionRate(currentDoctor.performance) | number:'1.0-0' }}% completion</span>
+                </header>
+                <div class="performance-grid">
+                  @for (card of performanceCards(currentDoctor); track card.label) {
+                    <article class="performance-card" [style.--metric-color]="card.color">
+                      <span class="material-symbols-rounded">{{ card.icon }}</span>
+                      <div>
+                        <small>{{ card.label }}</small>
+                        <strong>{{ card.value }}</strong>
+                        <em>{{ card.meta }}</em>
+                      </div>
+                    </article>
+                  }
+                </div>
+              </section>
             }
             @case ('activity') {
               <section class="activity-tracker">
@@ -487,10 +500,10 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
     .bio-card { margin-top: 18px; }
     .bio-card p { margin: 0; color: var(--ac-muted); line-height: 1.6; }
     .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-    .detail-grid span, .performance-grid div { border: 1px solid var(--ac-border); border-radius: 8px; padding: 14px; background: var(--ac-subtle); min-width: 0; }
+    .detail-grid span { border: 1px solid var(--ac-border); border-radius: 8px; padding: 14px; background: var(--ac-subtle); min-width: 0; }
     small { color: var(--ac-muted); }
-    .detail-grid small, .performance-grid small { display: block; margin-bottom: 5px; }
-    .detail-grid strong, .performance-grid strong { color: var(--ac-text); overflow-wrap: anywhere; }
+    .detail-grid small { display: block; margin-bottom: 5px; }
+    .detail-grid strong { color: var(--ac-text); overflow-wrap: anywhere; }
     .record-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .record-card { position: relative; border: 1px solid var(--ac-border); border-radius: 8px; padding: 16px; display: flex; gap: 12px; align-items: flex-start; background: var(--ac-surface); }
     .record-card > .material-symbols-rounded { width: 42px; height: 42px; border-radius: 10px; display: grid; place-items: center; background: var(--ac-primary-light); color: var(--ac-primary); flex: 0 0 42px; }
@@ -528,8 +541,46 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
     .record-card h3 { margin: 0; color: var(--ac-text); font-size: 16px; }
     .record-card p { margin: 5px 0 0; color: var(--ac-muted); line-height: 1.4; }
     .stacked-section { display: grid; gap: 22px; }
-    .performance-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-    .performance-grid strong { font-size: 24px; }
+    .performance-panel { display: grid; gap: 14px; }
+    .performance-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .performance-head h2 { margin: 2px 0 0; }
+    .performance-head > span {
+      border: 1px solid color-mix(in srgb, var(--ac-success) 22%, var(--ac-border));
+      border-radius: 999px;
+      padding: 7px 12px;
+      background: color-mix(in srgb, var(--ac-success) 10%, var(--ac-surface));
+      color: var(--ac-success);
+      font-size: 12px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+    .performance-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+    .performance-card {
+      --metric-color: var(--ac-primary);
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      min-height: 86px;
+      border: 1px solid var(--ac-border);
+      border-radius: 10px;
+      padding: 12px;
+      background: var(--ac-subtle);
+      min-width: 0;
+    }
+    .performance-card > .material-symbols-rounded {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      color: var(--metric-color);
+      background: color-mix(in srgb, var(--metric-color) 10%, var(--ac-surface));
+      flex: 0 0 38px;
+    }
+    .performance-card div { min-width: 0; }
+    .performance-card small { display: block; color: var(--ac-muted); font-size: 12px; font-weight: 850; }
+    .performance-card strong { display: block; margin-top: 2px; color: var(--ac-text); font-size: 23px; line-height: 1; overflow-wrap: anywhere; }
+    .performance-card em { display: block; margin-top: 5px; color: var(--ac-muted); font-size: 11.5px; font-style: normal; font-weight: 700; line-height: 1.25; }
     .timeline { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; }
     .timeline li { display: grid; grid-template-columns: 18px 1fr; gap: 12px; }
     .timeline li > span { width: 12px; height: 12px; border-radius: 999px; background: var(--ac-primary); margin-top: 6px; box-shadow: 0 0 0 5px color-mix(in srgb, var(--ac-primary) 15%, transparent); }
@@ -1492,13 +1543,11 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
         var(--ac-surface);
       box-shadow: 0 18px 46px rgba(15, 23, 42, 0.06);
     }
-    .record-grid,
-    .performance-grid {
+    .record-grid {
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 14px;
     }
     .record-card,
-    .performance-grid > div,
     .detail-tile,
     .bio-card {
       position: relative;
@@ -1512,7 +1561,6 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
       transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
     }
     .record-card::before,
-    .performance-grid > div::before,
     .detail-tile::before {
       content: '';
       position: absolute;
@@ -1522,7 +1570,6 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
       opacity: 0.76;
     }
     .record-card:hover,
-    .performance-grid > div:hover,
     .detail-tile:hover {
       border-color: color-mix(in srgb, var(--profile-accent) 26%, var(--ac-border));
       box-shadow: 0 18px 38px rgba(15, 23, 42, 0.075);
@@ -1548,23 +1595,53 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
       color: var(--ac-text-2);
       font-size: 13px;
     }
-    .performance-grid > div {
-      min-height: 112px;
-      display: grid;
-      align-content: center;
-      gap: 6px;
-      padding: 18px;
+    .performance-panel {
+      padding: 2px 0 0;
     }
-    .performance-grid small {
-      color: var(--ac-muted);
-      font-size: 13px;
-      font-weight: 850;
+    .performance-grid {
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
     }
-    .performance-grid strong {
-      color: var(--ac-text);
-      font-size: 31px;
-      line-height: 1;
+    .performance-card {
+      position: relative;
+      overflow: hidden;
+      min-height: 88px;
+      border: 1px solid color-mix(in srgb, var(--ac-border) 84%, var(--metric-color));
+      border-radius: 13px;
+      background:
+        linear-gradient(145deg, color-mix(in srgb, var(--ac-surface) 96%, white), color-mix(in srgb, var(--metric-color) 5%, var(--ac-surface))),
+        var(--ac-surface);
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.045);
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+    .performance-card::before {
+      content: '';
+      position: absolute;
+      inset: 0 0 auto;
+      height: 3px;
+      background: linear-gradient(90deg, var(--metric-color), color-mix(in srgb, var(--metric-color) 42%, var(--profile-success)));
+      opacity: 0.82;
+    }
+    .performance-card:hover {
+      border-color: color-mix(in srgb, var(--metric-color) 32%, var(--ac-border));
+      box-shadow: 0 16px 32px rgba(15, 23, 42, 0.075);
+      transform: translateY(-1px);
+    }
+    .performance-card > .material-symbols-rounded {
+      background: color-mix(in srgb, var(--metric-color) 11%, var(--ac-surface));
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--metric-color) 14%, transparent);
+    }
+    .performance-card small {
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: .02em;
+    }
+    .performance-card strong {
+      font-size: 22px;
       letter-spacing: 0;
+    }
+    .performance-card em {
+      color: var(--ac-text-2);
     }
     .detail-tile {
       min-height: 96px;
@@ -1687,6 +1764,73 @@ export class DoctorProfilePageComponent implements OnInit {
       { label: 'Revenue', value: this.currency(overview?.revenue ?? 0), icon: 'payments', color: '#7C3AED' }
     ];
   });
+
+  protected performanceCards(currentDoctor: DoctorProfile): Array<{ label: string; value: string; meta: string; icon: string; color: string }> {
+    const performance = currentDoctor.performance;
+    const total = performance.totalAppointments || 0;
+    const completed = performance.completedAppointments || 0;
+    const cancelled = performance.cancelledAppointments || 0;
+    const noShows = performance.noShowAppointments || 0;
+    const consultations = performance.totalConsultations || 0;
+    const revenue = performance.revenue || 0;
+    const avgRevenue = completed > 0 ? revenue / completed : 0;
+
+    return [
+      {
+        label: 'Appointments',
+        value: formatNumber(total),
+        meta: `${completed} completed | ${cancelled + noShows} missed`,
+        icon: 'event',
+        color: '#2563EB'
+      },
+      {
+        label: 'Completion',
+        value: `${formatPercent(this.performanceCompletionRate(performance))}%`,
+        meta: `${formatNumber(completed)} of ${formatNumber(total)} visits completed`,
+        icon: 'task_alt',
+        color: '#10B981'
+      },
+      {
+        label: 'Consultations',
+        value: formatNumber(consultations),
+        meta: `${formatNumber(currentDoctor.performance.admissions)} IPD admissions linked`,
+        icon: 'stethoscope',
+        color: '#0891B2'
+      },
+      {
+        label: 'Cancelled',
+        value: formatNumber(cancelled),
+        meta: `${formatPercent(rate(cancelled, total))}% of appointments`,
+        icon: 'event_busy',
+        color: '#F59E0B'
+      },
+      {
+        label: 'No show',
+        value: formatNumber(noShows),
+        meta: `${formatPercent(rate(noShows, total))}% patient no-show rate`,
+        icon: 'event_busy',
+        color: '#EF4444'
+      },
+      {
+        label: 'Revenue',
+        value: this.currency(revenue),
+        meta: `${this.currency(avgRevenue)} avg per completed visit`,
+        icon: 'payments',
+        color: '#7C3AED'
+      },
+      {
+        label: 'Slot utilization',
+        value: `${formatPercent(performance.slotUtilization || 0)}%`,
+        meta: 'Booked slots against availability',
+        icon: 'calendar_clock',
+        color: '#0F766E'
+      }
+    ];
+  }
+
+  protected performanceCompletionRate(performance: DoctorPerformance): number {
+    return rate(performance.completedAppointments, performance.totalAppointments);
+  }
 
   private readonly route = inject(ActivatedRoute);
   private readonly service = inject(DoctorManagementService);
@@ -2109,4 +2253,12 @@ function uniqueAvailabilityDays(days: number[]): number[] {
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat('en-IN').format(value);
+}
+
+function formatPercent(value: number): string {
+  return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(value || 0);
+}
+
+function rate(value: number, total: number): number {
+  return total > 0 ? (value / total) * 100 : 0;
 }
