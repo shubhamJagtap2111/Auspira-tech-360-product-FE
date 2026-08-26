@@ -73,7 +73,10 @@ function createRecordPayload(appointment: AppointmentRecord) {
 }
 
 function toIsoDateTime(date: string, time: string): string {
-  return new Date(`${date}T${time || '09:00'}`).toISOString();
+  const dateValue = /^\d{4}-\d{2}-\d{2}$/.test(String(date || '')) ? date : todayInputValue();
+  const timeValue = normalizeTimeInput(time) ?? '09:00';
+  const value = new Date(`${dateValue}T${timeValue}:00`);
+  return Number.isNaN(value.getTime()) ? new Date().toISOString() : value.toISOString();
 }
 
 function createAppointmentNo(): string {
@@ -91,4 +94,25 @@ function createQueuePayload(form: AppointmentCheckInForm) {
     statusCode: 'WAITING',
     notes: form.notes.trim() || null
   };
+}
+
+function normalizeTimeInput(value: string): string | null {
+  const match = String(value || '').match(/^(\d{1,2}):(\d{2})/);
+  if (!match) {
+    return null;
+  }
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    return null;
+  }
+
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+}
+
+function todayInputValue(): string {
+  const date = new Date();
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().slice(0, 10);
 }

@@ -237,7 +237,7 @@ import { AppointmentManagementService } from './appointment-management.service';
                 <span class="span-2"><small>Notes</small><strong>{{ appointment.notes || '-' }}</strong></span>
               </div>
               <div class="details-actions">
-                <button class="ac-btn ac-btn-primary" type="button" [disabled]="!canCheckIn(appointment)" (click)="openCheckIn(appointment)">
+                <button class="ac-btn ac-btn-primary" type="button" [disabled]="checkingIn() || !canCheckIn(appointment)" (click)="openCheckIn(appointment)">
                   <span class="material-symbols-rounded">how_to_reg</span>
                   Check-In
                 </button>
@@ -381,6 +381,16 @@ import { AppointmentManagementService } from './appointment-management.service';
                 <span>Doctor Queue</span>
               </div>
 
+              @if (checkingIn()) {
+                <div class="checkin-progress">
+                  <span class="material-symbols-rounded spin">progress_activity</span>
+                  <div>
+                    <strong>Adding patient to doctor queue</strong>
+                    <small>The check-in API is processing. Please wait a few seconds.</small>
+                  </div>
+                </div>
+              }
+
               <div class="queue-ticket">
                 <div>
                   <small>Token Number</small>
@@ -395,31 +405,31 @@ import { AppointmentManagementService } from './appointment-management.service';
               <div class="form-grid">
                 <label>
                   <span>Arrival Date *</span>
-                  <input type="date" name="arrivalDate" [(ngModel)]="checkInForm().arrivalDate" />
+                  <input type="date" name="arrivalDate" [(ngModel)]="checkInForm().arrivalDate" [disabled]="checkingIn()" />
                 </label>
                 <label>
                   <span>Arrival Time *</span>
-                  <input type="time" name="arrivalTime" [(ngModel)]="checkInForm().arrivalTime" />
+                  <input type="time" name="arrivalTime" [(ngModel)]="checkInForm().arrivalTime" [disabled]="checkingIn()" />
                 </label>
                 <label>
                   <span>Token Number *</span>
-                  <input type="text" name="tokenNumber" [(ngModel)]="checkInForm().tokenNumber" />
+                  <input type="text" name="tokenNumber" [(ngModel)]="checkInForm().tokenNumber" [disabled]="checkingIn()" />
                 </label>
                 <label>
                   <span>Priority</span>
-                  <ac-dropdown name="priorityCode" [(ngModel)]="checkInForm().priorityCode" [options]="priorityOptions" />
+                  <ac-dropdown name="priorityCode" [(ngModel)]="checkInForm().priorityCode" [options]="priorityOptions" [disabled]="checkingIn()" />
                 </label>
                 <label class="span-2">
                   <span>Notes</span>
-                  <textarea name="checkInNotes" rows="3" [(ngModel)]="checkInForm().notes" placeholder="Reception notes, mobility support, fast-track reason"></textarea>
+                  <textarea name="checkInNotes" rows="3" [(ngModel)]="checkInForm().notes" [disabled]="checkingIn()" placeholder="Reception notes, mobility support, fast-track reason"></textarea>
                 </label>
               </div>
             </section>
           </div>
 
-          <button drawer-actions class="ac-btn ac-btn-secondary" type="button" (click)="closeCheckInDrawer()">Cancel</button>
+          <button drawer-actions class="ac-btn ac-btn-secondary" type="button" [disabled]="checkingIn()" (click)="closeCheckInDrawer()">Cancel</button>
           <button drawer-actions class="ac-btn ac-btn-primary" type="button" [disabled]="checkingIn() || !canSubmitCheckIn()" (click)="saveCheckIn()">
-            <span class="material-symbols-rounded">queue</span>
+            <span class="material-symbols-rounded" [class.spin]="checkingIn()">{{ checkingIn() ? 'progress_activity' : 'queue' }}</span>
             {{ checkingIn() ? 'Adding...' : 'Add to Doctor Queue' }}
           </button>
         </ac-admin-drawer>
@@ -534,6 +544,12 @@ import { AppointmentManagementService } from './appointment-management.service';
     .checkin-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; padding: 10px; border: 1px solid var(--ac-border); border-radius: 10px; background: var(--ac-surface); color: var(--ac-muted); font-size: 12px; font-weight: 900; }
     .checkin-flow span:not(.material-symbols-rounded) { min-height: 28px; display: inline-flex; align-items: center; border-radius: 999px; padding: 0 10px; background: color-mix(in srgb, var(--ac-primary) 8%, var(--ac-surface)); color: var(--ac-text); }
     .checkin-flow .material-symbols-rounded { color: var(--ac-primary); font-size: 18px; }
+    .checkin-progress { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--ac-primary) 24%, var(--ac-border)); border-radius: 10px; background: color-mix(in srgb, var(--ac-primary) 7%, var(--ac-surface)); color: var(--ac-text); }
+    .checkin-progress > .material-symbols-rounded { color: var(--ac-primary); }
+    .checkin-progress strong, .checkin-progress small { display: block; }
+    .checkin-progress small { margin-top: 2px; color: var(--ac-muted); font-size: 12px; font-weight: 750; }
+    .spin { animation: spin 900ms linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
     .queue-ticket { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
     .queue-ticket > div { min-height: 86px; display: grid; align-content: center; gap: 6px; padding: 16px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--ac-primary) 24%, var(--ac-border)); background: color-mix(in srgb, var(--ac-primary) 7%, var(--ac-surface)); box-shadow: 0 14px 32px rgba(15, 23, 42, .06); }
     .queue-ticket small { color: var(--ac-muted); font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; }
@@ -923,6 +939,10 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
   }
 
   protected openCheckIn(appointment: AppointmentVm): void {
+    if (this.checkingIn()) {
+      return;
+    }
+
     if (!this.canCheckIn(appointment)) {
       return;
     }
@@ -933,6 +953,10 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
   }
 
   protected closeCheckInDrawer(): void {
+    if (this.checkingIn()) {
+      return;
+    }
+
     this.checkInDrawerOpen.set(false);
     this.checkInAppointment.set(null);
     this.checkInForm.set(createEmptyCheckInForm());
@@ -940,16 +964,23 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
 
   protected canSubmitCheckIn(): boolean {
     const current = this.checkInForm();
-    return Boolean(current.appointmentId && current.arrivalDate && current.arrivalTime && current.tokenNumber.trim() && current.queueNo > 0);
+    return Boolean(
+      current.appointmentId
+      && isValidDateInput(current.arrivalDate)
+      && isValidTimeInput(current.arrivalTime)
+      && current.tokenNumber.trim()
+      && current.queueNo > 0
+    );
   }
 
   protected async saveCheckIn(): Promise<void> {
     const appointment = this.checkInAppointment();
     if (!appointment || !this.canSubmitCheckIn()) {
-      this.toast.warning('Missing check-in details', 'Arrival time and token number are required.');
+      this.toast.warning('Missing check-in details', 'Valid arrival date, arrival time, and token number are required.');
       return;
     }
 
+    this.toast.info('Check-in started', 'Adding the patient to the doctor queue. This may take a few seconds.');
     this.checkingIn.set(true);
     try {
       const form = this.checkInForm();
@@ -1138,23 +1169,28 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
   }
 
   protected formatDateTime(value: string): string {
-    return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+    const date = safeDate(value);
+    return date ? new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(date) : '-';
   }
 
   protected formatTime(value: string): string {
-    return new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+    const date = safeDate(value);
+    return date ? new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit' }).format(date) : '-';
   }
 
   protected dateDay(value: string): string {
-    return new Intl.DateTimeFormat('en-IN', { day: '2-digit' }).format(new Date(value));
+    const date = safeDate(value);
+    return date ? new Intl.DateTimeFormat('en-IN', { day: '2-digit' }).format(date) : '--';
   }
 
   protected dateMonth(value: string): string {
-    return new Intl.DateTimeFormat('en-IN', { month: 'short' }).format(new Date(value));
+    const date = safeDate(value);
+    return date ? new Intl.DateTimeFormat('en-IN', { month: 'short' }).format(date) : '---';
   }
 
   protected dateOnly(value: string): string {
-    return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value));
+    const date = safeDate(value);
+    return date ? new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(date) : '-';
   }
 
   protected moveCalendar(days: number): void {
@@ -1276,7 +1312,7 @@ function createEmptyCheckInForm(): AppointmentCheckInForm {
 function createCheckInForm(appointment: AppointmentVm, queues: AppointmentQueueRecord[], appointments: AppointmentRecord[]): AppointmentCheckInForm {
   const existingQueue = queues.find(queue => queue.appointmentId === appointment.id) ?? null;
   const queueNo = existingQueue?.queueNo || nextQueueNoForDoctor(appointment, queues, appointments);
-  const arrivedAt = existingQueue?.arrivedAt ? new Date(existingQueue.arrivedAt) : new Date();
+  const arrivedAt = safeDate(existingQueue?.arrivedAt) ?? new Date();
 
   return {
     queueId: existingQueue?.id ?? '',
@@ -1291,7 +1327,7 @@ function createCheckInForm(appointment: AppointmentVm, queues: AppointmentQueueR
 }
 
 function mapAppointmentToForm(appointment: AppointmentRecord): AppointmentForm {
-  const date = new Date(appointment.startsAt);
+  const date = safeDate(appointment.startsAt) ?? new Date();
   return {
     appointmentId: appointment.id,
     appointmentNo: appointment.appointmentNo || derivedAppointmentNo(appointment.id),
@@ -1403,6 +1439,14 @@ function parseTimeToMinutes(value: string | null | undefined): number | null {
   return hours * 60 + minutes;
 }
 
+function isValidTimeInput(value: string | null | undefined): boolean {
+  return parseTimeToMinutes(value) !== null;
+}
+
+function isValidDateInput(value: string | null | undefined): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || '')) && Boolean(safeDate(`${value}T00:00:00`));
+}
+
 function minutesToTimeInput(value: number): string {
   const hours = Math.floor(value / 60);
   const minutes = value % 60;
@@ -1410,7 +1454,8 @@ function minutesToTimeInput(value: number): string {
 }
 
 function formatSlotLabel(value: string): string {
-  return new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit' }).format(new Date(`2000-01-01T${value}:00`));
+  const date = safeDate(`2000-01-01T${value}:00`);
+  return date ? new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit' }).format(date) : value || '-';
 }
 
 function todayInputValue(): string {
@@ -1418,13 +1463,13 @@ function todayInputValue(): string {
 }
 
 function inputValue(date: Date): string {
-  const value = new Date(date);
+  const value = safeDate(date) ?? new Date();
   value.setMinutes(value.getMinutes() - value.getTimezoneOffset());
   return value.toISOString().slice(0, 10);
 }
 
 function timeInputValue(date: Date): string {
-  const value = new Date(date);
+  const value = safeDate(date) ?? new Date();
   value.setMinutes(value.getMinutes() - value.getTimezoneOffset());
   return value.toISOString().slice(11, 16);
 }
@@ -1441,7 +1486,7 @@ function parseDateInput(value: string): Date {
 }
 
 function startOfWeek(value: Date): Date {
-  const date = new Date(value);
+  const date = safeDate(value) ?? new Date();
   const day = date.getDay();
   date.setDate(date.getDate() - day);
   date.setHours(0, 0, 0, 0);
@@ -1449,13 +1494,23 @@ function startOfWeek(value: Date): Date {
 }
 
 function addDays(value: Date, days: number): Date {
-  const date = new Date(value);
+  const date = safeDate(value) ?? new Date();
   date.setDate(date.getDate() + days);
   return date;
 }
 
 function dateKey(value: string): string {
-  return inputValue(new Date(value));
+  const date = safeDate(value);
+  return date ? inputValue(date) : '';
+}
+
+function safeDate(value: string | Date | null | undefined): Date | null {
+  if (!value) {
+    return null;
+  }
+
+  const date = value instanceof Date ? new Date(value) : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function formatNumber(value: number): string {
