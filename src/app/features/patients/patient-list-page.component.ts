@@ -14,6 +14,7 @@ import { PatientDuplicate, PatientForm, PatientRegistryStats, PatientSummary } f
 import { PatientManagementService } from './patient-management.service';
 
 type PatientDrawerMode = 'view' | 'edit' | 'create';
+type PatientValidationField = 'firstName' | 'lastName' | 'mobileNumber' | 'dateOfBirth' | 'genderCode' | 'email';
 
 @Component({
   standalone: true,
@@ -220,6 +221,16 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
               </span>
 
               <div drawer-body class="ac-admin-drawer-content">
+                @if (patientFormSubmitted() && patientValidationErrors(patientForm).length) {
+                  <section class="validation-summary" role="alert" aria-live="polite">
+                    <span class="material-symbols-rounded">error</span>
+                    <div>
+                      <strong>Please complete required patient details.</strong>
+                      <p>{{ patientValidationErrors(patientForm).join(' ') }}</p>
+                    </div>
+                  </section>
+                }
+
                 <section class="ac-admin-form-section">
                   <div class="ac-admin-section-title">
                     <span class="material-symbols-rounded">badge</span>
@@ -235,7 +246,7 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
                       <ac-dropdown name="statusCode" [(ngModel)]="patientForm.statusCode" [disabled]="isViewMode()" [options]="patientStatusOptions" />
                     </label>
                     <label class="mobile-field" [class.invalid]="patientFieldInvalid(patientForm, 'mobileNumber')">
-                      <span>Mobile</span>
+                      <span>Mobile *</span>
                       <div class="mobile-control">
                         <div class="country-select-shell" [class.open]="countryDropdownOpen()" [class.disabled]="isViewMode()">
                           <button
@@ -648,6 +659,32 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
       border-color: color-mix(in srgb, var(--ac-error) 72%, var(--ac-border));
       box-shadow: 0 0 0 3px color-mix(in srgb, var(--ac-error) 13%, transparent);
     }
+    label.invalid input,
+    label.invalid textarea {
+      background: color-mix(in srgb, var(--ac-error) 4%, var(--ac-surface));
+    }
+    .validation-summary {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid color-mix(in srgb, var(--ac-error) 46%, var(--ac-border));
+      border-radius: var(--ac-r-sm);
+      background: color-mix(in srgb, var(--ac-error) 7%, var(--ac-surface));
+      color: var(--ac-text);
+    }
+    .validation-summary > .material-symbols-rounded {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border-radius: var(--ac-r-sm);
+      background: color-mix(in srgb, var(--ac-error) 12%, var(--ac-surface));
+      color: var(--ac-error);
+      font-size: 20px;
+    }
+    .validation-summary strong { display: block; color: var(--ac-error); font-size: 13px; }
+    .validation-summary p { margin: 3px 0 0; color: var(--ac-muted); font-size: 12px; line-height: 1.35; }
     .validation-message {
       display: flex;
       align-items: center;
@@ -737,6 +774,7 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
   protected readonly drawerMode = signal<PatientDrawerMode>('view');
   protected readonly countryDropdownOpen = signal(false);
   protected readonly duplicateMatches = signal<PatientDuplicate[]>([]);
+  protected readonly patientFormSubmitted = signal(false);
   private readonly duplicateOverride = signal(false);
   protected readonly form = signal<PatientForm>(createEmptyPatient());
   protected searchQuery = '';
@@ -881,6 +919,7 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
     const emptyPatient = createEmptyPatient();
     this.duplicateMatches.set([]);
     this.duplicateOverride.set(false);
+    this.patientFormSubmitted.set(false);
     this.form.set(emptyPatient);
     this.drawerMode.set('create');
     this.drawerOpen.set(true);
@@ -918,6 +957,7 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
     }
 
     this.form.set(mapProfileToForm(response.data));
+    this.patientFormSubmitted.set(false);
     this.drawerMode.set(mode);
     this.drawerOpen.set(true);
   }
@@ -926,6 +966,7 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
     this.countryDropdownOpen.set(false);
     this.duplicateMatches.set([]);
     this.duplicateOverride.set(false);
+    this.patientFormSubmitted.set(false);
     this.drawerOpen.set(false);
   }
 
@@ -950,16 +991,30 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
   }
 
   protected canSave(patient: PatientForm): boolean {
-    return Boolean(patient.firstName.trim() && patient.lastName.trim() && patient.mobileNumber.trim() && patient.dateOfBirth && patient.genderCode);
+    return getPatientValidationErrors(patient).length === 0;
+  }
+
+  protected patientValidationErrors(patient: PatientForm): string[] {
+    return getPatientValidationErrors(patient).map(error => error.message);
+  }
+
+  protected patientFieldInvalid(patient: PatientForm, field: PatientValidationField): boolean {
+    return this.patientFormSubmitted() && Boolean(getPatientFieldError(patient, field));
+  }
+
+  protected patientFieldError(patient: PatientForm, field: PatientValidationField): string {
+    return getPatientFieldError(patient, field)?.message ?? '';
   }
 
   protected async save(): Promise<void> {
-    if (this.isViewMode()) {
+    if (this.isViewMode() || this.saving()) {
       return;
     }
 
+    this.patientFormSubmitted.set(true);
     if (!this.canSave(this.form())) {
-      this.toast.warning('Missing details', 'First name, last name, date of birth, gender, and mobile number are required.');
+      this.focusFirstInvalidPatientField();
+      this.toast.warning('Missing details', getPatientValidationErrors(this.form())[0]?.message ?? 'Complete required patient details.');
       return;
     }
 
@@ -987,6 +1042,7 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
       const wasCreate = !patient.patientGuid;
       this.form.set(mapProfileToForm(response.data));
       this.upsertPatient(response.data, wasCreate);
+      this.patientFormSubmitted.set(false);
       this.drawerOpen.set(false);
       this.toast.success('Patient saved');
     } finally {
@@ -1003,6 +1059,16 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
     this.duplicateOverride.set(true);
     this.duplicateMatches.set([]);
     await this.save();
+  }
+
+  private focusFirstInvalidPatientField(): void {
+    setTimeout(() => {
+      const firstInvalidControl = document.querySelector<HTMLElement>(
+        '.ac-admin-drawer-content label.invalid input:not([disabled]), .ac-admin-drawer-content label.invalid textarea:not([disabled]), .ac-admin-drawer-content label.invalid button:not([disabled])'
+      );
+      firstInvalidControl?.focus();
+      firstInvalidControl?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
   }
 
   protected async deletePatient(patient: PatientSummary): Promise<void> {
@@ -1342,6 +1408,50 @@ function parseDateOnly(value: string | null): Date | null {
 
 function escapeCsv(value: string): string {
   return `"${value.replaceAll('"', '""')}"`;
+}
+
+interface PatientValidationError {
+  field: PatientValidationField;
+  message: string;
+}
+
+function getPatientValidationErrors(patient: PatientForm): PatientValidationError[] {
+  const errors: PatientValidationError[] = [];
+  const mobileDigits = patient.mobileNumber.replace(/\D/g, '');
+
+  if (!patient.firstName.trim()) {
+    errors.push({ field: 'firstName', message: 'First name is required.' });
+  }
+
+  if (!patient.lastName.trim()) {
+    errors.push({ field: 'lastName', message: 'Last name is required.' });
+  }
+
+  if (!patient.mobileNumber.trim()) {
+    errors.push({ field: 'mobileNumber', message: 'Mobile number is required.' });
+  } else if (mobileDigits.length < 6 || mobileDigits.length > 15) {
+    errors.push({ field: 'mobileNumber', message: 'Enter a valid mobile number.' });
+  }
+
+  if (!patient.dateOfBirth) {
+    errors.push({ field: 'dateOfBirth', message: 'Date of birth is required.' });
+  } else if (!parseDateOnly(patient.dateOfBirth)) {
+    errors.push({ field: 'dateOfBirth', message: 'Enter a valid date of birth.' });
+  }
+
+  if (!patient.genderCode) {
+    errors.push({ field: 'genderCode', message: 'Gender is required.' });
+  }
+
+  if (patient.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(patient.email.trim())) {
+    errors.push({ field: 'email', message: 'Enter a valid email address.' });
+  }
+
+  return errors;
+}
+
+function getPatientFieldError(patient: PatientForm, field: PatientValidationField): PatientValidationError | null {
+  return getPatientValidationErrors(patient).find(error => error.field === field) ?? null;
 }
 
 interface CountryCodeOption {
