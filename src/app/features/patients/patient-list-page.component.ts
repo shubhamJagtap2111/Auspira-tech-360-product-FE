@@ -234,7 +234,7 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
                       <span>Status</span>
                       <ac-dropdown name="statusCode" [(ngModel)]="patientForm.statusCode" [disabled]="isViewMode()" [options]="patientStatusOptions" />
                     </label>
-                    <label class="mobile-field">
+                    <label class="mobile-field" [class.invalid]="patientFieldInvalid(patientForm, 'mobileNumber')">
                       <span>Mobile</span>
                       <div class="mobile-control">
                         <div class="country-select-shell" [class.open]="countryDropdownOpen()" [class.disabled]="isViewMode()">
@@ -271,32 +271,47 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
                             </div>
                           }
                         </div>
-                        <input class="mobile-number-input" name="mobileNumber" [(ngModel)]="patientForm.mobileNumber" [disabled]="isViewMode()" inputmode="tel" placeholder="8230394902" />
+                        <input class="mobile-number-input" name="mobileNumber" [(ngModel)]="patientForm.mobileNumber" [disabled]="isViewMode()" inputmode="tel" placeholder="8230394902" [attr.aria-invalid]="patientFieldInvalid(patientForm, 'mobileNumber')" />
                       </div>
+                      @if (patientFieldInvalid(patientForm, 'mobileNumber')) {
+                        <small class="validation-message">{{ patientFieldError(patientForm, 'mobileNumber') }}</small>
+                      }
                     </label>
-                    <label>
+                    <label [class.invalid]="patientFieldInvalid(patientForm, 'firstName')">
                       <span>First name *</span>
-                      <input name="firstName" [(ngModel)]="patientForm.firstName" [disabled]="isViewMode()" />
+                      <input name="firstName" [(ngModel)]="patientForm.firstName" [disabled]="isViewMode()" [attr.aria-invalid]="patientFieldInvalid(patientForm, 'firstName')" />
+                      @if (patientFieldInvalid(patientForm, 'firstName')) {
+                        <small class="validation-message">{{ patientFieldError(patientForm, 'firstName') }}</small>
+                      }
                     </label>
                     <label>
                       <span>Middle name</span>
                       <input name="middleName" [(ngModel)]="patientForm.middleName" [disabled]="isViewMode()" />
                     </label>
-                    <label>
+                    <label [class.invalid]="patientFieldInvalid(patientForm, 'lastName')">
                       <span>Last name *</span>
-                      <input name="lastName" [(ngModel)]="patientForm.lastName" [disabled]="isViewMode()" />
+                      <input name="lastName" [(ngModel)]="patientForm.lastName" [disabled]="isViewMode()" [attr.aria-invalid]="patientFieldInvalid(patientForm, 'lastName')" />
+                      @if (patientFieldInvalid(patientForm, 'lastName')) {
+                        <small class="validation-message">{{ patientFieldError(patientForm, 'lastName') }}</small>
+                      }
                     </label>
-                    <label>
+                    <label [class.invalid]="patientFieldInvalid(patientForm, 'dateOfBirth')">
                       <span>Date of birth *</span>
-                      <input type="date" name="dateOfBirth" [(ngModel)]="patientForm.dateOfBirth" [disabled]="isViewMode()" />
+                      <input type="date" name="dateOfBirth" [(ngModel)]="patientForm.dateOfBirth" [disabled]="isViewMode()" [attr.aria-invalid]="patientFieldInvalid(patientForm, 'dateOfBirth')" />
+                      @if (patientFieldInvalid(patientForm, 'dateOfBirth')) {
+                        <small class="validation-message">{{ patientFieldError(patientForm, 'dateOfBirth') }}</small>
+                      }
                     </label>
                     <label>
                       <span>Age</span>
                       <input [value]="displayFormAge(patientForm)" readonly disabled />
                     </label>
-                    <label>
+                    <label [class.invalid]="patientFieldInvalid(patientForm, 'genderCode')">
                       <span>Gender *</span>
                       <ac-dropdown name="genderCode" [(ngModel)]="patientForm.genderCode" [disabled]="isViewMode()" [options]="patientGenderOptions" />
+                      @if (patientFieldInvalid(patientForm, 'genderCode')) {
+                        <small class="validation-message">{{ patientFieldError(patientForm, 'genderCode') }}</small>
+                      }
                     </label>
                     <label>
                       <span>Blood group</span>
@@ -335,9 +350,12 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
                     <h3>Contact details</h3>
                   </div>
                   <div class="ac-admin-form-grid">
-                    <label>
+                    <label [class.invalid]="patientFieldInvalid(patientForm, 'email')">
                       <span>Email</span>
-                      <input type="email" name="email" [(ngModel)]="patientForm.email" [disabled]="isViewMode()" />
+                      <input type="email" name="email" [(ngModel)]="patientForm.email" [disabled]="isViewMode()" [attr.aria-invalid]="patientFieldInvalid(patientForm, 'email')" />
+                      @if (patientFieldInvalid(patientForm, 'email')) {
+                        <small class="validation-message">{{ patientFieldError(patientForm, 'email') }}</small>
+                      }
                     </label>
                     <label class="span-2">
                       <span>Address</span>
@@ -458,7 +476,7 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
               </div>
 
               <button drawer-actions class="ac-btn ac-btn-secondary" type="button" (click)="closeDrawer()">Cancel</button>
-              <button drawer-actions class="ac-btn ac-btn-primary" type="button" (click)="save()" [disabled]="isViewMode() || saving() || !canSave(patientForm)">
+              <button drawer-actions class="ac-btn ac-btn-primary" type="button" (click)="save()" [disabled]="isViewMode() || saving()">
                 <span class="material-symbols-rounded">save</span>
                 {{ patientSaveLabel() }}
               </button>
@@ -622,6 +640,31 @@ type PatientDrawerMode = 'view' | 'edit' | 'create';
     }
     .country-option .material-symbols-rounded { font-size: 19px; }
     .mobile-number-input { min-width: 0; }
+    label.invalid > span { color: var(--ac-error); }
+    label.invalid input,
+    label.invalid textarea,
+    label.invalid .country-trigger,
+    label.invalid ac-dropdown {
+      border-color: color-mix(in srgb, var(--ac-error) 72%, var(--ac-border));
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--ac-error) 13%, transparent);
+    }
+    .validation-message {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 2px;
+      color: var(--ac-error);
+      font-size: 11.5px;
+      font-weight: 800;
+      line-height: 1.25;
+    }
+    .validation-message::before {
+      content: 'error';
+      font-family: 'Material Symbols Rounded';
+      font-size: 15px;
+      font-weight: 400;
+      line-height: 1;
+    }
     .duplicate-panel { display: grid; gap: 12px; padding: 14px; border: 1px solid rgba(245,158,11,0.28); border-radius: var(--ac-r); background: linear-gradient(135deg, rgba(255,251,235,0.92), rgba(255,255,255,0.86)); }
     :host-context([data-theme='dark']) .duplicate-panel { background: linear-gradient(135deg, rgba(69,43,9,0.42), rgba(17,24,39,0.92)); border-color: rgba(245,158,11,0.36); }
     .duplicate-head { display: flex; gap: 10px; align-items: flex-start; }

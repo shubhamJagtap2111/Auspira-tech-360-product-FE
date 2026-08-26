@@ -1703,6 +1703,14 @@ import { OpdManagementService } from './opd-management.service';
       font-weight: 950;
       box-shadow: 0 8px 16px rgba(15, 23, 42, .06);
     }
+    .step-number::before {
+      content: '';
+      position: absolute;
+      z-index: -1;
+      inset: -8px;
+      border-radius: 999px;
+      background: var(--ac-surface);
+    }
     .encounter-workflow-stepper button.completed .step-number,
     .encounter-workflow-stepper button.active .step-number {
       border-color: color-mix(in srgb, var(--ac-primary) 66%, #ffffff);
