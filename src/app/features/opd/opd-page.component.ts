@@ -200,8 +200,40 @@ import { OpdManagementService } from './opd-management.service';
                     </div>
 
                     <div class="clinical-summary-card">
-                      <h3>Clinical Summary</h3>
-                      <p>{{ visit.consultation?.notes || 'No clinical notes saved yet. Start the consultation or save a draft from the encounter.' }}</p>
+                      @if (clinicalSummaryPreview(visit.consultation?.notes); as summary) {
+                        <div class="summary-card-head">
+                          <div>
+                            <h3>Clinical Summary</h3>
+                            <p>{{ summary.caption }}</p>
+                          </div>
+                          @if (summary.sections.length) {
+                            <span>{{ summary.sections.length }} sections</span>
+                          }
+                        </div>
+
+                        @if (summary.sections.length) {
+                          <div class="summary-section-grid">
+                            @for (section of summary.sections; track section.title) {
+                              <section class="summary-section">
+                                <div class="summary-section-title">
+                                  <span class="material-symbols-rounded">{{ section.icon }}</span>
+                                  <strong>{{ section.title }}</strong>
+                                </div>
+                                <div class="summary-chip-list">
+                                  @for (item of section.items; track item) {
+                                    <span>{{ item }}</span>
+                                  }
+                                </div>
+                              </section>
+                            }
+                          </div>
+                        } @else {
+                          <div class="summary-empty">
+                            <span class="material-symbols-rounded">clinical_notes</span>
+                            <p>No clinical notes saved yet. Start the consultation or save a draft from the encounter.</p>
+                          </div>
+                        }
+                      }
                     </div>
 
                     <div class="focus-action-grid">
@@ -394,11 +426,20 @@ import { OpdManagementService } from './opd-management.service';
                       </aside>
 
                       <section class="clinical-board">
-                        <nav class="encounter-section-tabs" aria-label="OPD encounter sections">
+                        <nav class="encounter-workflow-stepper" aria-label="OPD encounter workflow">
                           @for (section of encounterSections; track section.id) {
-                            <button type="button" [class.active]="activeEncounterSection() === section.id" (click)="activeEncounterSection.set(section.id)">
-                              <span class="material-symbols-rounded">{{ section.icon }}</span>
-                              {{ section.label }}
+                            <button
+                              type="button"
+                              [class.active]="activeEncounterSection() === section.id"
+                              [class.completed]="isEncounterStepComplete(section.id)"
+                              [disabled]="saving()"
+                              (click)="goToEncounterStep(section.id)"
+                            >
+                              <span class="step-number">{{ encounterStepNumber(section.id) }}</span>
+                              <span class="step-copy">
+                                <strong>{{ section.label }}</strong>
+                                <small>{{ encounterStepStatus(section.id) }}</small>
+                              </span>
                             </button>
                           }
                         </nav>
@@ -862,12 +903,16 @@ import { OpdManagementService } from './opd-management.service';
                                   <div class="prescription-action-status">
                                     <div>
                                       <p class="ac-eyebrow">Prescription Actions</p>
-                                      <strong>Prescription Status: <span class="status-dot"></span>{{ prescriptionStatusLabel() }}</strong>
+                                      <strong><span class="status-dot"></span>{{ prescriptionStatusLabel() }}</strong>
                                     </div>
-                                    <span>{{ prescriptionPreview()?.prescriptionNo || 'RX pending' }} · Revision {{ prescriptionRevisionNo() }} · {{ clinicalForm().prescriptions.length }} {{ clinicalForm().prescriptions.length === 1 ? 'medicine' : 'medicines' }} added</span>
+                                    <div class="prescription-action-meta">
+                                      <span>{{ prescriptionPreview()?.prescriptionNo || 'RX pending' }}</span>
+                                      <span>Revision {{ prescriptionRevisionNo() }}</span>
+                                      <span>{{ clinicalForm().prescriptions.length }} {{ clinicalForm().prescriptions.length === 1 ? 'medicine' : 'medicines' }} added</span>
+                                    </div>
                                   </div>
 
-                                  <div class="prescription-action-grid">
+                                  <div class="prescription-action-grid prescription-workflow-actions">
                                     <button class="ac-btn ac-btn-secondary" type="button" [disabled]="saving() || prescriptionLocked()" (click)="savePrescriptionDraft()">
                                       <span class="material-symbols-rounded">save</span>
                                       Save Draft
@@ -884,6 +929,13 @@ import { OpdManagementService } from './opd-management.service';
                                       <span class="material-symbols-rounded">verified</span>
                                       Finalize
                                     </button>
+                                    <button class="ac-btn ac-btn-primary complete-action" type="button" [disabled]="saving()" (click)="completeVisit()">
+                                      <span class="material-symbols-rounded">task_alt</span>
+                                      Complete Consultation
+                                    </button>
+                                  </div>
+
+                                  <div class="prescription-action-grid prescription-output-actions">
                                     @if (prescriptionLocked()) {
                                       <button class="ac-btn ac-btn-secondary" type="button" [disabled]="saving()" (click)="createRevisedPrescription()">
                                         <span class="material-symbols-rounded">edit_note</span>
@@ -901,10 +953,6 @@ import { OpdManagementService } from './opd-management.service';
                                     <button class="ac-btn ac-btn-secondary" type="button" [disabled]="saving()" (click)="sharePrescription()">
                                       <span class="material-symbols-rounded">ios_share</span>
                                       Share to Patient
-                                    </button>
-                                    <button class="ac-btn ac-btn-primary complete-action" type="button" [disabled]="saving()" (click)="completeVisit()">
-                                      <span class="material-symbols-rounded">task_alt</span>
-                                      Complete Consultation
                                     </button>
                                   </div>
                                 </section>
@@ -969,6 +1017,28 @@ import { OpdManagementService } from './opd-management.service';
                             }
                           }
                         </div>
+
+                        <footer class="encounter-workflow-footer">
+                          <button class="ac-btn ac-btn-secondary" type="button" [disabled]="saving() || isFirstEncounterStep()" (click)="goToPreviousEncounterStep()">
+                            <span class="material-symbols-rounded">chevron_left</span>
+                            Back
+                          </button>
+                          <button class="ac-btn ac-btn-secondary" type="button" [disabled]="saving()" (click)="saveEncounterDraft()">
+                            <span class="material-symbols-rounded" [class.spin]="saving()">{{ saving() ? 'progress_activity' : 'save' }}</span>
+                            Save Draft
+                          </button>
+                          @if (isLastEncounterStep()) {
+                            <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="completeVisit()">
+                              <span class="material-symbols-rounded">task_alt</span>
+                              Complete Consultation
+                            </button>
+                          } @else {
+                            <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="saveDraftAndNextEncounterStep()">
+                              <span class="material-symbols-rounded" [class.spin]="saving()">{{ saving() ? 'progress_activity' : 'arrow_forward' }}</span>
+                              Save & Next
+                            </button>
+                          }
+                        </footer>
                       </section>
                     </div>
 
@@ -1378,7 +1448,72 @@ import { OpdManagementService } from './opd-management.service';
     .focus-details small { color: var(--ac-muted); font-size: 10.5px; font-weight: 900; text-transform: uppercase; }
     .focus-details strong { color: var(--ac-text); overflow-wrap: anywhere; }
     .clinical-summary-card h3 { margin: 0; color: var(--ac-text); font-size: 15px; }
-    .clinical-summary-card p { margin: 0; color: var(--ac-muted); line-height: 1.55; font-size: 12.5px; font-weight: 760; }
+    .clinical-summary-card p { margin: 0; color: var(--ac-muted); line-height: 1.45; font-size: 12px; font-weight: 760; }
+    .summary-card-head { min-width: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .summary-card-head > div { min-width: 0; display: grid; gap: 3px; }
+    .summary-card-head > span {
+      flex: 0 0 auto;
+      min-height: 24px;
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--ac-primary) 10%, var(--ac-surface));
+      color: var(--ac-primary);
+      font-size: 10.5px;
+      font-weight: 900;
+    }
+    .summary-section-grid { display: grid; gap: 8px; margin-top: 8px; }
+    .summary-section {
+      min-width: 0;
+      display: grid;
+      gap: 7px;
+      padding: 9px;
+      border: 1px solid color-mix(in srgb, var(--ac-border) 78%, transparent);
+      border-radius: 8px;
+      background: var(--ac-surface);
+    }
+    .summary-section-title { min-width: 0; display: flex; align-items: center; gap: 7px; color: var(--ac-text); }
+    .summary-section-title span {
+      width: 26px;
+      height: 26px;
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      background: color-mix(in srgb, var(--ac-primary) 11%, var(--ac-surface));
+      color: var(--ac-primary);
+      font-size: 16px;
+    }
+    .summary-section-title strong { min-width: 0; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .summary-chip-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .summary-chip-list span {
+      max-width: 100%;
+      min-height: 26px;
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 8px;
+      border-radius: 7px;
+      background: var(--ac-subtle);
+      color: var(--ac-text);
+      font-size: 11.5px;
+      font-weight: 820;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+    .summary-empty {
+      min-height: 108px;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 8px;
+      margin-top: 8px;
+      border: 1px dashed var(--ac-border);
+      border-radius: 8px;
+      background: var(--ac-surface);
+      text-align: center;
+    }
+    .summary-empty span { color: var(--ac-primary); font-size: 24px; }
+    .summary-empty p { max-width: 320px; }
     .focus-action-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: auto; }
     .focus-action-grid .ac-btn { justify-content: center; min-width: 0; }
     .opd-command-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px; }
@@ -1510,11 +1645,121 @@ import { OpdManagementService } from './opd-management.service';
     .snapshot-grid strong, .snapshot-detail-grid strong, .metric-tile strong { color: var(--ac-text); overflow-wrap: anywhere; }
     .snapshot-detail-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .clinical-board { width: 100%; min-width: 0; max-width: 100%; display: grid; gap: 10px; overflow: hidden; }
-    .encounter-section-tabs { min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-subtle); }
-    .encounter-section-tabs button { min-height: 36px; display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 9px; padding: 0 10px; white-space: nowrap; background: transparent; color: var(--ac-muted); font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
-    .encounter-section-tabs button.active { background: var(--ac-surface); color: var(--ac-primary); box-shadow: 0 10px 22px rgba(15, 23, 42, .08); }
-    .encounter-section-tabs .material-symbols-rounded { font-size: 19px; }
+    .encounter-workflow-stepper {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: repeat(9, minmax(92px, 1fr));
+      gap: 0;
+      padding: 14px 16px;
+      border: 1px solid var(--ac-border);
+      border-radius: 12px;
+      background: var(--ac-surface);
+      box-shadow: 0 12px 28px rgba(15, 23, 42, .05);
+      overflow-x: auto;
+    }
+    .encounter-workflow-stepper button {
+      position: relative;
+      min-width: 92px;
+      min-height: 84px;
+      display: grid;
+      justify-items: center;
+      align-content: start;
+      gap: 8px;
+      border: 0;
+      background: transparent;
+      color: var(--ac-muted);
+      font: inherit;
+      cursor: pointer;
+    }
+    .encounter-workflow-stepper button::before {
+      content: '';
+      position: absolute;
+      top: 19px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--ac-border);
+      transform: translateY(-50%);
+    }
+    .encounter-workflow-stepper button:first-child::before { left: 50%; }
+    .encounter-workflow-stepper button:last-child::before { right: 50%; }
+    .encounter-workflow-stepper button.completed::before,
+    .encounter-workflow-stepper button.active::before {
+      background: color-mix(in srgb, var(--ac-primary) 52%, var(--ac-border));
+    }
+    .encounter-workflow-stepper button:disabled { cursor: wait; opacity: .72; }
+    .step-number {
+      position: relative;
+      z-index: 1;
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      border: 2px solid var(--ac-border);
+      background: var(--ac-subtle);
+      color: var(--ac-muted);
+      font-size: 14px;
+      font-weight: 950;
+      box-shadow: 0 8px 16px rgba(15, 23, 42, .06);
+    }
+    .encounter-workflow-stepper button.completed .step-number,
+    .encounter-workflow-stepper button.active .step-number {
+      border-color: color-mix(in srgb, var(--ac-primary) 66%, #ffffff);
+      background: var(--ac-primary);
+      color: #ffffff;
+    }
+    .encounter-workflow-stepper button.completed .step-number::after {
+      content: 'check';
+      font-family: 'Material Symbols Rounded';
+      font-size: 18px;
+      font-weight: 400;
+    }
+    .encounter-workflow-stepper button.completed .step-number {
+      font-size: 0;
+      background: #0f766e;
+      border-color: color-mix(in srgb, #0f766e 66%, #ffffff);
+    }
+    .step-copy {
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+      justify-items: center;
+      text-align: center;
+      line-height: 1.2;
+    }
+    .step-copy strong {
+      max-width: 112px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--ac-text);
+      font-size: 11.5px;
+      font-weight: 950;
+    }
+    .step-copy small {
+      max-width: 112px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--ac-muted);
+      font-size: 10.5px;
+      font-weight: 850;
+    }
+    .encounter-workflow-stepper button.active .step-copy strong,
+    .encounter-workflow-stepper button.active .step-copy small { color: var(--ac-primary); }
     .section-panel { min-width: 0; min-height: 360px; padding: 14px; border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-surface); overflow: hidden; }
+    .encounter-workflow-footer {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 12px;
+      border: 1px solid var(--ac-border);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--ac-subtle) 58%, var(--ac-surface));
+    }
+    .encounter-workflow-footer .ac-btn { min-width: 132px; justify-content: center; }
     .section-title { margin-bottom: 12px; }
     .section-title p { margin: 4px 0 0; color: var(--ac-muted); }
     .consultation-stack { display: grid; gap: 18px; }
@@ -2050,21 +2295,31 @@ import { OpdManagementService } from './opd-management.service';
       box-shadow: 0 16px 34px rgba(15, 23, 42, .06);
     }
     .prescription-action-status {
-      display: flex;
-      justify-content: space-between;
+      min-width: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
       gap: 14px;
-      align-items: flex-start;
+      align-items: center;
       padding-bottom: 12px;
       border-bottom: 1px solid color-mix(in srgb, var(--ac-primary) 14%, var(--ac-border));
     }
+    .prescription-action-status > div:first-child { min-width: 0; display: grid; gap: 5px; }
     .prescription-action-status strong {
       display: inline-flex;
       align-items: center;
       gap: 8px;
       color: var(--ac-text);
-      font-size: 16px;
+      font-size: 18px;
+      line-height: 1.2;
     }
-    .prescription-action-status > span {
+    .prescription-action-meta {
+      min-width: 0;
+      display: flex;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .prescription-action-meta span {
       min-height: 30px;
       display: inline-flex;
       align-items: center;
@@ -2095,17 +2350,29 @@ import { OpdManagementService } from './opd-management.service';
     }
     .prescription-action-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(184px, 1fr));
       gap: 8px;
+    }
+    .prescription-workflow-actions {
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    }
+    .prescription-output-actions {
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      padding-top: 2px;
     }
     .prescription-action-grid .ac-btn {
       width: 100%;
-      min-height: 38px;
-      padding-inline: 10px;
+      min-width: 0;
+      min-height: 44px;
+      justify-content: center;
+      padding: 10px 12px;
+      line-height: 1.2;
+      white-space: normal;
+      text-align: center;
     }
     .prescription-action-grid .complete-action {
-      justify-self: start;
-      margin-top: 2px;
+      background: linear-gradient(135deg, #2563eb, #0f766e);
+      border-color: color-mix(in srgb, #0f766e 34%, #2563eb);
     }
     .prescription-backdrop {
       position: fixed;
@@ -2470,12 +2737,17 @@ import { OpdManagementService } from './opd-management.service';
       .command-head { display: grid; }
       .command-score { width: fit-content; min-width: 64px; }
       .opd-shell { padding: 10px; }
-      .opd-tabs button, .encounter-section-tabs button { flex: 1 1 150px; justify-content: center; }
+      .opd-tabs button { flex: 1 1 150px; justify-content: center; }
+      .encounter-workflow-stepper { padding: 12px; grid-template-columns: repeat(9, minmax(86px, 1fr)); }
+      .encounter-workflow-stepper button { min-width: 86px; min-height: 76px; }
+      .step-copy strong, .step-copy small { max-width: 92px; }
+      .encounter-workflow-footer { display: grid; grid-template-columns: 1fr; }
+      .encounter-workflow-footer .ac-btn { width: 100%; }
       .encounter-head { display: grid; }
       .status-badge { width: fit-content; }
       .section-panel, .prescription-header-card, .clinical-info-card, .prescription-vitals-card, .medicine-composer, .prescription-extra-card, .prescription-template-panel, .prescription-action-bar { padding: 12px; }
-      .prescription-action-status { display: grid; }
-      .prescription-action-status > span { width: fit-content; }
+      .prescription-action-status { grid-template-columns: 1fr; align-items: stretch; }
+      .prescription-action-meta { justify-content: flex-start; }
       .template-apply-row { grid-template-columns: 1fr; }
       .template-apply-row .ac-btn { width: 100%; }
       .prescription-action-grid { grid-template-columns: 1fr; }
@@ -2923,13 +3195,14 @@ export class OpdPageComponent implements OnInit {
   }
 
   protected selectVisit(visit: OpdVisitVm, tab: OpdTab = 'encounter'): void {
+    const draftState = readEncounterDraftState(visit);
     this.selectedVisit.set(visit);
     this.encounterForm.set(toEncounterForm(visit, 'IN_PROGRESS'));
-    this.clinicalForm.set(emptyClinicalForm(visit.consultation?.notes ?? ''));
+    this.clinicalForm.set(draftState?.form ?? emptyClinicalForm(visit.consultation?.notes ?? ''));
     this.prescriptionStatus.set('DRAFT');
     this.prescriptionRevisionNo.set(1);
     this.prescriptionPreviewOpen.set(false);
-    this.activeEncounterSection.set('snapshot');
+    this.activeEncounterSection.set(draftState?.section ?? 'snapshot');
     this.activeTab.set(tab);
   }
 
@@ -3183,6 +3456,84 @@ export class OpdPageComponent implements OnInit {
       .slice(0, 2)
       .map(part => part[0]?.toUpperCase() ?? '')
       .join('') || 'PT';
+  }
+
+  protected clinicalSummaryPreview(notes: string | null | undefined): ClinicalSummaryPreview {
+    return buildClinicalSummaryPreview(notes);
+  }
+
+  protected encounterStepNumber(sectionId: OpdEncounterSection): number {
+    return this.encounterStepIndex(sectionId) + 1;
+  }
+
+  protected encounterStepStatus(sectionId: OpdEncounterSection): string {
+    const currentIndex = this.encounterStepIndex(this.activeEncounterSection());
+    const sectionIndex = this.encounterStepIndex(sectionId);
+    if (sectionIndex < currentIndex) {
+      return 'Saved';
+    }
+    if (sectionIndex === currentIndex) {
+      return this.saving() ? 'Saving...' : 'Current';
+    }
+    return 'Next';
+  }
+
+  protected isEncounterStepComplete(sectionId: OpdEncounterSection): boolean {
+    return this.encounterStepIndex(sectionId) < this.encounterStepIndex(this.activeEncounterSection());
+  }
+
+  protected isFirstEncounterStep(): boolean {
+    return this.encounterStepIndex(this.activeEncounterSection()) === 0;
+  }
+
+  protected isLastEncounterStep(): boolean {
+    return this.encounterStepIndex(this.activeEncounterSection()) === this.encounterSections.length - 1;
+  }
+
+  protected async goToEncounterStep(sectionId: OpdEncounterSection): Promise<void> {
+    const currentIndex = this.encounterStepIndex(this.activeEncounterSection());
+    const targetIndex = this.encounterStepIndex(sectionId);
+    if (targetIndex < 0 || targetIndex === currentIndex) {
+      return;
+    }
+
+    if (targetIndex > currentIndex && !await this.saveEncounterDraft(false)) {
+      return;
+    }
+
+    this.setEncounterStep(sectionId);
+  }
+
+  protected goToPreviousEncounterStep(): void {
+    const previousStep = this.encounterSections[this.encounterStepIndex(this.activeEncounterSection()) - 1];
+    if (previousStep) {
+      this.setEncounterStep(previousStep.id);
+    }
+  }
+
+  protected async saveDraftAndNextEncounterStep(): Promise<void> {
+    const currentIndex = this.encounterStepIndex(this.activeEncounterSection());
+    const nextStep = this.encounterSections[currentIndex + 1];
+    if (!nextStep) {
+      return;
+    }
+
+    if (await this.saveEncounterDraft(false)) {
+      this.setEncounterStep(nextStep.id);
+      this.toast.success('Draft saved', `Continue with ${nextStep.label}.`);
+    }
+  }
+
+  protected async saveEncounterDraft(showToast = true): Promise<boolean> {
+    this.commitActiveEncounterStepDraft();
+    const consultation = await this.saveEncounter('IN_PROGRESS', showToast);
+    const visit = this.selectedVisit();
+    if (!consultation || !visit) {
+      return false;
+    }
+
+    persistEncounterDraftState({ ...visit, consultation }, this.activeEncounterSection(), this.clinicalForm());
+    return true;
   }
 
   protected addComplaint(): void {
@@ -3827,7 +4178,7 @@ export class OpdPageComponent implements OnInit {
     }
   }
 
-  protected async saveEncounter(statusCode: 'IN_PROGRESS' | 'COMPLETED'): Promise<OpdConsultationRecord | null> {
+  protected async saveEncounter(statusCode: 'IN_PROGRESS' | 'COMPLETED', showToast = true): Promise<OpdConsultationRecord | null> {
     const visit = this.selectedVisit();
     if (!visit) {
       return null;
@@ -3855,11 +4206,18 @@ export class OpdPageComponent implements OnInit {
       const updatedVisit = { ...visit, consultation: response.data };
       this.selectedVisit.set(updatedVisit);
       this.encounterForm.set(toEncounterForm(updatedVisit, response.data.statusCode === 'COMPLETED' ? 'COMPLETED' : 'IN_PROGRESS'));
+      if (statusCode === 'COMPLETED') {
+        clearEncounterDraftState(updatedVisit);
+      } else {
+        persistEncounterDraftState(updatedVisit, this.activeEncounterSection(), this.clinicalForm());
+      }
       const prescriptionReady = this.clinicalForm().prescriptions.length > 0 && Boolean(this.clinicalForm().prescriptionId);
-      this.toast.success(
-        statusCode === 'COMPLETED' ? 'Clinical record completed' : 'Draft saved',
-        statusCode === 'IN_PROGRESS' && prescriptionReady ? 'Prescription generated and ready to preview.' : undefined
-      );
+      if (showToast) {
+        this.toast.success(
+          statusCode === 'COMPLETED' ? 'Clinical record completed' : 'Draft saved',
+          statusCode === 'IN_PROGRESS' && prescriptionReady ? 'Prescription generated and ready to preview.' : undefined
+        );
+      }
       return response.data;
     } finally {
       this.saving.set(false);
@@ -3963,6 +4321,107 @@ export class OpdPageComponent implements OnInit {
 
     this.toast.warning('Prescription is issued', 'Create a revised prescription before changing finalized medical instructions.');
     return false;
+  }
+
+  private encounterStepIndex(sectionId: OpdEncounterSection): number {
+    return this.encounterSections.findIndex(section => section.id === sectionId);
+  }
+
+  private setEncounterStep(sectionId: OpdEncounterSection): void {
+    if (!this.encounterSections.some(section => section.id === sectionId)) {
+      return;
+    }
+
+    this.activeEncounterSection.set(sectionId);
+    const visit = this.selectedVisit();
+    if (visit) {
+      persistEncounterDraftState(visit, sectionId, this.clinicalForm());
+    }
+  }
+
+  private commitActiveEncounterStepDraft(): void {
+    if (this.prescriptionLocked()) {
+      return;
+    }
+
+    const section = this.activeEncounterSection();
+    this.clinicalForm.update(form => {
+      if (section === 'consultation' && form.complaintDraft.complaint.trim()) {
+        return {
+          ...form,
+          complaints: [...form.complaints, { ...form.complaintDraft }],
+          complaintDraft: emptyComplaintForm()
+        };
+      }
+
+      if (section === 'diagnosis' && (form.diagnosisDraft.diagnosisName.trim() || form.diagnosisDraft.diagnosisCode.trim())) {
+        return {
+          ...form,
+          diagnoses: [...form.diagnoses, { ...form.diagnosisDraft }],
+          diagnosisDraft: emptyDiagnosisForm()
+        };
+      }
+
+      if (section === 'lab-orders' && form.labOrderDraft.testId) {
+        return {
+          ...form,
+          labOrders: [...form.labOrders, { ...form.labOrderDraft }],
+          labOrderDraft: emptyLabOrderForm()
+        };
+      }
+
+      if (section === 'procedures' && form.procedureDraft.procedure.trim()) {
+        return {
+          ...form,
+          procedures: [...form.procedures, { ...form.procedureDraft }],
+          procedureDraft: emptyProcedureForm()
+        };
+      }
+
+      if (section === 'prescription') {
+        let nextForm = form.prescriptionDraft.medicine.trim()
+          ? {
+              ...form,
+              prescriptions: [...form.prescriptions, { ...form.prescriptionDraft }],
+              prescriptionDraft: emptyPrescriptionItemForm()
+            }
+          : form;
+
+        if (nextForm.investigationDraft.trim()) {
+          nextForm = {
+            ...nextForm,
+            prescriptionInvestigations: [...nextForm.prescriptionInvestigations, nextForm.investigationDraft.trim()],
+            investigationDraft: ''
+          };
+        }
+
+        if (nextForm.adviceDraft.trim()) {
+          nextForm = {
+            ...nextForm,
+            adviceList: [...nextForm.adviceList, nextForm.adviceDraft.trim()],
+            adviceDraft: ''
+          };
+        }
+
+        if (nextForm.dietAdviceDraft.trim()) {
+          nextForm = {
+            ...nextForm,
+            dietAdviceList: [...nextForm.dietAdviceList, nextForm.dietAdviceDraft.trim()],
+            dietAdviceDraft: ''
+          };
+          this.customDietAdviceMode.set(false);
+        }
+
+        return nextForm;
+      }
+
+      return form;
+    });
+
+    if (section === 'prescription') {
+      this.customFrequencyMode.set(false);
+    }
+    this.markPrescriptionChanged();
   }
 
   private async createClinicalChildRecords(consultation: OpdConsultationRecord, visit: OpdVisitVm): Promise<void> {
@@ -4175,6 +4634,17 @@ interface PrescriptionPrintOptions {
   includeFollowUp: boolean;
 }
 
+interface ClinicalSummaryPreview {
+  caption: string;
+  sections: ClinicalSummarySection[];
+}
+
+interface ClinicalSummarySection {
+  title: string;
+  icon: string;
+  items: string[];
+}
+
 const prescriptionStatusLabels: Record<PrescriptionStatus, string> = {
   DRAFT: 'Draft',
   GENERATED: 'Generated',
@@ -4244,7 +4714,14 @@ interface PrescriptionTemplateDraft {
   description: string;
 }
 
+interface EncounterDraftState {
+  section: OpdEncounterSection;
+  form: OpdClinicalForm;
+  updatedAt: string;
+}
+
 const PRESCRIPTION_TEMPLATE_STORAGE_KEY = 'care360.opd.prescriptionTemplates';
+const OPD_ENCOUNTER_DRAFT_STORAGE_PREFIX = 'care360.opd.encounterDraft.';
 
 const DEFAULT_PRESCRIPTION_TEMPLATES: PrescriptionTemplate[] = [
   {
@@ -4361,6 +4838,85 @@ function persistPrescriptionTemplates(templates: PrescriptionTemplate[]): void {
   } catch {
     // Local template persistence is a convenience layer; failures should not block OPD work.
   }
+}
+
+function readEncounterDraftState(visit: OpdVisitVm): EncounterDraftState | null {
+  if (normalizeCode(visit.consultationStatus) === 'COMPLETED') {
+    clearEncounterDraftState(visit);
+    return null;
+  }
+
+  try {
+    const rawDraft = typeof localStorage === 'undefined' ? null : localStorage.getItem(encounterDraftStorageKey(visit));
+    if (!rawDraft) {
+      return null;
+    }
+
+    const parsed = JSON.parse(rawDraft) as EncounterDraftState;
+    if (!isEncounterSection(parsed.section) || !isClinicalDraftForm(parsed.form)) {
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function persistEncounterDraftState(visit: OpdVisitVm, section: OpdEncounterSection, form: OpdClinicalForm): void {
+  if (normalizeCode(visit.consultationStatus) === 'COMPLETED') {
+    clearEncounterDraftState(visit);
+    return;
+  }
+
+  try {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+
+    localStorage.setItem(encounterDraftStorageKey(visit), JSON.stringify({
+      section,
+      form,
+      updatedAt: new Date().toISOString()
+    } satisfies EncounterDraftState));
+  } catch {
+    // Local resume support should never block saving the server-side OPD draft.
+  }
+}
+
+function clearEncounterDraftState(visit: OpdVisitVm): void {
+  try {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+
+    localStorage.removeItem(encounterDraftStorageKey(visit));
+  } catch {
+    // Ignore storage cleanup failures.
+  }
+}
+
+function encounterDraftStorageKey(visit: OpdVisitVm): string {
+  return `${OPD_ENCOUNTER_DRAFT_STORAGE_PREFIX}${visit.appointment.id}`;
+}
+
+function isEncounterSection(value: unknown): value is OpdEncounterSection {
+  return ['snapshot', 'vitals', 'consultation', 'diagnosis', 'lab-orders', 'procedures', 'notes', 'prescription', 'follow-up'].includes(String(value));
+}
+
+function isClinicalDraftForm(value: unknown): value is OpdClinicalForm {
+  const form = value as Partial<OpdClinicalForm> | null;
+  return Boolean(
+    form &&
+    typeof form === 'object' &&
+    form.vitals &&
+    Array.isArray(form.complaints) &&
+    Array.isArray(form.diagnoses) &&
+    Array.isArray(form.prescriptions) &&
+    Array.isArray(form.labOrders) &&
+    Array.isArray(form.procedures) &&
+    form.followUp
+  );
 }
 
 function isPrescriptionTemplate(value: PrescriptionTemplate): value is PrescriptionTemplate {
@@ -4502,6 +5058,99 @@ function emptyLabOrderForm() {
 
 function emptyProcedureForm(): OpdProcedureForm {
   return { procedure: '', notes: '', charge: '' };
+}
+
+const clinicalSummaryDisplaySections: Array<{ title: string; icon: string; keys: string[]; maxItems: number }> = [
+  { title: 'Vitals', icon: 'monitor_heart', keys: ['vitals'], maxItems: 6 },
+  { title: 'Complaints', icon: 'sick', keys: ['chief complaints'], maxItems: 3 },
+  { title: 'Diagnosis', icon: 'diagnosis', keys: ['diagnosis'], maxItems: 3 },
+  { title: 'Prescription', icon: 'medication', keys: ['prescription'], maxItems: 3 },
+  { title: 'Advice', icon: 'health_and_safety', keys: ['advice', 'diet advice'], maxItems: 4 },
+  { title: 'Follow-up', icon: 'event_repeat', keys: ['follow-up'], maxItems: 4 }
+];
+
+function buildClinicalSummaryPreview(notes: string | null | undefined): ClinicalSummaryPreview {
+  const trimmedNotes = (notes ?? '').trim();
+  if (!trimmedNotes) {
+    return { caption: 'Awaiting clinical documentation.', sections: [] };
+  }
+
+  const parsedSections = parseClinicalNoteSections(trimmedNotes);
+  const displaySections = clinicalSummaryDisplaySections
+    .map(section => ({
+      title: section.title,
+      icon: section.icon,
+      items: compactSummaryItems(section.keys.flatMap(key => parsedSections.get(key) ?? []), section.maxItems)
+    }))
+    .filter(section => section.items.length);
+
+  if (displaySections.length) {
+    return { caption: 'Latest saved encounter details.', sections: displaySections };
+  }
+
+  return {
+    caption: 'Free-form clinical note.',
+    sections: [{
+      title: 'Notes',
+      icon: 'clinical_notes',
+      items: compactSummaryItems(trimmedNotes.split(/\n+/), 3)
+    }]
+  };
+}
+
+function parseClinicalNoteSections(notes: string): Map<string, string[]> {
+  const sections = new Map<string, string[]>();
+  const blocks = notes.replace(/\r\n/g, '\n').split(/\n(?=##\s+)/g);
+
+  blocks.forEach(block => {
+    const match = block.match(/^##\s+(.+?)(?:\n|$)([\s\S]*)/);
+    if (!match) {
+      return;
+    }
+
+    const title = match[1].trim();
+    const key = title.toLowerCase();
+    const body = match[2].trim();
+    if (key === 'clinical notes' && /(^|\n)##\s+\w+/.test(body)) {
+      return;
+    }
+
+    const items = body
+      .split('\n')
+      .map(line => line.replace(/^\s*-\s*/, '').trim())
+      .filter(isMeaningfulSummaryLine);
+
+    if (items.length && !sections.has(key)) {
+      sections.set(key, items);
+    }
+  });
+
+  return sections;
+}
+
+function compactSummaryItems(items: string[], maxItems: number): string[] {
+  const cleanedItems = items
+    .map(item => item.replace(/\s*\|\s*/g, ' | ').replace(/\s+/g, ' ').trim())
+    .filter(isMeaningfulSummaryLine);
+
+  if (cleanedItems.length <= maxItems) {
+    return cleanedItems;
+  }
+
+  return [...cleanedItems.slice(0, maxItems - 1), `+${cleanedItems.length - maxItems + 1} more`];
+}
+
+function isMeaningfulSummaryLine(line: string): boolean {
+  const normalized = line.replace(/\s+/g, ' ').trim();
+  if (!normalized || normalized === '-' || normalized === '- -') {
+    return false;
+  }
+
+  const valueOnly = normalized
+    .replace(/^[^:]+:\s*/g, '')
+    .replace(/[-|/\s]/g, '');
+
+  return Boolean(valueOnly);
 }
 
 function composeClinicalNotes(form: OpdClinicalForm, labTests: OpdLabTestRecord[]): string {
