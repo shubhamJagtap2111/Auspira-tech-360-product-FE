@@ -82,9 +82,9 @@ import { OpdManagementService } from './opd-management.service';
         <div class="toolbar">
           <div class="search-field">
             <span class="material-symbols-rounded">search</span>
-            <input type="text" name="opdSearch" [(ngModel)]="searchQuery" placeholder="Search token, patient, MRN, doctor..." />
+            <input type="text" name="opdSearch" [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" placeholder="Search token, patient, MRN, doctor..." />
           </div>
-          <ac-dropdown name="doctorFilter" [(ngModel)]="doctorFilter" [options]="doctorFilterOptions()" />
+          <ac-dropdown name="doctorFilter" [ngModel]="doctorFilter()" (ngModelChange)="doctorFilter.set($event)" [options]="doctorFilterOptions()" />
           <button class="icon-btn" type="button" title="Clear filters" (click)="clearFilters()">
             <span class="material-symbols-rounded">filter_alt_off</span>
           </button>
@@ -373,17 +373,25 @@ import { OpdManagementService } from './opd-management.service';
 
             @case ('encounter') {
               <section class="encounter-layout">
-                <aside class="encounter-list">
-                  <h2>OPD Encounter</h2>
-                  @for (visit of encounterCandidates(); track visit.appointment.id) {
-                    <button type="button" [class.active]="selectedVisit()?.appointment?.id === visit.appointment.id" (click)="selectVisit(visit, 'encounter')">
-                      <strong>{{ visit.patientName }}</strong>
-                      <small>{{ visit.tokenNumber }} · {{ visit.doctorName }}</small>
-                    </button>
-                  } @empty {
-                    <p class="empty-copy">No checked-in or active visits.</p>
-                  }
-                </aside>
+                @if (encounterCandidates().length) {
+                  <aside class="encounter-list">
+                    <div class="encounter-list-head">
+                      <div>
+                        <p class="ac-eyebrow">Patient Switcher</p>
+                        <h2>OPD Encounters</h2>
+                      </div>
+                      <span>{{ encounterCandidates().length }} active</span>
+                    </div>
+                    <div class="encounter-switcher-grid">
+                      @for (visit of encounterCandidates(); track visit.appointment.id) {
+                        <button type="button" [class.active]="selectedVisit()?.appointment?.id === visit.appointment.id" (click)="selectVisit(visit, 'encounter')">
+                          <strong>{{ visit.patientName }}</strong>
+                          <small>{{ visit.tokenNumber }} · {{ visit.doctorName }}</small>
+                        </button>
+                      }
+                    </div>
+                  </aside>
+                }
 
                 <article class="encounter-card">
                   @if (selectedVisit(); as visit) {
@@ -1292,7 +1300,7 @@ import { OpdManagementService } from './opd-management.service';
               <span><strong>{{ visit.tokenNumber }}</strong><small>#{{ visit.queueNo || '-' }}</small></span>
               <span><strong>{{ visit.patientName }}</strong><small>{{ visit.patientMrn }}</small></span>
               <span><strong>{{ visit.doctorName }}</strong><small>{{ visit.departmentName }}</small></span>
-              <span>{{ visit.consultationStatus }}</span>
+              <span><span class="consultation-status" [ngClass]="consultationStatusClass(visit)">{{ consultationStatusLabel(visit) }}</span></span>
               <span>
                 <button class="ac-btn ac-btn-secondary" type="button" (click)="selectVisit(visit, 'encounter')">
                   <span class="material-symbols-rounded">clinical_notes</span>
@@ -1587,10 +1595,12 @@ import { OpdManagementService } from './opd-management.service';
     .queue-lane.complete { background: #ecfdf5; border-color: #bbf7d0; }
     .dashboard-visit-list { max-height: 220px; overflow: auto; padding-right: 2px; }
     .compact-list, .queue-workspace { display: grid; gap: 8px; }
-    .visit-row, .encounter-list button { width: 100%; min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 8px; align-items: center; border: 1px solid var(--ac-border); border-radius: 9px; padding: 8px 9px; background: color-mix(in srgb, var(--ac-surface) 88%, transparent); color: var(--ac-text); text-align: left; cursor: pointer; }
+    .visit-row { width: 100%; min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 8px; align-items: center; border: 1px solid var(--ac-border); border-radius: 9px; padding: 8px 9px; background: color-mix(in srgb, var(--ac-surface) 88%, transparent); color: var(--ac-text); text-align: left; cursor: pointer; }
+    .encounter-list button { width: 100%; min-width: 0; display: grid; gap: 3px; align-content: center; border: 1px solid var(--ac-border); border-radius: 9px; padding: 10px 12px; background: var(--ac-surface); color: var(--ac-text); text-align: left; cursor: pointer; }
     .visit-row:hover, .encounter-list button:hover, .encounter-list button.active { border-color: color-mix(in srgb, var(--ac-primary) 38%, var(--ac-border)); box-shadow: 0 8px 18px color-mix(in srgb, var(--ac-primary) 8%, transparent); }
     .visit-row strong, .encounter-list button strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .visit-row small, .encounter-list button small { grid-column: 2; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; }
+    .visit-row small { grid-column: 2; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; }
+    .encounter-list button small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; }
     .token-pill { width: fit-content; border-radius: 999px; padding: 3px 8px; background: #eff6ff; color: #1d4ed8; font-size: 10.5px; font-weight: 900; }
     .token-pill.consultation { background: #f0fdfa; color: #0f766e; }
     .token-pill.done { background: #ecfdf5; color: #047857; }
@@ -1616,15 +1626,84 @@ import { OpdManagementService } from './opd-management.service';
     .queue-status.waiting { background: #eff6ff; color: #1d4ed8; }
     .queue-status.skipped { background: #fffbeb; color: #b45309; }
     .queue-status.active { background: #f0fdfa; color: #0f766e; }
-    .visit-table { display: grid; border: 1px solid var(--ac-border); border-radius: 12px; overflow: hidden; }
-    .table-head, .table-row { display: grid; grid-template-columns: 1fr 1.25fr 1.2fr .75fr auto; gap: 10px; align-items: center; padding: 12px 14px; }
-    .table-head { background: var(--ac-subtle); color: var(--ac-muted); font-size: 11px; text-transform: uppercase; font-weight: 900; letter-spacing: .04em; }
-    .table-row { border-top: 1px solid var(--ac-border); background: var(--ac-surface); }
-    .table-row > span { min-width: 0; }
-    .table-row strong, .table-row small { display: block; overflow-wrap: anywhere; }
-    .encounter-layout { min-width: 0; display: grid; grid-template-columns: minmax(220px, 260px) minmax(0, 1fr); gap: 12px; align-items: start; }
-    .encounter-list { display: grid; gap: 8px; padding: 12px; max-height: 620px; overflow: auto; }
-    .encounter-list h2 { font-size: 19px; }
+    .visit-table {
+      display: block;
+      border: 1px solid var(--ac-border);
+      border-radius: 12px;
+      overflow-x: auto;
+      background: var(--ac-surface);
+      box-shadow: 0 8px 18px rgba(15, 23, 42, .035);
+    }
+    .table-head,
+    .table-row {
+      display: grid;
+      grid-template-columns: minmax(118px, .8fr) minmax(220px, 1.45fr) minmax(210px, 1.35fr) minmax(150px, .85fr) minmax(180px, auto);
+      gap: 12px;
+      align-items: center;
+      min-width: 920px;
+      padding: 12px 18px;
+    }
+    .table-head {
+      min-height: 44px;
+      background: var(--ac-subtle);
+      color: var(--ac-muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 900;
+      letter-spacing: .04em;
+    }
+    .table-row {
+      min-height: 66px;
+      border-top: 1px solid var(--ac-border);
+      background: var(--ac-surface);
+    }
+    .table-row:hover { background: color-mix(in srgb, var(--ac-primary) 3%, var(--ac-surface)); }
+    .table-row > span {
+      min-width: 0;
+      display: grid;
+      align-content: center;
+    }
+    .table-row > span:last-child { justify-content: end; }
+    .table-row strong,
+    .table-row small {
+      display: block;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .table-row strong { color: var(--ac-text); font-size: 13.5px; font-weight: 850; }
+    .table-row small { margin-top: 3px; font-size: 12px; }
+    .visit-table .ac-btn {
+      min-height: 36px;
+      padding: 0 14px;
+      border-radius: 9px;
+      white-space: nowrap;
+      justify-content: center;
+    }
+    .consultation-status {
+      width: fit-content;
+      min-height: 26px;
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 4px 10px;
+      background: var(--ac-subtle);
+      color: var(--ac-muted);
+      font-size: 11.5px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .consultation-status.active { background: #eff6ff; color: #1d4ed8; }
+    .consultation-status.draft { background: #fffbeb; color: #b45309; }
+    .consultation-status.completed { background: #ecfdf5; color: #047857; }
+    .consultation-status.cancelled { background: #fef2f2; color: #dc2626; }
+    .encounter-layout { min-width: 0; display: grid; grid-template-columns: 1fr; gap: 12px; align-items: start; }
+    .encounter-list { display: grid; gap: 10px; padding: 12px; overflow: hidden; }
+    .encounter-list-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .encounter-list-head h2 { margin: 0; font-size: 18px; }
+    .encounter-list-head span { min-height: 26px; display: inline-flex; align-items: center; border-radius: 999px; padding: 3px 9px; background: var(--ac-primary-light); color: var(--ac-primary); font-size: 11.5px; font-weight: 900; white-space: nowrap; }
+    .encounter-switcher-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
     .encounter-list strong, .encounter-list small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .encounter-card { container-type: inline-size; padding: 14px; min-height: 420px; overflow: hidden; }
     .encounter-head { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; margin-bottom: 14px; }
@@ -1683,7 +1762,9 @@ import { OpdManagementService } from './opd-management.service';
     }
     .encounter-workflow-stepper button:first-child::before { left: 50%; }
     .encounter-workflow-stepper button:last-child::before { right: 50%; }
-    .encounter-workflow-stepper button.completed::before,
+    .encounter-workflow-stepper button.completed::before {
+      background: color-mix(in srgb, #0f766e 58%, var(--ac-border));
+    }
     .encounter-workflow-stepper button.active::before {
       background: color-mix(in srgb, var(--ac-primary) 52%, var(--ac-border));
     }
@@ -1725,8 +1806,13 @@ import { OpdManagementService } from './opd-management.service';
     }
     .encounter-workflow-stepper button.completed .step-number {
       font-size: 0;
-      background: #0f766e;
-      border-color: color-mix(in srgb, #0f766e 66%, #ffffff);
+      background: linear-gradient(135deg, #0f766e, #059669);
+      border-color: #0f766e;
+      box-shadow: 0 10px 20px color-mix(in srgb, #0f766e 26%, transparent);
+    }
+    .encounter-workflow-stepper button.completed .step-number::before {
+      background: #ecfdf5;
+      box-shadow: 0 0 0 1px color-mix(in srgb, #0f766e 18%, transparent);
     }
     .step-copy {
       min-width: 0;
@@ -1756,6 +1842,8 @@ import { OpdManagementService } from './opd-management.service';
     }
     .encounter-workflow-stepper button.active .step-copy strong,
     .encounter-workflow-stepper button.active .step-copy small { color: var(--ac-primary); }
+    .encounter-workflow-stepper button.completed .step-copy strong,
+    .encounter-workflow-stepper button.completed .step-copy small { color: #047857; }
     .section-panel { min-width: 0; min-height: 360px; padding: 14px; border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-surface); overflow: hidden; }
     .encounter-workflow-footer {
       display: flex;
@@ -2705,7 +2793,6 @@ import { OpdManagementService } from './opd-management.service';
       .clinical-board { overflow: visible; }
     }
     @media (max-width: 1480px) {
-      .encounter-layout { grid-template-columns: minmax(200px, 240px) minmax(0, 1fr); }
       .encounter-list { padding: 10px; }
       .encounter-card { padding: 12px; }
       .encounter-head h2 { font-size: 23px; }
@@ -2797,8 +2884,8 @@ export class OpdPageComponent implements OnInit {
   protected readonly prescriptionRevisionNo = signal(1);
   protected readonly customFrequencyMode = signal(false);
   protected readonly customDietAdviceMode = signal(false);
-  protected searchQuery = '';
-  protected doctorFilter = '';
+  protected readonly searchQuery = signal('');
+  protected readonly doctorFilter = signal('');
   protected transferDoctorId = '';
   protected selectedPrescriptionTemplateId = '';
   protected printOptions: PrescriptionPrintOptions = defaultPrescriptionPrintOptions();
@@ -2990,7 +3077,7 @@ export class OpdPageComponent implements OnInit {
         };
       })
       .filter(visit => this.matchesSearch(visit))
-      .filter(visit => !this.doctorFilter || visit.appointment.doctorId === this.doctorFilter)
+      .filter(visit => !this.doctorFilter() || visit.appointment.doctorId === this.doctorFilter())
       .sort((a, b) => {
         const left = a.queueNo ?? 9999;
         const right = b.queueNo ?? 9999;
@@ -3054,7 +3141,7 @@ export class OpdPageComponent implements OnInit {
     return this.followUps().filter(followUp => {
       const appointment = followUp.appointmentId ? appointmentMap.get(followUp.appointmentId) : null;
       return isDateTodayOrFuture(followUp.followUpDate)
-        && (!this.doctorFilter || appointment?.doctorId === this.doctorFilter);
+        && (!this.doctorFilter() || appointment?.doctorId === this.doctorFilter());
     });
   });
 
@@ -3104,7 +3191,7 @@ export class OpdPageComponent implements OnInit {
   }
 
   protected readonly doctorQueueSummary = computed(() => {
-    const doctor = this.doctors().find(item => item.doctorGuid === this.doctorFilter) ?? null;
+    const doctor = this.doctors().find(item => item.doctorGuid === this.doctorFilter()) ?? null;
     const visits = this.visitModels().filter(visit => !doctor || visit.appointment.doctorId === doctor.doctorGuid);
     return {
       doctorName: doctor ? `${doctor.fullName} · ${doctor.departmentName}` : 'All doctors',
@@ -3186,8 +3273,8 @@ export class OpdPageComponent implements OnInit {
   }
 
   protected clearFilters(): void {
-    this.searchQuery = '';
-    this.doctorFilter = '';
+    this.searchQuery.set('');
+    this.doctorFilter.set('');
   }
 
   protected openStatCard(tab: OpdTab): void {
@@ -3290,6 +3377,33 @@ export class OpdPageComponent implements OnInit {
       return 'Not Started';
     }
     return humanizeCode(String(visit.consultation.statusCode || visit.consultationStatus || 'IN_PROGRESS').toUpperCase());
+  }
+
+  protected consultationStatusLabel(visit: OpdVisitVm): string {
+    const status = normalizeCode(visit.consultation?.statusCode || visit.consultationStatus || '');
+    const labels: Record<string, string> = {
+      DRAFT: 'Draft',
+      IN_PROGRESS: 'In Progress',
+      IN_CONSULTATION: 'In Consultation',
+      COMPLETED: 'Completed',
+      CANCELLED: 'Cancelled'
+    };
+
+    return labels[status] ?? humanizeCode(status || 'IN_PROGRESS');
+  }
+
+  protected consultationStatusClass(visit: OpdVisitVm): string {
+    const status = normalizeCode(visit.consultation?.statusCode || visit.consultationStatus || '');
+    if (status === 'COMPLETED') {
+      return 'completed';
+    }
+    if (status === 'DRAFT') {
+      return 'draft';
+    }
+    if (status === 'CANCELLED') {
+      return 'cancelled';
+    }
+    return 'active';
   }
 
   protected encounterRecordNo(visit: OpdVisitVm): string {
@@ -4541,7 +4655,7 @@ export class OpdPageComponent implements OnInit {
   }
 
   private matchesSearch(visit: OpdVisitVm): boolean {
-    const search = this.searchQuery.trim().toLowerCase();
+    const search = this.searchQuery().trim().toLowerCase();
     if (!search) {
       return true;
     }
