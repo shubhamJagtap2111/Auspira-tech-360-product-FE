@@ -322,9 +322,9 @@ import { OpdManagementService } from './opd-management.service';
                     <span><strong>{{ visit.doctorName }}</strong><small>{{ visit.departmentName }}</small></span>
                     <span>{{ visit.appointmentTime }}</span>
                     <span>
-                      <button class="ac-btn ac-btn-primary" type="button" (click)="quickCheckIn(visit)">
-                        <span class="material-symbols-rounded">how_to_reg</span>
-                        Check-In
+                      <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="quickCheckIn(visit)">
+                        <span class="material-symbols-rounded" [class.spin]="saving()">{{ saving() ? 'progress_activity' : 'how_to_reg' }}</span>
+                        {{ saving() ? 'Checking in...' : 'Check-In' }}
                       </button>
                     </span>
                   </div>
@@ -1264,6 +1264,8 @@ import { OpdManagementService } from './opd-management.service';
     .search-field { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 10px; border: 1px solid var(--ac-border); border-radius: 9px; background: var(--ac-surface); color: var(--ac-muted); }
     .search-field input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ac-text); font: inherit; font-weight: 750; }
     .icon-btn { width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid var(--ac-border); border-radius: 9px; background: var(--ac-surface); color: var(--ac-muted); cursor: pointer; }
+    .spin { animation: spin 900ms linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
     .empty-state { min-height: 240px; display: grid; place-items: center; align-content: center; gap: 10px; color: var(--ac-muted); text-align: center; }
     .empty-state.compact { min-height: 56px; border: 1px dashed var(--ac-border); border-radius: 10px; background: var(--ac-subtle); font-weight: 850; }
     .dashboard-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -2799,23 +2801,33 @@ export class OpdPageComponent implements OnInit {
   }
 
   protected async quickCheckIn(visit: OpdVisitVm): Promise<void> {
-    const form = createCheckInForm(visit, this.queues(), this.appointments());
-    const queueResponse = await this.appointmentService.createQueue(form);
-    if (!queueResponse.success || !queueResponse.data) {
-      this.toast.error('Unable to check in patient', getApiErrorMessage(queueResponse, 'Queue API failed'));
+    if (this.saving()) {
       return;
     }
 
-    const appointmentResponse = await this.appointmentService.updateStatus(visit.appointment, 'CHECKED_IN');
-    if (!appointmentResponse.success || !appointmentResponse.data) {
-      this.toast.error('Unable to update appointment', getApiErrorMessage(appointmentResponse, 'Appointment API failed'));
-      return;
-    }
+    this.saving.set(true);
+    this.toast.info('Check-in started', 'Adding the patient to the OPD queue. This may take a few seconds.');
+    try {
+      const form = createCheckInForm(visit, this.queues(), this.appointments());
+      const queueResponse = await this.appointmentService.createQueue(form);
+      if (!queueResponse.success || !queueResponse.data) {
+        this.toast.error('Unable to check in patient', getApiErrorMessage(queueResponse, 'Queue API failed'));
+        return;
+      }
 
-    this.upsertQueue(queueResponse.data);
-    this.upsertAppointment(appointmentResponse.data);
-    this.toast.success('Patient checked in', `${queueResponse.data.tokenNumber} added to OPD queue.`);
-    this.activeTab.set('queue');
+      const appointmentResponse = await this.appointmentService.updateStatus(visit.appointment, 'CHECKED_IN');
+      if (!appointmentResponse.success || !appointmentResponse.data) {
+        this.toast.error('Unable to update appointment', getApiErrorMessage(appointmentResponse, 'Appointment API failed'));
+        return;
+      }
+
+      this.upsertQueue(queueResponse.data);
+      this.upsertAppointment(appointmentResponse.data);
+      this.toast.success('Patient checked in', `${queueResponse.data.tokenNumber} added to OPD queue.`);
+      this.activeTab.set('queue');
+    } finally {
+      this.saving.set(false);
+    }
   }
 
   protected async startEncounter(visit: OpdVisitVm): Promise<void> {
