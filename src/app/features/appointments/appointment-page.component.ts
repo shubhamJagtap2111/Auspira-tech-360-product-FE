@@ -87,8 +87,8 @@ import { AppointmentManagementService } from './appointment-management.service';
             <ac-dropdown name="departmentFilter" [(ngModel)]="departmentFilter" [options]="departmentFilterOptions()" />
             <ac-dropdown name="doctorFilter" [(ngModel)]="doctorFilter" [options]="doctorFilterOptions()" />
             <ac-dropdown name="statusFilter" [(ngModel)]="statusFilter" [options]="statusOptions" />
-            <button class="icon-btn" type="button" title="Refresh" (click)="reload()">
-              <span class="material-symbols-rounded">refresh</span>
+            <button class="icon-btn" type="button" title="Refresh" aria-label="Refresh appointments" [disabled]="refreshing()" (click)="reload()">
+              <span class="material-symbols-rounded" [class.spin]="refreshing()">{{ refreshing() ? 'progress_activity' : 'refresh' }}</span>
             </button>
           </div>
         </div>
@@ -448,18 +448,22 @@ import { AppointmentManagementService } from './appointment-management.service';
     .stat-value { margin: 0; color: var(--ac-text); font-size: 19px; line-height: 1; font-weight: 900; }
     .stat-label { margin: 2px 0 0; color: var(--ac-muted); font-size: 11.5px; }
     .appointment-shell { display: grid; gap: 10px; padding: 10px; overflow: visible; }
-    .workspace-toolbar { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: center; }
+    .workspace-toolbar { display: grid; grid-template-columns: minmax(170px, auto) minmax(0, 1fr); gap: 12px; align-items: center; }
     .mode-tabs { display: inline-flex; gap: 6px; padding: 5px; border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-subtle); }
     .mode-tabs button { min-height: 34px; display: inline-flex; align-items: center; gap: 7px; border: 0; border-radius: 9px; padding: 0 10px; background: transparent; color: var(--ac-muted); font: inherit; font-weight: 850; cursor: pointer; }
     .mode-tabs button.active { background: var(--ac-surface); color: var(--ac-primary); box-shadow: 0 8px 20px rgba(15, 23, 42, .08); }
     .mode-tabs .material-symbols-rounded { font-size: 20px; }
-    .toolbar-filters { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(140px, .55fr) minmax(140px, .55fr) minmax(150px, .6fr) minmax(160px, .65fr) minmax(140px, .55fr) 40px; gap: 8px; align-items: center; min-width: 0; }
+    .toolbar-filters { min-width: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; align-items: center; }
+    .toolbar-filters .search-field { flex: 1 1 240px; max-width: 340px; }
+    .toolbar-filters ac-dropdown { flex: 1 1 132px; min-width: 128px; max-width: 190px; }
+    .toolbar-filters .icon-btn { flex: 0 0 36px; }
     .search-field, .date-control { min-width: 0; display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 10px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-muted); }
     .search-field input, .date-control input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ac-text); font: inherit; font-weight: 700; }
     .icon-btn, .tbl-btn { border: 1px solid var(--ac-border); background: var(--ac-surface); color: var(--ac-muted); cursor: pointer; border-radius: 8px; display: inline-grid; place-items: center; }
     .icon-btn { width: 36px; height: 36px; }
     .tbl-btn { width: 31px; height: 31px; }
     .icon-btn:hover, .tbl-btn:hover { color: var(--ac-primary); border-color: color-mix(in srgb, var(--ac-primary) 36%, var(--ac-border)); }
+    .icon-btn:disabled { opacity: .55; cursor: not-allowed; }
     .tbl-btn.danger:hover { color: #dc2626; border-color: #fca5a5; }
     .tbl-btn:disabled, .ac-btn:disabled { opacity: .48; cursor: not-allowed; }
     .empty-state { min-height: 280px; display: grid; place-items: center; align-content: center; gap: 10px; padding: 34px 24px; text-align: center; color: var(--ac-muted); }
@@ -556,7 +560,9 @@ import { AppointmentManagementService } from './appointment-management.service';
     .queue-ticket strong { color: var(--ac-text); font-size: 20px; line-height: 1; white-space: nowrap; }
     @media (max-width: 1220px) {
       .stats-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-      .workspace-toolbar, .toolbar-filters { grid-template-columns: 1fr; }
+      .workspace-toolbar { grid-template-columns: 1fr; }
+      .toolbar-filters { justify-content: stretch; }
+      .toolbar-filters .search-field, .toolbar-filters ac-dropdown { max-width: none; }
       .mode-tabs { width: fit-content; }
     }
     @media (max-width: 720px) {
@@ -568,6 +574,8 @@ import { AppointmentManagementService } from './appointment-management.service';
       .appointment-row { grid-template-columns: 1fr; }
       .calendar-head { flex-wrap: wrap; }
       .calendar-range { width: 100%; margin-left: 0; }
+      .toolbar-filters { display: grid; grid-template-columns: 1fr; }
+      .toolbar-filters .icon-btn { width: 100%; }
       .queue-ticket { grid-template-columns: 1fr; }
     }
   `,
@@ -584,6 +592,7 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
   protected readonly initialLoading = signal(true);
   protected readonly saving = signal(false);
   protected readonly checkingIn = signal(false);
+  protected readonly refreshing = signal(false);
   protected readonly drawerOpen = signal(false);
   protected readonly checkInDrawerOpen = signal(false);
   protected readonly viewMode = signal<AppointmentViewMode>('calendar');
@@ -593,13 +602,13 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
   protected readonly editableStatusOptions = editableAppointmentStatusOptions;
   protected readonly typeOptions = appointmentTypeOptions;
   protected readonly priorityOptions = appointmentPriorityOptions;
-  protected searchQuery = '';
-  protected patientFilter = '';
-  protected branchFilter = '';
-  protected departmentFilter = '';
-  protected doctorFilter = '';
-  protected statusFilter = '';
-  protected calendarDate = todayInputValue();
+  private readonly searchQueryValue = signal('');
+  private readonly patientFilterValue = signal('');
+  private readonly branchFilterValue = signal('');
+  private readonly departmentFilterValue = signal('');
+  private readonly doctorFilterValue = signal('');
+  private readonly statusFilterValue = signal('');
+  private readonly calendarDateValue = signal(todayInputValue());
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   private readonly appointmentService = inject(AppointmentManagementService);
@@ -610,6 +619,71 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
   private readonly dialog = inject(DialogService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+
+  protected get searchQuery(): string {
+    return this.searchQueryValue();
+  }
+
+  protected set searchQuery(value: string) {
+    this.searchQueryValue.set(value ?? '');
+  }
+
+  protected get patientFilter(): string {
+    return this.patientFilterValue();
+  }
+
+  protected set patientFilter(value: string) {
+    this.patientFilterValue.set(value ?? '');
+  }
+
+  protected get branchFilter(): string {
+    return this.branchFilterValue();
+  }
+
+  protected set branchFilter(value: string) {
+    const nextValue = value ?? '';
+    if (nextValue !== this.branchFilterValue()) {
+      this.departmentFilterValue.set('');
+      this.doctorFilterValue.set('');
+    }
+    this.branchFilterValue.set(nextValue);
+  }
+
+  protected get departmentFilter(): string {
+    return this.departmentFilterValue();
+  }
+
+  protected set departmentFilter(value: string) {
+    const nextValue = value ?? '';
+    if (nextValue !== this.departmentFilterValue()) {
+      this.doctorFilterValue.set('');
+    }
+    this.departmentFilterValue.set(nextValue);
+  }
+
+  protected get doctorFilter(): string {
+    return this.doctorFilterValue();
+  }
+
+  protected set doctorFilter(value: string) {
+    this.doctorFilterValue.set(value ?? '');
+  }
+
+  protected get statusFilter(): string {
+    return this.statusFilterValue();
+  }
+
+  protected set statusFilter(value: string) {
+    this.statusFilterValue.set(value ?? '');
+  }
+
+  protected get calendarDate(): string {
+    return this.calendarDateValue();
+  }
+
+  protected set calendarDate(value: string) {
+    this.calendarDateValue.set(isDateInputValue(value) ? value : todayInputValue());
+  }
 
   protected readonly patientOptions = computed<DropdownOption<string>[]>(() => [
     { label: 'Select patient', value: '' },
@@ -821,39 +895,48 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
   }
 
   protected async reload(): Promise<void> {
-    const [appointments, queues, patients, doctors] = await Promise.all([
-      this.appointmentService.list(1, 100),
-      this.appointmentService.listQueue(1, 100),
-      this.patientService.search('', '', '', '', '', 1, 100),
-      this.doctorService.search({ searchText: '', departmentName: '', specializationName: '', branchName: '', employmentType: '', statusCode: '', pageNumber: 1, pageSize: 100 }),
-      this.branchContext.loadBranches()
-    ]);
-
-    if (!patients.success || !patients.data) {
-      this.toast.error('Unable to load patients', getApiErrorMessage(patients, 'Patient API failed'));
-    } else {
-      this.patients.set(patients.data.patients);
-    }
-
-    if (!doctors.success || !doctors.data) {
-      this.toast.error('Unable to load doctors', getApiErrorMessage(doctors, 'Doctor API failed'));
-    } else {
-      this.doctors.set(doctors.data.doctors);
-    }
-
-    if (!appointments.success || !appointments.data) {
-      this.toast.error('Unable to load appointments', getApiErrorMessage(appointments, 'Appointment API failed'));
+    if (this.refreshing()) {
       return;
     }
 
-    if (!queues.success || !queues.data) {
-      this.toast.error('Unable to load doctor queue', getApiErrorMessage(queues, 'Queue API failed'));
-    } else {
-      this.queues.set(queues.data);
-    }
+    this.refreshing.set(true);
+    try {
+      const [appointments, queues, patients, doctors] = await Promise.all([
+        this.appointmentService.list(1, 100),
+        this.appointmentService.listQueue(1, 100),
+        this.patientService.search('', '', '', '', '', 1, 100),
+        this.doctorService.search({ searchText: '', departmentName: '', specializationName: '', branchName: '', employmentType: '', statusCode: '', pageNumber: 1, pageSize: 100 }),
+        this.branchContext.loadBranches()
+      ]);
 
-    this.appointments.set(appointments.data);
-    this.refreshSelectedAppointment();
+      if (!patients.success || !patients.data) {
+        this.toast.error('Unable to load patients', getApiErrorMessage(patients, 'Patient API failed'));
+      } else {
+        this.patients.set(patients.data.patients);
+      }
+
+      if (!doctors.success || !doctors.data) {
+        this.toast.error('Unable to load doctors', getApiErrorMessage(doctors, 'Doctor API failed'));
+      } else {
+        this.doctors.set(doctors.data.doctors);
+      }
+
+      if (!appointments.success || !appointments.data) {
+        this.toast.error('Unable to load appointments', getApiErrorMessage(appointments, 'Appointment API failed'));
+        return;
+      }
+
+      if (!queues.success || !queues.data) {
+        this.toast.error('Unable to load doctor queue', getApiErrorMessage(queues, 'Queue API failed'));
+      } else {
+        this.queues.set(queues.data);
+      }
+
+      this.appointments.set(appointments.data);
+      this.refreshSelectedAppointment();
+    } finally {
+      this.refreshing.set(false);
+    }
   }
 
   protected openCreate(): void {
@@ -1478,6 +1561,10 @@ function nextSlotTime(): string {
   const date = new Date();
   date.setMinutes(Math.ceil(date.getMinutes() / 15) * 15, 0, 0);
   return timeInputValue(date);
+}
+
+function isDateInputValue(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) && Boolean(safeDate(`${value}T00:00:00`));
 }
 
 function parseDateInput(value: string): Date {
