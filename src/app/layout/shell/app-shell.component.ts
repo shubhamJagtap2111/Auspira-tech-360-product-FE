@@ -1907,9 +1907,31 @@ export class AppShellComponent implements OnInit {
     this.aiChatHistory.set(this.loadAiConversationHistory());
     this.router.events
       .pipe(filter(event => event instanceof NavigationEnd || event instanceof NavigationCancel || event instanceof NavigationError))
-      .subscribe(() => this.appLoader.reset());
+      .subscribe(event => {
+        this.appLoader.reset();
+        if (event instanceof NavigationEnd) {
+          sessionStorage.removeItem(CHUNK_RECOVERY_STORAGE_KEY);
+          return;
+        }
+
+        if (event instanceof NavigationError) {
+          this.recoverFromChunkLoadError(event);
+        }
+      });
     this.aiConversationHydrated = true;
     this.persistAiConversation(this.aiMessages());
+  }
+
+  private recoverFromChunkLoadError(event: NavigationError): void {
+    if (!isChunkLoadError(event.error) || sessionStorage.getItem(CHUNK_RECOVERY_STORAGE_KEY)) {
+      return;
+    }
+
+    sessionStorage.setItem(CHUNK_RECOVERY_STORAGE_KEY, 'true');
+    this.toastSvc.info('Updating Care360', 'Refreshing the app to load the latest OPD module.');
+
+    const targetUrl = addCacheBust(event.url || window.location.pathname + window.location.search);
+    setTimeout(() => window.location.replace(targetUrl), 250);
   }
 
   /* ── Language ── */
@@ -2486,6 +2508,19 @@ export class AppShellComponent implements OnInit {
     };
     return map[type] ?? 'var(--ac-info)';
   }
+}
+
+const CHUNK_RECOVERY_STORAGE_KEY = 'ac.chunk-recovery-attempted';
+
+function isChunkLoadError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  return /ChunkLoadError|Loading chunk \d+ failed|Failed to fetch dynamically imported module|Importing a module script failed/i.test(message);
+}
+
+function addCacheBust(url: string): string {
+  const target = new URL(url, window.location.origin);
+  target.searchParams.set('_acReload', Date.now().toString());
+  return `${target.pathname}${target.search}${target.hash}`;
 }
 
 function getInitials(displayName: string, email: string): string {

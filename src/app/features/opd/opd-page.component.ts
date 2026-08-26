@@ -1729,7 +1729,7 @@ import { OpdManagementService } from './opd-management.service';
       display: grid;
       grid-template-columns: repeat(9, minmax(92px, 1fr));
       gap: 0;
-      padding: 14px 16px;
+      padding: 14px 16px 12px;
       border: 1px solid var(--ac-border);
       border-radius: 12px;
       background: var(--ac-surface);
@@ -1743,7 +1743,7 @@ import { OpdManagementService } from './opd-management.service';
       display: grid;
       justify-items: center;
       align-content: start;
-      gap: 8px;
+      gap: 9px;
       border: 0;
       background: transparent;
       color: var(--ac-muted);
@@ -1753,7 +1753,7 @@ import { OpdManagementService } from './opd-management.service';
     .encounter-workflow-stepper button::before {
       content: '';
       position: absolute;
-      top: 19px;
+      top: 20px;
       left: 0;
       right: 0;
       height: 2px;
@@ -1772,8 +1772,8 @@ import { OpdManagementService } from './opd-management.service';
     .step-number {
       position: relative;
       z-index: 1;
-      width: 40px;
-      height: 40px;
+      width: 38px;
+      height: 38px;
       display: grid;
       place-items: center;
       border-radius: 999px;
@@ -1782,15 +1782,9 @@ import { OpdManagementService } from './opd-management.service';
       color: var(--ac-muted);
       font-size: 14px;
       font-weight: 950;
-      box-shadow: 0 8px 16px rgba(15, 23, 42, .06);
-    }
-    .step-number::before {
-      content: '';
-      position: absolute;
-      z-index: -1;
-      inset: -8px;
-      border-radius: 999px;
-      background: var(--ac-surface);
+      box-shadow:
+        0 0 0 8px var(--ac-surface),
+        0 8px 16px rgba(15, 23, 42, .06);
     }
     .encounter-workflow-stepper button.completed .step-number,
     .encounter-workflow-stepper button.active .step-number {
@@ -1798,21 +1792,13 @@ import { OpdManagementService } from './opd-management.service';
       background: var(--ac-primary);
       color: #ffffff;
     }
-    .encounter-workflow-stepper button.completed .step-number::after {
-      content: 'check';
-      font-family: 'Material Symbols Rounded';
-      font-size: 18px;
-      font-weight: 400;
-    }
     .encounter-workflow-stepper button.completed .step-number {
-      font-size: 0;
       background: linear-gradient(135deg, #0f766e, #059669);
       border-color: #0f766e;
-      box-shadow: 0 10px 20px color-mix(in srgb, #0f766e 26%, transparent);
-    }
-    .encounter-workflow-stepper button.completed .step-number::before {
-      background: #ecfdf5;
-      box-shadow: 0 0 0 1px color-mix(in srgb, #0f766e 18%, transparent);
+      color: #ffffff;
+      box-shadow:
+        0 0 0 8px var(--ac-surface),
+        0 10px 20px color-mix(in srgb, #0f766e 24%, transparent);
     }
     .step-copy {
       min-width: 0;
