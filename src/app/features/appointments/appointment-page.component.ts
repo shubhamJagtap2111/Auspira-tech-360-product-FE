@@ -428,26 +428,26 @@ import { AppointmentManagementService } from './appointment-management.service';
   `,
   styles: `
     :host { display: block; min-width: 0; height: 100%; }
-    .appointment-page { display: grid; gap: 14px; min-width: 0; }
-    .page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
-    .page-desc { margin: 6px 0 0; max-width: 740px; color: var(--ac-muted); }
-    .header-actions { display: flex; gap: 10px; align-items: center; }
-    .stats-row { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
-    .stat-card { min-height: 74px; display: flex; align-items: center; gap: 12px; padding: 13px 16px; }
-    .stat-icon { width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; font-size: 21px; }
-    .stat-value { margin: 0; color: var(--ac-text); font-size: 22px; line-height: 1; font-weight: 900; }
-    .stat-label { margin: 4px 0 0; color: var(--ac-muted); font-size: 12.5px; }
-    .appointment-shell { display: grid; gap: 14px; padding: 14px; overflow: visible; }
+    .appointment-page { display: grid; gap: 10px; min-width: 0; }
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .page-desc { margin: 3px 0 0; max-width: 740px; color: var(--ac-muted); font-size: 13px; }
+    .header-actions { display: flex; gap: 8px; align-items: center; }
+    .stats-row { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+    .stat-card { min-height: 62px; display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+    .stat-icon { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; font-size: 18px; }
+    .stat-value { margin: 0; color: var(--ac-text); font-size: 19px; line-height: 1; font-weight: 900; }
+    .stat-label { margin: 2px 0 0; color: var(--ac-muted); font-size: 11.5px; }
+    .appointment-shell { display: grid; gap: 10px; padding: 10px; overflow: visible; }
     .workspace-toolbar { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: center; }
     .mode-tabs { display: inline-flex; gap: 6px; padding: 5px; border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-subtle); }
-    .mode-tabs button { min-height: 38px; display: inline-flex; align-items: center; gap: 7px; border: 0; border-radius: 9px; padding: 0 12px; background: transparent; color: var(--ac-muted); font: inherit; font-weight: 850; cursor: pointer; }
+    .mode-tabs button { min-height: 34px; display: inline-flex; align-items: center; gap: 7px; border: 0; border-radius: 9px; padding: 0 10px; background: transparent; color: var(--ac-muted); font: inherit; font-weight: 850; cursor: pointer; }
     .mode-tabs button.active { background: var(--ac-surface); color: var(--ac-primary); box-shadow: 0 8px 20px rgba(15, 23, 42, .08); }
     .mode-tabs .material-symbols-rounded { font-size: 20px; }
     .toolbar-filters { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(140px, .55fr) minmax(140px, .55fr) minmax(150px, .6fr) minmax(160px, .65fr) minmax(140px, .55fr) 40px; gap: 8px; align-items: center; min-width: 0; }
-    .search-field, .date-control { min-width: 0; display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 10px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-muted); }
+    .search-field, .date-control { min-width: 0; display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 10px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-muted); }
     .search-field input, .date-control input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ac-text); font: inherit; font-weight: 700; }
     .icon-btn, .tbl-btn { border: 1px solid var(--ac-border); background: var(--ac-surface); color: var(--ac-muted); cursor: pointer; border-radius: 8px; display: inline-grid; place-items: center; }
-    .icon-btn { width: 40px; height: 40px; }
+    .icon-btn { width: 36px; height: 36px; }
     .tbl-btn { width: 31px; height: 31px; }
     .icon-btn:hover, .tbl-btn:hover { color: var(--ac-primary); border-color: color-mix(in srgb, var(--ac-primary) 36%, var(--ac-border)); }
     .tbl-btn.danger:hover { color: #dc2626; border-color: #fca5a5; }

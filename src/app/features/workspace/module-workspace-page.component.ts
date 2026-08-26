@@ -145,13 +145,13 @@ import { ToastService } from '../../shared/ui/toast/toast.service';
     .header-actions { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
 
     /* KPIs */
-    .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
     @media (max-width: 900px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 480px) { .kpi-row { grid-template-columns: 1fr; } }
-    .mini-kpi { display: flex; align-items: center; gap: 14px; padding: 16px 18px; }
-    .mini-kpi-icon { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: var(--ac-r-sm); flex-shrink: 0; }
-    .mini-kpi-value { font-size: 22px; font-weight: 800; color: var(--ac-text); letter-spacing: -0.02em; }
-    .mini-kpi-label { font-size: 12px; color: var(--ac-muted); margin-top: 2px; }
+    .mini-kpi { display: flex; align-items: center; gap: 10px; padding: 10px 12px; min-height: 60px; }
+    .mini-kpi-icon { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--ac-r-sm); flex-shrink: 0; }
+    .mini-kpi-value { font-size: 19px; font-weight: 800; color: var(--ac-text); letter-spacing: 0; }
+    .mini-kpi-label { font-size: 11.5px; color: var(--ac-muted); margin-top: 1px; }
 
     /* Capabilities */
     .caps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }

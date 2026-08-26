@@ -1149,7 +1149,7 @@ const fallbackLanguages: Language[] = [
       flex: 1;
       overflow-y: auto;
       overflow-x: hidden;
-      padding: 28px 32px;
+      padding: 22px 24px;
     }
 
     /* ── Command Palette ── */

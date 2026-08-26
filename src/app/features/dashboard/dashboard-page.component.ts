@@ -492,15 +492,15 @@ interface HospitalPulseItem {
     .attention-row strong { display: block; font-size: 13.5px; }
     .attention-row p { margin: 3px 0 0; color: var(--ac-muted); font-size: 12px; line-height: 1.35; }
     .attention-row a, .health-action, .panel-action, .login-pager a { min-height: 30px; display: inline-flex; align-items: center; justify-content: center; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--ac-border); background: var(--ac-surface); color: var(--ac-primary); text-decoration: none; font-size: 12px; font-weight: 900; white-space: nowrap; }
-    .kpi-grid, .staff-kpi-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+    .kpi-grid, .staff-kpi-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
     .staff-kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .metric-card, .panel { border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; }
-    .metric-card { min-height: 116px; display: flex; gap: 12px; padding: 14px; border-top: 3px solid var(--tone); box-shadow: 0 12px 28px rgba(15,23,42,.04); }
-    .metric-card.staff-card { min-height: 126px; }
-    .metric-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 8px; color: var(--tone); background: color-mix(in srgb, var(--tone) 12%, transparent); flex: 0 0 auto; }
-    .metric-label { margin: 0 0 6px; color: var(--ac-muted); font-size: 12px; font-weight: 800; }
-    .metric-card strong { display: block; font-size: 24px; line-height: 1.1; }
-    .metric-card span { color: var(--ac-muted); font-size: 12px; }
+    .metric-card { min-height: 92px; display: flex; gap: 10px; padding: 11px 12px; border-top: 3px solid var(--tone); box-shadow: 0 10px 22px rgba(15,23,42,.04); }
+    .metric-card.staff-card { min-height: 98px; }
+    .metric-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 8px; color: var(--tone); background: color-mix(in srgb, var(--tone) 12%, transparent); flex: 0 0 auto; }
+    .metric-label { margin: 0 0 4px; color: var(--ac-muted); font-size: 11.5px; font-weight: 800; }
+    .metric-card strong { display: block; font-size: 21px; line-height: 1.1; }
+    .metric-card span { color: var(--ac-muted); font-size: 11.5px; }
     .main-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(360px, .7fr); gap: 16px; }
     .lower-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(340px, .65fr); gap: 16px; align-items: start; }
     .lower-grid > *, .dashboard-main-stack > *, .dashboard-side-stack > * { min-width: 0; }

@@ -277,31 +277,31 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
   `,
   styles: `
     :host { display: block; height: 100%; min-height: 0; }
-    .doctor-registry { height: 100%; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 12px; }
-    .page-header { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
-    .page-desc { max-width: 760px; color: var(--ac-muted); line-height: 1.35; margin: 3px 0 0; font-size: 13.5px; }
+    .doctor-registry { height: 100%; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 10px; }
+    .page-header { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .page-desc { max-width: 760px; color: var(--ac-muted); line-height: 1.35; margin: 2px 0 0; font-size: 13px; }
     .header-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-    .stats-row { flex: 0 0 auto; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-    .stat-card { display: flex; align-items: center; gap: 12px; padding: 12px 16px; min-height: 72px; }
-    .stat-icon { width: 38px; height: 38px; border-radius: 8px; display: grid; place-items: center; font-size: 20px; }
-    .stat-value { margin: 0; font-size: 22px; line-height: 1; font-weight: 900; color: var(--ac-text); }
-    .stat-label { margin: 3px 0 0; color: var(--ac-muted); font-size: 12px; }
-    .toolbar { flex: 0 0 auto; display: grid; grid-template-columns: minmax(240px, 1fr) 170px 190px 170px 150px 40px auto; gap: 8px; align-items: center; padding: 10px 14px; }
-    .search-field { min-width: 0; display: flex; align-items: center; gap: 8px; height: 40px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-input-bg, var(--ac-subtle)); padding: 0 10px; }
+    .stats-row { flex: 0 0 auto; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    .stat-card { display: flex; align-items: center; gap: 10px; padding: 9px 12px; min-height: 58px; }
+    .stat-icon { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; font-size: 18px; }
+    .stat-value { margin: 0; font-size: 19px; line-height: 1; font-weight: 900; color: var(--ac-text); }
+    .stat-label { margin: 2px 0 0; color: var(--ac-muted); font-size: 11.5px; }
+    .toolbar { flex: 0 0 auto; display: grid; grid-template-columns: minmax(240px, 1fr) 160px 180px 160px 140px 36px auto; gap: 7px; align-items: center; padding: 8px 10px; }
+    .search-field { min-width: 0; display: flex; align-items: center; gap: 8px; height: 36px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-input-bg, var(--ac-subtle)); padding: 0 10px; }
     .search-icon, .clear-btn span { color: var(--ac-muted); }
     .toolbar-input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ac-text); font: inherit; }
     .clear-btn, .icon-btn, .tbl-btn { border: 1px solid var(--ac-border); background: var(--ac-surface); color: var(--ac-muted); cursor: pointer; border-radius: 8px; display: inline-grid; place-items: center; }
     .clear-btn { width: 26px; height: 26px; border: 0; background: transparent; }
-    .icon-btn { width: 40px; height: 40px; }
+    .icon-btn { width: 36px; height: 36px; }
     .icon-btn span { font-size: 20px; }
     .toolbar-count { color: var(--ac-muted); white-space: nowrap; font-size: 12.5px; }
     .doctor-table-card { flex: 0 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
-    .table-scroll { flex: 0 1 auto; min-height: 0; max-height: min(52vh, 520px); overflow: auto; }
+    .table-scroll { flex: 0 1 auto; min-height: 0; max-height: min(58vh, 560px); overflow: auto; }
     .doctor-table { min-width: 1120px; width: 100%; border-collapse: collapse; }
-    .doctor-table th, .doctor-table td { padding: 10px 16px; border-bottom: 1px solid var(--ac-border); text-align: left; }
+    .doctor-table th, .doctor-table td { padding: 8px 12px; border-bottom: 1px solid var(--ac-border); text-align: left; }
     .doctor-table th { background: var(--ac-subtle); color: var(--ac-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
     .doctor-cell { display: flex; align-items: center; gap: 10px; min-width: 0; }
-    .doctor-avatar { width: 34px; height: 34px; flex: 0 0 34px; border-radius: 999px; color: #fff; display: grid; place-items: center; font-size: 12px; font-weight: 900; }
+    .doctor-avatar { width: 30px; height: 30px; flex: 0 0 30px; border-radius: 999px; color: #fff; display: grid; place-items: center; font-size: 11.5px; font-weight: 900; }
     .doctor-name { margin: 0; color: var(--ac-text); font-size: 13.5px; font-weight: 900; }
     .doctor-meta { margin: 2px 0 0; color: var(--ac-muted); font-size: 11.5px; }
     .code-chip, .status-badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 4px 9px; font-size: 11.5px; font-weight: 900; white-space: nowrap; }

@@ -118,7 +118,7 @@ export interface DropdownOption<T = string> {
     }
     .ac-dropdown-option {
       width: 100%;
-      min-height: 36px;
+      min-height: 34px;
       border: 0;
       border-radius: 8px;
       background: transparent;
@@ -127,7 +127,7 @@ export interface DropdownOption<T = string> {
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      padding: 8px 10px;
+      padding: 7px 10px;
       text-align: left;
       font: inherit;
       font-size: 13px;

@@ -1239,24 +1239,24 @@ import { OpdManagementService } from './opd-management.service';
   `,
   styles: `
     :host { display: block; min-width: 0; }
-    .opd-page { width: 100%; max-width: 100%; min-width: 0; display: grid; gap: 14px; overflow-x: hidden; }
-    .page-header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
-    .page-desc { margin: 6px 0 0; max-width: 760px; color: var(--ac-muted); }
-    .header-actions, .queue-actions, .encounter-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-    .stats-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
-    .stat-card { min-height: 76px; display: flex; gap: 12px; align-items: center; padding: 14px 16px; border: 1px solid var(--ac-border); color: inherit; text-align: left; cursor: pointer; }
+    .opd-page { width: 100%; max-width: 100%; min-width: 0; display: grid; gap: 10px; overflow-x: hidden; }
+    .page-header { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+    .page-desc { margin: 3px 0 0; max-width: 760px; color: var(--ac-muted); font-size: 13px; }
+    .header-actions, .queue-actions, .encounter-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .stats-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+    .stat-card { min-height: 64px; display: flex; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--ac-border); color: inherit; text-align: left; cursor: pointer; }
     .stat-card:hover { transform: translateY(-1px); box-shadow: 0 18px 36px rgba(15, 23, 42, .09); }
-    .stat-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 10px; font-size: 22px; }
-    .stat-card strong { display: block; color: var(--ac-text); font-size: 24px; line-height: 1; }
-    .stat-card span:last-child { display: block; margin-top: 4px; color: var(--ac-muted); font-size: 12.5px; font-weight: 750; }
-    .opd-shell { min-width: 0; display: grid; gap: 12px; padding: 12px; overflow: hidden; }
-    .opd-tabs { min-width: 0; display: flex; flex-wrap: wrap; gap: 8px; padding: 6px; border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-subtle); }
-    .opd-tabs button { min-height: 40px; display: inline-flex; align-items: center; gap: 8px; border: 0; border-radius: 9px; padding: 0 12px; white-space: nowrap; background: transparent; color: var(--ac-muted); font: inherit; font-weight: 850; cursor: pointer; }
+    .stat-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; font-size: 19px; }
+    .stat-card strong { display: block; color: var(--ac-text); font-size: 21px; line-height: 1; }
+    .stat-card span:last-child { display: block; margin-top: 3px; color: var(--ac-muted); font-size: 12px; font-weight: 750; }
+    .opd-shell { min-width: 0; display: grid; gap: 10px; padding: 10px; overflow: hidden; }
+    .opd-tabs { min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; padding: 5px; border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-subtle); }
+    .opd-tabs button { min-height: 34px; display: inline-flex; align-items: center; gap: 7px; border: 0; border-radius: 9px; padding: 0 10px; white-space: nowrap; background: transparent; color: var(--ac-muted); font: inherit; font-weight: 850; cursor: pointer; }
     .opd-tabs button.active { background: var(--ac-surface); color: var(--ac-primary); box-shadow: 0 10px 22px rgba(15, 23, 42, .08); }
-    .toolbar { min-width: 0; display: grid; grid-template-columns: minmax(220px, 1fr) minmax(170px, 240px) 40px; gap: 8px; align-items: center; }
-    .search-field { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 12px; border: 1px solid var(--ac-border); border-radius: 9px; background: var(--ac-surface); color: var(--ac-muted); }
+    .toolbar { min-width: 0; display: grid; grid-template-columns: minmax(220px, 1fr) minmax(170px, 230px) 36px; gap: 8px; align-items: center; }
+    .search-field { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 10px; border: 1px solid var(--ac-border); border-radius: 9px; background: var(--ac-surface); color: var(--ac-muted); }
     .search-field input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ac-text); font: inherit; font-weight: 750; }
-    .icon-btn { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--ac-border); border-radius: 9px; background: var(--ac-surface); color: var(--ac-muted); cursor: pointer; }
+    .icon-btn { width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid var(--ac-border); border-radius: 9px; background: var(--ac-surface); color: var(--ac-muted); cursor: pointer; }
     .empty-state { min-height: 240px; display: grid; place-items: center; align-content: center; gap: 10px; color: var(--ac-muted); text-align: center; }
     .empty-state.compact { min-height: 72px; margin-top: 12px; border: 1px dashed var(--ac-border); border-radius: 12px; background: var(--ac-subtle); font-weight: 850; }
     .dashboard-grid, .opd-command-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -1968,12 +1968,13 @@ import { OpdManagementService } from './opd-management.service';
     }
     .prescription-action-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, max-content));
-      justify-content: start;
-      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 8px;
     }
     .prescription-action-grid .ac-btn {
-      min-height: 42px;
+      width: 100%;
+      min-height: 38px;
+      padding-inline: 10px;
     }
     .prescription-action-grid .complete-action {
       justify-self: start;
