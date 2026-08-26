@@ -308,7 +308,57 @@ type PatientValidationField = 'firstName' | 'lastName' | 'mobileNumber' | 'dateO
                     </label>
                     <label [class.invalid]="patientFieldInvalid(patientForm, 'dateOfBirth')">
                       <span>Date of birth *</span>
-                      <input type="date" name="dateOfBirth" [(ngModel)]="patientForm.dateOfBirth" [disabled]="isViewMode()" [attr.aria-invalid]="patientFieldInvalid(patientForm, 'dateOfBirth')" />
+                      <div class="date-picker-shell" [class.open]="patientDobPickerOpen()">
+                        <button
+                          class="date-trigger"
+                          type="button"
+                          [disabled]="isViewMode()"
+                          [attr.aria-invalid]="patientFieldInvalid(patientForm, 'dateOfBirth')"
+                          (click)="togglePatientDobPicker($event, patientForm)">
+                          <span class="material-symbols-rounded">calendar_month</span>
+                          <strong [class.placeholder]="!patientForm.dateOfBirth">{{ displayPatientDate(patientForm.dateOfBirth) }}</strong>
+                          <span class="material-symbols-rounded">expand_more</span>
+                        </button>
+                        @if (patientDobPickerOpen()) {
+                          <div class="modern-date-popover" (click)="$event.stopPropagation()">
+                            <div class="date-picker-head">
+                              <button type="button" title="Previous month" (click)="movePatientDobMonth(-1)">
+                                <span class="material-symbols-rounded">chevron_left</span>
+                              </button>
+                              <strong>{{ patientDobCalendarTitle() }}</strong>
+                              <button type="button" title="Next month" (click)="movePatientDobMonth(1)">
+                                <span class="material-symbols-rounded">chevron_right</span>
+                              </button>
+                            </div>
+                            <div class="date-picker-year-jump">
+                              <button type="button" (click)="movePatientDobMonth(-12)">Previous year</button>
+                              <button type="button" (click)="movePatientDobMonth(12)">Next year</button>
+                            </div>
+                            <div class="date-weekdays" aria-hidden="true">
+                              @for (day of datePickerWeekdays; track day) {
+                                <span>{{ day }}</span>
+                              }
+                            </div>
+                            <div class="date-grid">
+                              @for (day of patientDobCalendarDays(patientForm); track day.dateKey) {
+                                <button
+                                  type="button"
+                                  [class.muted]="!day.currentMonth"
+                                  [class.today]="day.isToday"
+                                  [class.selected]="day.selected"
+                                  [disabled]="day.future || isViewMode()"
+                                  (click)="selectPatientDob(patientForm, day.dateKey)">
+                                  <span>{{ day.dayNo }}</span>
+                                </button>
+                              }
+                            </div>
+                            <div class="date-picker-actions">
+                              <button type="button" (click)="clearPatientDob(patientForm)">Clear</button>
+                              <button type="button" (click)="selectPatientDobToday(patientForm)">Today</button>
+                            </div>
+                          </div>
+                        }
+                      </div>
                       @if (patientFieldInvalid(patientForm, 'dateOfBirth')) {
                         <small class="validation-message">{{ patientFieldError(patientForm, 'dateOfBirth') }}</small>
                       }
@@ -651,16 +701,134 @@ type PatientValidationField = 'firstName' | 'lastName' | 'mobileNumber' | 'dateO
     }
     .country-option .material-symbols-rounded { font-size: 19px; }
     .mobile-number-input { min-width: 0; }
+    .date-picker-shell { position: relative; min-width: 0; }
+    .date-trigger {
+      width: 100%;
+      min-height: 46px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      padding: 0 12px;
+      border: 1px solid var(--ac-border);
+      border-radius: var(--ac-r-sm);
+      background: var(--ac-surface);
+      color: var(--ac-text);
+      text-align: left;
+      font: inherit;
+      cursor: pointer;
+      transition: border-color var(--ac-t), box-shadow var(--ac-t), background var(--ac-t);
+    }
+    .date-trigger:hover { border-color: color-mix(in srgb, var(--ac-primary) 45%, var(--ac-border)); }
+    .date-picker-shell.open .date-trigger {
+      border-color: var(--ac-primary);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--ac-primary) 14%, transparent);
+    }
+    .date-trigger:disabled { cursor: not-allowed; opacity: .72; }
+    .date-trigger .material-symbols-rounded { color: var(--ac-muted); font-size: 20px; }
+    .date-trigger strong { min-width: 0; color: var(--ac-text); font-size: 13.5px; font-weight: 850; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .date-trigger strong.placeholder { color: var(--ac-muted); font-weight: 750; }
+    .modern-date-popover {
+      position: absolute;
+      left: 0;
+      top: calc(100% + 8px);
+      z-index: 140;
+      width: min(344px, calc(100vw - 40px));
+      display: grid;
+      gap: 12px;
+      padding: 18px;
+      border: 1px solid color-mix(in srgb, var(--ac-border) 84%, transparent);
+      border-radius: 14px;
+      background: var(--ac-surface);
+      box-shadow: 0 24px 54px rgba(15,23,42,.18);
+    }
+    .date-picker-head {
+      display: grid;
+      grid-template-columns: 36px minmax(0, 1fr) 36px;
+      align-items: center;
+      gap: 8px;
+    }
+    .date-picker-head strong { color: var(--ac-text); text-align: center; font-size: 15px; font-weight: 900; }
+    .date-picker-head button,
+    .date-picker-actions button,
+    .date-picker-year-jump button {
+      border: 0;
+      background: transparent;
+      color: var(--ac-muted);
+      font: inherit;
+      cursor: pointer;
+    }
+    .date-picker-head button {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+    }
+    .date-picker-head button:hover,
+    .date-picker-year-jump button:hover {
+      background: var(--ac-subtle);
+      color: var(--ac-text);
+    }
+    .date-picker-year-jump { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .date-picker-year-jump button {
+      min-height: 30px;
+      border-radius: 999px;
+      background: var(--ac-subtle);
+      font-size: 11.5px;
+      font-weight: 850;
+    }
+    .date-weekdays,
+    .date-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+    .date-weekdays span {
+      color: var(--ac-muted);
+      text-align: center;
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .date-grid button {
+      position: relative;
+      min-width: 0;
+      width: 100%;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--ac-text);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 780;
+      cursor: pointer;
+    }
+    .date-grid button:hover:not(:disabled) { background: var(--ac-subtle); }
+    .date-grid button.muted { color: color-mix(in srgb, var(--ac-muted) 72%, transparent); }
+    .date-grid button.selected { background: #111827; color: #ffffff; font-weight: 950; box-shadow: 0 12px 24px rgba(15,23,42,.2); }
+    .date-grid button.today:not(.selected)::after {
+      content: '';
+      position: absolute;
+      bottom: 5px;
+      width: 4px;
+      height: 4px;
+      border-radius: 999px;
+      background: var(--ac-primary);
+    }
+    .date-grid button:disabled { color: color-mix(in srgb, var(--ac-muted) 38%, transparent); cursor: not-allowed; }
+    .date-picker-actions { display: flex; justify-content: space-between; align-items: center; padding-top: 2px; }
+    .date-picker-actions button { min-height: 30px; padding: 0 8px; color: var(--ac-primary); font-size: 12px; font-weight: 900; }
     label.invalid > span { color: var(--ac-error); }
     label.invalid input,
     label.invalid textarea,
     label.invalid .country-trigger,
+    label.invalid .date-trigger,
     label.invalid ac-dropdown {
       border-color: color-mix(in srgb, var(--ac-error) 72%, var(--ac-border));
       box-shadow: 0 0 0 3px color-mix(in srgb, var(--ac-error) 13%, transparent);
     }
     label.invalid input,
-    label.invalid textarea {
+    label.invalid textarea,
+    label.invalid .date-trigger {
       background: color-mix(in srgb, var(--ac-error) 4%, var(--ac-surface));
     }
     .validation-summary {
@@ -731,6 +899,14 @@ type PatientValidationField = 'firstName' | 'lastName' | 'mobileNumber' | 'dateO
       .toolbar-select, .toolbar ac-dropdown { min-width: 0; width: 100%; }
       .toolbar .icon-btn, .toolbar-count { width: 100%; }
       .toolbar-count { min-height: 36px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--ac-border); border-radius: var(--ac-r-sm); background: var(--ac-surface); }
+      .modern-date-popover {
+        position: fixed;
+        left: 16px;
+        right: 16px;
+        top: auto;
+        bottom: 78px;
+        width: auto;
+      }
       .table-card { min-height: 0; border-radius: var(--ac-r-sm); }
       .table-scroll { display: none; }
       .mobile-patient-list { display: grid; gap: 10px; padding: 10px; }
@@ -773,6 +949,8 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
   protected readonly drawerOpen = signal(false);
   protected readonly drawerMode = signal<PatientDrawerMode>('view');
   protected readonly countryDropdownOpen = signal(false);
+  protected readonly patientDobPickerOpen = signal(false);
+  protected readonly patientDobCalendarMonth = signal(startOfMonth(new Date()));
   protected readonly duplicateMatches = signal<PatientDuplicate[]>([]);
   protected readonly patientFormSubmitted = signal(false);
   private readonly duplicateOverride = signal(false);
@@ -808,6 +986,7 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
     ...this.bloodGroupOptions.map(bloodGroup => ({ label: bloodGroup, value: bloodGroup }))
   ];
   protected readonly countryCodeOptions = signal<CountryCodeOption[]>(fallbackCountryCodeOptions);
+  protected readonly datePickerWeekdays = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
   protected readonly statCards = computed(() => {
     const current = this.stats();
@@ -1156,6 +1335,54 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
     this.countryDropdownOpen.set(false);
   }
 
+  protected togglePatientDobPicker(event: MouseEvent, patient: PatientForm): void {
+    event.stopPropagation();
+
+    if (this.isViewMode()) {
+      return;
+    }
+
+    this.countryDropdownOpen.set(false);
+    const selectedDate = parseDateOnly(patient.dateOfBirth);
+    this.patientDobCalendarMonth.set(startOfMonth(selectedDate ?? new Date()));
+    this.patientDobPickerOpen.update(open => !open);
+  }
+
+  protected movePatientDobMonth(months: number): void {
+    this.patientDobCalendarMonth.update(month => addMonths(month, months));
+  }
+
+  protected patientDobCalendarTitle(): string {
+    return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(this.patientDobCalendarMonth());
+  }
+
+  protected patientDobCalendarDays(patient: PatientForm): DatePickerDay[] {
+    return buildDatePickerDays(this.patientDobCalendarMonth(), patient.dateOfBirth);
+  }
+
+  protected selectPatientDob(patient: PatientForm, dateKey: string): void {
+    patient.dateOfBirth = dateKey;
+    this.patientDobPickerOpen.set(false);
+  }
+
+  protected selectPatientDobToday(patient: PatientForm): void {
+    this.selectPatientDob(patient, inputDateValue(new Date()));
+  }
+
+  protected clearPatientDob(patient: PatientForm): void {
+    patient.dateOfBirth = null;
+    this.patientDobPickerOpen.set(false);
+  }
+
+  protected displayPatientDate(value: string | null): string {
+    const date = parseDateOnly(value);
+    if (!date) {
+      return 'mm/dd/yyyy';
+    }
+
+    return new Intl.DateTimeFormat('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }).format(date);
+  }
+
   protected flagUrl(isoCode: string | null): string {
     return `https://flagcdn.com/w40/${(isoCode || 'IN').toLowerCase()}.png`;
   }
@@ -1252,11 +1479,16 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
     if (!target?.closest('.country-select-shell')) {
       this.countryDropdownOpen.set(false);
     }
+
+    if (!target?.closest('.date-picker-shell')) {
+      this.patientDobPickerOpen.set(false);
+    }
   }
 
   @HostListener('document:keydown.escape')
   protected closeCountryDropdownWithEscape(): void {
     this.countryDropdownOpen.set(false);
+    this.patientDobPickerOpen.set(false);
   }
 }
 
@@ -1394,16 +1626,80 @@ function parseDateOnly(value: string | null): Date | null {
   const trimmed = value.trim();
   const isoMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(trimmed);
   if (isoMatch) {
-    return new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
+    return strictDate(Number(isoMatch[1]), Number(isoMatch[2]), Number(isoMatch[3]));
   }
 
   const shortDateMatch = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(trimmed);
   if (shortDateMatch) {
-    return new Date(Number(shortDateMatch[3]), Number(shortDateMatch[1]) - 1, Number(shortDateMatch[2]));
+    return strictDate(Number(shortDateMatch[3]), Number(shortDateMatch[1]), Number(shortDateMatch[2]));
   }
 
   const parsed = new Date(trimmed);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+interface DatePickerDay {
+  dateKey: string;
+  dayNo: string;
+  currentMonth: boolean;
+  selected: boolean;
+  isToday: boolean;
+  future: boolean;
+}
+
+function strictDate(year: number, month: number, day: number): Date | null {
+  const date = new Date(year, month - 1, day);
+  const isValid =
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day;
+
+  return isValid ? date : null;
+}
+
+function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function addMonths(date: Date, months: number): Date {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + months, 1);
+  return startOfMonth(next);
+}
+
+function inputDateValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function buildDatePickerDays(monthDate: Date, selectedValue: string | null): DatePickerDay[] {
+  const monthStart = startOfMonth(monthDate);
+  const mondayOffset = (monthStart.getDay() + 6) % 7;
+  const gridStart = new Date(monthStart);
+  gridStart.setDate(monthStart.getDate() - mondayOffset);
+
+  const selectedDate = parseDateOnly(selectedValue);
+  const selectedKey = selectedDate ? inputDateValue(selectedDate) : '';
+  const todayKey = inputDateValue(new Date());
+  const todayStart = parseDateOnly(todayKey) ?? new Date();
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(gridStart);
+    date.setDate(gridStart.getDate() + index);
+    date.setHours(0, 0, 0, 0);
+    const dateKey = inputDateValue(date);
+
+    return {
+      dateKey,
+      dayNo: `${date.getDate()}`,
+      currentMonth: date.getMonth() === monthStart.getMonth() && date.getFullYear() === monthStart.getFullYear(),
+      selected: dateKey === selectedKey,
+      isToday: dateKey === todayKey,
+      future: date.getTime() > todayStart.getTime()
+    };
+  });
 }
 
 function escapeCsv(value: string): string {
@@ -1435,8 +1731,15 @@ function getPatientValidationErrors(patient: PatientForm): PatientValidationErro
 
   if (!patient.dateOfBirth) {
     errors.push({ field: 'dateOfBirth', message: 'Date of birth is required.' });
-  } else if (!parseDateOnly(patient.dateOfBirth)) {
-    errors.push({ field: 'dateOfBirth', message: 'Enter a valid date of birth.' });
+  } else {
+    const dateOfBirth = parseDateOnly(patient.dateOfBirth);
+    const today = parseDateOnly(inputDateValue(new Date())) ?? new Date();
+
+    if (!dateOfBirth) {
+      errors.push({ field: 'dateOfBirth', message: 'Enter a valid date of birth.' });
+    } else if (dateOfBirth.getTime() > today.getTime()) {
+      errors.push({ field: 'dateOfBirth', message: 'Date of birth cannot be in the future.' });
+    }
   }
 
   if (!patient.genderCode) {
