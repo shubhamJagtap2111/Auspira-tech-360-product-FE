@@ -6,6 +6,7 @@ import { BranchContextService } from '../../../core/context/branch-context.servi
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
 import { AcAdminDrawerComponent } from '../../../shared/ui/admin-drawer/admin-drawer.component';
+import { AcGridLoaderComponent } from '../../../shared/ui/grid-loader/grid-loader.component';
 import { HospitalProfile, HospitalSetting } from './hospital-management.models';
 import { HospitalManagementService } from './hospital-management.service';
 
@@ -19,7 +20,7 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcAdminDrawerComponent],
+  imports: [CommonModule, FormsModule, AcAdminDrawerComponent, AcGridLoaderComponent],
   template: `
     <section class="hospital-page">
       <header class="page-head">
@@ -39,6 +40,10 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
           </button>
         </div>
       </header>
+
+      @if (loading()) {
+        <ac-grid-loader title="Loading hospital profile..." message="Preparing hospital administration details." />
+      }
 
       @if (loadError()) {
         <section class="panel error-state">
@@ -487,6 +492,7 @@ export class HospitalManagementPageComponent implements OnInit {
 
   protected readonly profile = signal<HospitalProfile | null>(null);
   protected readonly profileDrawer = signal<HospitalProfileDrawer | null>(null);
+  protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly loadError = signal<string | null>(null);
 
@@ -531,6 +537,7 @@ export class HospitalManagementPageComponent implements OnInit {
   }
 
   protected async loadProfile(): Promise<void> {
+    this.loading.set(true);
     this.loadError.set(null);
     try {
       const response = await this.service.getProfile();
@@ -549,6 +556,8 @@ export class HospitalManagementPageComponent implements OnInit {
       const message = 'The hospital profile did not load. Please check the API service and try again.';
       this.loadError.set(message);
       this.toast.error(message);
+    } finally {
+      this.loading.set(false);
     }
   }
 

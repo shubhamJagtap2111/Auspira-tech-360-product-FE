@@ -9,6 +9,7 @@ import { DialogService } from '../../../shared/ui/dialog/dialog.service';
 import { AcDropdownComponent } from '../../../shared/ui/dropdown/dropdown.component';
 import { AcAdminDrawerComponent } from '../../../shared/ui/admin-drawer/admin-drawer.component';
 import { AcPaginationComponent } from '../../../shared/ui/pagination/pagination.component';
+import { AcGridLoaderComponent } from '../../../shared/ui/grid-loader/grid-loader.component';
 import { AssignableRole, ManagedUser, UserAuditHistoryItem, UserFormModel, UserLanguageOption, UserTimeZoneOption } from './user-management.models';
 import { UserManagementService } from './user-management.service';
 
@@ -30,7 +31,7 @@ const defaultResetPassword = 'Reset@123';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcDropdownComponent, AcAdminDrawerComponent, AcPaginationComponent],
+  imports: [CommonModule, FormsModule, AcDropdownComponent, AcAdminDrawerComponent, AcPaginationComponent, AcGridLoaderComponent],
   template: `
     <section class="user-page">
       <header class="page-head">
@@ -79,6 +80,10 @@ const defaultResetPassword = 'Reset@123';
           <span class="material-symbols-rounded">search</span>
         </button>
       </section>
+
+      @if (initialLoading() || loading()) {
+        <ac-grid-loader title="Loading users..." message="Preparing administration user records." />
+      }
 
       <section class="content-grid ac-admin-layout table-card" [class.drawer-open]="editorOpen()">
         <div class="table-wrap">
@@ -351,6 +356,8 @@ export class UserListPageComponent implements OnInit {
   protected readonly pageSize = signal(10);
   protected readonly selectedUser = signal<ManagedUser | null>(null);
   protected readonly editingUserGuid = signal<string | null>(null);
+  protected readonly initialLoading = signal(true);
+  protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly errorKey = signal<string | null>(null);
   protected readonly editorOpen = signal(false);
@@ -373,10 +380,15 @@ export class UserListPageComponent implements OnInit {
   });
 
   async ngOnInit(): Promise<void> {
-    await Promise.all([this.loadRoles(), this.loadReferenceData(), this.branchContext.loadBranches()]);
-    this.lastBranchCode = this.branchContext.selectedBranchCode();
-    this.branchReloadReady = true;
-    await this.loadUsers();
+    this.initialLoading.set(true);
+    try {
+      await Promise.all([this.loadRoles(), this.loadReferenceData(), this.branchContext.loadBranches()]);
+      this.lastBranchCode = this.branchContext.selectedBranchCode();
+      this.branchReloadReady = true;
+      await this.loadUsers();
+    } finally {
+      this.initialLoading.set(false);
+    }
   }
 
   protected t(key: string): string {
@@ -417,29 +429,34 @@ export class UserListPageComponent implements OnInit {
   }
 
   protected async loadUsers(pageNumber = this.pageNumber()): Promise<void> {
-    const response = await this.service.searchUsers({
-      searchText: this.searchText.trim(),
-      roleCode: this.roleCode,
-      isActive: this.statusFilter === 'all' ? null : this.statusFilter === 'active',
-      branchCode: this.branchFilter.trim() || this.branchContext.selectedBranchCode() || '',
-      departmentCode: this.departmentFilter.trim(),
-      languageCode: undefined,
-      timeZoneCode: undefined,
-      sortColumn: 'FullName',
-      sortDirection: 'ASC',
-      pageNumber,
-      pageSize: this.pageSize()
-    });
+    this.loading.set(true);
+    try {
+      const response = await this.service.searchUsers({
+        searchText: this.searchText.trim(),
+        roleCode: this.roleCode,
+        isActive: this.statusFilter === 'all' ? null : this.statusFilter === 'active',
+        branchCode: this.branchFilter.trim() || this.branchContext.selectedBranchCode() || '',
+        departmentCode: this.departmentFilter.trim(),
+        languageCode: undefined,
+        timeZoneCode: undefined,
+        sortColumn: 'FullName',
+        sortDirection: 'ASC',
+        pageNumber,
+        pageSize: this.pageSize()
+      });
 
-    if (response.success && response.data) {
-      this.users.set(response.data.items);
-      this.totalCount.set(response.data.totalCount);
-      this.pageNumber.set(response.data.pageNumber);
-      this.pageSize.set(response.data.pageSize);
-      return;
+      if (response.success && response.data) {
+        this.users.set(response.data.items);
+        this.totalCount.set(response.data.totalCount);
+        this.pageNumber.set(response.data.pageNumber);
+        this.pageSize.set(response.data.pageSize);
+        return;
+      }
+
+      this.errorKey.set(response.message);
+    } finally {
+      this.loading.set(false);
     }
-
-    this.errorKey.set(response.message);
   }
 
   protected async loadRoles(): Promise<void> {

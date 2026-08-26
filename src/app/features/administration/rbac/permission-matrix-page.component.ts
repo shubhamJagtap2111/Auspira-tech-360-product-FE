@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { AcDropdownComponent } from '../../../shared/ui/dropdown/dropdown.component';
 import { AcAdminDrawerComponent } from '../../../shared/ui/admin-drawer/admin-drawer.component';
+import { AcGridLoaderComponent } from '../../../shared/ui/grid-loader/grid-loader.component';
 import { PermissionMatrixRow, RoleDto } from './rbac.models';
 import { RbacService } from './rbac.service';
 
@@ -17,7 +18,7 @@ interface PermissionModuleGroup {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcDropdownComponent, AcAdminDrawerComponent],
+  imports: [CommonModule, FormsModule, AcDropdownComponent, AcAdminDrawerComponent, AcGridLoaderComponent],
   template: `
     <section class="matrix-page">
       <header class="page-head">
@@ -75,6 +76,10 @@ interface PermissionModuleGroup {
           <span>Show assigned only</span>
         </label>
       </section>
+
+      @if (initialLoading() || loading()) {
+        <ac-grid-loader title="Loading permissions..." message="Preparing role access matrix." />
+      }
 
       <section class="permission-board">
         @for (group of moduleGroups(); track group.moduleKey) {
@@ -295,6 +300,8 @@ export class PermissionMatrixPageComponent implements OnInit {
   protected readonly roles = signal<RoleDto[]>([]);
   protected readonly rows = signal<PermissionMatrixRow[]>([]);
   protected readonly selectedRow = signal<PermissionMatrixRow | null>(null);
+  protected readonly initialLoading = signal(true);
+  protected readonly loading = signal(false);
   protected readonly searchedRows = computed(() => this.createSearchedRows());
   protected readonly visibleRows = computed(() => this.createVisibleRows());
   protected readonly moduleGroups = computed(() => this.createModuleGroups());
@@ -303,7 +310,12 @@ export class PermissionMatrixPageComponent implements OnInit {
   protected readonly visibleRoleCount = computed(() => new Set(this.visibleRows().map(row => row.roleCode)).size);
 
   async ngOnInit(): Promise<void> {
-    await Promise.all([this.loadRoles(), this.loadMatrix()]);
+    this.initialLoading.set(true);
+    try {
+      await Promise.all([this.loadRoles(), this.loadMatrix()]);
+    } finally {
+      this.initialLoading.set(false);
+    }
   }
 
   protected t(key: string): string {
@@ -325,10 +337,15 @@ export class PermissionMatrixPageComponent implements OnInit {
   }
 
   protected async loadMatrix(): Promise<void> {
-    const response = await this.service.getPermissionMatrix(this.roleCode || undefined);
-    if (response.success && response.data) {
-      this.rows.set(response.data);
-      this.selectedRow.set(null);
+    this.loading.set(true);
+    try {
+      const response = await this.service.getPermissionMatrix(this.roleCode || undefined);
+      if (response.success && response.data) {
+        this.rows.set(response.data);
+        this.selectedRow.set(null);
+      }
+    } finally {
+      this.loading.set(false);
     }
   }
 

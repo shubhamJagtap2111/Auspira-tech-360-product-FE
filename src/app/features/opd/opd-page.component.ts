@@ -69,7 +69,7 @@ import { OpdManagementService } from './opd-management.service';
       <section class="opd-shell ac-card">
         <div class="opd-tabs">
           @for (tab of tabs; track tab.id) {
-            <button type="button" [class.active]="activeTab() === tab.id" (click)="activeTab.set(tab.id)">
+            <button type="button" [class.active]="activeTab() === tab.id" (click)="setActiveTab(tab.id)">
               <span class="material-symbols-rounded">{{ tab.icon }}</span>
               <span class="tab-label">{{ tab.label }}</span>
               @if (tabCount(tab.id); as count) {
@@ -91,17 +91,17 @@ import { OpdManagementService } from './opd-management.service';
         </div>
 
         <div class="quick-action-bar">
-          <button type="button" [class.active]="activeTab() === 'check-in'" (click)="activeTab.set('check-in')">
+          <button type="button" [class.active]="activeTab() === 'check-in'" (click)="setActiveTab('check-in')">
             <span class="material-symbols-rounded">how_to_reg</span>
             <span>Check-In</span>
             <strong>{{ tabCount('check-in') || '0' }}</strong>
           </button>
-          <button type="button" [class.active]="activeTab() === 'queue'" (click)="activeTab.set('queue')">
+          <button type="button" [class.active]="activeTab() === 'queue'" (click)="setActiveTab('queue')">
             <span class="material-symbols-rounded">queue</span>
             <span>Queue</span>
             <strong>{{ tabCount('queue') || '0' }}</strong>
           </button>
-          <button type="button" [class.active]="activeTab() === 'active'" (click)="activeTab.set('active')">
+          <button type="button" [class.active]="activeTab() === 'active'" (click)="setActiveTab('active')">
             <span class="material-symbols-rounded">stethoscope</span>
             <span>Consulting</span>
             <strong>{{ tabCount('active') || '0' }}</strong>
@@ -129,29 +129,29 @@ import { OpdManagementService } from './opd-management.service';
                       <h2>Simple OPD Flow</h2>
                       <span>{{ doctorQueueSummary().doctorName }} · {{ formatNumberValue(totalOperationalVisits()) }} visits</span>
                     </div>
-                    <button class="ac-btn ac-btn-secondary" type="button" (click)="activeTab.set('check-in')">
+                    <button class="ac-btn ac-btn-secondary" type="button" (click)="setActiveTab('check-in')">
                       <span class="material-symbols-rounded">add_task</span>
                       Check-In
                     </button>
                   </div>
 
                   <div class="queue-flow-strip">
-                    <button type="button" class="flow-step waiting" (click)="activeTab.set('queue')">
+                    <button type="button" class="flow-step waiting" (click)="setActiveTab('queue')">
                       <span class="material-symbols-rounded">pending_actions</span>
                       <small>Waiting</small>
                       <strong>{{ stats().waiting }}</strong>
                     </button>
-                    <button type="button" class="flow-step active" (click)="activeTab.set('active')">
+                    <button type="button" class="flow-step active" (click)="setActiveTab('active')">
                       <span class="material-symbols-rounded">medical_services</span>
                       <small>In Consultation</small>
                       <strong>{{ stats().inConsultation }}</strong>
                     </button>
-                    <button type="button" class="flow-step completed" (click)="activeTab.set('completed')">
+                    <button type="button" class="flow-step completed" (click)="setActiveTab('completed')">
                       <span class="material-symbols-rounded">task_alt</span>
                       <small>Completed</small>
                       <strong>{{ stats().completed }}</strong>
                     </button>
-                    <button type="button" class="flow-step danger" (click)="activeTab.set('queue')">
+                    <button type="button" class="flow-step danger" (click)="setActiveTab('queue')">
                       <span class="material-symbols-rounded">event_busy</span>
                       <small>No Shows</small>
                       <strong>{{ stats().noShows }}</strong>
@@ -1754,14 +1754,14 @@ import { OpdManagementService } from './opd-management.service';
       content: '';
       position: absolute;
       top: 20px;
-      left: 0;
-      right: 0;
+      left: calc(50% + 26px);
+      right: calc(-50% + 26px);
+      z-index: 0;
       height: 2px;
       background: var(--ac-border);
       transform: translateY(-50%);
     }
-    .encounter-workflow-stepper button:first-child::before { left: 50%; }
-    .encounter-workflow-stepper button:last-child::before { right: 50%; }
+    .encounter-workflow-stepper button:last-child::before { display: none; }
     .encounter-workflow-stepper button.completed::before {
       background: color-mix(in srgb, #0f766e 58%, var(--ac-border));
     }
@@ -2857,7 +2857,7 @@ export class OpdPageComponent implements OnInit {
   protected readonly medicines = signal<OpdMedicineRecord[]>([]);
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
-  protected readonly activeTab = signal<OpdTab>('dashboard');
+  protected readonly activeTab = signal<OpdTab>(readStoredOpdTab());
   protected readonly activeEncounterSection = signal<OpdEncounterSection>('snapshot');
   protected readonly selectedVisit = signal<OpdVisitVm | null>(null);
   protected readonly transferVisit = signal<OpdVisitVm | null>(null);
@@ -3263,8 +3263,13 @@ export class OpdPageComponent implements OnInit {
     this.doctorFilter.set('');
   }
 
-  protected openStatCard(tab: OpdTab): void {
+  protected setActiveTab(tab: OpdTab): void {
     this.activeTab.set(tab);
+    persistOpdTab(tab);
+  }
+
+  protected openStatCard(tab: OpdTab): void {
+    this.setActiveTab(tab);
   }
 
   protected formatNumberValue(value: number): string {
@@ -3284,7 +3289,7 @@ export class OpdPageComponent implements OnInit {
     this.prescriptionRevisionNo.set(1);
     this.prescriptionPreviewOpen.set(false);
     this.activeEncounterSection.set(draftState?.section ?? 'snapshot');
-    this.activeTab.set(tab);
+    this.setActiveTab(tab);
   }
 
   protected async quickCheckIn(visit: OpdVisitVm): Promise<void> {
@@ -3311,7 +3316,7 @@ export class OpdPageComponent implements OnInit {
       this.upsertQueue(queueResponse.data);
       this.upsertAppointment(appointmentResponse.data);
       this.toast.success('Patient checked in', `${queueResponse.data.tokenNumber} added to OPD queue.`);
-      this.activeTab.set('queue');
+      this.setActiveTab('queue');
     } finally {
       this.saving.set(false);
     }
@@ -4357,7 +4362,7 @@ export class OpdPageComponent implements OnInit {
       }
     }
 
-    this.activeTab.set('completed');
+    this.setActiveTab('completed');
   }
 
   private async ensureEncounterForAction(visit: OpdVisitVm): Promise<OpdConsultationRecord | null> {
@@ -4830,6 +4835,8 @@ interface EncounterDraftState {
 
 const PRESCRIPTION_TEMPLATE_STORAGE_KEY = 'care360.opd.prescriptionTemplates';
 const OPD_ENCOUNTER_DRAFT_STORAGE_PREFIX = 'care360.opd.encounterDraft.';
+const OPD_ACTIVE_TAB_STORAGE_KEY = 'care360.opd.activeTab';
+const VALID_OPD_TABS: OpdTab[] = ['dashboard', 'queue', 'check-in', 'active', 'completed', 'encounter'];
 
 const DEFAULT_PRESCRIPTION_TEMPLATES: PrescriptionTemplate[] = [
   {
@@ -4948,6 +4955,27 @@ function persistPrescriptionTemplates(templates: PrescriptionTemplate[]): void {
   }
 }
 
+function readStoredOpdTab(): OpdTab {
+  try {
+    const storedTab = typeof localStorage === 'undefined' ? null : localStorage.getItem(OPD_ACTIVE_TAB_STORAGE_KEY);
+    return isOpdTab(storedTab) ? storedTab : 'dashboard';
+  } catch {
+    return 'dashboard';
+  }
+}
+
+function persistOpdTab(tab: OpdTab): void {
+  try {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+
+    localStorage.setItem(OPD_ACTIVE_TAB_STORAGE_KEY, tab);
+  } catch {
+    // Remembering the active tab is a convenience only.
+  }
+}
+
 function readEncounterDraftState(visit: OpdVisitVm): EncounterDraftState | null {
   if (normalizeCode(visit.consultationStatus) === 'COMPLETED') {
     clearEncounterDraftState(visit);
@@ -5006,6 +5034,10 @@ function clearEncounterDraftState(visit: OpdVisitVm): void {
 
 function encounterDraftStorageKey(visit: OpdVisitVm): string {
   return `${OPD_ENCOUNTER_DRAFT_STORAGE_PREFIX}${visit.appointment.id}`;
+}
+
+function isOpdTab(value: unknown): value is OpdTab {
+  return VALID_OPD_TABS.includes(value as OpdTab);
 }
 
 function isEncounterSection(value: unknown): value is OpdEncounterSection {

@@ -6,6 +6,7 @@ import { I18nService } from '../../../core/i18n/i18n.service';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
 import { AcDropdownComponent } from '../../../shared/ui/dropdown/dropdown.component';
 import { AcAdminDrawerComponent } from '../../../shared/ui/admin-drawer/admin-drawer.component';
+import { AcGridLoaderComponent } from '../../../shared/ui/grid-loader/grid-loader.component';
 import { PermissionCatalogItem, RoleDto, RoleFormModel } from './rbac.models';
 import { RbacService } from './rbac.service';
 
@@ -24,7 +25,7 @@ interface PermissionGroupView {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcDropdownComponent, AcAdminDrawerComponent],
+  imports: [CommonModule, FormsModule, AcDropdownComponent, AcAdminDrawerComponent, AcGridLoaderComponent],
   template: `
     <section class="rbac-page">
       <header class="page-head">
@@ -85,6 +86,10 @@ interface PermissionGroupView {
           <span class="material-symbols-rounded">refresh</span>
         </button>
       </section>
+
+      @if (initialLoading() || loading()) {
+        <ac-grid-loader title="Loading roles..." message="Preparing role and permission records." />
+      }
 
       <section class="content-grid ac-admin-layout table-card" [class.drawer-open]="editorOpen()">
         <div class="table-wrap">
@@ -316,6 +321,8 @@ export class RoleManagementPageComponent implements OnInit {
   protected parentRoleCode = '';
   protected readonly roles = signal<RoleDto[]>([]);
   protected readonly catalog = signal<PermissionCatalogItem[]>([]);
+  protected readonly initialLoading = signal(true);
+  protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly errorKey = signal<string | null>(null);
   protected readonly editorOpen = signal(false);
@@ -327,7 +334,12 @@ export class RoleManagementPageComponent implements OnInit {
   private originalPermissionCodes: string[] = [];
 
   async ngOnInit(): Promise<void> {
-    await Promise.all([this.loadRoles(), this.loadCatalog()]);
+    this.initialLoading.set(true);
+    try {
+      await Promise.all([this.loadRoles(), this.loadCatalog()]);
+    } finally {
+      this.initialLoading.set(false);
+    }
   }
 
   protected t(key: string): string {
@@ -401,13 +413,18 @@ export class RoleManagementPageComponent implements OnInit {
   }
 
   protected async loadRoles(): Promise<void> {
-    const response = await this.service.getRoles({ searchText: this.searchText.trim() });
-    if (response.success && response.data) {
-      this.roles.set(response.data);
-      return;
-    }
+    this.loading.set(true);
+    try {
+      const response = await this.service.getRoles({ searchText: this.searchText.trim() });
+      if (response.success && response.data) {
+        this.roles.set(response.data);
+        return;
+      }
 
-    this.errorKey.set(response.message);
+      this.errorKey.set(response.message);
+    } finally {
+      this.loading.set(false);
+    }
   }
 
   protected async loadCatalog(): Promise<void> {

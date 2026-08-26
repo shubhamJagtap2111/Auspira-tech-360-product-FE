@@ -8,6 +8,7 @@ import { ToastService } from '../../../shared/ui/toast/toast.service';
 import { AcAdminDrawerComponent } from '../../../shared/ui/admin-drawer/admin-drawer.component';
 import { AcDropdownComponent, DropdownOption } from '../../../shared/ui/dropdown/dropdown.component';
 import { AcPaginationComponent } from '../../../shared/ui/pagination/pagination.component';
+import { AcGridLoaderComponent } from '../../../shared/ui/grid-loader/grid-loader.component';
 import { BranchConfiguration, BranchProfile, BranchSummary, BranchWorkingHour } from './branch-management.models';
 import { BranchManagementService } from './branch-management.service';
 
@@ -22,7 +23,7 @@ const permissions = {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcAdminDrawerComponent, AcDropdownComponent, AcPaginationComponent],
+  imports: [CommonModule, FormsModule, AcAdminDrawerComponent, AcDropdownComponent, AcPaginationComponent, AcGridLoaderComponent],
   template: `
     <section class="branch-page">
       <header class="page-head">
@@ -87,6 +88,10 @@ const permissions = {
           <span class="material-symbols-rounded">refresh</span>
         </button>
       </section>
+
+      @if (initialLoading() || loading()) {
+        <ac-grid-loader title="Loading branches..." message="Preparing branch administration records." />
+      }
 
       <section class="layout ac-admin-layout table-card" [class.drawer-open]="drawerOpen()">
         <div class="table-wrap">
@@ -399,6 +404,8 @@ export class BranchManagementPageComponent implements OnInit {
   protected readonly pageSize = signal(10);
   protected readonly form = signal<BranchProfile>(createEmptyBranch());
   protected readonly drawerOpen = signal(false);
+  protected readonly initialLoading = signal(true);
+  protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly activeBranchCount = computed(() => this.allBranches().filter(branch => branch.isActive).length);
   protected readonly defaultBranchName = computed(() => this.allBranches().find(branch => branch.isDefault)?.branchName ?? '-');
@@ -418,8 +425,13 @@ export class BranchManagementPageComponent implements OnInit {
   private readonly branchContext = inject(BranchContextService);
 
   async ngOnInit(): Promise<void> {
-    await this.loadBranches();
-    await this.branchContext.refresh();
+    this.initialLoading.set(true);
+    try {
+      await this.loadBranches();
+      await this.branchContext.refresh();
+    } finally {
+      this.initialLoading.set(false);
+    }
   }
 
   protected t(key: string): string {
@@ -439,15 +451,20 @@ export class BranchManagementPageComponent implements OnInit {
   }
 
   protected async loadBranches(pageNumber = this.pageNumber()): Promise<void> {
-    const response = await this.service.search(this.searchText, true);
-    if (response.success && response.data) {
-      this.allBranches.set(response.data);
-      this.totalCount.set(response.data.length);
-      this.applyBranchPage(pageNumber);
-      return;
-    }
+    this.loading.set(true);
+    try {
+      const response = await this.service.search(this.searchText, true);
+      if (response.success && response.data) {
+        this.allBranches.set(response.data);
+        this.totalCount.set(response.data.length);
+        this.applyBranchPage(pageNumber);
+        return;
+      }
 
-    this.toast.error(this.t(response.message));
+      this.toast.error(this.t(response.message));
+    } finally {
+      this.loading.set(false);
+    }
   }
 
   protected changePage(pageNumber: number): void {

@@ -15,6 +15,7 @@ import { PatientManagementService } from './patient-management.service';
 
 type PatientDrawerMode = 'view' | 'edit' | 'create';
 type PatientValidationField = 'firstName' | 'lastName' | 'mobileNumber' | 'dateOfBirth' | 'genderCode' | 'email';
+type PatientDatePickerMode = 'calendar' | 'years';
 
 @Component({
   standalone: true,
@@ -325,37 +326,49 @@ type PatientValidationField = 'firstName' | 'lastName' | 'mobileNumber' | 'dateO
                               <button type="button" title="Previous month" (click)="movePatientDobMonth(-1)">
                                 <span class="material-symbols-rounded">chevron_left</span>
                               </button>
-                              <strong>{{ patientDobCalendarTitle() }}</strong>
+                              <button class="date-title-button" type="button" title="Select year" (click)="togglePatientDobYearPicker()">
+                                {{ patientDobCalendarTitle() }}
+                              </button>
                               <button type="button" title="Next month" (click)="movePatientDobMonth(1)">
                                 <span class="material-symbols-rounded">chevron_right</span>
                               </button>
                             </div>
-                            <div class="date-picker-year-jump">
-                              <button type="button" (click)="movePatientDobMonth(-12)">Previous year</button>
-                              <button type="button" (click)="movePatientDobMonth(12)">Next year</button>
-                            </div>
-                            <div class="date-weekdays" aria-hidden="true">
-                              @for (day of datePickerWeekdays; track day) {
-                                <span>{{ day }}</span>
-                              }
-                            </div>
-                            <div class="date-grid">
-                              @for (day of patientDobCalendarDays(patientForm); track day.dateKey) {
-                                <button
-                                  type="button"
-                                  [class.muted]="!day.currentMonth"
-                                  [class.today]="day.isToday"
-                                  [class.selected]="day.selected"
-                                  [disabled]="day.future || isViewMode()"
-                                  (click)="selectPatientDob(patientForm, day.dateKey)">
-                                  <span>{{ day.dayNo }}</span>
-                                </button>
-                              }
-                            </div>
-                            <div class="date-picker-actions">
-                              <button type="button" (click)="clearPatientDob(patientForm)">Clear</button>
-                              <button type="button" (click)="selectPatientDobToday(patientForm)">Today</button>
-                            </div>
+                            @if (patientDobPickerMode() === 'years') {
+                              <div class="date-year-grid" aria-label="Select birth year">
+                                @for (year of patientDobYearOptions(patientForm); track year.value) {
+                                  <button
+                                    type="button"
+                                    [class.selected]="year.selected"
+                                    [class.current]="year.current"
+                                    (click)="selectPatientDobYear(year.value)">
+                                    {{ year.value }}
+                                  </button>
+                                }
+                              </div>
+                            } @else {
+                              <div class="date-weekdays" aria-hidden="true">
+                                @for (day of datePickerWeekdays; track day) {
+                                  <span>{{ day }}</span>
+                                }
+                              </div>
+                              <div class="date-grid">
+                                @for (day of patientDobCalendarDays(patientForm); track day.dateKey) {
+                                  <button
+                                    type="button"
+                                    [class.muted]="!day.currentMonth"
+                                    [class.today]="day.isToday"
+                                    [class.selected]="day.selected"
+                                    [disabled]="day.future || isViewMode()"
+                                    (click)="selectPatientDob(patientForm, day.dateKey)">
+                                    <span>{{ day.dayNo }}</span>
+                                  </button>
+                                }
+                              </div>
+                              <div class="date-picker-actions">
+                                <button type="button" (click)="clearPatientDob(patientForm)">Clear</button>
+                                <button type="button" (click)="selectPatientDobToday(patientForm)">Today</button>
+                              </div>
+                            }
                           </div>
                         }
                       </div>
@@ -733,22 +746,21 @@ type PatientValidationField = 'firstName' | 'lastName' | 'mobileNumber' | 'dateO
       left: 0;
       top: calc(100% + 8px);
       z-index: 140;
-      width: min(344px, calc(100vw - 40px));
+      width: min(292px, calc(100vw - 40px));
       display: grid;
-      gap: 12px;
-      padding: 18px;
+      gap: 9px;
+      padding: 12px;
       border: 1px solid color-mix(in srgb, var(--ac-border) 84%, transparent);
       border-radius: 14px;
       background: var(--ac-surface);
-      box-shadow: 0 24px 54px rgba(15,23,42,.18);
+      box-shadow: 0 18px 42px rgba(15,23,42,.16);
     }
     .date-picker-head {
       display: grid;
-      grid-template-columns: 36px minmax(0, 1fr) 36px;
+      grid-template-columns: 30px minmax(0, 1fr) 30px;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
-    .date-picker-head strong { color: var(--ac-text); text-align: center; font-size: 15px; font-weight: 900; }
     .date-picker-head button,
     .date-picker-actions button,
     .date-picker-year-jump button {
@@ -758,14 +770,25 @@ type PatientValidationField = 'firstName' | 'lastName' | 'mobileNumber' | 'dateO
       font: inherit;
       cursor: pointer;
     }
-    .date-picker-head button {
-      width: 36px;
-      height: 36px;
+    .date-picker-head > button:not(.date-title-button) {
+      width: 30px;
+      height: 30px;
       display: grid;
       place-items: center;
       border-radius: 999px;
     }
-    .date-picker-head button:hover,
+    .date-title-button {
+      min-width: 0;
+      min-height: 30px;
+      padding: 0 8px;
+      border-radius: 999px;
+      color: var(--ac-text) !important;
+      text-align: center;
+      font-size: 14px !important;
+      font-weight: 900;
+    }
+    .date-title-button:hover,
+    .date-picker-head > button:not(.date-title-button):hover,
     .date-picker-year-jump button:hover {
       background: var(--ac-subtle);
       color: var(--ac-text);
@@ -779,11 +802,11 @@ type PatientValidationField = 'firstName' | 'lastName' | 'mobileNumber' | 'dateO
       font-weight: 850;
     }
     .date-weekdays,
-    .date-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+    .date-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
     .date-weekdays span {
       color: var(--ac-muted);
       text-align: center;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 900;
     }
     .date-grid button {
@@ -798,7 +821,7 @@ type PatientValidationField = 'firstName' | 'lastName' | 'mobileNumber' | 'dateO
       background: transparent;
       color: var(--ac-text);
       font: inherit;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 780;
       cursor: pointer;
     }
@@ -815,8 +838,38 @@ type PatientValidationField = 'firstName' | 'lastName' | 'mobileNumber' | 'dateO
       background: var(--ac-primary);
     }
     .date-grid button:disabled { color: color-mix(in srgb, var(--ac-muted) 38%, transparent); cursor: not-allowed; }
-    .date-picker-actions { display: flex; justify-content: space-between; align-items: center; padding-top: 2px; }
-    .date-picker-actions button { min-height: 30px; padding: 0 8px; color: var(--ac-primary); font-size: 12px; font-weight: 900; }
+    .date-year-grid {
+      max-height: 214px;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+      padding-right: 2px;
+    }
+    .date-year-grid button {
+      min-height: 32px;
+      border: 1px solid var(--ac-border);
+      border-radius: 9px;
+      background: var(--ac-surface);
+      color: var(--ac-text);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 850;
+      cursor: pointer;
+    }
+    .date-year-grid button:hover {
+      border-color: color-mix(in srgb, var(--ac-primary) 38%, var(--ac-border));
+      background: var(--ac-primary-light);
+      color: var(--ac-primary);
+    }
+    .date-year-grid button.current { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ac-primary) 18%, transparent); }
+    .date-year-grid button.selected {
+      border-color: #111827;
+      background: #111827;
+      color: #ffffff;
+    }
+    .date-picker-actions { display: flex; justify-content: space-between; align-items: center; padding-top: 0; }
+    .date-picker-actions button { min-height: 26px; padding: 0 6px; color: var(--ac-primary); font-size: 11.5px; font-weight: 900; }
     label.invalid > span { color: var(--ac-error); }
     label.invalid input,
     label.invalid textarea,
@@ -950,6 +1003,7 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
   protected readonly drawerMode = signal<PatientDrawerMode>('view');
   protected readonly countryDropdownOpen = signal(false);
   protected readonly patientDobPickerOpen = signal(false);
+  protected readonly patientDobPickerMode = signal<PatientDatePickerMode>('calendar');
   protected readonly patientDobCalendarMonth = signal(startOfMonth(new Date()));
   protected readonly duplicateMatches = signal<PatientDuplicate[]>([]);
   protected readonly patientFormSubmitted = signal(false);
@@ -1345,10 +1399,12 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
     this.countryDropdownOpen.set(false);
     const selectedDate = parseDateOnly(patient.dateOfBirth);
     this.patientDobCalendarMonth.set(startOfMonth(selectedDate ?? new Date()));
+    this.patientDobPickerMode.set('calendar');
     this.patientDobPickerOpen.update(open => !open);
   }
 
   protected movePatientDobMonth(months: number): void {
+    this.patientDobPickerMode.set('calendar');
     this.patientDobCalendarMonth.update(month => addMonths(month, months));
   }
 
@@ -1356,8 +1412,21 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
     return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(this.patientDobCalendarMonth());
   }
 
+  protected togglePatientDobYearPicker(): void {
+    this.patientDobPickerMode.update(mode => mode === 'years' ? 'calendar' : 'years');
+  }
+
+  protected patientDobYearOptions(patient: PatientForm): DatePickerYear[] {
+    return buildDatePickerYears(this.patientDobCalendarMonth(), patient.dateOfBirth);
+  }
+
   protected patientDobCalendarDays(patient: PatientForm): DatePickerDay[] {
     return buildDatePickerDays(this.patientDobCalendarMonth(), patient.dateOfBirth);
+  }
+
+  protected selectPatientDobYear(year: number): void {
+    this.patientDobCalendarMonth.update(month => clampDobCalendarMonth(new Date(year, month.getMonth(), 1)));
+    this.patientDobPickerMode.set('calendar');
   }
 
   protected selectPatientDob(patient: PatientForm, dateKey: string): void {
@@ -1371,6 +1440,7 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
 
   protected clearPatientDob(patient: PatientForm): void {
     patient.dateOfBirth = null;
+    this.patientDobPickerMode.set('calendar');
     this.patientDobPickerOpen.set(false);
   }
 
@@ -1647,6 +1717,12 @@ interface DatePickerDay {
   future: boolean;
 }
 
+interface DatePickerYear {
+  value: number;
+  selected: boolean;
+  current: boolean;
+}
+
 function strictDate(year: number, month: number, day: number): Date | null {
   const date = new Date(year, month - 1, day);
   const isValid =
@@ -1665,6 +1741,13 @@ function addMonths(date: Date, months: number): Date {
   const next = new Date(date);
   next.setMonth(next.getMonth() + months, 1);
   return startOfMonth(next);
+}
+
+function clampDobCalendarMonth(date: Date): Date {
+  const today = new Date();
+  const month = startOfMonth(date);
+  const currentMonth = startOfMonth(today);
+  return month.getTime() > currentMonth.getTime() ? currentMonth : month;
 }
 
 function inputDateValue(date: Date): string {
@@ -1698,6 +1781,21 @@ function buildDatePickerDays(monthDate: Date, selectedValue: string | null): Dat
       selected: dateKey === selectedKey,
       isToday: dateKey === todayKey,
       future: date.getTime() > todayStart.getTime()
+    };
+  });
+}
+
+function buildDatePickerYears(monthDate: Date, selectedValue: string | null): DatePickerYear[] {
+  const currentYear = new Date().getFullYear();
+  const selectedYear = parseDateOnly(selectedValue)?.getFullYear() ?? null;
+  const focusedYear = monthDate.getFullYear();
+
+  return Array.from({ length: 121 }, (_, index) => {
+    const value = currentYear - index;
+    return {
+      value,
+      selected: selectedYear === value || (!selectedYear && focusedYear === value),
+      current: currentYear === value
     };
   });
 }
