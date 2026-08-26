@@ -90,156 +90,153 @@ import { OpdManagementService } from './opd-management.service';
           </button>
         </div>
 
+        <div class="quick-action-bar">
+          <button type="button" [class.active]="activeTab() === 'check-in'" (click)="activeTab.set('check-in')">
+            <span class="material-symbols-rounded">how_to_reg</span>
+            <span>Check-In</span>
+            <strong>{{ tabCount('check-in') || '0' }}</strong>
+          </button>
+          <button type="button" [class.active]="activeTab() === 'queue'" (click)="activeTab.set('queue')">
+            <span class="material-symbols-rounded">queue</span>
+            <span>Queue</span>
+            <strong>{{ tabCount('queue') || '0' }}</strong>
+          </button>
+          <button type="button" [class.active]="activeTab() === 'active'" (click)="activeTab.set('active')">
+            <span class="material-symbols-rounded">stethoscope</span>
+            <span>Consulting</span>
+            <strong>{{ tabCount('active') || '0' }}</strong>
+          </button>
+          <button type="button" [disabled]="!selectedVisit()" (click)="savePrescriptionDraft()">
+            <span class="material-symbols-rounded">save</span>
+            <span>Draft</span>
+          </button>
+          <button type="button" [disabled]="!selectedVisit()" (click)="printPrescription()">
+            <span class="material-symbols-rounded">print</span>
+            <span>Print</span>
+          </button>
+        </div>
+
         @if (loading()) {
           <ac-grid-loader title="Loading OPD workspace..." message="Preparing queue, check-ins, consultations, and lab context." />
         } @else {
           @switch (activeTab()) {
             @case ('dashboard') {
-              <section class="opd-command-grid">
-                <article class="panel command-panel doctor-queue-panel">
-                  <div class="command-head">
+              <section class="opd-today-grid">
+                <article class="panel today-queue-panel">
+                  <div class="panel-topline">
                     <div>
-                      <p class="ac-eyebrow">Live OPD command</p>
-                      <h2>{{ doctorQueueSummary().doctorName }}</h2>
-                      <small>{{ formatNumberValue(totalOperationalVisits()) }} visits in the current workspace</small>
+                      <p class="ac-eyebrow">Today's Queue</p>
+                      <h2>Simple OPD Flow</h2>
+                      <span>{{ doctorQueueSummary().doctorName }} · {{ formatNumberValue(totalOperationalVisits()) }} visits</span>
                     </div>
-                    <span class="command-score">{{ completionPercent() }}%</span>
-                  </div>
-
-                  <div class="progress-track" aria-label="OPD completion progress">
-                    <span [style.width.%]="completionPercent()"></span>
-                  </div>
-
-                  <div class="doctor-metrics">
-                    <button type="button" (click)="activeTab.set('queue')">
-                      <small>Waiting</small>
-                      <strong>{{ doctorQueueSummary().waiting }}</strong>
-                    </button>
-                    <button type="button" (click)="activeTab.set('active')">
-                      <small>Current</small>
-                      <strong>{{ doctorQueueSummary().current }}</strong>
-                    </button>
-                    <button type="button" (click)="activeTab.set('completed')">
-                      <small>Completed</small>
-                      <strong>{{ doctorQueueSummary().completed }}</strong>
+                    <button class="ac-btn ac-btn-secondary" type="button" (click)="activeTab.set('check-in')">
+                      <span class="material-symbols-rounded">add_task</span>
+                      Check-In
                     </button>
                   </div>
-                </article>
 
-                <article class="panel next-patient-panel">
-                  <div class="panel-head compact">
-                    <span class="material-symbols-rounded">groups</span>
-                    <div>
-                      <p class="ac-eyebrow">Next action</p>
-                      <h2>Ready patient</h2>
-                    </div>
-                  </div>
-                  @if (nextWaitingVisit(); as visit) {
-                    <button type="button" class="next-patient-card" (click)="startEncounter(visit)">
-                      <span class="token-pill">{{ visit.tokenNumber }}</span>
-                      <strong>{{ visit.patientName }}</strong>
-                      <small>{{ visit.doctorName }} · Queue #{{ visit.queueNo || '-' }} · {{ visit.arrivalTime || '-' }}</small>
-                      <span class="next-action"><span class="material-symbols-rounded">play_arrow</span>Start consultation</span>
-                    </button>
-                  } @else if (activeConsultations().length) {
-                    @if (activeConsultations()[0]; as visit) {
-                      <button type="button" class="next-patient-card active" (click)="selectVisit(visit, 'encounter')">
-                        <span class="token-pill consultation">{{ visit.tokenNumber }}</span>
-                        <strong>{{ visit.patientName }}</strong>
-                        <small>{{ visit.doctorName }} · Consultation in progress</small>
-                        <span class="next-action"><span class="material-symbols-rounded">clinical_notes</span>Continue encounter</span>
-                      </button>
-                    }
-                  } @else {
-                    <div class="empty-state compact">No patient needs action right now.</div>
-                  }
-                </article>
-
-                <article class="panel dashboard-lane-panel">
-                  <div class="panel-head compact">
-                    <span class="material-symbols-rounded">route</span>
-                    <div>
-                      <p class="ac-eyebrow">Queue flow</p>
-                      <h2>Patient movement</h2>
-                    </div>
-                  </div>
-                  <div class="queue-lanes">
-                    <button type="button" class="queue-lane waiting" (click)="activeTab.set('queue')">
+                  <div class="queue-flow-strip">
+                    <button type="button" class="flow-step waiting" (click)="activeTab.set('queue')">
+                      <span class="material-symbols-rounded">pending_actions</span>
                       <small>Waiting</small>
                       <strong>{{ stats().waiting }}</strong>
                     </button>
-                    <button type="button" class="queue-lane active" (click)="activeTab.set('active')">
-                      <small>Active</small>
+                    <button type="button" class="flow-step active" (click)="activeTab.set('active')">
+                      <span class="material-symbols-rounded">medical_services</span>
+                      <small>In Consultation</small>
                       <strong>{{ stats().inConsultation }}</strong>
                     </button>
-                    <button type="button" class="queue-lane complete" (click)="activeTab.set('completed')">
-                      <small>Done</small>
+                    <button type="button" class="flow-step completed" (click)="activeTab.set('completed')">
+                      <span class="material-symbols-rounded">task_alt</span>
+                      <small>Completed</small>
                       <strong>{{ stats().completed }}</strong>
                     </button>
+                    <button type="button" class="flow-step danger" (click)="activeTab.set('queue')">
+                      <span class="material-symbols-rounded">event_busy</span>
+                      <small>No Shows</small>
+                      <strong>{{ stats().noShows }}</strong>
+                    </button>
                   </div>
-                </article>
 
-                <article class="panel dashboard-list-panel">
-                  <div class="panel-head compact">
-                    <span class="material-symbols-rounded">queue</span>
-                    <div>
-                      <p class="ac-eyebrow">Today's Queue</p>
-                      <h2>Waiting for doctor</h2>
-                    </div>
-                  </div>
-                  <div class="compact-list dashboard-visit-list">
-                    @for (visit of waitingQueue().slice(0, 4); track visit.appointment.id) {
-                      <button type="button" class="visit-row" (click)="selectVisit(visit, 'encounter')">
+                  <div class="simple-queue-list">
+                    @for (visit of queueVisits().slice(0, 7); track visit.appointment.id) {
+                      <button type="button" class="simple-queue-row" [class.selected]="selectedVisit()?.appointment?.id === visit.appointment.id" (click)="selectVisit(visit, 'dashboard')">
                         <span class="token-pill">{{ visit.tokenNumber }}</span>
-                        <strong>{{ visit.patientName }}</strong>
-                        <small>{{ visit.doctorName }} · {{ visit.arrivalTime || '-' }}</small>
+                        <span class="patient-cell">
+                          <strong>{{ visit.patientName }}</strong>
+                          <small>{{ visit.patientMrn }} · {{ patientAgeGender(visit) }}</small>
+                        </span>
+                        <span class="doctor-cell">
+                          <strong>{{ visit.doctorName }}</strong>
+                          <small>{{ visit.appointmentTime }} · {{ visit.arrivalTime || 'Not arrived' }}</small>
+                        </span>
+                        <span class="queue-status" [ngClass]="queueStatusClass(visit)">{{ queueStatusLabel(visit) }}</span>
                       </button>
                     } @empty {
-                      <p class="empty-copy">No checked-in patients waiting.</p>
+                      <div class="empty-state compact">No patients in today's OPD queue.</div>
                     }
                   </div>
                 </article>
 
-                <article class="panel dashboard-list-panel">
-                  <div class="panel-head compact">
-                    <span class="material-symbols-rounded">clinical_notes</span>
-                    <div>
-                      <p class="ac-eyebrow">Active Consultations</p>
-                      <h2>In progress</h2>
+                <article class="panel encounter-focus-panel">
+                  @if (dashboardFocusVisit(); as visit) {
+                    <div class="focus-head">
+                      <div class="patient-avatar">{{ patientInitials(visit) }}</div>
+                      <div>
+                        <p class="ac-eyebrow">Patient Snapshot</p>
+                        <h2>{{ visit.patientName }}</h2>
+                        <span>{{ visit.patientMrn }} · {{ patientAgeGender(visit) }}</span>
+                      </div>
+                      <span class="status-badge">{{ encounterStatusLabel(visit) }}</span>
                     </div>
-                  </div>
-                  <div class="compact-list dashboard-visit-list">
-                    @for (visit of activeConsultations().slice(0, 4); track visit.appointment.id) {
-                      <button type="button" class="visit-row" (click)="selectVisit(visit, 'encounter')">
-                        <span class="token-pill consultation">{{ visit.tokenNumber }}</span>
-                        <strong>{{ visit.patientName }}</strong>
-                        <small>{{ visit.doctorName }} · {{ visit.departmentName }}</small>
-                      </button>
-                    } @empty {
-                      <p class="empty-copy">No active consultations.</p>
-                    }
-                  </div>
-                </article>
 
-                <article class="panel dashboard-list-panel">
-                  <div class="panel-head compact">
-                    <span class="material-symbols-rounded">task_alt</span>
-                    <div>
-                      <p class="ac-eyebrow">Completed</p>
-                      <h2>Recently completed</h2>
+                    <div class="focus-details">
+                      <span><small>Token</small><strong>{{ visit.tokenNumber }}</strong></span>
+                      <span><small>Doctor</small><strong>{{ visit.doctorName }}</strong></span>
+                      <span><small>Department</small><strong>{{ visit.departmentName }}</strong></span>
+                      <span><small>Arrival</small><strong>{{ visit.arrivalTime || '-' }}</strong></span>
+                      <span><small>Blood Group</small><strong>{{ visit.patient?.bloodGroupName || '-' }}</strong></span>
+                      <span><small>Allergies</small><strong>{{ visit.patient?.knownAllergies || 'None' }}</strong></span>
                     </div>
-                  </div>
-                  <div class="compact-list dashboard-visit-list">
-                    @for (visit of recentCompletedVisits(); track visit.appointment.id) {
-                      <button type="button" class="visit-row completed" (click)="selectVisit(visit, 'encounter')">
-                        <span class="token-pill done">{{ visit.tokenNumber }}</span>
-                        <strong>{{ visit.patientName }}</strong>
-                        <small>{{ visit.doctorName }} · {{ visit.appointmentTime }}</small>
+
+                    <div class="clinical-summary-card">
+                      <h3>Clinical Summary</h3>
+                      <p>{{ visit.consultation?.notes || 'No clinical notes saved yet. Start the consultation or save a draft from the encounter.' }}</p>
+                    </div>
+
+                    <div class="focus-action-grid">
+                      @if (!visit.queue) {
+                        <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="quickCheckIn(visit)">
+                          <span class="material-symbols-rounded">how_to_reg</span>
+                          Check-In
+                        </button>
+                      } @else if (!visit.consultation) {
+                        <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="startEncounter(visit)">
+                          <span class="material-symbols-rounded">play_arrow</span>
+                          Start Consultation
+                        </button>
+                      } @else {
+                        <button class="ac-btn ac-btn-primary" type="button" (click)="selectVisit(visit, 'encounter')">
+                          <span class="material-symbols-rounded">clinical_notes</span>
+                          Open Encounter
+                        </button>
+                      }
+                      <button class="ac-btn ac-btn-secondary" type="button" (click)="selectVisit(visit, 'encounter'); activeEncounterSection.set('prescription')">
+                        <span class="material-symbols-rounded">receipt_long</span>
+                        Prescription
                       </button>
-                    } @empty {
-                      <p class="empty-copy">No completed visits yet.</p>
-                    }
-                  </div>
+                      <button class="ac-btn ac-btn-secondary" type="button" [disabled]="saving()" (click)="selectVisit(visit, 'dashboard'); savePrescriptionDraft()">
+                        <span class="material-symbols-rounded">save</span>
+                        Save Draft
+                      </button>
+                      <button class="ac-btn ac-btn-secondary" type="button" [disabled]="saving()" (click)="selectVisit(visit, 'dashboard'); printPrescription()">
+                        <span class="material-symbols-rounded">print</span>
+                        Print
+                      </button>
+                    </div>
+                  } @else {
+                    <div class="empty-state compact">Select a patient from queue or check in an appointment.</div>
+                  }
                 </article>
               </section>
             }
@@ -1264,11 +1261,126 @@ import { OpdManagementService } from './opd-management.service';
     .search-field { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 10px; border: 1px solid var(--ac-border); border-radius: 9px; background: var(--ac-surface); color: var(--ac-muted); }
     .search-field input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ac-text); font: inherit; font-weight: 750; }
     .icon-btn { width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid var(--ac-border); border-radius: 9px; background: var(--ac-surface); color: var(--ac-muted); cursor: pointer; }
+    .opd-page * { letter-spacing: 0; }
+    .quick-action-bar {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+      padding: 8px;
+      border: 1px solid var(--ac-border);
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--ac-subtle) 72%, var(--ac-surface));
+    }
+    .quick-action-bar button {
+      min-width: 0;
+      min-height: 42px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--ac-border);
+      border-radius: 8px;
+      padding: 7px 10px;
+      background: var(--ac-surface);
+      color: var(--ac-text);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 850;
+      text-align: left;
+      cursor: pointer;
+    }
+    .quick-action-bar button:hover, .quick-action-bar button.active {
+      border-color: color-mix(in srgb, var(--ac-primary) 42%, var(--ac-border));
+      background: color-mix(in srgb, var(--ac-primary) 7%, var(--ac-surface));
+      color: var(--ac-primary);
+      box-shadow: 0 8px 18px rgba(15, 23, 42, .06);
+    }
+    .quick-action-bar button:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+    .quick-action-bar .material-symbols-rounded { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 8px; background: var(--ac-primary-light); font-size: 17px; }
+    .quick-action-bar span:not(.material-symbols-rounded) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .quick-action-bar strong { min-width: 24px; min-height: 22px; display: inline-grid; place-items: center; border-radius: 999px; background: var(--ac-subtle); color: var(--ac-muted); font-size: 11px; font-weight: 950; }
     .spin { animation: spin 900ms linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .empty-state { min-height: 240px; display: grid; place-items: center; align-content: center; gap: 10px; color: var(--ac-muted); text-align: center; }
     .empty-state.compact { min-height: 56px; border: 1px dashed var(--ac-border); border-radius: 10px; background: var(--ac-subtle); font-weight: 850; }
     .dashboard-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .opd-today-grid { min-width: 0; display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(360px, .85fr); gap: 10px; align-items: start; }
+    .today-queue-panel, .encounter-focus-panel { min-height: 520px; display: grid; align-content: start; gap: 12px; }
+    .panel-topline { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+    .panel-topline h2 { margin: 0; color: var(--ac-text); font-size: 22px; line-height: 1.15; }
+    .panel-topline span { display: block; margin-top: 4px; color: var(--ac-muted); font-size: 12px; font-weight: 800; overflow-wrap: anywhere; }
+    .queue-flow-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    .flow-step {
+      min-width: 0;
+      min-height: 82px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 3px 8px;
+      align-content: center;
+      align-items: center;
+      border: 1px solid var(--ac-border);
+      border-radius: 8px;
+      padding: 10px;
+      background: var(--ac-surface);
+      color: var(--ac-text);
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+    .flow-step:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(15, 23, 42, .06); }
+    .flow-step .material-symbols-rounded { grid-row: span 2; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 8px; font-size: 18px; }
+    .flow-step small { min-width: 0; color: var(--ac-muted); font-size: 11px; font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .flow-step strong { min-width: 0; color: var(--ac-text); font-size: 24px; line-height: 1; }
+    .flow-step.waiting .material-symbols-rounded { background: #eff6ff; color: #2563eb; }
+    .flow-step.active .material-symbols-rounded { background: #f0fdfa; color: #0f766e; }
+    .flow-step.completed .material-symbols-rounded { background: #ecfdf5; color: #047857; }
+    .flow-step.danger .material-symbols-rounded { background: #fff1f2; color: #e11d48; }
+    .simple-queue-list { display: grid; gap: 7px; max-height: 372px; overflow: auto; padding-right: 2px; }
+    .simple-queue-row {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: minmax(78px, auto) minmax(160px, 1fr) minmax(160px, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid var(--ac-border);
+      border-radius: 8px;
+      padding: 9px 10px;
+      background: var(--ac-surface);
+      color: var(--ac-text);
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+    .simple-queue-row:hover, .simple-queue-row.selected {
+      border-color: color-mix(in srgb, var(--ac-primary) 42%, var(--ac-border));
+      background: color-mix(in srgb, var(--ac-primary) 5%, var(--ac-surface));
+      box-shadow: 0 8px 18px rgba(15, 23, 42, .05);
+    }
+    .patient-cell, .doctor-cell { min-width: 0; display: grid; gap: 3px; }
+    .patient-cell strong, .doctor-cell strong { min-width: 0; color: var(--ac-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .patient-cell small, .doctor-cell small { min-width: 0; color: var(--ac-muted); font-size: 11.5px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .encounter-focus-panel { position: sticky; top: 10px; }
+    .focus-head { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+    .patient-avatar { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 8px; background: linear-gradient(135deg, #2563eb, #0f766e); color: white; font-size: 15px; font-weight: 950; }
+    .focus-head h2 { margin: 0; color: var(--ac-text); font-size: 21px; line-height: 1.15; overflow-wrap: anywhere; }
+    .focus-head span:not(.status-badge) { color: var(--ac-muted); font-size: 12px; font-weight: 800; }
+    .focus-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .focus-details span, .clinical-summary-card {
+      min-width: 0;
+      display: grid;
+      gap: 4px;
+      border: 1px solid var(--ac-border);
+      border-radius: 8px;
+      padding: 10px;
+      background: color-mix(in srgb, var(--ac-subtle) 58%, var(--ac-surface));
+    }
+    .focus-details small { color: var(--ac-muted); font-size: 10.5px; font-weight: 900; text-transform: uppercase; }
+    .focus-details strong { color: var(--ac-text); overflow-wrap: anywhere; }
+    .clinical-summary-card h3 { margin: 0; color: var(--ac-text); font-size: 15px; }
+    .clinical-summary-card p { margin: 0; color: var(--ac-muted); line-height: 1.55; font-size: 12.5px; font-weight: 760; }
+    .focus-action-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: auto; }
+    .focus-action-grid .ac-btn { justify-content: center; min-width: 0; }
     .opd-command-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px; }
     .opd-command-grid { align-items: start; }
     .command-panel { grid-column: 1 / -1; min-width: 0; display: grid; grid-template-columns: minmax(0, .9fr) minmax(360px, 1fr); gap: 10px 14px; align-items: center; overflow: hidden; }
@@ -2325,6 +2437,10 @@ import { OpdManagementService } from './opd-management.service';
     }
     @media (max-width: 1180px) {
       .stats-row, .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .opd-today-grid { grid-template-columns: 1fr; }
+      .encounter-focus-panel { position: static; min-height: 0; }
+      .quick-action-bar { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .simple-queue-list { max-height: none; }
       .opd-command-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .command-panel, .next-patient-panel, .dashboard-lane-panel, .dashboard-list-panel { grid-column: auto; }
       .command-panel { grid-template-columns: 1fr; }
@@ -2344,6 +2460,12 @@ import { OpdManagementService } from './opd-management.service';
     @media (max-width: 720px) {
       .page-header, .header-actions { flex-direction: column; align-items: stretch; }
       .stats-row, .dashboard-grid, .opd-command-grid, .summary-strip, .doctor-metrics, .queue-lanes { grid-template-columns: 1fr; }
+      .quick-action-bar, .queue-flow-strip, .focus-details, .focus-action-grid { grid-template-columns: 1fr; }
+      .quick-action-bar button { min-height: 44px; }
+      .panel-topline, .focus-head { grid-template-columns: 1fr; display: grid; }
+      .panel-topline .ac-btn { width: 100%; justify-content: center; }
+      .simple-queue-row { grid-template-columns: 1fr; }
+      .simple-queue-row .queue-status { width: fit-content; }
       .command-panel { grid-column: auto; }
       .command-head { display: grid; }
       .command-score { width: fit-content; min-width: 64px; }
@@ -2634,6 +2756,12 @@ export class OpdPageComponent implements OnInit {
   ]);
 
   protected readonly nextWaitingVisit = computed(() => this.waitingQueue()[0] ?? null);
+  protected readonly dashboardFocusVisit = computed(() =>
+    this.selectedVisit()
+    ?? this.nextWaitingVisit()
+    ?? this.activeConsultations()[0]
+    ?? this.pendingCheckIns()[0]
+    ?? null);
 
   protected readonly recentCompletedVisits = computed(() =>
     [...this.completedVisits()]
@@ -3046,6 +3174,15 @@ export class OpdPageComponent implements OnInit {
 
   protected prescriptionMedicineInstruction(item: OpdPrescriptionItemForm): string {
     return formatPrescriptionMedicineInstruction(item);
+  }
+
+  protected patientInitials(visit: OpdVisitVm): string {
+    return visit.patientName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(part => part[0]?.toUpperCase() ?? '')
+      .join('') || 'PT';
   }
 
   protected addComplaint(): void {
