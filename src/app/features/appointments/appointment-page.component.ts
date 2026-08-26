@@ -520,16 +520,16 @@ import { AppointmentManagementService } from './appointment-management.service';
     .details-grid strong { color: var(--ac-text); overflow-wrap: anywhere; }
     .span-2 { grid-column: 1 / -1; }
     .details-actions { margin-top: 14px; flex-wrap: wrap; }
-    .drawer-form { display: grid; gap: 16px; }
-    .form-section { border: 1px solid var(--ac-border); border-radius: 10px; padding: 16px; background: var(--ac-surface); }
-    .section-title { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-    .section-title span { width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; background: var(--ac-primary-light); color: var(--ac-primary); }
-    .section-title h3 { margin: 0; }
-    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-    label { display: grid; gap: 8px; color: var(--ac-text); font-size: 13px; font-weight: 850; }
+    .drawer-form { display: grid; gap: 12px; }
+    .form-section { border: 1px solid var(--ac-border); border-radius: 10px; padding: 12px; background: var(--ac-surface); }
+    .section-title { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
+    .section-title span { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; background: var(--ac-primary-light); color: var(--ac-primary); font-size: 18px; }
+    .section-title h3 { margin: 0; font-size: 16px; line-height: 1.15; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+    label { display: grid; gap: 5px; color: var(--ac-text); font-size: 12.5px; font-weight: 850; }
     label > span { color: var(--ac-muted); }
-    input, textarea { width: 100%; border: 1px solid var(--ac-border); background: var(--ac-surface); color: var(--ac-text); border-radius: 8px; padding: 12px 13px; font: inherit; font-weight: 750; outline: 0; }
-    textarea { resize: vertical; }
+    input, textarea { width: 100%; border: 1px solid var(--ac-border); background: var(--ac-surface); color: var(--ac-text); border-radius: 8px; padding: 0 11px; min-height: 38px; font: inherit; font-weight: 750; outline: 0; }
+    textarea { resize: vertical; min-height: 72px; padding: 9px 11px; }
     input:focus, textarea:focus { border-color: var(--ac-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ac-primary) 14%, transparent); }
     .slot-picker { display: grid; gap: 10px; padding: 13px; border: 1px dashed color-mix(in srgb, var(--ac-primary) 28%, var(--ac-border)); border-radius: 10px; background: color-mix(in srgb, var(--ac-primary) 4%, var(--ac-surface)); }
     .slot-picker > div:first-child { display: flex; justify-content: space-between; gap: 10px; align-items: center; color: var(--ac-text); font-weight: 900; }
@@ -541,19 +541,19 @@ import { AppointmentManagementService } from './appointment-management.service';
     .slot-grid button small { margin-left: 4px; font-size: 10.5px; }
     .slot-grid p { margin: 0; color: var(--ac-muted); font-size: 13px; }
     .checkin-section { background: linear-gradient(135deg, color-mix(in srgb, var(--ac-primary) 5%, var(--ac-surface)), var(--ac-surface)); }
-    .checkin-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; padding: 10px; border: 1px solid var(--ac-border); border-radius: 10px; background: var(--ac-surface); color: var(--ac-muted); font-size: 12px; font-weight: 900; }
-    .checkin-flow span:not(.material-symbols-rounded) { min-height: 28px; display: inline-flex; align-items: center; border-radius: 999px; padding: 0 10px; background: color-mix(in srgb, var(--ac-primary) 8%, var(--ac-surface)); color: var(--ac-text); }
-    .checkin-flow .material-symbols-rounded { color: var(--ac-primary); font-size: 18px; }
+    .checkin-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; padding: 8px; border: 1px solid var(--ac-border); border-radius: 9px; background: var(--ac-surface); color: var(--ac-muted); font-size: 11.5px; font-weight: 900; }
+    .checkin-flow span:not(.material-symbols-rounded) { min-height: 24px; display: inline-flex; align-items: center; border-radius: 999px; padding: 0 8px; background: color-mix(in srgb, var(--ac-primary) 8%, var(--ac-surface)); color: var(--ac-text); }
+    .checkin-flow .material-symbols-rounded { color: var(--ac-primary); font-size: 16px; }
     .checkin-progress { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--ac-primary) 24%, var(--ac-border)); border-radius: 10px; background: color-mix(in srgb, var(--ac-primary) 7%, var(--ac-surface)); color: var(--ac-text); }
     .checkin-progress > .material-symbols-rounded { color: var(--ac-primary); }
     .checkin-progress strong, .checkin-progress small { display: block; }
     .checkin-progress small { margin-top: 2px; color: var(--ac-muted); font-size: 12px; font-weight: 750; }
     .spin { animation: spin 900ms linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .queue-ticket { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
-    .queue-ticket > div { min-height: 86px; display: grid; align-content: center; gap: 6px; padding: 16px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--ac-primary) 24%, var(--ac-border)); background: color-mix(in srgb, var(--ac-primary) 7%, var(--ac-surface)); box-shadow: 0 14px 32px rgba(15, 23, 42, .06); }
-    .queue-ticket small { color: var(--ac-muted); font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; }
-    .queue-ticket strong { color: var(--ac-text); font-size: 28px; line-height: 1; }
+    .queue-ticket { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+    .queue-ticket > div { min-height: 48px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 9px; border: 1px solid color-mix(in srgb, var(--ac-primary) 22%, var(--ac-border)); background: color-mix(in srgb, var(--ac-primary) 5%, var(--ac-surface)); box-shadow: 0 8px 18px rgba(15, 23, 42, .04); }
+    .queue-ticket small { min-width: 0; color: var(--ac-muted); font-size: 10.5px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .queue-ticket strong { color: var(--ac-text); font-size: 20px; line-height: 1; white-space: nowrap; }
     @media (max-width: 1220px) {
       .stats-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .workspace-toolbar, .toolbar-filters { grid-template-columns: 1fr; }

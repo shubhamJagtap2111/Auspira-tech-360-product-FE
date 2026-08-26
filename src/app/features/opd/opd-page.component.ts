@@ -2549,13 +2549,21 @@ export class OpdPageComponent implements OnInit {
   protected readonly visitModels = computed<OpdVisitVm[]>(() => {
     const patientMap = new Map(this.patients().map(patient => [patient.patientGuid, patient]));
     const doctorMap = new Map(this.doctors().map(doctor => [doctor.doctorGuid, doctor]));
-    const queueMap = new Map(this.queues().map(queue => [queue.appointmentId, queue]));
+    const queueMap = new Map<string, AppointmentQueueRecord>();
+    this.queues().forEach(queue => {
+      const appointmentId = queueAppointmentId(queue);
+      if (appointmentId) {
+        queueMap.set(appointmentId, queue);
+      }
+    });
     const consultationMap = new Map(this.consultations().filter(item => item.appointmentId).map(item => [item.appointmentId as string, item]));
 
     return this.appointments()
       .map(appointment => {
+        const appointmentStatus = normalizeCode(appointment.statusCode || 'SCHEDULED');
         const queue = queueMap.get(appointment.id) ?? null;
         const consultation = consultationMap.get(appointment.id) ?? null;
+        const consultationStatus = normalizeCode(consultation?.statusCode || appointmentStatus || '-');
         const patient = patientMap.get(appointment.patientId) ?? null;
         const doctor = doctorMap.get(appointment.doctorId) ?? null;
         return {
@@ -2565,7 +2573,7 @@ export class OpdPageComponent implements OnInit {
           patient,
           doctor,
           appointmentNo: appointment.appointmentNo || derivedAppointmentNo(appointment.id),
-          tokenNumber: queue?.tokenNumber || '-',
+          tokenNumber: queue?.tokenNumber || (isCheckedInStatus(appointmentStatus) ? 'Token pending' : '-'),
           queueNo: queue?.queueNo ?? null,
           priorityCode: priorityLabel(queue?.priorityCode),
           patientName: patient?.fullName ?? 'Unknown patient',
@@ -2575,8 +2583,8 @@ export class OpdPageComponent implements OnInit {
           branchName: appointment.branchName || doctor?.branchName || 'Main Branch',
           appointmentTime: formatTime(appointment.startsAt),
           arrivalTime: queue?.arrivedAt ? formatTime(queue.arrivedAt) : null,
-          statusCode: String(appointment.statusCode || '').toUpperCase(),
-          consultationStatus: String(consultation?.statusCode || appointment.statusCode || '-').toUpperCase()
+          statusCode: appointmentStatus,
+          consultationStatus
         };
       })
       .filter(visit => this.matchesSearch(visit))
@@ -2597,30 +2605,27 @@ export class OpdPageComponent implements OnInit {
   ));
 
   protected readonly waitingQueue = computed(() => this.visitModels().filter(visit =>
-    visit.queue
-    && isToday(visit.queue.arrivedAt)
-    && ['WAITING', 'CHECKED_IN'].includes(String(visit.queue.statusCode || visit.statusCode).toUpperCase())
-    && !['IN_PROGRESS', 'IN_CONSULTATION', 'COMPLETED'].includes(visit.consultationStatus)
+    isQueueVisibleToday(visit)
+    && isWaitingVisit(visit)
+    && !isActiveOrCompletedConsultation(visit)
   ));
 
   protected readonly queueVisits = computed(() => this.visitModels().filter(visit =>
-    visit.queue
-    && isToday(visit.queue.arrivedAt)
-    && !['COMPLETED', 'CANCELLED', 'NO_SHOW', 'NOSHOW'].includes(String(visit.queue.statusCode).toUpperCase())
-    && !['COMPLETED', 'CANCELLED', 'NO_SHOW', 'NOSHOW'].includes(visit.statusCode)
+    isQueueVisibleToday(visit)
+    && !isTerminalQueueVisit(visit)
   ));
 
   protected readonly activeConsultations = computed(() => this.visitModels().filter(visit =>
-    ['DRAFT', 'IN_PROGRESS', 'IN_CONSULTATION'].includes(visit.consultationStatus)
+    isActiveConsultation(visit)
   ));
 
   protected readonly completedVisits = computed(() => this.visitModels().filter(visit =>
-    visit.consultationStatus === 'COMPLETED' || visit.statusCode === 'COMPLETED'
+    isCompletedVisit(visit)
   ));
 
   protected readonly noShowVisits = computed(() => this.visitModels().filter(visit =>
-    ['NO_SHOW', 'NOSHOW'].includes(visit.statusCode)
-    || ['NO_SHOW', 'NOSHOW'].includes(String(visit.queue?.statusCode || '').toUpperCase())
+    isNoShowStatus(visit.statusCode)
+    || isNoShowStatus(normalizeCode(visit.queue?.statusCode || ''))
   ));
 
   protected readonly encounterCandidates = computed(() => [
@@ -2678,7 +2683,7 @@ export class OpdPageComponent implements OnInit {
     const stats = this.stats();
     switch (tabId) {
       case 'queue':
-        return formatNumber(stats.waiting);
+        return formatNumber(this.queueVisits().length);
       case 'check-in':
         return formatNumber(this.pendingCheckIns().length);
       case 'active':
@@ -2696,7 +2701,7 @@ export class OpdPageComponent implements OnInit {
     return {
       doctorName: doctor ? `${doctor.fullName} · ${doctor.departmentName}` : 'All doctors',
       waiting: formatNumber(visits.filter(visit => this.waitingQueue().some(item => item.appointment.id === visit.appointment.id)).length),
-      current: formatNumber(visits.filter(visit => ['DRAFT', 'IN_PROGRESS', 'IN_CONSULTATION'].includes(visit.consultationStatus)).length),
+      current: formatNumber(visits.filter(visit => isActiveConsultation(visit)).length),
       completed: formatNumber(visits.filter(visit => this.completedVisits().some(item => item.appointment.id === visit.appointment.id)).length)
     };
   });
@@ -2883,10 +2888,11 @@ export class OpdPageComponent implements OnInit {
   }
 
   protected canUseQueueActions(visit: OpdVisitVm): boolean {
-    const queueStatus = String(visit.queue?.statusCode || visit.statusCode || '').toUpperCase();
-    const consultationStatus = String(visit.consultationStatus || '').toUpperCase();
+    const queueStatus = normalizeCode(visit.queue?.statusCode || visit.statusCode || '');
+    const consultationStatus = normalizeCode(visit.consultationStatus || '');
     return Boolean(visit.queue)
-      && !['IN_CONSULTATION', 'COMPLETED', 'CANCELLED', 'NO_SHOW', 'NOSHOW'].includes(queueStatus)
+      && !['IN_CONSULTATION', 'COMPLETED', 'CANCELLED'].includes(queueStatus)
+      && !isNoShowStatus(queueStatus)
       && !['IN_PROGRESS', 'IN_CONSULTATION', 'COMPLETED', 'CANCELLED'].includes(consultationStatus);
   }
 
@@ -2896,9 +2902,10 @@ export class OpdPageComponent implements OnInit {
   }
 
   protected queueStatusLabel(visit: OpdVisitVm): string {
-    const status = String(visit.queue?.statusCode || visit.statusCode || '').toUpperCase();
+    const status = normalizeCode(visit.queue?.statusCode || visit.statusCode || '');
     const labels: Record<string, string> = {
       CHECKED_IN: 'Waiting',
+      CHECKEDIN: 'Waiting',
       WAITING: 'Waiting',
       SKIPPED: 'Skipped',
       IN_CONSULTATION: 'In Consultation'
@@ -2907,7 +2914,7 @@ export class OpdPageComponent implements OnInit {
   }
 
   protected queueStatusClass(visit: OpdVisitVm): string {
-    const status = String(visit.queue?.statusCode || visit.statusCode || '').toUpperCase();
+    const status = normalizeCode(visit.queue?.statusCode || visit.statusCode || '');
     if (status === 'SKIPPED') {
       return 'skipped';
     }
@@ -3955,8 +3962,9 @@ export class OpdPageComponent implements OnInit {
   }
 
   private upsertQueue(queue: AppointmentQueueRecord): void {
-    this.queues.update(queues => queues.some(item => item.id === queue.id || item.appointmentId === queue.appointmentId)
-      ? queues.map(item => item.id === queue.id || item.appointmentId === queue.appointmentId ? queue : item)
+    const appointmentId = queueAppointmentId(queue);
+    this.queues.update(queues => queues.some(item => item.id === queue.id || queueAppointmentId(item) === appointmentId)
+      ? queues.map(item => item.id === queue.id || queueAppointmentId(item) === appointmentId ? queue : item)
       : [queue, ...queues]);
   }
 
@@ -5113,6 +5121,66 @@ function stableNumericHash(value: string): number {
 function priorityLabel(value: string | null | undefined): string {
   const normalized = String(value || 'NORMAL').toUpperCase();
   return appointmentPriorityOptions.find(option => option.value === normalized)?.label ?? 'Normal';
+}
+
+function queueAppointmentId(queue: AppointmentQueueRecord): string {
+  const record = queue as AppointmentQueueRecord & Record<string, unknown>;
+  const value = record.appointmentId
+    ?? record['appointmentID']
+    ?? record['appointmentGuid']
+    ?? record['appointmentGUID']
+    ?? record['appointment_id']
+    ?? record['AppointmentId'];
+  return typeof value === 'string' ? value : '';
+}
+
+function normalizeCode(value: string | null | undefined): string {
+  return String(value || '')
+    .trim()
+    .replace(/[\s-]+/g, '_')
+    .toUpperCase();
+}
+
+function isCheckedInStatus(status: string): boolean {
+  return ['CHECKED_IN', 'CHECKEDIN', 'WAITING'].includes(normalizeCode(status));
+}
+
+function isNoShowStatus(status: string): boolean {
+  return ['NO_SHOW', 'NOSHOW'].includes(normalizeCode(status));
+}
+
+function isActiveConsultation(visit: OpdVisitVm): boolean {
+  return ['DRAFT', 'IN_PROGRESS', 'IN_CONSULTATION'].includes(normalizeCode(visit.consultationStatus));
+}
+
+function isActiveOrCompletedConsultation(visit: OpdVisitVm): boolean {
+  return isActiveConsultation(visit) || normalizeCode(visit.consultationStatus) === 'COMPLETED';
+}
+
+function isCompletedVisit(visit: OpdVisitVm): boolean {
+  return normalizeCode(visit.consultationStatus) === 'COMPLETED' || normalizeCode(visit.statusCode) === 'COMPLETED';
+}
+
+function isWaitingVisit(visit: OpdVisitVm): boolean {
+  const queueStatus = normalizeCode(visit.queue?.statusCode || '');
+  return isCheckedInStatus(queueStatus) || isCheckedInStatus(visit.statusCode);
+}
+
+function isTerminalQueueVisit(visit: OpdVisitVm): boolean {
+  const queueStatus = normalizeCode(visit.queue?.statusCode || '');
+  return ['COMPLETED', 'CANCELLED'].includes(queueStatus)
+    || isNoShowStatus(queueStatus)
+    || ['COMPLETED', 'CANCELLED'].includes(normalizeCode(visit.statusCode))
+    || isNoShowStatus(visit.statusCode);
+}
+
+function isQueueVisibleToday(visit: OpdVisitVm): boolean {
+  if (visit.queue) {
+    const queueDay = dateKey(visit.queue.arrivedAt);
+    return queueDay ? queueDay === todayInputValue() : isToday(visit.appointment.startsAt);
+  }
+
+  return isCheckedInStatus(visit.statusCode) && isToday(visit.appointment.startsAt);
 }
 
 function humanizeCode(value: string): string {
