@@ -655,10 +655,10 @@ interface IpdKpiCard {
                           <p class="ac-eyebrow">Section 4</p>
                           <h2>Latest Vitals</h2>
                           <div class="vitals-strip">
-                            <span><b>Temperature</b>Not recorded</span>
-                            <span><b>Blood Pressure</b>Not recorded</span>
-                            <span><b>Pulse</b>Not recorded</span>
-                            <span><b>SpO2</b>Not recorded</span>
+                            <span><b>Temperature</b>{{ latestVitalValue('temperature') }}</span>
+                            <span><b>Blood Pressure</b>{{ latestVitalValue('bloodPressure') }}</span>
+                            <span><b>Pulse</b>{{ latestVitalValue('pulse') }}</span>
+                            <span><b>SpO2</b>{{ latestVitalValue('spo2') }}</span>
                           </div>
                         </article>
 
@@ -1706,6 +1706,85 @@ interface IpdKpiCard {
     }
     .tab-placeholder p:not(.ac-eyebrow) { color: var(--ac-muted); font-weight: 800; max-width: 620px; }
 
+    .vitals-workspace {
+      display: grid;
+      grid-template-columns: minmax(340px, .78fr) minmax(0, 1.22fr);
+      gap: 14px;
+      align-items: start;
+    }
+    .vitals-latest-panel {
+      border-top: 3px solid var(--ac-success);
+      background: linear-gradient(135deg, color-mix(in srgb, var(--ac-success-light) 42%, var(--ac-surface)), var(--ac-surface));
+    }
+    .latest-vitals-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .latest-vitals-grid span {
+      display: grid;
+      gap: 5px;
+      min-height: 86px;
+      align-content: center;
+      padding: 14px;
+      border: 1px solid color-mix(in srgb, var(--ac-success) 22%, var(--ac-border));
+      border-radius: 12px;
+      background: rgba(255,255,255,.74);
+      font-size: 19px;
+      font-weight: 900;
+    }
+    .latest-vitals-grid b {
+      color: var(--ac-muted);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+    .vital-form {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .trend-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .trend-grid > div {
+      min-height: 160px;
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--ac-border);
+      border-radius: 12px;
+      background: var(--ac-surface-2);
+    }
+    .trend-grid b { color: var(--ac-text-3); }
+    .sparkline {
+      height: 104px;
+      display: flex;
+      align-items: end;
+      gap: 6px;
+      padding: 10px;
+      border-radius: 10px;
+      background: var(--ac-surface);
+      border: 1px solid var(--ac-border);
+    }
+    .sparkline i {
+      flex: 1 1 8px;
+      min-width: 6px;
+      border-radius: 999px 999px 3px 3px;
+      background: linear-gradient(180deg, var(--ac-primary), #60A5FA);
+    }
+    .sparkline.pulse i { background: linear-gradient(180deg, #EF4444, #F97316); }
+    .sparkline.spo2 i { background: linear-gradient(180deg, var(--ac-success), #2DD4BF); }
+    .vitals-head, .vitals-row {
+      grid-template-columns: 1.05fr .55fr .6fr .55fr .55fr .45fr .7fr .65fr;
+    }
+    .row-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
     .facility-workspace { display: grid; gap: 16px; }
     .facility-tabs {
       display: inline-flex;
@@ -1840,18 +1919,18 @@ interface IpdKpiCard {
     @keyframes spin { to { transform: rotate(360deg); } }
     @media (max-width: 1280px) {
       .kpi-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-      .dashboard-grid, .care-grid, .bed-layout, .detail-grid, .overview-workspace { grid-template-columns: 1fr; }
-      .admission-filters, .active-filters, .wizard-grid, .patient-step, .review-grid, .facility-form, .facility-grid, .detail-kpis, .admission-meta-line { grid-template-columns: 1fr 1fr; }
+      .dashboard-grid, .care-grid, .bed-layout, .detail-grid, .overview-workspace, .vitals-workspace { grid-template-columns: 1fr; }
+      .admission-filters, .active-filters, .wizard-grid, .patient-step, .review-grid, .facility-form, .facility-grid, .detail-kpis, .admission-meta-line, .vital-form { grid-template-columns: 1fr 1fr; }
       .wide-field, .wide-review, .compact-actions { grid-column: 1 / -1; }
       .transfer-box, .discharge-summary { grid-template-columns: 1fr; }
     }
     @media (max-width: 760px) {
       .ipd-page { padding: 16px; }
       .page-header, .panel-head, .section-toolbar { flex-direction: column; }
-      .kpi-strip, .admission-filters, .active-filters, .wizard-grid, .patient-step, .review-grid, .facility-form, .facility-grid, .billing-grid, .reports-grid, .detail-kpis, .admission-meta-line, .summary-grid, .location-strip, .vitals-strip { grid-template-columns: 1fr; }
+      .kpi-strip, .admission-filters, .active-filters, .wizard-grid, .patient-step, .review-grid, .facility-form, .facility-grid, .billing-grid, .reports-grid, .detail-kpis, .admission-meta-line, .summary-grid, .location-strip, .vitals-strip, .latest-vitals-grid, .vital-form, .trend-grid { grid-template-columns: 1fr; }
       .wide-field, .wide-review, .compact-actions { grid-column: auto; }
       .admissions-head, .active-head { display: none; }
-      .admissions-row, .active-row { grid-template-columns: 1fr; }
+      .admissions-row, .active-row, .vitals-row { grid-template-columns: 1fr; }
       .mini-row { grid-template-columns: 1fr; }
       .patient-card { grid-template-columns: 48px 1fr; }
       .patient-card .ac-btn { grid-column: span 2; }
@@ -1887,6 +1966,8 @@ export class IpdPageComponent implements OnInit {
   protected readonly selectedWardName = signal('');
   protected readonly selectedRoomName = signal('');
   protected readonly facilityTab = signal<FacilityTab>('wards');
+  protected readonly vitalRecords = signal<IpdVitalRecord[]>([]);
+  protected readonly vitalsLoading = signal(false);
 
   protected readonly tabs: IpdTabItem[] = [
     { key: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -2030,6 +2111,7 @@ export class IpdPageComponent implements OnInit {
   protected wardForm: SaveIpdWardRequest = createWardForm();
   protected roomForm: SaveIpdRoomRequest = createRoomForm();
   protected bedForm: SaveIpdBedRequest = createBedForm();
+  protected vitalForm: SaveIpdVitalRequest = createVitalForm();
   protected consultingDoctorId = '';
   protected transferBedId = '';
   protected doctorRoundNote = '';
@@ -2190,6 +2272,8 @@ export class IpdPageComponent implements OnInit {
       (!room || roomNameForBed(bed.bedNo) === room)
     );
   });
+
+  protected readonly latestVital = computed(() => this.vitalRecords()[0] ?? null);
 
   private readonly service = inject(IpdManagementService);
   private readonly toast = inject(ToastService);
@@ -2436,6 +2520,7 @@ export class IpdPageComponent implements OnInit {
     this.selectedAdmissionId.set(admission.admissionId);
     this.transferBedId = '';
     this.loadAdmissionDraft(admission.admissionId);
+    void this.loadVitals(admission.admissionId);
     this.setTab(tab);
   }
 
@@ -2445,11 +2530,22 @@ export class IpdPageComponent implements OnInit {
     this.activeDetailTab.set('overview');
     this.transferBedId = '';
     this.loadAdmissionDraft(admission.admissionId);
+    void this.loadVitals(admission.admissionId);
   }
 
   protected closeInpatientDetail(): void {
     this.activePatientDetailOpen.set(false);
     this.activeDetailTab.set('overview');
+  }
+
+  protected setDetailTab(tab: IpdDetailTab): void {
+    this.activeDetailTab.set(tab);
+    if (tab === 'vitals') {
+      const admission = this.selectedAdmission();
+      if (admission) {
+        void this.loadVitals(admission.admissionId);
+      }
+    }
   }
 
   protected openAdmissionRecord(admission: IpdAdmissionListItem): void {
@@ -2477,6 +2573,7 @@ export class IpdPageComponent implements OnInit {
 
     this.selectAdmission(admission, 'patients');
     this.activePatientDetailOpen.set(true);
+    void this.loadVitals(admission.admissionId);
   }
 
   protected async createAdmission(): Promise<void> {
@@ -2619,6 +2716,159 @@ export class IpdPageComponent implements OnInit {
     this.nursingNote = '';
     localStorage.removeItem(careDraftKey(admission.admissionId));
     this.toast.success('Care notes saved', 'Doctor and nursing updates are attached to the admission.');
+  }
+
+  protected async loadVitals(admissionId: string): Promise<void> {
+    this.vitalsLoading.set(true);
+    this.vitalRecords.set([]);
+    const response = await this.service.vitals(admissionId);
+    this.vitalsLoading.set(false);
+
+    if (!response.success || !response.data) {
+      this.toast.error('Unable to load vitals', getApiErrorMessage(response, 'IPD vitals API failed'));
+      return;
+    }
+
+    this.vitalRecords.set(response.data);
+  }
+
+  protected setVitalDate(value: string): void {
+    this.vitalForm.recordedAt = value ? new Date(value).toISOString() : null;
+  }
+
+  protected resetVitalForm(): void {
+    this.vitalForm = createVitalForm();
+  }
+
+  protected async saveVitals(): Promise<void> {
+    const admission = this.selectedAdmission();
+    if (!admission) {
+      this.toast.warning('Select an inpatient', 'Choose an active IPD patient before recording vitals.');
+      return;
+    }
+
+    const request = this.normalizedVitalRequest();
+    if (!hasVitalMeasurement(request)) {
+      this.toast.warning('Vitals required', 'Enter at least one vital value or note before saving.');
+      return;
+    }
+
+    if (request.spo2 !== null && (request.spo2 < 0 || request.spo2 > 100)) {
+      this.toast.warning('Invalid SpO2', 'SpO2 must be between 0 and 100.');
+      return;
+    }
+
+    if (request.painScore !== null && (request.painScore < 0 || request.painScore > 10)) {
+      this.toast.warning('Invalid pain score', 'Pain score must be between 0 and 10.');
+      return;
+    }
+
+    this.saving.set(true);
+    const response = await this.service.saveVitals(admission.admissionId, request);
+    this.saving.set(false);
+
+    if (!response.success || !response.data) {
+      this.toast.error('Unable to save vitals', getApiErrorMessage(response, 'IPD vitals API failed'));
+      return;
+    }
+
+    await this.loadVitals(admission.admissionId);
+    this.resetVitalForm();
+    this.toast.success('Vitals saved', 'Latest values and trend history updated.');
+  }
+
+  protected editVitals(record: IpdVitalRecord): void {
+    this.vitalForm = {
+      vitalId: record.vitalId,
+      recordedAt: record.recordedAt,
+      temperature: record.temperature,
+      pulseRate: record.pulseRate,
+      respiratoryRate: record.respiratoryRate,
+      bloodPressureSystolic: record.bloodPressureSystolic,
+      bloodPressureDiastolic: record.bloodPressureDiastolic,
+      spo2: record.spo2,
+      height: record.height,
+      weight: record.weight,
+      painScore: record.painScore,
+      bloodGlucose: record.bloodGlucose,
+      notes: record.notes,
+      recordedBy: record.recordedBy
+    };
+    this.toast.info('Vitals loaded', 'Update the values and save again.');
+  }
+
+  protected async deleteVitals(record: IpdVitalRecord): Promise<void> {
+    const admission = this.selectedAdmission();
+    if (!admission) {
+      return;
+    }
+
+    this.saving.set(true);
+    const response = await this.service.deleteVitals(admission.admissionId, record.vitalId);
+    this.saving.set(false);
+
+    if (!response.success) {
+      this.toast.error('Unable to delete vitals', getApiErrorMessage(response, 'IPD vitals delete failed'));
+      return;
+    }
+
+    await this.loadVitals(admission.admissionId);
+    if (this.vitalForm.vitalId === record.vitalId) {
+      this.resetVitalForm();
+    }
+    this.toast.success('Vitals deleted', 'The reading was removed from history.');
+  }
+
+  protected latestVitalValue(key: 'temperature' | 'bloodPressure' | 'pulse' | 'spo2'): string {
+    const latest = this.latestVital();
+    if (!latest) {
+      return 'Not recorded';
+    }
+
+    if (key === 'temperature') return this.valueWithUnit(latest.temperature, '°F', 'Not recorded');
+    if (key === 'bloodPressure') return this.bloodPressureText(latest, 'Not recorded');
+    if (key === 'pulse') return this.valueWithUnit(latest.pulseRate, 'bpm', 'Not recorded');
+    return this.valueWithUnit(latest.spo2, '%', 'Not recorded');
+  }
+
+  protected valueWithUnit(value: number | null, unit: string, fallback = '-'): string {
+    if (value === null || value === undefined || Number.isNaN(Number(value))) {
+      return fallback;
+    }
+
+    const formatted = Number.isInteger(Number(value)) ? String(Number(value)) : Number(value).toFixed(1);
+    return unit === '%' ? `${formatted}%` : `${formatted} ${unit}`;
+  }
+
+  protected bloodPressureText(record: IpdVitalRecord, fallback = '-'): string {
+    if (record.bloodPressureSystolic === null || record.bloodPressureDiastolic === null) {
+      return fallback;
+    }
+
+    return `${record.bloodPressureSystolic} / ${record.bloodPressureDiastolic}`;
+  }
+
+  protected trendPoints(key: 'temperature' | 'pulse' | 'spo2'): { index: number; height: number }[] {
+    const values = this.vitalRecords()
+      .slice(0, 14)
+      .reverse()
+      .map((record, index) => ({
+        index,
+        value: key === 'temperature' ? record.temperature : key === 'pulse' ? record.pulseRate : record.spo2
+      }))
+      .filter(point => point.value !== null && point.value !== undefined) as { index: number; value: number }[];
+
+    if (values.length === 0) {
+      return [];
+    }
+
+    const min = Math.min(...values.map(point => Number(point.value)));
+    const max = Math.max(...values.map(point => Number(point.value)));
+    const spread = Math.max(max - min, 1);
+    return values.map(point => ({
+      index: point.index,
+      height: Math.max(12, Math.round(((Number(point.value) - min) / spread) * 82) + 12)
+    }));
   }
 
   protected chooseTransferBed(bed: IpdBedStatus): void {
@@ -2886,6 +3136,25 @@ export class IpdPageComponent implements OnInit {
     return name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]?.toUpperCase()).join('') || 'IP';
   }
 
+  private normalizedVitalRequest(): SaveIpdVitalRequest {
+    return {
+      ...this.vitalForm,
+      recordedAt: this.vitalForm.recordedAt || new Date().toISOString(),
+      temperature: numericOrNull(this.vitalForm.temperature),
+      pulseRate: numericOrNull(this.vitalForm.pulseRate),
+      respiratoryRate: numericOrNull(this.vitalForm.respiratoryRate),
+      bloodPressureSystolic: numericOrNull(this.vitalForm.bloodPressureSystolic),
+      bloodPressureDiastolic: numericOrNull(this.vitalForm.bloodPressureDiastolic),
+      spo2: numericOrNull(this.vitalForm.spo2),
+      height: numericOrNull(this.vitalForm.height),
+      weight: numericOrNull(this.vitalForm.weight),
+      painScore: numericOrNull(this.vitalForm.painScore),
+      bloodGlucose: numericOrNull(this.vitalForm.bloodGlucose),
+      notes: this.vitalForm.notes?.trim() ?? '',
+      recordedBy: this.vitalForm.recordedBy?.trim() || 'Hospital staff'
+    };
+  }
+
   private validateAdmissionStep(step: number): boolean {
     const errors: Record<string, string> = {};
     if (step >= 1 && !this.admissionForm.patientId) {
@@ -3109,6 +3378,25 @@ function createBedForm(): SaveIpdBedRequest {
   };
 }
 
+function createVitalForm(): SaveIpdVitalRequest {
+  return {
+    vitalId: null,
+    recordedAt: new Date().toISOString(),
+    temperature: null,
+    pulseRate: null,
+    respiratoryRate: null,
+    bloodPressureSystolic: null,
+    bloodPressureDiastolic: null,
+    spo2: null,
+    height: null,
+    weight: null,
+    painScore: null,
+    bloodGlucose: null,
+    notes: '',
+    recordedBy: 'Hospital staff'
+  };
+}
+
 function emptySummary() {
   return {
     currentAdmissions: 0,
@@ -3149,6 +3437,29 @@ function roomNameForBed(bedNo: string): string {
 
   const parts = trimmed.split('-');
   return parts.length > 1 ? parts.slice(0, -1).join('-') : trimmed.replace(/[A-Z]$/i, '') || trimmed;
+}
+
+function numericOrNull(value: number | string | null | undefined): number | null {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+}
+
+function hasVitalMeasurement(request: SaveIpdVitalRequest): boolean {
+  return request.temperature !== null ||
+    request.pulseRate !== null ||
+    request.respiratoryRate !== null ||
+    request.bloodPressureSystolic !== null ||
+    request.bloodPressureDiastolic !== null ||
+    request.spo2 !== null ||
+    request.height !== null ||
+    request.weight !== null ||
+    request.painScore !== null ||
+    request.bloodGlucose !== null ||
+    Boolean(request.notes?.trim());
 }
 
 function openPrintWindow(body: string): void {
