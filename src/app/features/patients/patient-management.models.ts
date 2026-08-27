@@ -53,6 +53,8 @@ export interface PatientSummary {
   lastVisitDate: string | null;
   statusCode: string;
   statusName: string;
+  careStatusCode?: string | null;
+  careStatusName?: string | null;
   createdDate: string;
   modifiedDate: string | null;
   rowVersion: string;

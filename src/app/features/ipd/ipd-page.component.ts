@@ -150,12 +150,22 @@ interface IpdKpiCard {
                   </div>
                   <div class="donut-wrap">
                     <div class="donut" [style.--occupied]="occupancyArc()" [style.--available]="availableArc()">
-                      <strong>{{ model.summary.totalBeds }}</strong>
-                      <span>Total</span>
+                      <div class="donut-center">
+                        <strong>{{ model.summary.totalBeds }}</strong>
+                        <span>Total beds</span>
+                      </div>
                     </div>
                     <div class="legend">
-                      <span><i class="occupied"></i> Occupied <b>{{ model.summary.occupiedBeds }}</b></span>
-                      <span><i class="available"></i> Available <b>{{ model.summary.availableBeds }}</b></span>
+                      <span>
+                        <i class="occupied"></i>
+                        <em><strong>Occupied</strong><small>{{ bedStatusPercent(model.summary.occupiedBeds) }} used</small></em>
+                        <b>{{ model.summary.occupiedBeds }}</b>
+                      </span>
+                      <span>
+                        <i class="available"></i>
+                        <em><strong>Available</strong><small>{{ bedStatusPercent(model.summary.availableBeds) }} free</small></em>
+                        <b>{{ model.summary.availableBeds }}</b>
+                      </span>
                     </div>
                   </div>
                 </article>
@@ -1177,63 +1187,67 @@ interface IpdKpiCard {
   `,
   styles: `
     :host { display: block; min-width: 0; }
-    .ipd-page { padding: 24px 28px 32px; display: grid; gap: 16px; }
-    .page-header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
-    .page-desc { color: var(--ac-muted); font-size: 15px; margin-top: 2px; }
+    .ipd-page { padding: 16px 24px 28px; display: grid; gap: 10px; }
+    .page-header { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+    .ipd-page .ac-page-title { font-size: 27px; line-height: 1.05; }
+    .page-desc { color: var(--ac-muted); font-size: 13.5px; margin-top: 1px; line-height: 1.3; }
     .header-actions, .inline-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .header-actions .ac-btn { min-height: 38px; padding: 0 14px; }
     .inline-actions.end { justify-content: flex-end; margin-top: 14px; }
     .spin { animation: spin 900ms linear infinite; }
 
-    .kpi-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+    .kpi-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
     .kpi-card {
       --tone: #2563EB;
-      min-height: 86px;
+      min-height: 66px;
       display: flex;
-      gap: 12px;
+      gap: 10px;
       align-items: center;
-      padding: 14px 16px;
+      padding: 10px 12px;
       border: 1px solid color-mix(in srgb, var(--tone) 24%, var(--ac-border));
-      border-radius: 12px;
+      border-radius: 10px;
       background: linear-gradient(135deg, color-mix(in srgb, var(--tone) 7%, var(--ac-surface)), var(--ac-surface));
       box-shadow: var(--ac-sh-sm);
     }
     .kpi-icon {
-      width: 42px;
-      height: 42px;
+      width: 36px;
+      height: 36px;
       display: grid;
       place-items: center;
-      border-radius: 10px;
+      border-radius: 9px;
       color: var(--tone);
       background: color-mix(in srgb, var(--tone) 12%, transparent);
+      font-size: 20px;
+      flex: 0 0 auto;
     }
-    .kpi-card strong { display: block; color: var(--ac-text); font-size: 25px; line-height: 1; }
-    .kpi-card span:not(.kpi-icon) { display: block; margin-top: 4px; color: var(--ac-text-3); font-weight: 800; }
-    .kpi-card small { color: var(--ac-muted); font-weight: 700; }
+    .kpi-card strong { display: block; color: var(--ac-text); font-size: 22px; line-height: 1; }
+    .kpi-card span:not(.kpi-icon) { display: block; margin-top: 2px; color: var(--ac-text-3); font-size: 12.5px; font-weight: 850; line-height: 1.2; }
+    .kpi-card small { color: var(--ac-muted); font-size: 11px; font-weight: 700; line-height: 1.2; }
 
     .journey-card {
       display: grid;
-      grid-template-columns: repeat(11, minmax(88px, 1fr));
+      grid-template-columns: repeat(11, minmax(76px, 1fr));
       gap: 0;
-      padding: 14px;
+      padding: 10px 12px;
       overflow-x: auto;
       border: 1px solid color-mix(in srgb, var(--ac-primary) 18%, var(--ac-border));
-      border-radius: 12px;
+      border-radius: 10px;
       background: var(--ac-surface);
       box-shadow: var(--ac-sh-sm);
     }
     .journey-step {
       position: relative;
-      min-width: 88px;
+      min-width: 76px;
       display: grid;
       justify-items: center;
-      gap: 5px;
+      gap: 3px;
       color: var(--ac-muted);
       isolation: isolate;
     }
     .journey-step::before {
       content: '';
       position: absolute;
-      top: 21px;
+      top: 17px;
       left: 0;
       right: 0;
       height: 2px;
@@ -1244,8 +1258,8 @@ interface IpdKpiCard {
     .journey-step:last-child::before { right: 50%; }
     .journey-step.done::before { background: color-mix(in srgb, var(--ac-success) 62%, var(--ac-border)); }
     .journey-dot {
-      width: 44px;
-      height: 44px;
+      width: 34px;
+      height: 34px;
       display: grid;
       place-items: center;
       border-radius: 999px;
@@ -1253,37 +1267,40 @@ interface IpdKpiCard {
       background: var(--ac-surface);
       color: var(--ac-muted);
       font-weight: 900;
-      box-shadow: 0 8px 18px rgba(15,23,42,.06);
+      font-size: 13px;
+      box-shadow: 0 6px 14px rgba(15,23,42,.06);
     }
     .journey-step.done .journey-dot { background: var(--ac-success); border-color: var(--ac-success); color: #fff; }
-    .journey-step.active .journey-dot { background: var(--ac-primary); border-color: var(--ac-primary); color: #fff; box-shadow: 0 10px 24px rgba(37,99,235,.28); }
-    .journey-step strong { font-size: 12px; color: var(--ac-text); text-align: center; line-height: 1.15; }
-    .journey-step small { font-size: 11px; color: var(--ac-muted); font-weight: 800; }
+    .journey-step.active .journey-dot { background: var(--ac-primary); border-color: var(--ac-primary); color: #fff; box-shadow: 0 8px 18px rgba(37,99,235,.24); }
+    .journey-step strong { font-size: 11px; color: var(--ac-text); text-align: center; line-height: 1.1; }
+    .journey-step small { font-size: 10px; color: var(--ac-muted); font-weight: 800; line-height: 1.05; }
     .journey-step.done strong, .journey-step.done small { color: var(--ac-success-text); }
     .journey-step.active strong, .journey-step.active small { color: var(--ac-primary); }
 
     .module-tabs {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       overflow-x: auto;
-      padding: 8px;
+      padding: 6px;
       border: 1px solid var(--ac-border);
-      border-radius: 12px;
+      border-radius: 10px;
       background: var(--ac-surface);
       box-shadow: var(--ac-sh-sm);
     }
     .module-tabs button {
-      min-height: 42px;
+      min-height: 36px;
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 0 14px;
+      gap: 7px;
+      padding: 0 12px;
       border: 1px solid transparent;
-      border-radius: 10px;
+      border-radius: 9px;
       color: var(--ac-muted);
+      font-size: 13px;
       font-weight: 850;
       white-space: nowrap;
     }
+    .module-tabs button .material-symbols-rounded { font-size: 19px; }
     .module-tabs button.active {
       color: var(--ac-primary);
       border-color: color-mix(in srgb, var(--ac-primary) 32%, var(--ac-border));
@@ -1324,34 +1341,75 @@ interface IpdKpiCard {
     .bar-fill { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--ac-primary), var(--ac-success)); }
     .ward-row b { text-align: right; }
 
-    .donut-wrap { display: flex; align-items: center; justify-content: center; gap: 26px; min-height: 214px; }
+    .donut-wrap {
+      display: grid;
+      grid-template-columns: minmax(128px, 156px) minmax(180px, 1fr);
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      min-height: 178px;
+      padding: 8px 10px 4px;
+    }
     .donut {
       --occupied: 0deg;
       --available: 0deg;
-      width: 148px;
-      height: 148px;
+      width: clamp(126px, 11vw, 148px);
+      height: clamp(126px, 11vw, 148px);
       display: grid;
       place-items: center;
       border-radius: 50%;
       background: conic-gradient(var(--ac-primary) 0deg var(--occupied), var(--ac-success) var(--occupied) calc(var(--occupied) + var(--available)), var(--ac-border) 0);
       position: relative;
-      box-shadow: 0 18px 42px rgba(15,23,42,.1);
+      justify-self: end;
+      box-shadow: 0 16px 34px rgba(15,23,42,.1);
     }
     .donut::after {
       content: '';
       position: absolute;
-      inset: 34px;
+      inset: 31%;
       border-radius: 50%;
       background: var(--ac-surface);
     }
-    .donut strong, .donut span { position: relative; z-index: 1; display: block; text-align: center; }
-    .donut strong { font-size: 26px; }
-    .donut span { margin-top: 30px; color: var(--ac-muted); font-size: 11px; font-weight: 900; text-transform: uppercase; }
-    .legend { display: grid; gap: 12px; min-width: 145px; }
-    .legend span { display: grid; grid-template-columns: 12px 1fr auto; align-items: center; gap: 8px; font-weight: 800; color: var(--ac-text-3); }
+    .donut-center {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      justify-items: center;
+      gap: 1px;
+      text-align: center;
+    }
+    .donut-center strong { font-size: 25px; line-height: 1; color: var(--ac-text); }
+    .donut-center span { color: var(--ac-muted); font-size: 9.5px; font-weight: 900; text-transform: uppercase; }
+    .legend { display: grid; gap: 9px; width: min(100%, 230px); }
+    .legend span {
+      display: grid;
+      grid-template-columns: 12px 1fr auto;
+      align-items: center;
+      gap: 10px;
+      min-height: 48px;
+      padding: 9px 10px;
+      border: 1px solid var(--ac-border);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--ac-surface) 84%, var(--ac-surface-2));
+      font-weight: 800;
+      color: var(--ac-text-3);
+    }
+    .legend em { display: grid; gap: 2px; font-style: normal; }
+    .legend em strong { font-size: 13px; color: var(--ac-text); }
+    .legend em small { font-size: 11px; color: var(--ac-muted); font-weight: 800; }
     .legend i { width: 10px; height: 10px; border-radius: 50%; }
     .legend i.occupied { background: var(--ac-primary); }
     .legend i.available { background: var(--ac-success); }
+    .legend b {
+      min-width: 30px;
+      height: 28px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 999px;
+      background: var(--ac-surface);
+      border: 1px solid var(--ac-border);
+      color: var(--ac-text);
+    }
 
     .mini-table { border: 1px solid var(--ac-border); border-radius: 10px; overflow: hidden; }
     .mini-row { width: 100%; display: grid; grid-template-columns: 1.25fr .75fr .45fr .45fr; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--ac-border); text-align: left; }
@@ -3007,6 +3065,11 @@ export class IpdPageComponent implements OnInit {
 
   protected formatMoney(value: number): string {
     return formatMoney(value);
+  }
+
+  protected bedStatusPercent(value: number): string {
+    const totalBeds = this.workspace()?.summary.totalBeds ?? 0;
+    return totalBeds > 0 ? formatPercent((value / totalBeds) * 100) : '0%';
   }
 
   protected detailTabLabel(tabKey: IpdDetailTab): string {

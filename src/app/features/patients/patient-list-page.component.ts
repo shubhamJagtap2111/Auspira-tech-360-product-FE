@@ -112,7 +112,7 @@ type PatientDatePickerMode = 'calendar' | 'years';
                     <td>{{ patient.mobileNo }}</td>
                     <td><span class="gender-badge" [class]="genderClass(patient.genderCode)">{{ patient.genderName }}</span></td>
                     <td>{{ formatVisit(patient.lastVisitDate) }}</td>
-                    <td><span class="status-badge" [class]="statusClass(patient.statusCode)">{{ patient.statusName }}</span></td>
+                    <td><span class="status-badge" [class]="statusClass(displayStatusCode(patient))">{{ displayStatusName(patient) }}</span></td>
                     <td>
                       <div class="row-actions">
                         <button class="tbl-btn" type="button" title="View profile" (click)="openPatientProfile(patient)">
@@ -152,7 +152,7 @@ type PatientDatePickerMode = 'calendar' | 'years';
                       <p class="patient-meta">{{ patient.medicalRecordNo }} · {{ displayPatientAge(patient) }} · {{ patient.bloodGroupName }}</p>
                     </div>
                   </div>
-                  <span class="status-badge" [class]="statusClass(patient.statusCode)">{{ patient.statusName }}</span>
+                  <span class="status-badge" [class]="statusClass(displayStatusCode(patient))">{{ displayStatusName(patient) }}</span>
                 </div>
                 <div class="mobile-card-grid">
                   <span><small>Mobile</small><strong>{{ patient.mobileNo }}</strong></span>
@@ -617,6 +617,9 @@ type PatientDatePickerMode = 'calendar' | 'years';
     .sb-scheduled { background: var(--ac-secondary-light); color: var(--ac-secondary); }
     .sb-registered { background: var(--ac-info-light); color: var(--ac-info); }
     .sb-active { background: var(--ac-success-light); color: var(--ac-success); }
+    .sb-opd { background: rgba(37,99,235,0.1); color: #1d4ed8; }
+    .sb-ipd { background: rgba(20,184,166,0.12); color: #0f766e; }
+    .sb-discharged { background: rgba(100,116,139,0.12); color: #475569; }
     .sb-inactive { background: var(--ac-warning-light); color: var(--ac-warning); }
     .sb-archived { background: var(--ac-surface-2); color: var(--ac-muted); }
     .row-actions { display: flex; gap: 5px; }
@@ -1476,6 +1479,14 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
     return code ? `gb-${code}` : 'gb-empty';
   }
 
+  protected displayStatusCode(patient: PatientSummary): string {
+    return patient.careStatusCode || patient.statusCode || 'REGISTERED';
+  }
+
+  protected displayStatusName(patient: PatientSummary): string {
+    return patient.careStatusName || patient.statusName || 'Registered';
+  }
+
   protected statusClass(statusCode: string): string {
     return `sb-${statusCode.toLowerCase().replaceAll('_', '-')}`;
   }
@@ -1529,7 +1540,7 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
         patient.insuranceNumber ?? '',
         patient.createdDate ?? '',
         patient.lastVisitDate ?? '',
-        patient.statusName
+        this.displayStatusName(patient)
       ])
     ];
     const csv = rows.map(row => row.map(escapeCsv).join(',')).join('\r\n');

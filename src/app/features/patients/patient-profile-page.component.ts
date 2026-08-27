@@ -42,7 +42,7 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
             </div>
             <div class="hero-status">
               <span class="status-dot"></span>
-              <strong>{{ currentPatient.statusName }}</strong>
+              <strong>{{ displayCareStatusName(currentPatient) }}</strong>
               <small>Registered {{ formatDate(currentPatient.createdDate) }}</small>
             </div>
           </div>
@@ -83,7 +83,7 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
                   </div>
                   <div class="detail-grid overview-detail-grid">
                     <span class="detail-tile"><small>MRN</small><strong>{{ currentPatient.medicalRecordNo }}</strong><em>Master record</em></span>
-                    <span class="detail-tile"><small>Current status</small><strong>{{ currentPatient.statusName }}</strong><em>Patient registry status</em></span>
+                    <span class="detail-tile"><small>Current status</small><strong>{{ displayCareStatusName(currentPatient) }}</strong><em>Current care journey</em></span>
                     <span class="detail-tile"><small>Date of birth</small><strong>{{ currentPatient.dateOfBirth ? formatDate(currentPatient.dateOfBirth) : '-' }}</strong><em>{{ displayAge(currentPatient.age) }}</em></span>
                     <span class="detail-tile"><small>Address</small><strong>{{ currentPatient.address || '-' }}</strong><em>Registered address</em></span>
                     <span class="detail-tile"><small>Emergency contact</small><strong>{{ emergencyContact(currentPatient) }}</strong><em>Patient support</em></span>
@@ -2123,6 +2123,10 @@ export class PatientProfilePageComponent implements OnInit {
 
   protected displayAge(age: number | null): string {
     return age === null || age === undefined ? 'Age not set' : `${age} ${age === 1 ? 'yr' : 'yrs'}`;
+  }
+
+  protected displayCareStatusName(patient: PatientProfile): string {
+    return patient.careStatusName || patient.statusName || 'Registered';
   }
 
   protected emergencyContact(patient: PatientProfile): string {
