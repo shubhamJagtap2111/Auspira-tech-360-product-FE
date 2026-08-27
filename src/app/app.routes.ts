@@ -157,7 +157,13 @@ export const routes: Routes = [
   moduleRoute('pharmacy', 'Pharmacy', ['Medicine Catalog', 'Stock Management', 'Purchase Entry', 'Sales Entry', 'Expiry Tracking', 'Low Stock Alerts']),
   moduleRoute('billing', 'Billing', ['Invoices', 'Payments', 'Refunds', 'Insurance', 'Discounts']),
   moduleRoute('inventory', 'Inventory', ['Assets', 'Medical Equipment', 'Consumables', 'Purchase Orders', 'Vendor Management']),
-  moduleRoute('reports', 'Reports & Insights', ['Dashboards', 'Revenue Insights', 'Appointment Reports', 'Inventory Reports', 'Doctor Performance']),
+  {
+    path: 'reports',
+    canActivate: [authGuard, permissionGuard],
+    data: { permission: 'Reports.View' },
+    loadComponent: () =>
+      import('./features/reports/reports-insights-page.component').then(m => m.ReportsInsightsPageComponent)
+  },
   moduleRoute('support', 'Help Center', ['Tickets', 'Knowledge Base', 'Implementation Help', 'Contact Support']),
   moduleRoute('documentation', 'Documentation', ['User Guides', 'Workflow Manuals', 'Release Notes', 'API Reference']),
   { path: '**', redirectTo: '' }

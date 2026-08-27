@@ -102,6 +102,35 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
                       <h2>Clinical flags</h2>
                     </div>
                   </div>
+
+                  <div class="safety-overview" [class.clear]="currentPatient.allergies.length === 0 && criticalAlerts(currentPatient) === 0">
+                    <span class="material-symbols-rounded">{{ currentPatient.allergies.length > 0 || criticalAlerts(currentPatient) > 0 ? 'warning' : 'verified_user' }}</span>
+                    <div>
+                      <strong>{{ currentPatient.allergies.length > 0 || criticalAlerts(currentPatient) > 0 ? 'Review before consultation' : 'No active safety alerts' }}</strong>
+                      <p>{{ currentPatient.allergies.length > 0 ? currentPatient.allergies.length + ' allergy record(s) need clinical attention.' : 'Allergy and safety watch is clear for this patient.' }}</p>
+                    </div>
+                    <small>{{ criticalAlerts(currentPatient) }} critical</small>
+                  </div>
+
+                  <div class="safety-metric-grid">
+                    <span>
+                      <small>Active allergies</small>
+                      <strong>{{ currentPatient.overview.activeAllergies }}</strong>
+                    </span>
+                    <span>
+                      <small>Critical flags</small>
+                      <strong>{{ criticalAlerts(currentPatient) }}</strong>
+                    </span>
+                    <span>
+                      <small>Blood group</small>
+                      <strong>{{ currentPatient.bloodGroupName || '-' }}</strong>
+                    </span>
+                    <span>
+                      <small>Outstanding</small>
+                      <strong>{{ currency(currentPatient.billingSummary.outstandingBalance) }}</strong>
+                    </span>
+                  </div>
+
                   @if (currentPatient.allergies.length > 0) {
                     <div class="flag-list">
                       @for (allergy of currentPatient.allergies.slice(0, 4); track allergy.allergyGuid) {
@@ -119,11 +148,41 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
                     <div class="flag-empty">
                       <span class="material-symbols-rounded">verified_user</span>
                       <div>
-                        <strong>No active safety alerts</strong>
-                        <p class="muted">No active allergy records captured.</p>
+                        <strong>Clear for routine workflow</strong>
+                        <p class="muted">No allergy records captured. Add one if the patient reports medicine, food, or material sensitivity.</p>
                       </div>
                     </div>
                   }
+
+                  <div class="safety-actions">
+                    <button type="button" class="ac-btn ac-btn-primary" (click)="activeTab.set('allergies')">
+                      <span class="material-symbols-rounded">add</span>
+                      Manage Allergies
+                    </button>
+                    <button type="button" class="ac-btn ac-btn-secondary" (click)="activeTab.set('medical')">
+                      <span class="material-symbols-rounded">medical_information</span>
+                      Medical Profile
+                    </button>
+                    <button type="button" class="ac-btn ac-btn-secondary" (click)="activeTab.set('billing')">
+                      <span class="material-symbols-rounded">payments</span>
+                      Billing
+                    </button>
+                  </div>
+
+                  <div class="touchpoint-strip">
+                    <span>
+                      <small>Last visit</small>
+                      <strong>{{ formatDateTime(currentPatient.lastVisitDate) }}</strong>
+                    </span>
+                    <span>
+                      <small>Upcoming</small>
+                      <strong>{{ currentPatient.overview.upcomingAppointments }}</strong>
+                    </span>
+                    <span>
+                      <small>Documents</small>
+                      <strong>{{ currentPatient.overview.documents }}</strong>
+                    </span>
+                  </div>
                 </article>
               </div>
             }
@@ -1205,6 +1264,127 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
     .flag-empty p {
       margin: 3px 0 0;
     }
+    .flags-panel {
+      align-content: start;
+      gap: 14px;
+      background:
+        linear-gradient(145deg, color-mix(in srgb, var(--ac-surface) 96%, white), color-mix(in srgb, #f8fafc 88%, var(--ac-surface))),
+        var(--ac-surface);
+    }
+    .safety-overview {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      min-height: 82px;
+      padding: 14px;
+      border: 1px solid color-mix(in srgb, #f59e0b 28%, var(--ac-border));
+      border-radius: 14px;
+      background: linear-gradient(135deg, color-mix(in srgb, #fffbeb 72%, var(--ac-surface)), var(--ac-surface));
+      box-shadow: 0 12px 26px rgba(245, 158, 11, 0.08);
+    }
+    .safety-overview.clear {
+      border-color: color-mix(in srgb, var(--ac-success) 26%, var(--ac-border));
+      background: linear-gradient(135deg, color-mix(in srgb, var(--ac-success-light) 64%, var(--ac-surface)), var(--ac-surface));
+      box-shadow: 0 12px 26px color-mix(in srgb, var(--ac-success) 9%, transparent);
+    }
+    .safety-overview > .material-symbols-rounded {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: #fef3c7;
+      color: #d97706;
+      font-size: 21px;
+    }
+    .safety-overview.clear > .material-symbols-rounded {
+      background: var(--ac-success-light);
+      color: var(--ac-success);
+    }
+    .safety-overview strong,
+    .safety-metric-grid strong,
+    .touchpoint-strip strong {
+      color: var(--ac-text);
+      overflow-wrap: anywhere;
+    }
+    .safety-overview p {
+      margin: 4px 0 0;
+      color: var(--ac-text-2);
+      font-size: 13px;
+      line-height: 1.35;
+      font-weight: 750;
+    }
+    .safety-overview small {
+      min-height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: var(--ac-surface);
+      color: var(--ac-muted);
+      font-size: 11.5px;
+      font-weight: 900;
+      white-space: nowrap;
+      box-shadow: inset 0 0 0 1px var(--ac-border);
+    }
+    .safety-metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .safety-metric-grid span,
+    .touchpoint-strip span {
+      min-width: 0;
+      display: grid;
+      gap: 5px;
+      padding: 12px;
+      border: 1px solid color-mix(in srgb, var(--ac-border) 86%, var(--ac-surface));
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--ac-surface) 94%, var(--ac-subtle));
+    }
+    .safety-metric-grid small,
+    .touchpoint-strip small {
+      font-size: 11px;
+      font-weight: 950;
+      letter-spacing: .02em;
+      text-transform: uppercase;
+    }
+    .safety-metric-grid strong {
+      font-size: 18px;
+      line-height: 1.1;
+    }
+    .flags-panel .flag-empty {
+      min-height: 82px;
+      text-align: left;
+      justify-content: flex-start;
+      border-style: solid;
+      background: linear-gradient(135deg, color-mix(in srgb, var(--ac-success-light) 56%, var(--ac-surface)), var(--ac-surface));
+    }
+    .safety-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+    .safety-actions .ac-btn {
+      min-height: 38px;
+      padding-inline: 10px;
+      justify-content: center;
+      white-space: nowrap;
+    }
+    .safety-actions .material-symbols-rounded {
+      font-size: 18px;
+    }
+    .touchpoint-strip {
+      display: grid;
+      grid-template-columns: 1.4fr .8fr .8fr;
+      gap: 10px;
+    }
+    .touchpoint-strip strong {
+      font-size: 14px;
+      line-height: 1.25;
+    }
 
     @media (max-width: 620px) {
       .hero-card {
@@ -1233,6 +1413,11 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
         white-space: normal;
       }
       .overview-detail-grid {
+        grid-template-columns: 1fr;
+      }
+      .safety-overview,
+      .safety-actions,
+      .touchpoint-strip {
         grid-template-columns: 1fr;
       }
     }

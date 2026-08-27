@@ -1975,6 +1975,18 @@ export class DoctorProfilePageComponent implements OnInit {
 
     const slotDurationMinutes = Math.max(5, Number(form.slotDurationMinutes) || 15);
     const maxPatients = Math.max(1, Number(form.maxPatients) || 1);
+    const branchName = form.branchName.trim();
+    const consultationType = form.consultationType.trim() || 'OPD';
+    const duplicateConflicts = this.findAvailabilityConflicts(doctor, form, selectedDays);
+
+    if (duplicateConflicts.length > 0) {
+      const firstConflict = duplicateConflicts[0];
+      this.toast.warning(
+        'Availability already exists',
+        `${firstConflict.dayName} ${firstConflict.startsAt} - ${firstConflict.endsAt} already overlaps for ${firstConflict.branchName}.`
+      );
+      return;
+    }
 
     if (form.availabilityGuid) {
       const response = await this.service.updateAvailability(form.availabilityGuid, {
@@ -1982,8 +1994,8 @@ export class DoctorProfilePageComponent implements OnInit {
         dayOfWeek: selectedDays[0],
         startsAt: form.startsAt,
         endsAt: form.endsAt,
-        branchName: form.branchName.trim(),
-        consultationType: form.consultationType,
+        branchName,
+        consultationType,
         slotDurationMinutes,
         maxPatients,
         statusCode: form.statusCode
@@ -2011,8 +2023,8 @@ export class DoctorProfilePageComponent implements OnInit {
         dayOfWeek,
         startsAt: form.startsAt,
         endsAt: form.endsAt,
-        branchName: form.branchName.trim(),
-        consultationType: form.consultationType,
+        branchName,
+        consultationType,
         slotDurationMinutes,
         maxPatients,
         statusCode: form.statusCode
@@ -2062,6 +2074,26 @@ export class DoctorProfilePageComponent implements OnInit {
       form.statusCode === 'OVERRIDE' ? 'Availability override added' : 'Schedule added',
       `${savedAvailability.length} ${savedAvailability.length === 1 ? 'day' : 'days'} configured.`
     );
+  }
+
+  private findAvailabilityConflicts(doctor: DoctorProfile, form: DoctorAvailabilityForm, selectedDays: number[]): DoctorAvailability[] {
+    const branchName = normalizeKey(form.branchName);
+    const consultationType = normalizeKey(form.consultationType || 'OPD');
+    const startMinutes = timeToMinutes(form.startsAt);
+    const endMinutes = timeToMinutes(form.endsAt);
+    const selectedDaySet = new Set(selectedDays);
+
+    return doctor.availability.filter(item => {
+      if (item.availabilityGuid === form.availabilityGuid) {
+        return false;
+      }
+
+      return selectedDaySet.has(Number(item.dayOfWeek))
+        && isActiveAvailabilityStatus(item.statusCode)
+        && normalizeKey(item.branchName) === branchName
+        && normalizeKey(item.consultationType || 'OPD') === consultationType
+        && timeRangesOverlap(startMinutes, endMinutes, timeToMinutes(item.startsAt), timeToMinutes(item.endsAt));
+    });
   }
 
   protected async blockDate(doctor: DoctorProfile): Promise<void> {
@@ -2249,6 +2281,23 @@ function sortAvailabilityDays(days: number[]): number[] {
 
 function uniqueAvailabilityDays(days: number[]): number[] {
   return sortAvailabilityDays([...new Set(days.map(Number).filter(day => Number.isInteger(day) && day >= 0 && day <= 6))]);
+}
+
+function normalizeKey(value: string): string {
+  return value.trim().toUpperCase();
+}
+
+function isActiveAvailabilityStatus(statusCode: string): boolean {
+  return !['INACTIVE', 'CANCELLED'].includes(normalizeKey(statusCode || 'ACTIVE'));
+}
+
+function timeToMinutes(value: string): number {
+  const [hours = 0, minutes = 0] = value.split(':').map(part => Number(part));
+  return (Number.isFinite(hours) ? hours : 0) * 60 + (Number.isFinite(minutes) ? minutes : 0);
+}
+
+function timeRangesOverlap(leftStart: number, leftEnd: number, rightStart: number, rightEnd: number): boolean {
+  return leftStart < rightEnd && leftEnd > rightStart;
 }
 
 function formatNumber(value: number): string {
