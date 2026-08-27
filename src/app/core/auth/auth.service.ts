@@ -26,12 +26,20 @@ export class AuthService {
   private readonly tenantContext = inject(TenantContextService);
 
   async login(request: LoginRequest): Promise<ApiResponse<AuthResponse>> {
-    const location = await getBrowserLocation();
+    const location = await getBrowserLocation(900);
     return firstValueFrom(this.api.post<ApiResponse<AuthResponse>>('/auth/login', {
       ...request,
       ...location,
       tenantCode: request.tenantCode ?? (this.tenantContext.tenantCode() || null)
+    }, {
+      context: authLoginContext()
     }));
+  }
+
+  async warmUpApi(): Promise<void> {
+    await firstValueFrom(this.api.get<ApiResponse<unknown>>('/health', {
+      context: authWarmupContext()
+    })).catch(() => undefined);
   }
 
   startGoogleLogin(rememberMe = true): void {
@@ -116,6 +124,18 @@ function authBootstrapContext(): HttpContext {
     .set(REQUEST_TIMEOUT_MS, 10_000);
 }
 
+function authLoginContext(): HttpContext {
+  return new HttpContext()
+    .set(SKIP_GLOBAL_LOADER, true)
+    .set(REQUEST_TIMEOUT_MS, 90_000);
+}
+
+function authWarmupContext(): HttpContext {
+  return new HttpContext()
+    .set(SKIP_GLOBAL_LOADER, true)
+    .set(REQUEST_TIMEOUT_MS, 8_000);
+}
+
 function isCurrentUserProfile(value: unknown): value is CurrentUserProfile {
   const profile = value as Partial<CurrentUserProfile> | null;
   return Boolean(
@@ -135,7 +155,7 @@ function isApiResponse<T>(value: unknown): value is ApiResponse<T> {
     'message' in value);
 }
 
-function getBrowserLocation(): Promise<Pick<LoginRequest, 'latitude' | 'longitude' | 'locationName'>> {
+function getBrowserLocation(timeoutMs: number): Promise<Pick<LoginRequest, 'latitude' | 'longitude' | 'locationName'>> {
   if (typeof navigator === 'undefined' || !navigator.geolocation) {
     return Promise.resolve({});
   }
@@ -148,7 +168,7 @@ function getBrowserLocation(): Promise<Pick<LoginRequest, 'latitude' | 'longitud
         locationName: null
       }),
       () => resolve({}),
-      { enableHighAccuracy: false, maximumAge: 300_000, timeout: 3_500 }
+      { enableHighAccuracy: false, maximumAge: 300_000, timeout: timeoutMs }
     );
   });
 }

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
@@ -266,7 +266,7 @@ import { AppLoaderService } from '../../shared/ui/app-loader/app-loader.service'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class LoginPageComponent {
+export class LoginPageComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly authStore = inject(AuthStore);
   private readonly i18n = inject(I18nService);
@@ -291,6 +291,10 @@ export class LoginPageComponent {
 
   protected t(key: string): string {
     return this.i18n.translate(key);
+  }
+
+  ngOnInit(): void {
+    void this.authService.warmUpApi();
   }
 
   protected async onLogin(): Promise<void> {

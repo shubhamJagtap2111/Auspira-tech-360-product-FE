@@ -226,6 +226,8 @@ const FALLBACK_RESOURCES: Record<string, string> = {
   'Common.Errors.TenantNotFound': 'Hospital tenant was not found.',
   'Common.Errors.TenantInactive': 'Hospital tenant is inactive.',
   'Common.Errors.LicenseExpired': 'Hospital license is expired.',
+  'Common.Errors.RequestTimeout': 'The server is taking longer than usual to start. Please try again in a moment.',
+  'Common.Errors.NetworkUnavailable': 'Unable to reach the server. Please check your connection and try again.',
   'Common.Errors.UnhandledException': 'Something went wrong. Please try again.',
   'Common.Actions.Sending': 'Sending',
   'Common.Actions.Cancel': 'Cancel',

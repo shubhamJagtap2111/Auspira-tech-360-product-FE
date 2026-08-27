@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { HttpContext } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { catchError, of, timeout } from 'rxjs';
+import { REQUEST_TIMEOUT_MS } from '../interceptors/loader.interceptor';
 import { API_BASE_URL } from './api-endpoints';
 
 const API_REQUEST_TIMEOUT_MS = 20000;
@@ -13,32 +14,36 @@ export class ApiClientService {
 
   get<T>(path: string, options?: ApiRequestOptions) {
     return this.http.get<T>(`${this.baseUrl}${path}`, { withCredentials: true, ...options })
-      .pipe(timeout(API_REQUEST_TIMEOUT_MS), catchError(error => of(toApiErrorResponse<T>(error))));
+      .pipe(timeout(requestTimeout(options)), catchError(error => of(toApiErrorResponse<T>(error))));
   }
 
   post<T>(path: string, body: unknown, options?: ApiRequestOptions) {
     return this.http.post<T>(`${this.baseUrl}${path}`, body, { withCredentials: true, ...options })
-      .pipe(timeout(API_REQUEST_TIMEOUT_MS), catchError(error => of(toApiErrorResponse<T>(error))));
+      .pipe(timeout(requestTimeout(options)), catchError(error => of(toApiErrorResponse<T>(error))));
   }
 
   put<T>(path: string, body: unknown, options?: ApiRequestOptions) {
     return this.http.put<T>(`${this.baseUrl}${path}`, body, { withCredentials: true, ...options })
-      .pipe(timeout(API_REQUEST_TIMEOUT_MS), catchError(error => of(toApiErrorResponse<T>(error))));
+      .pipe(timeout(requestTimeout(options)), catchError(error => of(toApiErrorResponse<T>(error))));
   }
 
   patch<T>(path: string, body: unknown, options?: ApiRequestOptions) {
     return this.http.patch<T>(`${this.baseUrl}${path}`, body, { withCredentials: true, ...options })
-      .pipe(timeout(API_REQUEST_TIMEOUT_MS), catchError(error => of(toApiErrorResponse<T>(error))));
+      .pipe(timeout(requestTimeout(options)), catchError(error => of(toApiErrorResponse<T>(error))));
   }
 
   delete<T>(path: string, options?: ApiRequestOptions) {
     return this.http.delete<T>(`${this.baseUrl}${path}`, { withCredentials: true, ...options })
-      .pipe(timeout(API_REQUEST_TIMEOUT_MS), catchError(error => of(toApiErrorResponse<T>(error))));
+      .pipe(timeout(requestTimeout(options)), catchError(error => of(toApiErrorResponse<T>(error))));
   }
 }
 
 interface ApiRequestOptions {
   context?: HttpContext;
+}
+
+function requestTimeout(options?: ApiRequestOptions): number {
+  return options?.context?.get(REQUEST_TIMEOUT_MS) || API_REQUEST_TIMEOUT_MS;
 }
 
 function toApiErrorResponse<T>(error: unknown): T {
