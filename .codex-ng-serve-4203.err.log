@@ -1,1 +1,99 @@
 Prebundling has been configured but will not be used because scripts optimization is enabled.
+▲ [WARNING] NG8107: The left side of this optional chain operation does not include 'null' or 'undefined' in its type, therefore the '?.' operator can be replaced with the '.' operator. [plugin angular-compiler]
+
+    src/app/features/ipd/ipd-page.component.ts:336:50:
+      336 │ ...2>{{ selectedAdmission()?.patientName || 'Select an inpatient'...
+          ╵                              ~~~~~~~~~~~
+
+
+▲ [WARNING] NG8107: The left side of this optional chain operation does not include 'null' or 'undefined' in its type, therefore the '?.' operator can be replaced with the '.' operator. [plugin angular-compiler]
+
+    src/app/features/ipd/ipd-page.component.ts:338:68:
+      338 │ ...ft-pill">{{ selectedAdmission()?.bedNo || 'Bed pending' }}</span>
+          ╵                                     ~~~~~
+
+
+▲ [WARNING] NG8107: The left side of this optional chain operation does not include 'null' or 'undefined' in its type, therefore the '?.' operator can be replaced with the '.' operator. [plugin angular-compiler]
+
+    src/app/features/ipd/ipd-page.component.ts:341:63:
+      341 │ ...><b>Doctor</b>{{ selectedAdmission()?.doctorName || '-' }}</span>
+          ╵                                          ~~~~~~~~~~
+
+
+▲ [WARNING] NG8107: The left side of this optional chain operation does not include 'null' or 'undefined' in its type, therefore the '?.' operator can be replaced with the '.' operator. [plugin angular-compiler]
+
+    src/app/features/ipd/ipd-page.component.ts:342:60:
+      342 │ ...b>MRN</b>{{ selectedAdmission()?.medicalRecordNo || '-' }}</span>
+          ╵                                     ~~~~~~~~~~~~~~~
+
+
+▲ [WARNING] NG8107: The left side of this optional chain operation does not include 'null' or 'undefined' in its type, therefore the '?.' operator can be replaced with the '.' operator. [plugin angular-compiler]
+
+    src/app/features/ipd/ipd-page.component.ts:343:61:
+      343 │ ...n><b>Stay</b>{{ selectedAdmission()?.stayDays || 0 }} days</span>
+          ╵                                         ~~~~~~~~
+
+
+▲ [WARNING] NG8107: The left side of this optional chain operation does not include 'null' or 'undefined' in its type, therefore the '?.' operator can be replaced with the '.' operator. [plugin angular-compiler]
+
+    src/app/features/ipd/ipd-page.component.ts:385:66:
+      385 │ ...">{{ selectedAdmission()?.patientName || 'No patient selected'...
+          ╵                              ~~~~~~~~~~~
+
+
+▲ [WARNING] NG8107: The left side of this optional chain operation does not include 'null' or 'undefined' in its type, therefore the '?.' operator can be replaced with the '.' operator. [plugin angular-compiler]
+
+    src/app/features/ipd/ipd-page.component.ts:389:52:
+      389 │ ...g>{{ selectedAdmission()?.patientName || 'Select an admission ...
+          ╵                              ~~~~~~~~~~~
+
+
+▲ [WARNING] NG8107: The left side of this optional chain operation does not include 'null' or 'undefined' in its type, therefore the '?.' operator can be replaced with the '.' operator. [plugin angular-compiler]
+
+    src/app/features/ipd/ipd-page.component.ts:390:50:
+      390 │ ...an>{{ selectedAdmission()?.wardName || 'No ward' }} · {{ sele...
+          ╵                               ~~~~~~~~
+
+
+▲ [WARNING] NG8107: The left side of this optional chain operation does not include 'null' or 'undefined' in its type, therefore the '?.' operator can be replaced with the '.' operator. [plugin angular-compiler]
+
+    src/app/features/ipd/ipd-page.component.ts:390:101:
+      390 │ ...o ward' }} · {{ selectedAdmission()?.bedNo || 'No bed' }}</span>
+          ╵                                        ~~~~~
+
+
+▲ [WARNING] NG8107: The left side of this optional chain operation does not include 'null' or 'undefined' in its type, therefore the '?.' operator can be replaced with the '.' operator. [plugin angular-compiler]
+
+    src/app/features/ipd/ipd-page.component.ts:437:52:
+      437 │ ...g>{{ selectedAdmission()?.patientName || 'Select a patient' }}...
+          ╵                              ~~~~~~~~~~~
+
+
+▲ [WARNING] NG8107: The left side of this optional chain operation does not include 'null' or 'undefined' in its type, therefore the '?.' operator can be replaced with the '.' operator. [plugin angular-compiler]
+
+    src/app/features/ipd/ipd-page.component.ts:438:50:
+      438 │ ...   <span>{{ selectedAdmission()?.medicalRecordNo || '-' }}</span>
+          ╵                                     ~~~~~~~~~~~~~~~
+
+
+▲ [WARNING] NG8107: The left side of this optional chain operation does not include 'null' or 'undefined' in its type, therefore the '?.' operator can be replaced with the '.' operator. [plugin angular-compiler]
+
+    src/app/features/ipd/ipd-page.component.ts:439:50:
+      439 │ ...an>{{ selectedAdmission()?.wardName || 'Ward pending' }} · {{...
+          ╵                               ~~~~~~~~
+
+
+▲ [WARNING] NG8107: The left side of this optional chain operation does not include 'null' or 'undefined' in its type, therefore the '?.' operator can be replaced with the '.' operator. [plugin angular-compiler]
+
+    src/app/features/ipd/ipd-page.component.ts:439:106:
+      439 │ ...g' }} · {{ selectedAdmission()?.bedNo || 'Bed pending' }}</span>
+          ╵                                   ~~~~~
+
+
+▲ [WARNING] NG8107: The left side of this optional chain operation does not include 'null' or 'undefined' in its type, therefore the '?.' operator can be replaced with the '.' operator. [plugin angular-compiler]
+
+    src/app/features/ipd/ipd-page.component.ts:440:58:
+      440 │ ...<span>Doctor: {{ selectedAdmission()?.doctorName || '-' }}</span>
+          ╵                                          ~~~~~~~~~~
+
+

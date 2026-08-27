@@ -151,7 +151,12 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/opd/opd-page.component').then(m => m.OpdPageComponent)
   },
-  moduleRoute('ipd', 'IPD', ['Admission', 'Discharge', 'Ward Allocation', 'Bed Tracking', 'Nursing Notes', 'Treatment Plans']),
+  {
+    path: 'ipd',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/ipd/ipd-page.component').then(m => m.IpdPageComponent)
+  },
   moduleRoute('emergency', 'Emergency', ['Emergency Triage', 'Critical Queue', 'Ambulance Intake', 'Bed Escalation', 'Incident Notes']),
   moduleRoute('laboratory', 'Laboratory', ['Test Master', 'Sample Collection', 'Result Entry', 'PDF Reports']),
   moduleRoute('pharmacy', 'Pharmacy', ['Medicine Catalog', 'Stock Management', 'Purchase Entry', 'Sales Entry', 'Expiry Tracking', 'Low Stock Alerts']),

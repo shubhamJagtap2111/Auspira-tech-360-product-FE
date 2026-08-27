@@ -50,3 +50,25 @@ Watch mode enabled. Watching for file changes...
 NOTE: Raw file sizes do not reflect development server per-request transformations.
   ➜  Local:   http://127.0.0.1:4203/
   ➜  press h + enter to show help
+> Changes detected. Rebuilding...
+√ Changes detected. Rebuilding...
+Initial chunk files | Names              |  Raw size | Estimated transfer size
+main.js             | main               | 155.05 kB |                35.54 kB
+
+Lazy chunk files    | Names              |  Raw size | Estimated transfer size
+chunk-B3L4AYSV.js   | ipd-page-component |  53.18 kB |                11.63 kB
+
+Application bundle generation complete. [28.053 seconds] - 2026-08-27T09:44:22.657Z
+
+Page reload sent to client(s).
+> Changes detected. Rebuilding...
+√ Changes detected. Rebuilding...
+Initial chunk files | Names              |  Raw size | Estimated transfer size
+main.js             | main               | 155.05 kB |                35.54 kB
+
+Lazy chunk files    | Names              |  Raw size | Estimated transfer size
+chunk-PLMTJXEC.js   | ipd-page-component |  53.16 kB |                11.64 kB
+
+Application bundle generation complete. [8.645 seconds] - 2026-08-27T09:47:41.427Z
+
+Component update sent to client(s).
