@@ -12,14 +12,28 @@ import {
   IpdBedStatus,
   IpdDashboard,
   IpdOption,
-  IpdWardOccupancy
+  IpdRoom,
+  IpdVitalRecord,
+  IpdWardOccupancy,
+  SaveIpdBedRequest,
+  SaveIpdRoomRequest,
+  SaveIpdVitalRequest,
+  SaveIpdWardRequest
 } from './ipd-management.models';
 import { IpdManagementService } from './ipd-management.service';
 
 type IpdTab = 'dashboard' | 'admissions' | 'beds' | 'patients' | 'care' | 'transfers' | 'billing' | 'discharge' | 'reports';
+type IpdDetailTab = 'overview' | 'clinical' | 'rounds' | 'nursing' | 'vitals' | 'medication' | 'orders' | 'lab' | 'procedures' | 'transfers' | 'billing' | 'documents' | 'discharge' | 'activity';
+type FacilityTab = 'wards' | 'rooms' | 'beds';
 
 interface IpdTabItem {
   key: IpdTab;
+  label: string;
+  icon: string;
+}
+
+interface IpdDetailTabItem {
+  key: IpdDetailTab;
   label: string;
   icon: string;
 }
@@ -199,65 +213,219 @@ interface IpdKpiCard {
                 <div class="section-toolbar">
                   <div>
                     <p class="ac-eyebrow">Admission desk</p>
-                    <h2>Admission decisions</h2>
+                    <h2>IPD admissions</h2>
                   </div>
                   <div class="inline-actions">
-                    <button class="ac-btn ac-btn-secondary" type="button" (click)="saveAdmissionDraft()">
-                      <span class="material-symbols-rounded">save</span>
-                      Save Draft
-                    </button>
                     <button class="ac-btn ac-btn-primary" type="button" (click)="openAdmissionPanel()">
                       <span class="material-symbols-rounded">add</span>
-                      Admit Patient
+                      New Admission
                     </button>
                   </div>
                 </div>
+
+                <div class="admission-filters">
+                  <div class="search-field">
+                    <span class="material-symbols-rounded">search</span>
+                    <input type="text" [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" placeholder="Search patient, MRN, or admission ID" />
+                  </div>
+                  <ac-dropdown name="admissionStatus" [ngModel]="admissionStatusFilter()" (ngModelChange)="admissionStatusFilter.set($event)" [options]="statusFilterOptions" />
+                  <ac-dropdown name="admissionWard" [ngModel]="admissionWardFilter()" (ngModelChange)="admissionWardFilter.set($event)" [options]="wardFilterOptions()" />
+                  <ac-dropdown name="admissionDoctor" [ngModel]="admissionDoctorFilter()" (ngModelChange)="admissionDoctorFilter.set($event)" [options]="doctorFilterOptions()" />
+                  <ac-dropdown name="admissionDateRange" [ngModel]="admissionDateFilter()" (ngModelChange)="admissionDateFilter.set($event)" [options]="dateRangeOptions" />
+                </div>
+
                 @if (admissionPanelOpen()) {
-                  <form class="admission-form" (ngSubmit)="createAdmission()">
-                    <label>
-                      <span>Patient *</span>
-                      <ac-dropdown name="patientId" [(ngModel)]="admissionForm.patientId" [options]="patientOptions(model.patients)" />
-                    </label>
-                    <label>
-                      <span>Doctor *</span>
-                      <ac-dropdown name="doctorId" [(ngModel)]="admissionForm.doctorId" [options]="doctorOptions(model.doctors)" />
-                    </label>
-                    <label>
-                      <span>Source</span>
-                      <ac-dropdown name="source" [(ngModel)]="admissionForm.source" [options]="sourceOptions" />
-                    </label>
-                    <label>
-                      <span>Priority</span>
-                      <ac-dropdown name="priority" [(ngModel)]="admissionForm.priority" [options]="priorityOptions" />
-                    </label>
-                    <label>
-                      <span>Bed allocation</span>
-                      <ac-dropdown name="bedId" [(ngModel)]="admissionForm.bedId" [options]="availableBedOptions()" placeholder="Allocate later" [clearable]="true" />
-                    </label>
-                    <label class="wide-field">
-                      <span>Admission decision note</span>
-                      <textarea name="reason" [(ngModel)]="admissionForm.reason" rows="2" placeholder="Clinical reason, source handoff, or admission instruction"></textarea>
-                    </label>
-                    <div class="form-actions">
-                      <button class="ac-btn ac-btn-secondary" type="button" (click)="admissionPanelOpen.set(false)">Cancel</button>
-                      <button class="ac-btn ac-btn-primary" type="submit" [disabled]="saving()">
-                        <span class="material-symbols-rounded">{{ saving() ? 'progress_activity' : 'check_circle' }}</span>
-                        Create Admission
+                  <article class="admission-wizard">
+                    <div class="wizard-head">
+                      <div>
+                        <p class="ac-eyebrow">New admission</p>
+                        <h3>{{ admissionWizardTitle() }}</h3>
+                      </div>
+                      <button class="icon-btn" type="button" (click)="closeAdmissionPanel()" aria-label="Close admission workflow">
+                        <span class="material-symbols-rounded">close</span>
                       </button>
                     </div>
-                  </form>
+
+                    <div class="admission-stepper">
+                      @for (step of admissionSteps; track step.label; let index = $index) {
+                        <button type="button" class="admission-step" [class.done]="index + 1 < admissionStep()" [class.active]="index + 1 === admissionStep()" (click)="goAdmissionStep(index + 1)">
+                          <span>{{ index + 1 }}</span>
+                          <strong>{{ step.label }}</strong>
+                        </button>
+                      }
+                    </div>
+
+                    @switch (admissionStep()) {
+                      @case (1) {
+                        <div class="wizard-grid patient-step">
+                          <label class="wide-field" [class.invalid]="fieldError('patientId')">
+                            <span>Patient *</span>
+                            <ac-dropdown name="patientId" [(ngModel)]="admissionForm.patientId" [options]="patientOptions(model.patients)" />
+                            @if (fieldError('patientId')) { <small>{{ fieldError('patientId') }}</small> }
+                          </label>
+                          @if (selectedAdmissionPatient(); as patient) {
+                            <article class="selected-patient-card">
+                              <div class="avatar">{{ initials(patient.label) }}</div>
+                              <div>
+                                <strong>{{ patient.label }}</strong>
+                                <span>{{ patient.meta }} · {{ patient.age || '-' }} yrs · {{ patient.gender || 'Not specified' }}</span>
+                              </div>
+                              <b>{{ patient.bloodGroup || 'Blood group NA' }}</b>
+                              <small>{{ patient.mobileNo || 'Mobile not captured' }}</small>
+                            </article>
+                          }
+                          <div class="wizard-actions-inline">
+                            <button class="ac-btn ac-btn-secondary" type="button">
+                              <span class="material-symbols-rounded">person_search</span>
+                              Select Existing Patient
+                            </button>
+                            <button class="ac-btn ac-btn-secondary" type="button" (click)="registerPatientFromAdmission()">
+                              <span class="material-symbols-rounded">person_add</span>
+                              Register New Patient
+                            </button>
+                          </div>
+                        </div>
+                      }
+                      @case (2) {
+                        <div class="wizard-grid">
+                          <label [class.invalid]="fieldError('source')">
+                            <span>Admission Source *</span>
+                            <ac-dropdown name="source" [(ngModel)]="admissionForm.source" [options]="sourceOptions" />
+                            @if (fieldError('source')) { <small>{{ fieldError('source') }}</small> }
+                          </label>
+                          <label [class.invalid]="fieldError('admittedAt')">
+                            <span>Admission Date / Time *</span>
+                            <input name="admittedAt" type="datetime-local" [ngModel]="dateTimeLocalValue(admissionForm.admittedAt)" (ngModelChange)="setAdmissionDate($event)" />
+                            @if (fieldError('admittedAt')) { <small>{{ fieldError('admittedAt') }}</small> }
+                          </label>
+                          <label [class.invalid]="fieldError('admissionType')">
+                            <span>Admission Type *</span>
+                            <ac-dropdown name="admissionType" [(ngModel)]="admissionForm.admissionType" [options]="admissionTypeOptions" />
+                            @if (fieldError('admissionType')) { <small>{{ fieldError('admissionType') }}</small> }
+                          </label>
+                          <label>
+                            <span>Referred From</span>
+                            <ac-dropdown name="referredFrom" [(ngModel)]="admissionForm.referredFrom" [options]="referralOptions" />
+                          </label>
+                          <label class="wide-field">
+                            <span>Previous Encounter</span>
+                            <input name="previousEncounter" [(ngModel)]="admissionForm.previousEncounter" placeholder="OPD encounter ID or handoff note" />
+                          </label>
+                          <label class="wide-field" [class.invalid]="fieldError('reason')">
+                            <span>Admission Reason *</span>
+                            <textarea name="reason" [(ngModel)]="admissionForm.reason" rows="3" placeholder="Clinical reason, source handoff, or admission instruction"></textarea>
+                            @if (fieldError('reason')) { <small>{{ fieldError('reason') }}</small> }
+                          </label>
+                        </div>
+                      }
+                      @case (3) {
+                        <div class="wizard-grid">
+                          <label><span>Primary Diagnosis</span><input name="primaryDiagnosis" [(ngModel)]="admissionForm.primaryDiagnosis" placeholder="Flexible diagnosis" /></label>
+                          <label><span>Secondary Diagnosis</span><input name="secondaryDiagnosis" [(ngModel)]="admissionForm.secondaryDiagnosis" placeholder="Optional" /></label>
+                          <label><span>Known Allergies</span><input name="knownAllergies" [(ngModel)]="admissionForm.knownAllergies" placeholder="None recorded" /></label>
+                          <label><span>Blood Group</span><input name="bloodGroup" [(ngModel)]="admissionForm.bloodGroup" placeholder="O-, AB+, etc." /></label>
+                          <label><span>Current Medication</span><input name="currentMedication" [(ngModel)]="admissionForm.currentMedication" placeholder="Medication at admission" /></label>
+                          <label><span>Infection Risk</span><ac-dropdown name="infectionRisk" [(ngModel)]="admissionForm.infectionRisk" [options]="infectionRiskOptions" /></label>
+                          <label class="wide-field"><span>Presenting Complaint</span><textarea name="presentingComplaint" [(ngModel)]="admissionForm.presentingComplaint" rows="3"></textarea></label>
+                          <label class="wide-field"><span>Medical History</span><textarea name="medicalHistory" [(ngModel)]="admissionForm.medicalHistory" rows="3"></textarea></label>
+                          <label class="wide-field"><span>Admission Notes</span><textarea name="admissionNotes" [(ngModel)]="admissionForm.admissionNotes" rows="3"></textarea></label>
+                        </div>
+                      }
+                      @case (4) {
+                        <div class="wizard-grid">
+                          <label [class.invalid]="fieldError('departmentName')">
+                            <span>Department *</span>
+                            <ac-dropdown name="departmentName" [(ngModel)]="admissionForm.departmentName" [options]="departmentOptions()" />
+                            @if (fieldError('departmentName')) { <small>{{ fieldError('departmentName') }}</small> }
+                          </label>
+                          <label [class.invalid]="fieldError('doctorId')">
+                            <span>Attending Doctor *</span>
+                            <ac-dropdown name="doctorId" [(ngModel)]="admissionForm.doctorId" [options]="doctorOptions(model.doctors)" />
+                            @if (fieldError('doctorId')) { <small>{{ fieldError('doctorId') }}</small> }
+                          </label>
+                          <label>
+                            <span>Consulting Doctor</span>
+                            <ac-dropdown name="consultingDoctor" [(ngModel)]="consultingDoctorId" [options]="doctorOptions(model.doctors)" />
+                          </label>
+                          <label [class.invalid]="fieldError('priority')">
+                            <span>Admission Priority *</span>
+                            <ac-dropdown name="priority" [(ngModel)]="admissionForm.priority" [options]="priorityOptions" />
+                            @if (fieldError('priority')) { <small>{{ fieldError('priority') }}</small> }
+                          </label>
+                        </div>
+                      }
+                      @case (5) {
+                        <div class="wizard-grid">
+                          <label>
+                            <span>Ward *</span>
+                            <ac-dropdown name="bedWard" [ngModel]="selectedWardName()" (ngModelChange)="selectWard($event)" [options]="wardSelectionOptions()" />
+                          </label>
+                          <label>
+                            <span>Room *</span>
+                            <ac-dropdown name="bedRoom" [ngModel]="selectedRoomName()" (ngModelChange)="selectRoom($event)" [options]="roomSelectionOptions()" />
+                          </label>
+                          <div class="bed-picker wide-field">
+                            @for (bed of workflowBeds(); track bed.bedId) {
+                              <button type="button" class="bed-choice" [class.selected]="admissionForm.bedId === bed.bedId" [class.disabled]="bed.statusCode.toUpperCase() !== 'AVAILABLE' && admissionForm.bedId !== bed.bedId" (click)="selectAdmissionBed(bed)">
+                                <span class="material-symbols-rounded">bed</span>
+                                <strong>{{ bed.bedNo }}</strong>
+                                <small>{{ admissionForm.bedId === bed.bedId ? 'Reserved' : statusText(bed.statusCode) }}</small>
+                              </button>
+                            } @empty {
+                              <div class="empty-state">Select a ward and room to view available beds.</div>
+                            }
+                          </div>
+                        </div>
+                      }
+                      @case (6) {
+                        <div class="review-grid">
+                          <span><b>Patient</b>{{ selectedAdmissionPatient()?.label || '-' }} · {{ selectedAdmissionPatient()?.meta || '-' }}</span>
+                          <span><b>Admission</b>{{ admissionForm.departmentName || '-' }} · {{ statusText(admissionForm.source) }}</span>
+                          <span><b>Doctor</b>{{ selectedDoctorName() }}</span>
+                          <span><b>Priority</b>{{ statusText(admissionForm.priority) }}</span>
+                          <span class="wide-review"><b>Reason</b>{{ admissionForm.reason || '-' }}</span>
+                          <span><b>Ward</b>{{ selectedBed()?.wardName || '-' }}</span>
+                          <span><b>Bed</b>{{ selectedBed()?.bedNo || '-' }}</span>
+                        </div>
+                      }
+                    }
+
+                    <div class="wizard-footer">
+                      <button class="ac-btn ac-btn-secondary" type="button" [disabled]="admissionStep() === 1 || saving()" (click)="previousAdmissionStep()">
+                        <span class="material-symbols-rounded">arrow_back</span>
+                        Back
+                      </button>
+                      <button class="ac-btn ac-btn-secondary" type="button" [disabled]="saving()" (click)="saveAdmissionDraft()">
+                        <span class="material-symbols-rounded">save</span>
+                        Save as Draft
+                      </button>
+                      @if (admissionStep() < 6) {
+                        <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="nextAdmissionStep()">
+                          <span class="material-symbols-rounded">arrow_forward</span>
+                          Next
+                        </button>
+                      } @else {
+                        <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="confirmAdmission()">
+                          <span class="material-symbols-rounded">{{ saving() ? 'progress_activity' : 'task_alt' }}</span>
+                          Confirm Admission
+                        </button>
+                      }
+                    </div>
+                  </article>
                 }
                 <div class="records-table">
                   <div class="table-head admissions-head">
-                    <span>Patient</span><span>Doctor</span><span>Ward / Bed</span><span>Status</span><span>Action</span>
+                    <span>Admission ID</span><span>Patient</span><span>Doctor</span><span>Ward / Bed</span><span>Admitted On</span><span>Status</span><span>Action</span>
                   </div>
                   @for (admission of filteredAdmissions(); track admission.admissionId) {
                     <div class="table-row admissions-row">
+                      <span><strong>{{ admission.admissionNo }}</strong><small>{{ statusText(admission.admissionSource) }}</small></span>
                       <span><strong>{{ admission.patientName }}</strong><small>{{ admission.medicalRecordNo }} · day {{ admission.stayDays }}</small></span>
-                      <span>{{ admission.doctorName }}</span>
+                      <span>{{ admission.doctorName }}<small>{{ admission.departmentName }}</small></span>
                       <span>{{ admission.wardName || 'Allocation pending' }} <small>{{ admission.bedNo || '-' }}</small></span>
+                      <span>{{ formatDate(admission.admittedAt) }}</span>
                       <span><b class="status-pill">{{ statusText(admission.statusCode) }}</b></span>
-                      <span><button class="ac-btn ac-btn-secondary" type="button" (click)="selectAdmission(admission, 'care')">Open Care</button></span>
+                      <span><button class="ac-btn ac-btn-secondary" type="button" (click)="openAdmissionRecord(admission)">{{ admission.statusCode === 'DRAFT' || admission.statusCode === 'PENDING_ADMISSION' ? 'Continue' : 'View' }}</button></span>
                     </div>
                   } @empty {
                     <div class="empty-state">No admissions match the current search.</div>
@@ -267,64 +435,575 @@ interface IpdKpiCard {
             }
 
             @case ('beds') {
-              <section class="bed-layout">
-                @for (group of bedGroups(); track group.wardName) {
-                  <article class="panel ward-panel">
-                    <div class="panel-head">
-                      <div>
-                        <p class="ac-eyebrow">{{ group.available }} available</p>
-                        <h2>{{ group.wardName }}</h2>
+              <section class="facility-workspace">
+                <article class="panel">
+                  <div class="section-toolbar">
+                    <div>
+                      <p class="ac-eyebrow">Ward, room & bed management</p>
+                      <h2>Hospital bed structure</h2>
+                    </div>
+                    <div class="facility-tabs">
+                      <button type="button" [class.active]="facilityTab() === 'wards'" (click)="facilityTab.set('wards')">Wards</button>
+                      <button type="button" [class.active]="facilityTab() === 'rooms'" (click)="facilityTab.set('rooms')">Rooms</button>
+                      <button type="button" [class.active]="facilityTab() === 'beds'" (click)="facilityTab.set('beds')">Beds</button>
+                    </div>
+                  </div>
+
+                  @switch (facilityTab()) {
+                    @case ('wards') {
+                      <form class="facility-form" (ngSubmit)="saveWard()">
+                        <label><span>Ward Name *</span><input name="wardName" [(ngModel)]="wardForm.wardName" placeholder="General Ward" /></label>
+                        <label><span>Ward Code *</span><input name="wardCode" [(ngModel)]="wardForm.wardCode" placeholder="GEN" /></label>
+                        <label><span>Ward Type</span><ac-dropdown name="wardType" [(ngModel)]="wardForm.wardType" [options]="wardTypeOptions" /></label>
+                        <label><span>Department</span><input name="department" [(ngModel)]="wardForm.department" placeholder="General Medicine" /></label>
+                        <label><span>Floor</span><input name="wardFloor" [(ngModel)]="wardForm.floor" placeholder="Ground" /></label>
+                        <label><span>Capacity</span><input name="wardCapacity" type="number" min="0" [(ngModel)]="wardForm.capacity" /></label>
+                        <label><span>Status</span><ac-dropdown name="wardStatus" [(ngModel)]="wardForm.statusCode" [options]="facilityStatusOptions" /></label>
+                        <label class="wide-field"><span>Description</span><textarea name="wardDescription" rows="2" [(ngModel)]="wardForm.description"></textarea></label>
+                        <div class="form-actions compact-actions">
+                          <button class="ac-btn ac-btn-secondary" type="button" (click)="resetWardForm()">Clear</button>
+                          <button class="ac-btn ac-btn-primary" type="submit" [disabled]="saving()">Save Ward</button>
+                        </div>
+                      </form>
+                      <div class="facility-grid">
+                        @for (ward of model.wards; track ward.wardId) {
+                          <article class="facility-card">
+                            <div>
+                              <p class="ac-eyebrow">{{ ward.wardType }}</p>
+                              <h3>{{ ward.wardName }}</h3>
+                              <span>{{ ward.wardCode }} · {{ ward.department }} · {{ ward.floor }}</span>
+                            </div>
+                            <b>{{ ward.totalBeds }}/{{ ward.capacity || ward.totalBeds }} beds</b>
+                            <small>{{ ward.occupiedBeds }} occupied · {{ ward.availableBeds }} available</small>
+                            <div class="inline-actions">
+                              <button class="link-btn" type="button" (click)="editWard(ward)">Edit</button>
+                              <button class="link-btn danger" type="button" (click)="deleteWard(ward)">Delete</button>
+                            </div>
+                          </article>
+                        }
                       </div>
-                      <span class="soft-pill">{{ group.occupied }}/{{ group.total }} occupied</span>
-                    </div>
-                    <div class="bed-grid">
-                      @for (bed of group.beds; track bed.bedId) {
-                        <button type="button" class="bed-tile" [class]="bedStatusClass(bed)" (click)="chooseTransferBed(bed)">
-                          <span class="material-symbols-rounded">bed</span>
-                          <strong>{{ bed.bedNo }}</strong>
-                          <small>{{ bed.currentPatientName || statusText(bed.statusCode) }}</small>
-                        </button>
-                      }
-                    </div>
-                  </article>
-                } @empty {
-                  <article class="panel"><div class="empty-state">No beds configured for IPD.</div></article>
-                }
+                    }
+                    @case ('rooms') {
+                      <form class="facility-form" (ngSubmit)="saveRoom()">
+                        <label><span>Ward *</span><ac-dropdown name="roomWardId" [(ngModel)]="roomForm.wardId" [options]="wardIdOptions()" /></label>
+                        <label><span>Room Number *</span><input name="roomNumber" [(ngModel)]="roomForm.roomNumber" placeholder="Room 101" /></label>
+                        <label><span>Room Type</span><ac-dropdown name="roomType" [(ngModel)]="roomForm.roomType" [options]="roomTypeOptions" /></label>
+                        <label><span>Floor</span><input name="roomFloor" [(ngModel)]="roomForm.floor" placeholder="Ground" /></label>
+                        <label><span>Capacity</span><input name="roomCapacity" type="number" min="0" [(ngModel)]="roomForm.capacity" /></label>
+                        <label><span>Status</span><ac-dropdown name="roomStatus" [(ngModel)]="roomForm.statusCode" [options]="facilityStatusOptions" /></label>
+                        <div class="form-actions compact-actions">
+                          <button class="ac-btn ac-btn-secondary" type="button" (click)="resetRoomForm()">Clear</button>
+                          <button class="ac-btn ac-btn-primary" type="submit" [disabled]="saving()">Save Room</button>
+                        </div>
+                      </form>
+                      <div class="facility-grid">
+                        @for (room of model.rooms; track room.roomId) {
+                          <article class="facility-card">
+                            <div>
+                              <p class="ac-eyebrow">{{ room.wardName }}</p>
+                              <h3>{{ room.roomNumber }}</h3>
+                              <span>{{ statusText(room.roomType) }} · {{ room.floor }}</span>
+                            </div>
+                            <b>{{ room.totalBeds }}/{{ room.capacity || room.totalBeds }} beds</b>
+                            <small>{{ room.occupiedBeds }} occupied · {{ room.availableBeds }} available</small>
+                            <div class="inline-actions">
+                              <button class="link-btn" type="button" (click)="editRoom(room)">Edit</button>
+                              <button class="link-btn danger" type="button" (click)="deleteRoom(room)">Delete</button>
+                            </div>
+                          </article>
+                        }
+                      </div>
+                    }
+                    @case ('beds') {
+                      <form class="facility-form" (ngSubmit)="saveBed()">
+                        <label><span>Ward *</span><ac-dropdown name="bedWardId" [(ngModel)]="bedForm.wardId" [options]="wardIdOptions()" /></label>
+                        <label><span>Room *</span><ac-dropdown name="bedRoomId" [(ngModel)]="bedForm.roomId" [options]="roomIdOptions(bedForm.wardId)" /></label>
+                        <label><span>Bed Number *</span><input name="bedNumber" [(ngModel)]="bedForm.bedNumber" placeholder="G-101-A" /></label>
+                        <label><span>Bed Type</span><ac-dropdown name="bedType" [(ngModel)]="bedForm.bedType" [options]="bedTypeOptions" /></label>
+                        <label><span>Status</span><ac-dropdown name="bedStatus" [(ngModel)]="bedForm.statusCode" [options]="bedStatusOptions" /></label>
+                        <label><span>Daily Charge</span><input name="dailyCharge" type="number" min="0" [(ngModel)]="bedForm.dailyCharge" /></label>
+                        <div class="form-actions compact-actions">
+                          <button class="ac-btn ac-btn-secondary" type="button" (click)="resetBedForm()">Clear</button>
+                          <button class="ac-btn ac-btn-primary" type="submit" [disabled]="saving()">Save Bed</button>
+                        </div>
+                      </form>
+                      <div class="bed-layout compact-bed-layout">
+                        @for (group of bedGroups(); track group.wardName) {
+                          <article class="panel ward-panel">
+                            <div class="panel-head">
+                              <div>
+                                <p class="ac-eyebrow">{{ group.available }} available</p>
+                                <h2>{{ group.wardName }}</h2>
+                              </div>
+                              <span class="soft-pill">{{ group.occupied }}/{{ group.total }} occupied</span>
+                            </div>
+                            <div class="bed-grid">
+                              @for (bed of group.beds; track bed.bedId) {
+                                <button type="button" class="bed-tile" [class]="bedStatusClass(bed)" (click)="editBed(bed)">
+                                  <span class="material-symbols-rounded">bed</span>
+                                  <strong>{{ bed.bedNo }}</strong>
+                                  <small>{{ bed.roomNumber }} · {{ bed.currentPatientName || statusText(bed.statusCode) }}</small>
+                                </button>
+                              }
+                            </div>
+                          </article>
+                        } @empty {
+                          <article class="panel"><div class="empty-state">No beds configured for IPD.</div></article>
+                        }
+                      </div>
+                    }
+                  }
+                </article>
               </section>
             }
 
             @case ('patients') {
-              <section class="panel">
-                <div class="section-toolbar">
-                  <div>
-                    <p class="ac-eyebrow">Active patients</p>
-                    <h2>Current inpatient stay</h2>
-                  </div>
-                  <div class="search-field compact-search">
-                    <span class="material-symbols-rounded">search</span>
-                    <input type="text" [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" placeholder="Search patient, MRN, doctor, bed" />
-                  </div>
-                </div>
-                <div class="patient-grid">
-                  @for (admission of filteredAdmissions(); track admission.admissionId) {
-                    <article class="patient-card">
-                      <div class="avatar">{{ initials(admission.patientName) }}</div>
+              @if (activePatientDetailOpen() && selectedAdmission(); as selected) {
+                <section class="admission-workspace">
+                  <article class="panel admission-hero">
+                    <div class="hero-nav">
+                      <button class="link-btn back-link" type="button" (click)="closeInpatientDetail()">
+                        <span class="material-symbols-rounded">arrow_back</span>
+                        IPD Admissions
+                      </button>
+                      <button class="ac-btn ac-btn-secondary" type="button" (click)="printAdmissionSummary()">
+                        <span class="material-symbols-rounded">print</span>
+                        Print
+                      </button>
+                    </div>
+                    <div class="admission-identity">
+                      <div class="avatar large">{{ initials(selected.patientName) }}</div>
                       <div>
-                        <h3>{{ admission.patientName }}</h3>
-                        <p>{{ admission.medicalRecordNo }} · {{ admission.doctorName }}</p>
-                        <div class="info-pills">
-                          <span>{{ admission.wardName || 'Ward pending' }}</span>
-                          <span>{{ admission.bedNo || 'Bed pending' }}</span>
-                          <span>Day {{ admission.stayDays }}</span>
-                        </div>
+                        <p class="ac-eyebrow">IPD Admission Detail</p>
+                        <h2>{{ selected.patientName }}</h2>
+                        <p>{{ selected.medicalRecordNo }} · {{ selected.admissionNo }} · {{ statusText(selected.statusCode) }}</p>
                       </div>
-                      <button class="ac-btn ac-btn-primary" type="button" (click)="selectAdmission(admission, 'care')">Open Care</button>
+                      <span class="status-pill">{{ statusText(selected.statusCode) }}</span>
+                    </div>
+                    <div class="admission-meta-line">
+                      <span><b>Ward</b>{{ selected.wardName || 'Ward pending' }}</span>
+                      <span><b>Bed</b>{{ selected.bedNo || 'Bed pending' }}</span>
+                      <span><b>Doctor</b>{{ selected.doctorName || 'Unassigned' }}</span>
+                      <span><b>Stay</b>Day {{ selected.stayDays || 1 }}</span>
+                    </div>
+                  </article>
+
+                  <section class="detail-kpis">
+                    <article>
+                      <span class="material-symbols-rounded">event_available</span>
+                      <div><strong>{{ selected.stayDays || 1 }} Days</strong><small>Admission Day</small></div>
                     </article>
-                  } @empty {
-                    <div class="empty-state">No active inpatients found.</div>
+                    <article>
+                      <span class="material-symbols-rounded">bed</span>
+                      <div><strong>{{ selected.bedNo || 'Pending' }}</strong><small>Current Bed</small></div>
+                    </article>
+                    <article>
+                      <span class="material-symbols-rounded">receipt_long</span>
+                      <div><strong>{{ formatMoney(selected.outstanding || 0) }}</strong><small>Outstanding</small></div>
+                    </article>
+                    <article>
+                      <span class="material-symbols-rounded">assignment</span>
+                      <div><strong>{{ selected.activeOrders || 0 }}</strong><small>Active Orders</small></div>
+                    </article>
+                  </section>
+
+                  <nav class="detail-tabs" aria-label="IPD admission detail tabs">
+                    @for (tab of detailTabs; track tab.key) {
+                      <button type="button" [class.active]="activeDetailTab() === tab.key" (click)="setDetailTab(tab.key)">
+                        <span class="material-symbols-rounded">{{ tab.icon }}</span>
+                        {{ tab.label }}
+                      </button>
+                    }
+                  </nav>
+
+                  @switch (activeDetailTab()) {
+                    @case ('overview') {
+                      <section class="overview-workspace">
+                        <article class="panel overview-section">
+                          <p class="ac-eyebrow">Section 1</p>
+                          <h2>Admission Summary</h2>
+                          <div class="overview-list">
+                            <span><b>Admission ID</b>{{ selected.admissionNo }}</span>
+                            <span><b>Admitted On</b>{{ formatDate(selected.admittedAt) }}, {{ formatTime(selected.admittedAt) }}</span>
+                            <span><b>Source</b>{{ statusText(selected.admissionSource) }}</span>
+                            <span><b>Department</b>{{ selected.departmentName || 'General Medicine' }}</span>
+                            <span><b>Attending Doctor</b>{{ selected.doctorName || 'Unassigned' }}</span>
+                          </div>
+                        </article>
+
+                        <article class="panel overview-section">
+                          <p class="ac-eyebrow">Section 2</p>
+                          <h2>Current Location</h2>
+                          <div class="location-strip">
+                            <span><b>Ward</b>{{ selected.wardName || 'Pending' }}</span>
+                            <span><b>Room</b>{{ selected.roomNumber || roomFromBed(selected.bedNo) || 'Pending' }}</span>
+                            <span><b>Bed</b>{{ selected.bedNo || 'Pending' }}</span>
+                          </div>
+                        </article>
+
+                        <article class="panel overview-section">
+                          <p class="ac-eyebrow">Section 3</p>
+                          <h2>Clinical Snapshot</h2>
+                          <div class="clinical-snapshot">
+                            <span><b>Primary Diagnosis</b>{{ selected.primaryDiagnosis || 'Not captured' }}</span>
+                            <span><b>Allergies</b>{{ selected.knownAllergies || 'No known allergies' }}</span>
+                            <span><b>Blood Group</b>{{ selected.bloodGroup || 'Not recorded' }}</span>
+                          </div>
+                        </article>
+
+                        <article class="panel overview-section">
+                          <p class="ac-eyebrow">Section 4</p>
+                          <h2>Latest Vitals</h2>
+                          <div class="vitals-strip">
+                            <span><b>Temperature</b>Not recorded</span>
+                            <span><b>Blood Pressure</b>Not recorded</span>
+                            <span><b>Pulse</b>Not recorded</span>
+                            <span><b>SpO2</b>Not recorded</span>
+                          </div>
+                        </article>
+
+                        <article class="panel overview-section timeline-panel">
+                          <div class="panel-head">
+                            <div>
+                              <p class="ac-eyebrow">Section 5</p>
+                              <h2>Recent Activity Timeline</h2>
+                            </div>
+                            <span class="soft-pill">{{ overviewTimeline(selected).length }} events</span>
+                          </div>
+                          <div class="timeline-list">
+                            @for (item of overviewTimeline(selected); track item.label) {
+                              <span>
+                                <b>{{ item.time }}</b>
+                                <i></i>
+                                <strong>{{ item.label }}</strong>
+                              </span>
+                            }
+                          </div>
+                        </article>
+                      </section>
+                    }
+                    @case ('clinical') {
+                      <section class="panel">
+                        <p class="ac-eyebrow">Clinical profile</p>
+                        <h2>Initial clinical information</h2>
+                        <div class="summary-grid">
+                          <span class="wide-review"><b>Admission reason</b>{{ selected.admissionReason || 'Not captured' }}</span>
+                          <span><b>Department</b>{{ selected.departmentName || 'General Medicine' }}</span>
+                          <span><b>Priority</b>{{ statusText(selected.priorityCode) }}</span>
+                          <span><b>Source</b>{{ statusText(selected.admissionSource) }}</span>
+                          <span><b>Admission type</b>{{ statusText(selected.admissionType) }}</span>
+                        </div>
+                      </section>
+                    }
+                    @case ('rounds') {
+                      <section class="panel">
+                        <div class="panel-head">
+                          <div>
+                            <p class="ac-eyebrow">Doctor rounds</p>
+                            <h2>Progress note and plan</h2>
+                          </div>
+                          <span class="soft-pill">{{ selected.doctorName || 'Unassigned doctor' }}</span>
+                        </div>
+                        <label class="note-field">
+                          <span>Round note</span>
+                          <textarea rows="8" [(ngModel)]="doctorRoundNote" name="detailDoctorRoundNote" placeholder="Assessment, progress, advice, procedures, and plan"></textarea>
+                        </label>
+                        <div class="inline-actions end">
+                          <button class="ac-btn ac-btn-secondary" type="button" (click)="saveCareDraft()"><span class="material-symbols-rounded">save</span>Save Draft</button>
+                          <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="saveCareNotes()"><span class="material-symbols-rounded">assignment_turned_in</span>Save Round</button>
+                        </div>
+                      </section>
+                    }
+                    @case ('nursing') {
+                      <section class="panel">
+                        <p class="ac-eyebrow">Nursing care</p>
+                        <h2>Care note</h2>
+                        <label class="note-field">
+                          <span>Nursing note</span>
+                          <textarea rows="8" [(ngModel)]="nursingNote" name="detailNursingNote" placeholder="Vitals, intake/output, observation, care provided, and escalation"></textarea>
+                        </label>
+                        <div class="inline-actions end">
+                          <button class="ac-btn ac-btn-secondary" type="button" (click)="saveCareDraft()"><span class="material-symbols-rounded">save</span>Save Draft</button>
+                          <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="saveCareNotes()"><span class="material-symbols-rounded">assignment_turned_in</span>Save Nursing Note</button>
+                        </div>
+                      </section>
+                    }
+                    @case ('vitals') {
+                      <section class="vitals-workspace">
+                        <article class="panel vitals-latest-panel">
+                          <div class="panel-head">
+                            <div>
+                              <p class="ac-eyebrow">Latest values</p>
+                              <h2>Vitals Snapshot</h2>
+                            </div>
+                            <span class="soft-pill">{{ latestVital() ? formatTime(latestVital()!.recordedAt) : 'No readings' }}</span>
+                          </div>
+                          <div class="latest-vitals-grid">
+                            <span><b>Temperature</b>{{ latestVitalValue('temperature') }}</span>
+                            <span><b>Blood Pressure</b>{{ latestVitalValue('bloodPressure') }}</span>
+                            <span><b>Pulse</b>{{ latestVitalValue('pulse') }}</span>
+                            <span><b>SpO2</b>{{ latestVitalValue('spo2') }}</span>
+                          </div>
+                        </article>
+
+                        <article class="panel">
+                          <div class="panel-head">
+                            <div>
+                              <p class="ac-eyebrow">Record vitals</p>
+                              <h2>Record Vitals</h2>
+                            </div>
+                            <button class="ac-btn ac-btn-secondary" type="button" (click)="resetVitalForm()">
+                              <span class="material-symbols-rounded">refresh</span>
+                              Clear
+                            </button>
+                          </div>
+                          <div class="vital-form">
+                            <label>
+                              <span>Date & Time</span>
+                              <input name="vitalRecordedAt" type="datetime-local" [ngModel]="dateTimeLocalValue(vitalForm.recordedAt)" (ngModelChange)="setVitalDate($event)" />
+                            </label>
+                            <label>
+                              <span>Temperature</span>
+                              <input name="temperature" type="number" step="0.1" [(ngModel)]="vitalForm.temperature" placeholder="98.6 °F" />
+                            </label>
+                            <label>
+                              <span>Pulse Rate</span>
+                              <input name="pulseRate" type="number" [(ngModel)]="vitalForm.pulseRate" placeholder="78 bpm" />
+                            </label>
+                            <label>
+                              <span>Respiratory Rate</span>
+                              <input name="respiratoryRate" type="number" [(ngModel)]="vitalForm.respiratoryRate" placeholder="20 / min" />
+                            </label>
+                            <label>
+                              <span>BP Systolic</span>
+                              <input name="bloodPressureSystolic" type="number" [(ngModel)]="vitalForm.bloodPressureSystolic" placeholder="120" />
+                            </label>
+                            <label>
+                              <span>BP Diastolic</span>
+                              <input name="bloodPressureDiastolic" type="number" [(ngModel)]="vitalForm.bloodPressureDiastolic" placeholder="80" />
+                            </label>
+                            <label>
+                              <span>SpO2</span>
+                              <input name="spo2" type="number" [(ngModel)]="vitalForm.spo2" placeholder="98%" />
+                            </label>
+                            <label>
+                              <span>Height</span>
+                              <input name="height" type="number" step="0.1" [(ngModel)]="vitalForm.height" placeholder="cm" />
+                            </label>
+                            <label>
+                              <span>Weight</span>
+                              <input name="weight" type="number" step="0.1" [(ngModel)]="vitalForm.weight" placeholder="kg" />
+                            </label>
+                            <label>
+                              <span>Pain Score</span>
+                              <input name="painScore" type="number" min="0" max="10" [(ngModel)]="vitalForm.painScore" placeholder="0-10" />
+                            </label>
+                            <label>
+                              <span>Blood Glucose</span>
+                              <input name="bloodGlucose" type="number" step="0.1" [(ngModel)]="vitalForm.bloodGlucose" placeholder="mg/dL" />
+                            </label>
+                            <label>
+                              <span>Recorded By</span>
+                              <input name="recordedBy" [(ngModel)]="vitalForm.recordedBy" placeholder="Nurse / doctor name" />
+                            </label>
+                            <label class="wide-field">
+                              <span>Notes</span>
+                              <textarea name="vitalNotes" rows="3" [(ngModel)]="vitalForm.notes" placeholder="Observation, escalation, or context"></textarea>
+                            </label>
+                          </div>
+                          <div class="inline-actions end">
+                            <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="saveVitals()">
+                              <span class="material-symbols-rounded">{{ saving() ? 'progress_activity' : 'monitor_heart' }}</span>
+                              Save Vitals
+                            </button>
+                          </div>
+                        </article>
+
+                        <article class="panel">
+                          <div class="panel-head">
+                            <div>
+                              <p class="ac-eyebrow">Trend</p>
+                              <h2>Vitals Trend</h2>
+                            </div>
+                            <span class="soft-pill">{{ vitalRecords().length }} readings</span>
+                          </div>
+                          <div class="trend-grid">
+                            <div>
+                              <b>Temperature</b>
+                              <div class="sparkline">
+                                @for (point of trendPoints('temperature'); track point.index) {
+                                  <i [style.height.%]="point.height"></i>
+                                }
+                              </div>
+                            </div>
+                            <div>
+                              <b>Pulse</b>
+                              <div class="sparkline pulse">
+                                @for (point of trendPoints('pulse'); track point.index) {
+                                  <i [style.height.%]="point.height"></i>
+                                }
+                              </div>
+                            </div>
+                            <div>
+                              <b>SpO2</b>
+                              <div class="sparkline spo2">
+                                @for (point of trendPoints('spo2'); track point.index) {
+                                  <i [style.height.%]="point.height"></i>
+                                }
+                              </div>
+                            </div>
+                          </div>
+                        </article>
+
+                        <article class="panel">
+                          <div class="panel-head">
+                            <div>
+                              <p class="ac-eyebrow">History</p>
+                              <h2>Historical Vitals</h2>
+                            </div>
+                            @if (vitalsLoading()) { <span class="soft-pill">Loading...</span> }
+                          </div>
+                          <div class="records-table vitals-table">
+                            <div class="table-head vitals-head">
+                              <span>Date & Time</span><span>Temp</span><span>BP</span><span>Pulse</span><span>SpO2</span><span>Pain</span><span>By</span><span>Action</span>
+                            </div>
+                            @for (record of vitalRecords(); track record.vitalId) {
+                              <div class="table-row vitals-row">
+                                <span><strong>{{ formatDate(record.recordedAt) }}</strong><small>{{ formatTime(record.recordedAt) }}</small></span>
+                                <span>{{ valueWithUnit(record.temperature, '°F') }}</span>
+                                <span>{{ bloodPressureText(record) }}</span>
+                                <span>{{ valueWithUnit(record.pulseRate, 'bpm') }}</span>
+                                <span>{{ valueWithUnit(record.spo2, '%') }}</span>
+                                <span>{{ record.painScore ?? '-' }}</span>
+                                <span>{{ record.recordedBy || '-' }}</span>
+                                <span class="row-actions">
+                                  <button class="link-btn" type="button" (click)="editVitals(record)">Edit</button>
+                                  <button class="link-btn danger" type="button" (click)="deleteVitals(record)">Delete</button>
+                                </span>
+                              </div>
+                            } @empty {
+                              <div class="empty-state">No vitals recorded yet.</div>
+                            }
+                          </div>
+                        </article>
+                      </section>
+                    }
+                    @case ('transfers') {
+                      <section class="panel">
+                        <div class="section-toolbar">
+                          <div>
+                            <p class="ac-eyebrow">Transfers</p>
+                            <h2>Bed allocation and transfer</h2>
+                          </div>
+                          <span class="soft-pill">{{ selected.wardName || 'No ward' }} · {{ selected.bedNo || 'No bed' }}</span>
+                        </div>
+                        <div class="transfer-box">
+                          <div class="transfer-patient">
+                            <strong>{{ selected.patientName }}</strong>
+                            <span>{{ selected.wardName || 'No ward' }} · {{ selected.bedNo || 'No bed' }}</span>
+                          </div>
+                          <ac-dropdown name="detailTransferBed" [(ngModel)]="transferBedId" [options]="availableBedOptions()" placeholder="Choose available bed" />
+                          <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="allocateBed()">
+                            <span class="material-symbols-rounded">swap_horiz</span>
+                            Save Allocation
+                          </button>
+                        </div>
+                      </section>
+                    }
+                    @case ('billing') {
+                      <section class="panel billing-panel">
+                        <p class="ac-eyebrow">Billing accumulation</p>
+                        <h2>Financial readiness</h2>
+                        <div class="billing-grid">
+                          <span><b>{{ formatMoney(selected.outstanding || 0) }}</b> outstanding</span>
+                          <span><b>{{ selected.stayDays || 1 }}</b> billable stay days</span>
+                          <span><b>{{ selected.activeOrders || 0 }}</b> active orders</span>
+                          <span><b>{{ selected.bedNo || 'Pending' }}</b> bed charge stream</span>
+                        </div>
+                        <p class="helper-text">Room rent, procedures, investigations, pharmacy issues, payments, and discharge clearance can be accumulated against this admission.</p>
+                      </section>
+                    }
+                    @case ('discharge') {
+                      <section class="panel">
+                        <div class="section-toolbar">
+                          <div>
+                            <p class="ac-eyebrow">Discharge planning</p>
+                            <h2>Final bill and discharge summary</h2>
+                          </div>
+                          <button class="ac-btn ac-btn-secondary" type="button" (click)="printDischargeSummary()"><span class="material-symbols-rounded">print</span>Print</button>
+                        </div>
+                        <div class="discharge-summary">
+                          <aside>
+                            <strong>{{ selected.patientName }}</strong>
+                            <span>{{ selected.medicalRecordNo || '-' }}</span>
+                            <span>{{ selected.wardName || 'Ward pending' }} · {{ selected.bedNo || 'Bed pending' }}</span>
+                            <span>Doctor: {{ selected.doctorName || '-' }}</span>
+                          </aside>
+                          <label class="note-field">
+                            <span>Discharge summary *</span>
+                            <textarea rows="9" [(ngModel)]="dischargeSummary" name="detailDischargeSummary" placeholder="Diagnosis, treatment given, condition at discharge, medication advice, follow-up, and billing clearance"></textarea>
+                          </label>
+                        </div>
+                        <div class="inline-actions end">
+                          <button class="ac-btn ac-btn-secondary" type="button" (click)="saveDischargeDraft()"><span class="material-symbols-rounded">save</span>Save Draft</button>
+                          <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="finalizeDischarge()"><span class="material-symbols-rounded">task_alt</span>Finalize Discharge</button>
+                        </div>
+                      </section>
+                    }
+                    @default {
+                      <section class="panel tab-placeholder">
+                        <span class="material-symbols-rounded">{{ detailTabIcon(activeDetailTab()) }}</span>
+                        <div>
+                          <p class="ac-eyebrow">{{ detailTabLabel(activeDetailTab()) }}</p>
+                          <h2>{{ selected.patientName }} care workspace</h2>
+                          <p>{{ detailTabHelp(activeDetailTab()) }}</p>
+                        </div>
+                      </section>
+                    }
                   }
-                </div>
-              </section>
+                </section>
+              } @else {
+                <section class="panel">
+                  <div class="section-toolbar">
+                    <div>
+                      <p class="ac-eyebrow">Active inpatients</p>
+                      <h2>Current inpatient stay</h2>
+                    </div>
+                    <button class="ac-btn ac-btn-secondary" type="button" (click)="exportActivePatients()">
+                      <span class="material-symbols-rounded">download</span>
+                      Export
+                    </button>
+                  </div>
+                  <div class="active-filters">
+                    <div class="search-field">
+                      <span class="material-symbols-rounded">search</span>
+                      <input type="text" [ngModel]="activeSearchQuery()" (ngModelChange)="activeSearchQuery.set($event)" placeholder="Search patient, MRN, admission ID" />
+                    </div>
+                    <ac-dropdown name="activeWardFilter" [ngModel]="activeWardFilter()" (ngModelChange)="activeWardFilter.set($event)" [options]="activeWardOptions()" />
+                    <ac-dropdown name="activeDoctorFilter" [ngModel]="activeDoctorFilter()" (ngModelChange)="activeDoctorFilter.set($event)" [options]="activeDoctorOptions()" />
+                    <ac-dropdown name="activeDepartmentFilter" [ngModel]="activeDepartmentFilter()" (ngModelChange)="activeDepartmentFilter.set($event)" [options]="activeDepartmentOptions()" />
+                    <ac-dropdown name="activePriorityFilter" [ngModel]="activePriorityFilter()" (ngModelChange)="activePriorityFilter.set($event)" [options]="activePriorityOptions()" />
+                  </div>
+                  <div class="records-table active-table">
+                    <div class="table-head active-head">
+                      <span>Patient</span><span>Admission ID</span><span>Ward</span><span>Bed</span><span>Doctor</span><span>Stay</span><span>Status</span>
+                    </div>
+                    @for (admission of filteredActiveInpatients(); track admission.admissionId) {
+                      <button type="button" class="table-row active-row" (click)="openInpatientDetail(admission)">
+                        <span><strong>{{ admission.patientName }}</strong><small>{{ admission.medicalRecordNo }} · {{ statusText(admission.priorityCode) }}</small></span>
+                        <span><strong>{{ admission.admissionNo }}</strong><small>{{ statusText(admission.admissionSource) }}</small></span>
+                        <span>{{ admission.wardName || 'Ward pending' }}</span>
+                        <span>{{ admission.bedNo || 'Bed pending' }}</span>
+                        <span><strong>{{ admission.doctorName || 'Unassigned' }}</strong><small>{{ admission.departmentName || 'General Medicine' }}</small></span>
+                        <span>Day {{ admission.stayDays || 1 }}</span>
+                        <span><b class="status-pill">{{ statusText(admission.statusCode) }}</b></span>
+                      </button>
+                    } @empty {
+                      <div class="empty-state">No active inpatients found.</div>
+                    }
+                  </div>
+                </section>
+              }
             }
 
             @case ('care') {
@@ -693,17 +1372,85 @@ interface IpdKpiCard {
     .attention-item.info .material-symbols-rounded { color: var(--ac-info); background: var(--ac-info-light); }
     .attention-item.success .material-symbols-rounded { color: var(--ac-success); background: var(--ac-success-light); }
 
-    .admission-form {
+    .admission-filters {
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 12px;
-      padding: 14px;
+      grid-template-columns: minmax(260px, 1fr) repeat(4, minmax(160px, .35fr));
+      gap: 10px;
       margin-bottom: 14px;
+    }
+
+    .admission-wizard {
+      display: grid;
+      gap: 14px;
+      padding: 16px;
+      margin-bottom: 16px;
       border: 1px solid color-mix(in srgb, var(--ac-primary) 24%, var(--ac-border));
       border-radius: 12px;
-      background: color-mix(in srgb, var(--ac-primary-light) 34%, var(--ac-surface));
+      background: linear-gradient(135deg, color-mix(in srgb, var(--ac-primary-light) 42%, var(--ac-surface)), var(--ac-surface));
     }
+    .wizard-head, .wizard-footer, .wizard-actions-inline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .wizard-head h3 { font-size: 22px; }
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--ac-border);
+      border-radius: 10px;
+      background: var(--ac-surface);
+      color: var(--ac-muted);
+    }
+    .admission-stepper {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(116px, 1fr));
+      overflow-x: auto;
+      border: 1px solid var(--ac-border);
+      border-radius: 12px;
+      background: var(--ac-surface);
+    }
+    .admission-step {
+      min-height: 72px;
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      color: var(--ac-muted);
+      border-right: 1px solid var(--ac-border);
+      text-align: left;
+    }
+    .admission-step:last-child { border-right: 0; }
+    .admission-step span {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      border: 1px solid var(--ac-border);
+      background: var(--ac-surface);
+      font-weight: 900;
+    }
+    .admission-step strong { font-size: 13px; line-height: 1.15; }
+    .admission-step.done span { border-color: var(--ac-success); background: var(--ac-success); color: #fff; }
+    .admission-step.done strong { color: var(--ac-success-text); }
+    .admission-step.active { background: var(--ac-primary-light); color: var(--ac-primary); }
+    .admission-step.active span { border-color: var(--ac-primary); background: var(--ac-primary); color: #fff; }
+    .admission-step.active strong { color: var(--ac-primary); }
+    .wizard-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .patient-step { grid-template-columns: minmax(280px, .75fr) minmax(320px, 1fr); align-items: start; }
     label { display: grid; gap: 7px; color: var(--ac-text-3); font-size: 12px; font-weight: 900; }
+    label.invalid textarea, label.invalid input { border-color: var(--ac-error); background: var(--ac-error-light); }
+    label.invalid small { color: var(--ac-error); font-size: 12px; font-weight: 850; }
     textarea, input {
       width: 100%;
       border: 1px solid var(--ac-border);
@@ -715,8 +1462,49 @@ interface IpdKpiCard {
       outline: none;
     }
     textarea:focus, input:focus { border-color: var(--ac-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ac-primary) 15%, transparent); }
-    .wide-field { grid-column: span 3; }
-    .form-actions { display: flex; justify-content: flex-end; align-items: end; gap: 10px; grid-column: span 2; }
+    .wide-field { grid-column: 1 / -1; }
+    .selected-patient-card {
+      display: grid;
+      grid-template-columns: 48px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 14px;
+      border: 1px solid var(--ac-border);
+      border-radius: 12px;
+      background: var(--ac-surface);
+    }
+    .selected-patient-card strong, .selected-patient-card span, .selected-patient-card small { display: block; }
+    .selected-patient-card span, .selected-patient-card small { color: var(--ac-muted); font-weight: 750; }
+    .selected-patient-card b { color: var(--ac-primary); }
+    .bed-picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+    .bed-choice {
+      min-height: 108px;
+      display: grid;
+      align-content: center;
+      gap: 6px;
+      padding: 12px;
+      border: 1px solid var(--ac-border);
+      border-radius: 12px;
+      background: var(--ac-surface);
+      text-align: left;
+    }
+    .bed-choice.selected { border-color: var(--ac-success); background: var(--ac-success-light); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ac-success) 12%, transparent); }
+    .bed-choice.disabled { opacity: .48; cursor: not-allowed; }
+    .bed-choice .material-symbols-rounded { color: var(--ac-primary); }
+    .bed-choice small { color: var(--ac-muted); font-weight: 800; }
+    .review-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .review-grid span {
+      display: grid;
+      gap: 4px;
+      min-height: 76px;
+      padding: 12px;
+      border: 1px solid var(--ac-border);
+      border-radius: 10px;
+      background: var(--ac-surface);
+      font-weight: 850;
+    }
+    .review-grid b { color: var(--ac-muted); font-size: 11px; text-transform: uppercase; }
+    .wide-review { grid-column: span 2; }
 
     .records-table { border: 1px solid var(--ac-border); border-radius: 12px; overflow: hidden; }
     .table-head, .table-row { display: grid; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--ac-border); }
@@ -724,8 +1512,244 @@ interface IpdKpiCard {
     .table-row:last-child { border-bottom: 0; }
     .table-row strong, .table-row small { display: block; }
     .table-row small { color: var(--ac-muted); font-weight: 700; }
-    .admissions-head, .admissions-row { grid-template-columns: 1.25fr 1fr 1fr .65fr .65fr; }
+    .admissions-head, .admissions-row { grid-template-columns: .9fr 1.15fr 1fr 1fr .8fr .75fr .6fr; }
     .status-pill { display: inline-flex; align-items: center; width: fit-content; border-radius: 999px; padding: 5px 10px; color: var(--ac-primary); background: var(--ac-primary-light); font-size: 12px; }
+
+    .active-filters {
+      display: grid;
+      grid-template-columns: minmax(280px, 1fr) repeat(4, minmax(150px, .32fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .active-head, .active-row { grid-template-columns: 1.2fr .85fr .85fr .75fr 1.05fr .55fr .75fr; }
+    .active-row {
+      width: 100%;
+      text-align: left;
+      background: var(--ac-surface);
+      cursor: pointer;
+    }
+    .active-row:hover { background: color-mix(in srgb, var(--ac-primary-light) 62%, var(--ac-surface)); }
+    .active-table .empty-state { margin: 12px; }
+
+    .admission-workspace { display: grid; gap: 14px; }
+    .admission-hero {
+      display: grid;
+      gap: 14px;
+      border-top: 3px solid var(--ac-primary);
+      background: linear-gradient(135deg, color-mix(in srgb, var(--ac-primary-light) 32%, var(--ac-surface)), var(--ac-surface));
+    }
+    .hero-nav, .admission-identity, .admission-meta-line { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+    .back-link { display: inline-flex; align-items: center; gap: 6px; }
+    .admission-identity { justify-content: flex-start; }
+    .avatar.large { width: 58px; height: 58px; border-radius: 16px; font-size: 20px; }
+    .admission-identity h2 { font-size: 26px; }
+    .admission-identity p:not(.ac-eyebrow) { color: var(--ac-muted); font-weight: 800; }
+    .admission-identity .status-pill { margin-left: auto; }
+    .admission-meta-line {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    .admission-meta-line span, .summary-grid span {
+      display: grid;
+      gap: 4px;
+      min-height: 68px;
+      padding: 12px;
+      border: 1px solid var(--ac-border);
+      border-radius: 10px;
+      background: rgba(255,255,255,.72);
+      font-weight: 850;
+    }
+    .admission-meta-line b, .summary-grid b { color: var(--ac-muted); font-size: 11px; text-transform: uppercase; }
+    .detail-kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .detail-kpis article {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--ac-border);
+      border-radius: 12px;
+      background: var(--ac-surface);
+      box-shadow: var(--ac-sh-sm);
+    }
+    .detail-kpis span {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      color: var(--ac-primary);
+      background: var(--ac-primary-light);
+    }
+    .detail-kpis strong, .detail-kpis small { display: block; }
+    .detail-kpis strong { font-size: 20px; line-height: 1.1; }
+    .detail-kpis small { margin-top: 4px; color: var(--ac-muted); font-weight: 800; }
+    .detail-tabs {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 8px;
+      border: 1px solid var(--ac-border);
+      border-radius: 12px;
+      background: var(--ac-surface);
+      box-shadow: var(--ac-sh-sm);
+    }
+    .detail-tabs button {
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 12px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      color: var(--ac-muted);
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .detail-tabs button.active {
+      color: var(--ac-primary);
+      border-color: color-mix(in srgb, var(--ac-primary) 32%, var(--ac-border));
+      background: var(--ac-primary-light);
+    }
+    .detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 14px; }
+    .summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+    .overview-workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(360px, .95fr);
+      gap: 14px;
+    }
+    .overview-section { min-height: 210px; }
+    .overview-section h2 { margin-bottom: 14px; }
+    .overview-list, .clinical-snapshot, .location-strip, .vitals-strip {
+      display: grid;
+      gap: 10px;
+    }
+    .overview-list span, .clinical-snapshot span, .location-strip span, .vitals-strip span {
+      display: grid;
+      grid-template-columns: minmax(136px, .42fr) 1fr;
+      gap: 12px;
+      align-items: center;
+      min-height: 42px;
+      padding: 10px 12px;
+      border: 1px solid var(--ac-border);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--ac-surface-2) 70%, var(--ac-surface));
+      font-weight: 850;
+    }
+    .overview-list b, .clinical-snapshot b, .location-strip b, .vitals-strip b {
+      color: var(--ac-muted);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+    .location-strip {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .location-strip span {
+      grid-template-columns: 1fr;
+      min-height: 92px;
+      align-content: center;
+      border-color: color-mix(in srgb, var(--ac-primary) 24%, var(--ac-border));
+      background: linear-gradient(135deg, color-mix(in srgb, var(--ac-primary-light) 42%, var(--ac-surface)), var(--ac-surface));
+      font-size: 18px;
+    }
+    .clinical-snapshot span {
+      min-height: 70px;
+      grid-template-columns: 1fr;
+      align-content: center;
+    }
+    .vitals-strip {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .vitals-strip span {
+      grid-template-columns: 1fr;
+      align-content: center;
+      min-height: 78px;
+      color: var(--ac-muted);
+    }
+    .timeline-panel { grid-column: 1 / -1; min-height: 0; }
+    .timeline-list { display: grid; gap: 0; }
+    .timeline-list span {
+      display: grid;
+      grid-template-columns: 86px 18px 1fr;
+      gap: 12px;
+      align-items: center;
+      min-height: 44px;
+      color: var(--ac-text);
+      font-weight: 850;
+    }
+    .timeline-list b { color: var(--ac-muted); font-size: 12px; }
+    .timeline-list i {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--ac-primary);
+      box-shadow: 0 0 0 5px var(--ac-primary-light);
+    }
+    .tab-placeholder {
+      min-height: 220px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      background: linear-gradient(135deg, color-mix(in srgb, var(--ac-primary-light) 18%, var(--ac-surface)), var(--ac-surface));
+    }
+    .tab-placeholder > .material-symbols-rounded {
+      width: 58px;
+      height: 58px;
+      display: grid;
+      place-items: center;
+      border-radius: 16px;
+      color: var(--ac-primary);
+      background: var(--ac-primary-light);
+    }
+    .tab-placeholder p:not(.ac-eyebrow) { color: var(--ac-muted); font-weight: 800; max-width: 620px; }
+
+    .facility-workspace { display: grid; gap: 16px; }
+    .facility-tabs {
+      display: inline-flex;
+      gap: 6px;
+      padding: 5px;
+      border: 1px solid var(--ac-border);
+      border-radius: 10px;
+      background: var(--ac-surface-2);
+    }
+    .facility-tabs button {
+      min-height: 34px;
+      padding: 0 12px;
+      border-radius: 8px;
+      color: var(--ac-muted);
+      font-weight: 900;
+    }
+    .facility-tabs button.active { color: var(--ac-primary); background: var(--ac-surface); box-shadow: var(--ac-sh-sm); }
+    .facility-form {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      padding: 14px;
+      margin-bottom: 16px;
+      border: 1px solid color-mix(in srgb, var(--ac-primary) 18%, var(--ac-border));
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--ac-primary-light) 28%, var(--ac-surface));
+    }
+    .compact-actions { grid-column: span 2; align-items: end; }
+    .facility-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .facility-card {
+      display: grid;
+      gap: 8px;
+      padding: 14px;
+      border: 1px solid var(--ac-border);
+      border-top: 3px solid var(--ac-primary);
+      border-radius: 12px;
+      background: var(--ac-surface);
+      box-shadow: var(--ac-sh-sm);
+    }
+    .facility-card h3 { font-size: 18px; }
+    .facility-card span, .facility-card small { color: var(--ac-muted); font-weight: 750; }
+    .facility-card b { color: var(--ac-text); font-size: 20px; }
+    .link-btn.danger { color: var(--ac-error); }
+    .compact-bed-layout { margin-top: 4px; }
 
     .bed-layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
     .bed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; }
@@ -816,22 +1840,24 @@ interface IpdKpiCard {
     @keyframes spin { to { transform: rotate(360deg); } }
     @media (max-width: 1280px) {
       .kpi-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-      .dashboard-grid, .care-grid, .bed-layout { grid-template-columns: 1fr; }
-      .admission-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .wide-field, .form-actions { grid-column: span 2; }
+      .dashboard-grid, .care-grid, .bed-layout, .detail-grid, .overview-workspace { grid-template-columns: 1fr; }
+      .admission-filters, .active-filters, .wizard-grid, .patient-step, .review-grid, .facility-form, .facility-grid, .detail-kpis, .admission-meta-line { grid-template-columns: 1fr 1fr; }
+      .wide-field, .wide-review, .compact-actions { grid-column: 1 / -1; }
       .transfer-box, .discharge-summary { grid-template-columns: 1fr; }
     }
     @media (max-width: 760px) {
       .ipd-page { padding: 16px; }
       .page-header, .panel-head, .section-toolbar { flex-direction: column; }
-      .kpi-strip, .admission-form, .billing-grid, .reports-grid { grid-template-columns: 1fr; }
-      .wide-field, .form-actions { grid-column: auto; }
-      .admissions-head { display: none; }
-      .admissions-row { grid-template-columns: 1fr; }
+      .kpi-strip, .admission-filters, .active-filters, .wizard-grid, .patient-step, .review-grid, .facility-form, .facility-grid, .billing-grid, .reports-grid, .detail-kpis, .admission-meta-line, .summary-grid, .location-strip, .vitals-strip { grid-template-columns: 1fr; }
+      .wide-field, .wide-review, .compact-actions { grid-column: auto; }
+      .admissions-head, .active-head { display: none; }
+      .admissions-row, .active-row { grid-template-columns: 1fr; }
       .mini-row { grid-template-columns: 1fr; }
       .patient-card { grid-template-columns: 48px 1fr; }
       .patient-card .ac-btn { grid-column: span 2; }
       .care-summary { grid-template-columns: 1fr; }
+      .overview-list span, .timeline-list span { grid-template-columns: 1fr; }
+      .timeline-list i { display: none; }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -844,7 +1870,23 @@ export class IpdPageComponent implements OnInit {
   protected readonly activeTab = signal<IpdTab>('dashboard');
   protected readonly searchQuery = signal('');
   protected readonly selectedAdmissionId = signal<string>('');
+  protected readonly activePatientDetailOpen = signal(false);
+  protected readonly activeDetailTab = signal<IpdDetailTab>('overview');
+  protected readonly activeSearchQuery = signal('');
+  protected readonly activeWardFilter = signal('');
+  protected readonly activeDoctorFilter = signal('');
+  protected readonly activeDepartmentFilter = signal('');
+  protected readonly activePriorityFilter = signal('');
   protected readonly admissionPanelOpen = signal(false);
+  protected readonly admissionStep = signal(1);
+  protected readonly admissionErrors = signal<Record<string, string>>({});
+  protected readonly admissionStatusFilter = signal('');
+  protected readonly admissionWardFilter = signal('');
+  protected readonly admissionDoctorFilter = signal('');
+  protected readonly admissionDateFilter = signal('');
+  protected readonly selectedWardName = signal('');
+  protected readonly selectedRoomName = signal('');
+  protected readonly facilityTab = signal<FacilityTab>('wards');
 
   protected readonly tabs: IpdTabItem[] = [
     { key: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -856,6 +1898,23 @@ export class IpdPageComponent implements OnInit {
     { key: 'billing', label: 'Billing', icon: 'receipt_long' },
     { key: 'discharge', label: 'Discharge', icon: 'logout' },
     { key: 'reports', label: 'Reports', icon: 'bar_chart' }
+  ];
+
+  protected readonly detailTabs: IpdDetailTabItem[] = [
+    { key: 'overview', label: 'Overview', icon: 'dashboard' },
+    { key: 'clinical', label: 'Clinical', icon: 'clinical_notes' },
+    { key: 'rounds', label: 'Doctor Rounds', icon: 'stethoscope' },
+    { key: 'nursing', label: 'Nursing', icon: 'health_and_safety' },
+    { key: 'vitals', label: 'Vitals', icon: 'monitor_heart' },
+    { key: 'medication', label: 'Medication', icon: 'medication' },
+    { key: 'orders', label: 'Orders', icon: 'assignment' },
+    { key: 'lab', label: 'Lab', icon: 'science' },
+    { key: 'procedures', label: 'Procedures', icon: 'medical_services' },
+    { key: 'transfers', label: 'Transfers', icon: 'swap_horiz' },
+    { key: 'billing', label: 'Billing', icon: 'receipt_long' },
+    { key: 'documents', label: 'Documents', icon: 'folder_open' },
+    { key: 'discharge', label: 'Discharge', icon: 'logout' },
+    { key: 'activity', label: 'Activity', icon: 'history' }
   ];
 
   protected readonly journeySteps = [
@@ -875,15 +1934,103 @@ export class IpdPageComponent implements OnInit {
   protected readonly sourceOptions: DropdownOption<string>[] = [
     { label: 'OPD handoff', value: 'OPD' },
     { label: 'Emergency', value: 'EMERGENCY' },
-    { label: 'Direct admission', value: 'DIRECT' }
+    { label: 'Direct admission', value: 'DIRECT' },
+    { label: 'Referral', value: 'REFERRAL' },
+    { label: 'Transfer', value: 'TRANSFER' }
+  ];
+  protected readonly admissionTypeOptions: DropdownOption<string>[] = [
+    { label: 'General admission', value: 'GENERAL' },
+    { label: 'Observation', value: 'OBSERVATION' },
+    { label: 'Surgical', value: 'SURGICAL' },
+    { label: 'Maternity', value: 'MATERNITY' },
+    { label: 'Critical care', value: 'CRITICAL_CARE' }
   ];
   protected readonly priorityOptions: DropdownOption<string>[] = [
-    { label: 'Normal', value: 'NORMAL' },
+    { label: 'Routine', value: 'ROUTINE' },
     { label: 'Urgent', value: 'URGENT' },
+    { label: 'Emergency', value: 'EMERGENCY' },
     { label: 'Critical', value: 'CRITICAL' }
+  ];
+  protected readonly referralOptions: DropdownOption<string>[] = [
+    { label: 'Not applicable', value: '' },
+    { label: 'OPD', value: 'OPD' },
+    { label: 'Emergency', value: 'EMERGENCY' },
+    { label: 'External hospital', value: 'EXTERNAL_HOSPITAL' },
+    { label: 'Doctor referral', value: 'DOCTOR_REFERRAL' }
+  ];
+  protected readonly infectionRiskOptions: DropdownOption<string>[] = [
+    { label: 'Low risk', value: 'LOW' },
+    { label: 'Moderate risk', value: 'MODERATE' },
+    { label: 'High risk', value: 'HIGH' },
+    { label: 'Isolation required', value: 'ISOLATION' }
+  ];
+  protected readonly statusFilterOptions: DropdownOption<string>[] = [
+    { label: 'All statuses', value: '' },
+    { label: 'Draft', value: 'DRAFT' },
+    { label: 'Pending Admission', value: 'PENDING_ADMISSION' },
+    { label: 'Admitted', value: 'ADMITTED' },
+    { label: 'Transfer Pending', value: 'TRANSFER_PENDING' },
+    { label: 'Discharge Initiated', value: 'DISCHARGE_INITIATED' },
+    { label: 'Discharged', value: 'DISCHARGED' }
+  ];
+  protected readonly dateRangeOptions: DropdownOption<string>[] = [
+    { label: 'All dates', value: '' },
+    { label: 'Today', value: 'TODAY' },
+    { label: 'Last 7 days', value: '7D' },
+    { label: 'Last 30 days', value: '30D' }
+  ];
+  protected readonly admissionSteps = [
+    { label: 'Patient' },
+    { label: 'Admission Details' },
+    { label: 'Clinical Info' },
+    { label: 'Doctor & Dept' },
+    { label: 'Bed Allocation' },
+    { label: 'Review & Admit' }
+  ];
+  protected readonly wardTypeOptions: DropdownOption<string>[] = [
+    { label: 'General', value: 'GENERAL' },
+    { label: 'Semi-Private', value: 'SEMI_PRIVATE' },
+    { label: 'Private', value: 'PRIVATE' },
+    { label: 'ICU', value: 'ICU' },
+    { label: 'NICU', value: 'NICU' },
+    { label: 'PICU', value: 'PICU' },
+    { label: 'Isolation', value: 'ISOLATION' },
+    { label: 'Emergency Observation', value: 'EMERGENCY_OBSERVATION' }
+  ];
+  protected readonly roomTypeOptions: DropdownOption<string>[] = [
+    { label: 'General', value: 'GENERAL' },
+    { label: 'Semi-Private', value: 'SEMI_PRIVATE' },
+    { label: 'Private', value: 'PRIVATE' },
+    { label: 'ICU Room', value: 'ICU' },
+    { label: 'Isolation', value: 'ISOLATION' },
+    { label: 'Observation', value: 'OBSERVATION' }
+  ];
+  protected readonly bedTypeOptions: DropdownOption<string>[] = [
+    { label: 'Standard', value: 'STANDARD' },
+    { label: 'ICU', value: 'ICU' },
+    { label: 'Electric', value: 'ELECTRIC' },
+    { label: 'Pediatric', value: 'PEDIATRIC' },
+    { label: 'Isolation', value: 'ISOLATION' }
+  ];
+  protected readonly facilityStatusOptions: DropdownOption<string>[] = [
+    { label: 'Active', value: 'ACTIVE' },
+    { label: 'Inactive', value: 'INACTIVE' },
+    { label: 'Maintenance', value: 'MAINTENANCE' }
+  ];
+  protected readonly bedStatusOptions: DropdownOption<string>[] = [
+    { label: 'Available', value: 'AVAILABLE' },
+    { label: 'Reserved', value: 'RESERVED' },
+    { label: 'Occupied', value: 'OCCUPIED' },
+    { label: 'Cleaning', value: 'CLEANING' },
+    { label: 'Maintenance', value: 'MAINTENANCE' },
+    { label: 'Blocked', value: 'BLOCKED' }
   ];
 
   protected admissionForm: CreateIpdAdmissionRequest = createAdmissionForm();
+  protected wardForm: SaveIpdWardRequest = createWardForm();
+  protected roomForm: SaveIpdRoomRequest = createRoomForm();
+  protected bedForm: SaveIpdBedRequest = createBedForm();
+  protected consultingDoctorId = '';
   protected transferBedId = '';
   protected doctorRoundNote = '';
   protected nursingNote = '';
@@ -902,19 +2049,51 @@ export class IpdPageComponent implements OnInit {
 
   protected readonly filteredAdmissions = computed(() => {
     const query = this.searchQuery().trim().toLowerCase();
-    const items = this.workspace()?.activePatients ?? [];
-    if (!query) {
-      return items;
-    }
+    const status = this.admissionStatusFilter();
+    const ward = this.admissionWardFilter();
+    const doctor = this.admissionDoctorFilter();
+    const dateRange = this.admissionDateFilter();
+    const items = this.workspace()?.admissions ?? [];
 
     return items.filter(item => [
+      item.admissionNo,
       item.patientName,
       item.medicalRecordNo,
       item.doctorName,
       item.wardName,
       item.bedNo,
       item.statusCode
-    ].some(value => value.toLowerCase().includes(query)));
+    ].some(value => String(value ?? '').toLowerCase().includes(query)))
+      .filter(item => !status || item.statusCode.toUpperCase() === status)
+      .filter(item => !ward || item.wardName === ward)
+      .filter(item => !doctor || item.doctorId === doctor)
+      .filter(item => this.matchesAdmissionDate(item.admittedAt, dateRange));
+  });
+
+  protected readonly filteredActiveInpatients = computed(() => {
+    const query = this.activeSearchQuery().trim().toLowerCase();
+    const ward = this.activeWardFilter();
+    const doctor = this.activeDoctorFilter();
+    const department = this.activeDepartmentFilter();
+    const priority = this.activePriorityFilter();
+    const items = this.workspace()?.activePatients ?? [];
+
+    return items
+      .filter(item => [
+        item.admissionNo,
+        item.patientName,
+        item.medicalRecordNo,
+        item.doctorName,
+        item.departmentName,
+        item.wardName,
+        item.bedNo,
+        item.statusCode,
+        item.priorityCode
+      ].some(value => String(value ?? '').toLowerCase().includes(query)))
+      .filter(item => !ward || item.wardName === ward)
+      .filter(item => !doctor || item.doctorId === doctor)
+      .filter(item => !department || item.departmentName === department)
+      .filter(item => !priority || item.priorityCode.toUpperCase() === priority);
   });
 
   protected readonly selectedAdmission = computed(() => {
@@ -948,6 +2127,70 @@ export class IpdPageComponent implements OnInit {
     }));
   });
 
+  protected readonly wardFilterOptions = computed<DropdownOption<string>[]>(() => {
+    const names = unique((this.workspace()?.admissions ?? []).map(item => item.wardName).filter(Boolean));
+    return [{ label: 'All wards', value: '' }, ...names.map(name => ({ label: name, value: name }))];
+  });
+
+  protected readonly doctorFilterOptions = computed<DropdownOption<string>[]>(() => {
+    const rows = this.workspace()?.admissions ?? [];
+    const doctors = unique(rows.filter(row => row.doctorId).map(row => `${row.doctorId}|${row.doctorName}`));
+    return [{ label: 'All doctors', value: '' }, ...doctors.map(item => {
+      const [value, label] = item.split('|');
+      return { label, value };
+    })];
+  });
+
+  protected readonly activeWardOptions = computed<DropdownOption<string>[]>(() => {
+    const names = unique((this.workspace()?.activePatients ?? []).map(item => item.wardName).filter(Boolean));
+    return [{ label: 'All wards', value: '' }, ...names.map(name => ({ label: name, value: name }))];
+  });
+
+  protected readonly activeDoctorOptions = computed<DropdownOption<string>[]>(() => {
+    const rows = this.workspace()?.activePatients ?? [];
+    const doctors = unique(rows.filter(row => row.doctorId).map(row => `${row.doctorId}|${row.doctorName}`));
+    return [{ label: 'All doctors', value: '' }, ...doctors.map(item => {
+      const [value, label] = item.split('|');
+      return { label, value };
+    })];
+  });
+
+  protected readonly activeDepartmentOptions = computed<DropdownOption<string>[]>(() => {
+    const names = unique((this.workspace()?.activePatients ?? []).map(item => item.departmentName).filter(Boolean));
+    return [{ label: 'All departments', value: '' }, ...names.map(name => ({ label: name, value: name }))];
+  });
+
+  protected readonly activePriorityOptions = computed<DropdownOption<string>[]>(() => [
+    { label: 'All priorities', value: '' },
+    ...this.priorityOptions
+  ]);
+
+  protected readonly departmentOptions = computed<DropdownOption<string>[]>(() => {
+    const departments = unique((this.workspace()?.doctors ?? []).map(item => item.meta).filter(Boolean));
+    return [{ label: 'Select department', value: '' }, ...departments.map(name => ({ label: name, value: name }))];
+  });
+
+  protected readonly wardSelectionOptions = computed<DropdownOption<string>[]>(() => [
+    { label: 'Select ward', value: '' },
+    ...unique((this.workspace()?.beds ?? []).map(bed => bed.wardName).filter(Boolean)).map(name => ({ label: name, value: name }))
+  ]);
+
+  protected readonly roomSelectionOptions = computed<DropdownOption<string>[]>(() => [
+    { label: 'Select room', value: '' },
+    ...unique((this.workspace()?.beds ?? [])
+      .filter(bed => !this.selectedWardName() || bed.wardName === this.selectedWardName())
+      .map(bed => roomNameForBed(bed.bedNo))).map(name => ({ label: name, value: name }))
+  ]);
+
+  protected readonly workflowBeds = computed<IpdBedStatus[]>(() => {
+    const ward = this.selectedWardName();
+    const room = this.selectedRoomName();
+    return (this.workspace()?.beds ?? []).filter(bed =>
+      (!ward || bed.wardName === ward) &&
+      (!room || roomNameForBed(bed.bedNo) === room)
+    );
+  });
+
   private readonly service = inject(IpdManagementService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
@@ -968,6 +2211,9 @@ export class IpdPageComponent implements OnInit {
 
   protected setTab(tab: IpdTab): void {
     this.activeTab.set(tab);
+    if (tab !== 'patients') {
+      this.activePatientDetailOpen.set(false);
+    }
     this.persistView();
   }
 
@@ -988,6 +2234,15 @@ export class IpdPageComponent implements OnInit {
   protected openAdmissionPanel(): void {
     this.activeTab.set('admissions');
     this.admissionPanelOpen.set(true);
+    this.admissionStep.set(1);
+    this.admissionErrors.set({});
+    this.hydrateBedSelectors();
+    this.persistView();
+  }
+
+  protected closeAdmissionPanel(): void {
+    this.admissionPanelOpen.set(false);
+    this.admissionErrors.set({});
   }
 
   protected patientOptions(items: IpdOption[]): DropdownOption<string>[] {
@@ -998,11 +2253,230 @@ export class IpdPageComponent implements OnInit {
     return [{ label: 'Select doctor', value: '' }, ...items.map(item => ({ label: item.meta ? `${item.label} · ${item.meta}` : item.label, value: item.value }))];
   }
 
+  protected wardIdOptions(): DropdownOption<string>[] {
+    return [{ label: 'Select ward', value: '' }, ...(this.workspace()?.wards ?? []).map(ward => ({ label: `${ward.wardName} · ${ward.wardCode}`, value: ward.wardId }))];
+  }
+
+  protected roomIdOptions(wardId?: string): DropdownOption<string>[] {
+    return [
+      { label: 'Select room', value: '' },
+      ...(this.workspace()?.rooms ?? [])
+        .filter(room => !wardId || room.wardId === wardId)
+        .map(room => ({ label: `${room.roomNumber} · ${room.wardName}`, value: room.roomId }))
+    ];
+  }
+
+  protected selectedAdmissionPatient(): IpdOption | null {
+    return (this.workspace()?.patients ?? []).find(patient => patient.value === this.admissionForm.patientId) ?? null;
+  }
+
+  protected selectedDoctorName(): string {
+    return (this.workspace()?.doctors ?? []).find(doctor => doctor.value === this.admissionForm.doctorId)?.label ?? 'Unassigned doctor';
+  }
+
+  protected selectedBed(): IpdBedStatus | null {
+    return (this.workspace()?.beds ?? []).find(bed => bed.bedId === this.admissionForm.bedId) ?? null;
+  }
+
+  protected admissionWizardTitle(): string {
+    return this.admissionSteps[this.admissionStep() - 1]?.label ?? 'New Admission';
+  }
+
+  protected fieldError(field: string): string {
+    return this.admissionErrors()[field] ?? '';
+  }
+
+  protected goAdmissionStep(step: number): void {
+    if (step <= this.admissionStep()) {
+      this.admissionStep.set(step);
+      this.admissionErrors.set({});
+    }
+  }
+
+  protected previousAdmissionStep(): void {
+    this.admissionStep.set(Math.max(1, this.admissionStep() - 1));
+    this.admissionErrors.set({});
+  }
+
+  protected async nextAdmissionStep(): Promise<void> {
+    if (!this.validateAdmissionStep(this.admissionStep())) {
+      return;
+    }
+
+    const saved = await this.saveAdmissionDraft(false);
+    if (saved) {
+      this.admissionStep.set(Math.min(6, this.admissionStep() + 1));
+      this.hydrateBedSelectors();
+    }
+  }
+
+  protected registerPatientFromAdmission(): void {
+    void this.router.navigate(['/patients'], { queryParams: { action: 'create', returnTo: 'ipd-admission' } });
+  }
+
+  protected selectWard(value: string): void {
+    this.selectedWardName.set(value);
+    this.selectedRoomName.set('');
+    this.admissionForm.bedId = null;
+  }
+
+  protected selectRoom(value: string): void {
+    this.selectedRoomName.set(value);
+    this.admissionForm.bedId = null;
+  }
+
+  protected async selectAdmissionBed(bed: IpdBedStatus): Promise<void> {
+    if (bed.statusCode.toUpperCase() !== 'AVAILABLE' && this.admissionForm.bedId !== bed.bedId) {
+      this.toast.warning('Bed unavailable', `${bed.bedNo} is ${statusText(bed.statusCode).toLowerCase()}.`);
+      return;
+    }
+
+    this.admissionForm.bedId = bed.bedId;
+    this.selectedWardName.set(bed.wardName);
+    this.selectedRoomName.set(roomNameForBed(bed.bedNo));
+    await this.saveAdmissionDraft(false);
+  }
+
+  protected editWard(ward: IpdWardOccupancy): void {
+    this.wardForm = {
+      wardId: ward.wardId,
+      wardName: ward.wardName,
+      wardCode: ward.wardCode,
+      wardType: ward.wardType || 'GENERAL',
+      department: ward.department || 'General Medicine',
+      floor: ward.floor || 'Ground',
+      capacity: ward.capacity || Number(ward.totalBeds) || 0,
+      statusCode: ward.statusCode || 'ACTIVE',
+      description: ward.description || '',
+      branchName: ward.branchName || 'Main Branch'
+    };
+  }
+
+  protected editRoom(room: IpdRoom): void {
+    this.roomForm = {
+      roomId: room.roomId,
+      wardId: room.wardId,
+      roomNumber: room.roomNumber,
+      roomType: room.roomType || 'GENERAL',
+      floor: room.floor || 'Ground',
+      capacity: room.capacity || Number(room.totalBeds) || 0,
+      statusCode: room.statusCode || 'ACTIVE'
+    };
+  }
+
+  protected editBed(bed: IpdBedStatus): void {
+    this.bedForm = {
+      bedId: bed.bedId,
+      wardId: bed.wardId,
+      roomId: bed.roomId || '',
+      bedNumber: bed.bedNo,
+      bedType: bed.bedType || 'STANDARD',
+      statusCode: bed.statusCode || 'AVAILABLE',
+      dailyCharge: Number(bed.dailyCharge || 0)
+    };
+  }
+
+  protected resetWardForm(): void { this.wardForm = createWardForm(); }
+  protected resetRoomForm(): void { this.roomForm = createRoomForm(); }
+  protected resetBedForm(): void { this.bedForm = createBedForm(); }
+
+  protected async saveWard(): Promise<void> {
+    if (!this.wardForm.wardName.trim() || !this.wardForm.wardCode.trim()) {
+      this.toast.warning('Ward details required', 'Ward name and ward code are mandatory.');
+      return;
+    }
+
+    await this.saveFacility(() => this.service.saveWard(this.wardForm), 'Ward saved');
+    this.resetWardForm();
+  }
+
+  protected async saveRoom(): Promise<void> {
+    if (!this.roomForm.wardId || !this.roomForm.roomNumber.trim()) {
+      this.toast.warning('Room details required', 'Select ward and enter room number.');
+      return;
+    }
+
+    await this.saveFacility(() => this.service.saveRoom(this.roomForm), 'Room saved');
+    this.resetRoomForm();
+  }
+
+  protected async saveBed(): Promise<void> {
+    if (!this.bedForm.wardId || !this.bedForm.roomId || !this.bedForm.bedNumber.trim()) {
+      this.toast.warning('Bed details required', 'Select ward, room, and enter bed number.');
+      return;
+    }
+
+    const bedId = this.bedForm.bedId;
+    await this.saveFacility(async () => {
+      const response = await this.service.saveBed(this.bedForm);
+      if (bedId && response.success) {
+        const statusResponse = await this.service.updateBedStatus(bedId, this.bedForm.statusCode);
+        if (statusResponse.success === false) {
+          return statusResponse;
+        }
+      }
+      return response;
+    }, 'Bed saved');
+    this.resetBedForm();
+  }
+
+  protected async deleteWard(ward: IpdWardOccupancy): Promise<void> {
+    await this.saveFacility(() => this.service.deleteWard(ward.wardId), 'Ward deleted');
+  }
+
+  protected async deleteRoom(room: IpdRoom): Promise<void> {
+    await this.saveFacility(() => this.service.deleteRoom(room.roomId), 'Room deleted');
+  }
+
+  protected async deleteBed(bed: IpdBedStatus): Promise<void> {
+    await this.saveFacility(() => this.service.deleteBed(bed.bedId), 'Bed deleted');
+  }
+
   protected selectAdmission(admission: IpdAdmissionListItem, tab: IpdTab): void {
     this.selectedAdmissionId.set(admission.admissionId);
     this.transferBedId = '';
     this.loadAdmissionDraft(admission.admissionId);
     this.setTab(tab);
+  }
+
+  protected openInpatientDetail(admission: IpdAdmissionListItem): void {
+    this.selectedAdmissionId.set(admission.admissionId);
+    this.activePatientDetailOpen.set(true);
+    this.activeDetailTab.set('overview');
+    this.transferBedId = '';
+    this.loadAdmissionDraft(admission.admissionId);
+  }
+
+  protected closeInpatientDetail(): void {
+    this.activePatientDetailOpen.set(false);
+    this.activeDetailTab.set('overview');
+  }
+
+  protected openAdmissionRecord(admission: IpdAdmissionListItem): void {
+    this.selectedAdmissionId.set(admission.admissionId);
+    if (['DRAFT', 'PENDING_ADMISSION'].includes(admission.statusCode.toUpperCase())) {
+      this.admissionForm = {
+        ...createAdmissionForm(),
+        admissionId: admission.admissionId,
+        admissionNo: admission.admissionNo,
+        patientId: admission.patientId,
+        doctorId: admission.doctorId,
+        bedId: (this.workspace()?.beds ?? []).find(bed => bed.admissionId === admission.admissionId)?.bedId ?? null,
+        source: admission.admissionSource || 'DIRECT',
+        admissionType: admission.admissionType || 'GENERAL',
+        priority: admission.priorityCode || 'ROUTINE',
+        reason: admission.admissionReason || '',
+        admittedAt: admission.admittedAt,
+        departmentName: admission.departmentName || ''
+      };
+      this.admissionStep.set(admission.statusCode.toUpperCase() === 'PENDING_ADMISSION' ? 6 : 1);
+      this.admissionPanelOpen.set(true);
+      this.hydrateBedSelectors();
+      return;
+    }
+
+    this.selectAdmission(admission, 'patients');
+    this.activePatientDetailOpen.set(true);
   }
 
   protected async createAdmission(): Promise<void> {
@@ -1033,9 +2507,74 @@ export class IpdPageComponent implements OnInit {
     this.toast.success('Admission created', 'Patient is now in the IPD workflow.');
   }
 
-  protected saveAdmissionDraft(): void {
+  protected async saveAdmissionDraft(showToast = true): Promise<boolean> {
     localStorage.setItem(admissionDraftKey, JSON.stringify(this.admissionForm));
-    this.toast.success('Admission draft saved', 'You can continue from IPD admissions.');
+    if (!this.admissionForm.patientId) {
+      if (showToast) {
+        this.toast.success('Admission draft saved', 'Patient is required before syncing the draft to IPD.');
+      }
+      return true;
+    }
+
+    this.saving.set(true);
+    const response = await this.service.saveAdmissionDraft({
+      ...this.admissionForm,
+      admissionId: this.admissionForm.admissionId ?? null,
+      admissionSource: this.admissionForm.source,
+      admissionReason: this.admissionForm.reason,
+      priorityCode: this.admissionForm.priority,
+      consultantDoctorIds: this.consultingDoctorId ? [this.consultingDoctorId] : (this.admissionForm.consultantDoctorIds ?? []),
+      admittedAt: this.admissionForm.admittedAt || new Date().toISOString(),
+      admissionDate: this.admissionForm.admittedAt || new Date().toISOString(),
+      progressStep: this.admissionStep()
+    });
+    this.saving.set(false);
+
+    if (!response.success || !response.data) {
+      this.toast.error('Unable to save admission draft', getApiErrorMessage(response, 'IPD admission draft API failed'));
+      return false;
+    }
+
+    this.admissionForm.admissionId = response.data.admissionId;
+    if (response.data.allocation) {
+      this.admissionForm.bedId = response.data.allocation.bedId;
+    }
+    await this.load(false);
+    if (showToast) {
+      this.toast.success('Admission draft saved', 'You can continue this admission from the Admission Desk.');
+    }
+    return true;
+  }
+
+  protected async confirmAdmission(): Promise<void> {
+    if (!this.validateAdmissionStep(6)) {
+      return;
+    }
+
+    await this.saveAdmissionDraft(false);
+    const admissionId = this.admissionForm.admissionId;
+    if (!admissionId) {
+      this.toast.error('Unable to confirm admission', 'Draft admission was not created.');
+      return;
+    }
+
+    this.saving.set(true);
+    const response = await this.service.confirmAdmission(admissionId);
+    this.saving.set(false);
+
+    if (!response.success || !response.data) {
+      this.toast.error('Unable to confirm admission', getApiErrorMessage(response, 'IPD admission confirmation failed'));
+      return;
+    }
+
+    localStorage.removeItem(admissionDraftKey);
+    this.admissionForm = createAdmissionForm();
+    this.admissionPanelOpen.set(false);
+    this.admissionStep.set(1);
+    await this.load(false);
+    this.selectedAdmissionId.set(admissionId);
+    this.setTab('patients');
+    this.toast.success('Admission confirmed', 'Patient is admitted and the selected bed is now occupied.');
   }
 
   protected saveCareDraft(): void {
@@ -1173,6 +2712,24 @@ export class IpdPageComponent implements OnInit {
     `);
   }
 
+  protected printAdmissionSummary(): void {
+    const admission = this.selectedAdmission();
+    if (!admission) {
+      this.toast.warning('Select an inpatient', 'Choose a patient before printing.');
+      return;
+    }
+
+    openPrintWindow(`
+      <h1>IPD Admission Detail</h1>
+      <p><b>Patient:</b> ${escapeHtml(admission.patientName)} (${escapeHtml(admission.medicalRecordNo)})</p>
+      <p><b>Admission:</b> ${escapeHtml(admission.admissionNo)} · ${escapeHtml(statusText(admission.statusCode))}</p>
+      <p><b>Ward/Bed:</b> ${escapeHtml(admission.wardName || 'Pending')} / ${escapeHtml(admission.bedNo || 'Pending')}</p>
+      <p><b>Doctor:</b> ${escapeHtml(admission.doctorName || 'Unassigned')}</p>
+      <p><b>Stay:</b> Day ${admission.stayDays || 1}</p>
+      <p><b>Outstanding:</b> ${escapeHtml(formatMoney(admission.outstanding || 0))}</p>
+    `);
+  }
+
   protected exportActivePatients(): void {
     const rows = this.workspace()?.activePatients ?? [];
     if (rows.length === 0) {
@@ -1196,6 +2753,68 @@ export class IpdPageComponent implements OnInit {
 
   protected openReports(reportKey: string): void {
     void this.router.navigate(['/reports'], { queryParams: { report: reportKey } });
+  }
+
+  protected formatMoney(value: number): string {
+    return formatMoney(value);
+  }
+
+  protected detailTabLabel(tabKey: IpdDetailTab): string {
+    return this.detailTabs.find(tab => tab.key === tabKey)?.label ?? 'Workspace';
+  }
+
+  protected detailTabIcon(tabKey: IpdDetailTab): string {
+    return this.detailTabs.find(tab => tab.key === tabKey)?.icon ?? 'assignment';
+  }
+
+  protected detailTabHelp(tabKey: IpdDetailTab): string {
+    const messages: Record<IpdDetailTab, string> = {
+      overview: 'Review the current IPD stay, bed, doctor assignment, and attention items.',
+      clinical: 'Capture diagnosis, admission reason, and clinical context for the stay.',
+      rounds: 'Record doctor round notes and treatment plan updates.',
+      nursing: 'Capture nursing observations, escalation, intake/output, and care notes.',
+      vitals: 'Vitals charting will connect nursing observations to the inpatient stay.',
+      medication: 'Medication reconciliation and administration records will attach here.',
+      orders: 'Active clinical orders, pharmacy requests, and investigation requests will be tracked here.',
+      lab: 'Laboratory and diagnostics requests will be visible from this admission.',
+      procedures: 'Bedside and theatre procedures can be accumulated against this admission.',
+      transfers: 'Move the patient between wards, rooms, and available beds.',
+      billing: 'Track room rent, orders, payments, and discharge clearance for this stay.',
+      documents: 'Admission consent, clinical files, discharge documents, and attachments will live here.',
+      discharge: 'Prepare discharge summary and complete the discharge workflow.',
+      activity: 'Audit trail and care timeline events will appear here.'
+    };
+
+    return messages[tabKey];
+  }
+
+  protected roomFromBed(bedNo: string): string {
+    return roomNameForBed(bedNo);
+  }
+
+  protected overviewTimeline(admission: IpdAdmissionListItem): { time: string; label: string }[] {
+    const admittedAt = this.formatTime(admission.admittedAt);
+    const timeline = [
+      { time: admittedAt, label: 'Patient admitted' }
+    ];
+
+    if (admission.primaryDiagnosis || admission.admissionReason) {
+      timeline.push({ time: admittedAt, label: 'Initial assessment completed' });
+    }
+
+    if (admission.activeOrders > 0) {
+      timeline.push({ time: admittedAt, label: `${admission.activeOrders} care update${admission.activeOrders > 1 ? 's' : ''} recorded` });
+    }
+
+    if (admission.bedNo) {
+      timeline.push({ time: admittedAt, label: `Bed allocated to ${admission.bedNo}` });
+    }
+
+    if ((admission.outstanding || 0) > 0) {
+      timeline.push({ time: admittedAt, label: 'Billing outstanding updated' });
+    }
+
+    return timeline;
   }
 
   protected occupancyArc(): string {
@@ -1224,6 +2843,28 @@ export class IpdPageComponent implements OnInit {
     return new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
   }
 
+  protected formatDate(value: string): string {
+    return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value));
+  }
+
+  protected dateTimeLocalValue(value: string | null | undefined): string {
+    if (!value) {
+      return '';
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+
+    const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    return offsetDate.toISOString().slice(0, 16);
+  }
+
+  protected setAdmissionDate(value: string): void {
+    this.admissionForm.admittedAt = value ? new Date(value).toISOString() : null;
+  }
+
   protected statusText(value: string): string {
     return statusText(value);
   }
@@ -1243,6 +2884,78 @@ export class IpdPageComponent implements OnInit {
 
   protected initials(name: string): string {
     return name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]?.toUpperCase()).join('') || 'IP';
+  }
+
+  private validateAdmissionStep(step: number): boolean {
+    const errors: Record<string, string> = {};
+    if (step >= 1 && !this.admissionForm.patientId) {
+      errors['patientId'] = 'Patient is required.';
+    }
+    if (step >= 2) {
+      if (!this.admissionForm.source) errors['source'] = 'Admission source is required.';
+      if (!this.admissionForm.admittedAt) errors['admittedAt'] = 'Admission date and time are required.';
+      if (!this.admissionForm.admissionType) errors['admissionType'] = 'Admission type is required.';
+      if (!this.admissionForm.reason?.trim()) errors['reason'] = 'Admission reason is required.';
+    }
+    if (step >= 4) {
+      if (!this.admissionForm.departmentName) errors['departmentName'] = 'Department is required.';
+      if (!this.admissionForm.doctorId) errors['doctorId'] = 'Attending doctor is required.';
+      if (!this.admissionForm.priority) errors['priority'] = 'Admission priority is required.';
+    }
+    if (step >= 6 && !this.admissionForm.bedId) {
+      errors['bedId'] = 'Reserve a bed before confirming admission.';
+      this.toast.warning('Bed allocation required', errors['bedId']);
+    }
+
+    this.admissionErrors.set(errors);
+    if (Object.keys(errors).length > 0) {
+      this.toast.warning('Complete required fields', 'Highlighted fields are required before continuing.');
+      return false;
+    }
+
+    return true;
+  }
+
+  private hydrateBedSelectors(): void {
+    const bed = this.selectedBed();
+    if (bed) {
+      this.selectedWardName.set(bed.wardName);
+      this.selectedRoomName.set(roomNameForBed(bed.bedNo));
+    }
+  }
+
+  private matchesAdmissionDate(value: string, filter: string): boolean {
+    if (!filter) {
+      return true;
+    }
+
+    const date = new Date(value);
+    const now = new Date();
+    if (Number.isNaN(date.getTime())) {
+      return false;
+    }
+
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    if (filter === 'TODAY') {
+      return date.getTime() >= startOfToday;
+    }
+
+    const days = filter === '7D' ? 7 : 30;
+    return date.getTime() >= now.getTime() - days * 86400000;
+  }
+
+  private async saveFacility(action: () => Promise<{ success?: boolean; data?: unknown; message?: string }>, successTitle: string): Promise<void> {
+    this.saving.set(true);
+    const response = await action();
+    this.saving.set(false);
+
+    if (response && response.success === false) {
+      this.toast.error('Unable to save IPD structure', getApiErrorMessage(response as never, 'IPD facility API failed'));
+      return;
+    }
+
+    await this.load(false);
+    this.toast.success(successTitle, 'Ward, room, and bed structure updated.');
   }
 
   private async load(showLoader = true): Promise<void> {
@@ -1326,13 +3039,73 @@ export class IpdPageComponent implements OnInit {
 
 function createAdmissionForm(): CreateIpdAdmissionRequest {
   return {
+    admissionId: null,
     patientId: '',
-    doctorId: '',
+    doctorId: null,
     bedId: null,
+    admissionNo: '',
     source: 'OPD',
-    priority: 'NORMAL',
+    admissionSource: 'OPD',
+    admissionType: 'GENERAL',
+    priority: 'ROUTINE',
+    priorityCode: 'ROUTINE',
     reason: '',
-    admittedAt: null
+    admissionReason: '',
+    admittedAt: new Date().toISOString(),
+    admissionDate: new Date().toISOString(),
+    referredFrom: '',
+    previousEncounter: '',
+    departmentName: '',
+    consultantDoctorIds: [],
+    primaryDiagnosis: '',
+    secondaryDiagnosis: '',
+    admissionNotes: '',
+    presentingComplaint: '',
+    knownAllergies: '',
+    bloodGroup: '',
+    medicalHistory: '',
+    currentMedication: '',
+    infectionRisk: 'LOW',
+    progressStep: 1
+  };
+}
+
+function createWardForm(): SaveIpdWardRequest {
+  return {
+    wardId: null,
+    wardName: '',
+    wardCode: '',
+    wardType: 'GENERAL',
+    department: 'General Medicine',
+    floor: 'Ground',
+    capacity: 0,
+    statusCode: 'ACTIVE',
+    description: '',
+    branchName: 'Main Branch'
+  };
+}
+
+function createRoomForm(): SaveIpdRoomRequest {
+  return {
+    roomId: null,
+    wardId: '',
+    roomNumber: '',
+    roomType: 'GENERAL',
+    floor: 'Ground',
+    capacity: 0,
+    statusCode: 'ACTIVE'
+  };
+}
+
+function createBedForm(): SaveIpdBedRequest {
+  return {
+    bedId: null,
+    wardId: '',
+    roomId: '',
+    bedNumber: '',
+    bedType: 'STANDARD',
+    statusCode: 'AVAILABLE',
+    dailyCharge: 0
   };
 }
 
@@ -1356,8 +3129,26 @@ function formatPercent(value: number): string {
   return `${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 1 }).format(value || 0)}%`;
 }
 
+function formatMoney(value: number): string {
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value || 0);
+}
+
 function statusText(value: string): string {
-  return value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, letter => letter.toUpperCase());
+  return (value || '').replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, letter => letter.toUpperCase());
+}
+
+function unique(values: string[]): string[] {
+  return Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b));
+}
+
+function roomNameForBed(bedNo: string): string {
+  const trimmed = bedNo.trim();
+  if (!trimmed) {
+    return 'Default Room';
+  }
+
+  const parts = trimmed.split('-');
+  return parts.length > 1 ? parts.slice(0, -1).join('-') : trimmed.replace(/[A-Z]$/i, '') || trimmed;
 }
 
 function openPrintWindow(body: string): void {
