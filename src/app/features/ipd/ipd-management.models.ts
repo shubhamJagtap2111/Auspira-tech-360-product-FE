@@ -170,6 +170,39 @@ export interface IpdCareNote {
   createdAt: string;
 }
 
+export interface IpdDoctorRound {
+  roundId: string;
+  admissionId: string;
+  roundAt: string;
+  doctorId: string;
+  doctorName: string;
+  patientCondition: string;
+  patientConditionName: string;
+  clinicalNotes: string;
+  diagnosisUpdate: string;
+  treatmentPlan: string;
+  medicationChanges: string;
+  investigationOrders: string;
+  procedureRecommendation: string;
+  followUpInstructions: string;
+  nextRoundAt: string | null;
+  createdAt: string;
+}
+
+export interface SaveIpdDoctorRoundRequest {
+  doctorId: string;
+  roundAt: string | null;
+  patientCondition: string;
+  clinicalNotes: string;
+  diagnosisUpdate: string;
+  treatmentPlan: string;
+  medicationChanges: string;
+  investigationOrders: string;
+  procedureRecommendation: string;
+  followUpInstructions: string;
+  nextRoundAt: string | null;
+}
+
 export interface IpdVitalRecord {
   vitalId: string;
   admissionId: string;

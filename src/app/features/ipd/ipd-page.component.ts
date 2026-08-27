@@ -11,11 +11,13 @@ import {
   IpdAdmissionListItem,
   IpdBedStatus,
   IpdDashboard,
+  IpdDoctorRound,
   IpdOption,
   IpdRoom,
   IpdVitalRecord,
   IpdWardOccupancy,
   SaveIpdBedRequest,
+  SaveIpdDoctorRoundRequest,
   SaveIpdRoomRequest,
   SaveIpdVitalRequest,
   SaveIpdWardRequest
@@ -706,22 +708,99 @@ interface IpdKpiCard {
                       </section>
                     }
                     @case ('rounds') {
-                      <section class="panel">
-                        <div class="panel-head">
-                          <div>
-                            <p class="ac-eyebrow">Doctor rounds</p>
-                            <h2>Progress note and plan</h2>
+                      <section class="rounds-workspace">
+                        <article class="panel">
+                          <div class="panel-head">
+                            <div>
+                              <p class="ac-eyebrow">Doctor rounds</p>
+                              <h2>Doctor Round Note</h2>
+                            </div>
+                            <span class="soft-pill">{{ selected.doctorName || 'Unassigned doctor' }}</span>
                           </div>
-                          <span class="soft-pill">{{ selected.doctorName || 'Unassigned doctor' }}</span>
-                        </div>
-                        <label class="note-field">
-                          <span>Round note</span>
-                          <textarea rows="8" [(ngModel)]="doctorRoundNote" name="detailDoctorRoundNote" placeholder="Assessment, progress, advice, procedures, and plan"></textarea>
-                        </label>
-                        <div class="inline-actions end">
-                          <button class="ac-btn ac-btn-secondary" type="button" (click)="saveCareDraft()"><span class="material-symbols-rounded">save</span>Save Draft</button>
-                          <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="saveCareNotes()"><span class="material-symbols-rounded">assignment_turned_in</span>Save Round</button>
-                        </div>
+                          <div class="round-form">
+                            <label>
+                              <span>Round Date & Time *</span>
+                              <input name="roundAt" type="datetime-local" [ngModel]="dateTimeLocalValue(doctorRoundForm.roundAt)" (ngModelChange)="setDoctorRoundDate($event)" />
+                            </label>
+                            <label>
+                              <span>Doctor *</span>
+                              <ac-dropdown name="roundDoctor" [(ngModel)]="doctorRoundForm.doctorId" [options]="doctorOptions(workspace()?.doctors ?? [])" />
+                            </label>
+                            <label>
+                              <span>Patient Condition *</span>
+                              <ac-dropdown name="patientCondition" [(ngModel)]="doctorRoundForm.patientCondition" [options]="patientConditionOptions" />
+                            </label>
+                            <label class="wide-field">
+                              <span>Clinical Notes *</span>
+                              <textarea rows="4" [(ngModel)]="doctorRoundForm.clinicalNotes" name="roundClinicalNotes" placeholder="Patient responding to treatment, pain reduced, appetite improving"></textarea>
+                            </label>
+                            <label>
+                              <span>Diagnosis Update</span>
+                              <textarea rows="3" [(ngModel)]="doctorRoundForm.diagnosisUpdate" name="roundDiagnosisUpdate" placeholder="Updated diagnosis or differential"></textarea>
+                            </label>
+                            <label>
+                              <span>Treatment Plan</span>
+                              <textarea rows="3" [(ngModel)]="doctorRoundForm.treatmentPlan" name="roundTreatmentPlan" placeholder="Continue current medication, review CBC tomorrow"></textarea>
+                            </label>
+                            <label>
+                              <span>Medication Changes</span>
+                              <textarea rows="3" [(ngModel)]="doctorRoundForm.medicationChanges" name="roundMedicationChanges" placeholder="Add, stop, or change medication"></textarea>
+                            </label>
+                            <label>
+                              <span>Investigation Orders</span>
+                              <textarea rows="3" [(ngModel)]="doctorRoundForm.investigationOrders" name="roundInvestigationOrders" placeholder="CBC, CRP, X-ray, ultrasound"></textarea>
+                            </label>
+                            <label>
+                              <span>Procedure Recommendation</span>
+                              <textarea rows="3" [(ngModel)]="doctorRoundForm.procedureRecommendation" name="roundProcedureRecommendation" placeholder="Procedure advice if required"></textarea>
+                            </label>
+                            <label>
+                              <span>Follow-up Instructions</span>
+                              <textarea rows="3" [(ngModel)]="doctorRoundForm.followUpInstructions" name="roundFollowUpInstructions" placeholder="Observation, escalation, next review notes"></textarea>
+                            </label>
+                            <label>
+                              <span>Next Round Date</span>
+                              <input name="nextRoundAt" type="datetime-local" [ngModel]="dateTimeLocalValue(doctorRoundForm.nextRoundAt)" (ngModelChange)="setNextRoundDate($event)" />
+                            </label>
+                          </div>
+                          <div class="inline-actions end">
+                            <button class="ac-btn ac-btn-secondary" type="button" (click)="saveCareDraft()"><span class="material-symbols-rounded">save</span>Save Draft</button>
+                            <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="saveDoctorRound()"><span class="material-symbols-rounded">add_task</span>Record Doctor Round</button>
+                          </div>
+                        </article>
+
+                        <article class="panel rounds-timeline">
+                          <div class="panel-head">
+                            <div>
+                              <p class="ac-eyebrow">Clinical timeline</p>
+                              <h2>Recent Rounds</h2>
+                            </div>
+                            @if (roundsLoading()) { <span class="soft-pill">Loading...</span> }
+                            @else { <span class="soft-pill">{{ doctorRoundRecords().length }} rounds</span> }
+                          </div>
+                          <div class="round-list">
+                            @for (round of doctorRoundRecords(); track round.roundId) {
+                              <article class="round-card">
+                                <div>
+                                  <strong>{{ round.doctorName }}</strong>
+                                  <small>{{ formatDate(round.roundAt) }} · {{ formatTime(round.roundAt) }}</small>
+                                </div>
+                                <span [ngClass]="conditionClass(round.patientCondition)">{{ round.patientConditionName }}</span>
+                                <p>{{ round.clinicalNotes }}</p>
+                                <div class="round-sections">
+                                  @for (item of roundDetails(round); track item.label) {
+                                    <span><b>{{ item.label }}</b>{{ item.value }}</span>
+                                  }
+                                </div>
+                                @if (round.nextRoundAt) {
+                                  <footer>Next round: {{ formatDate(round.nextRoundAt) }}, {{ formatTime(round.nextRoundAt) }}</footer>
+                                }
+                              </article>
+                            } @empty {
+                              <div class="empty-state">No doctor rounds recorded yet.</div>
+                            }
+                          </div>
+                        </article>
                       </section>
                     }
                     @case ('nursing') {
@@ -1032,13 +1111,15 @@ interface IpdKpiCard {
                     <span><b>MRN</b>{{ selected.medicalRecordNo || '-' }}</span>
                     <span><b>Stay</b>{{ selected.stayDays || 0 }} days</span>
                   </div>
+                  <div class="inline-actions">
+                    <button class="ac-btn ac-btn-secondary" type="button" (click)="openAdmissionDetailTab(selected, 'rounds')">
+                      <span class="material-symbols-rounded">stethoscope</span>
+                      Open Doctor Rounds
+                    </button>
+                  </div>
                   } @else {
                     <div class="empty-state">Select an active inpatient to record care.</div>
                   }
-                  <label class="note-field">
-                    <span>Doctor round</span>
-                    <textarea rows="5" [(ngModel)]="doctorRoundNote" name="doctorRoundNote" placeholder="Assessment, progress notes, plan, and orders"></textarea>
-                  </label>
                   <label class="note-field">
                     <span>Nursing note</span>
                     <textarea rows="5" [(ngModel)]="nursingNote" name="nursingNote" placeholder="Vitals, intake/output, nursing care, and observations"></textarea>
@@ -1050,7 +1131,7 @@ interface IpdKpiCard {
                     </button>
                     <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="saveCareNotes()">
                       <span class="material-symbols-rounded">assignment_turned_in</span>
-                      Save Care Notes
+                      Save Nursing Note
                     </button>
                   </div>
                 </article>
@@ -1764,6 +1845,87 @@ interface IpdKpiCard {
     }
     .tab-placeholder p:not(.ac-eyebrow) { color: var(--ac-muted); font-weight: 800; max-width: 620px; }
 
+    .rounds-workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(340px, .65fr);
+      gap: 14px;
+      align-items: start;
+    }
+    .round-form {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .round-list {
+      display: grid;
+      gap: 12px;
+      max-height: 720px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+    .round-card {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+      border: 1px solid var(--ac-border);
+      border-radius: 12px;
+      background: linear-gradient(135deg, color-mix(in srgb, var(--ac-primary-light) 18%, var(--ac-surface)), var(--ac-surface));
+    }
+    .round-card > div:first-child {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .round-card strong { font-size: 15px; }
+    .round-card small, .round-card footer {
+      color: var(--ac-muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .round-card p {
+      margin: 0;
+      color: var(--ac-text);
+      line-height: 1.55;
+      font-weight: 750;
+    }
+    .round-sections {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .round-sections span {
+      display: grid;
+      gap: 4px;
+      padding: 10px;
+      border: 1px solid var(--ac-border);
+      border-radius: 10px;
+      background: rgba(255,255,255,.74);
+      color: var(--ac-muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .round-sections b {
+      color: var(--ac-text-3);
+      text-transform: uppercase;
+      font-size: 10px;
+    }
+    .condition-pill {
+      width: max-content;
+      min-height: 26px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: var(--ac-surface-2);
+      color: var(--ac-muted);
+      font-size: 12px;
+      font-weight: 950;
+    }
+    .condition-stable, .condition-improving { background: var(--ac-success-light); color: var(--ac-success); }
+    .condition-critical, .condition-deteriorating { background: var(--ac-error-light); color: var(--ac-error); }
+    .condition-under-observation { background: #FFF7ED; color: #C2410C; }
+
     .vitals-workspace {
       display: grid;
       grid-template-columns: minmax(340px, .78fr) minmax(0, 1.22fr);
@@ -1977,15 +2139,15 @@ interface IpdKpiCard {
     @keyframes spin { to { transform: rotate(360deg); } }
     @media (max-width: 1280px) {
       .kpi-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-      .dashboard-grid, .care-grid, .bed-layout, .detail-grid, .overview-workspace, .vitals-workspace { grid-template-columns: 1fr; }
-      .admission-filters, .active-filters, .wizard-grid, .patient-step, .review-grid, .facility-form, .facility-grid, .detail-kpis, .admission-meta-line, .vital-form { grid-template-columns: 1fr 1fr; }
+      .dashboard-grid, .care-grid, .bed-layout, .detail-grid, .overview-workspace, .rounds-workspace, .vitals-workspace { grid-template-columns: 1fr; }
+      .admission-filters, .active-filters, .wizard-grid, .patient-step, .review-grid, .facility-form, .facility-grid, .detail-kpis, .admission-meta-line, .round-form, .vital-form { grid-template-columns: 1fr 1fr; }
       .wide-field, .wide-review, .compact-actions { grid-column: 1 / -1; }
       .transfer-box, .discharge-summary { grid-template-columns: 1fr; }
     }
     @media (max-width: 760px) {
       .ipd-page { padding: 16px; }
       .page-header, .panel-head, .section-toolbar { flex-direction: column; }
-      .kpi-strip, .admission-filters, .active-filters, .wizard-grid, .patient-step, .review-grid, .facility-form, .facility-grid, .billing-grid, .reports-grid, .detail-kpis, .admission-meta-line, .summary-grid, .location-strip, .vitals-strip, .latest-vitals-grid, .vital-form, .trend-grid { grid-template-columns: 1fr; }
+      .kpi-strip, .admission-filters, .active-filters, .wizard-grid, .patient-step, .review-grid, .facility-form, .facility-grid, .billing-grid, .reports-grid, .detail-kpis, .admission-meta-line, .summary-grid, .location-strip, .vitals-strip, .latest-vitals-grid, .round-form, .round-sections, .vital-form, .trend-grid { grid-template-columns: 1fr; }
       .wide-field, .wide-review, .compact-actions { grid-column: auto; }
       .admissions-head, .active-head { display: none; }
       .admissions-row, .active-row, .vitals-row { grid-template-columns: 1fr; }
@@ -2024,6 +2186,8 @@ export class IpdPageComponent implements OnInit {
   protected readonly selectedWardName = signal('');
   protected readonly selectedRoomName = signal('');
   protected readonly facilityTab = signal<FacilityTab>('wards');
+  protected readonly doctorRoundRecords = signal<IpdDoctorRound[]>([]);
+  protected readonly roundsLoading = signal(false);
   protected readonly vitalRecords = signal<IpdVitalRecord[]>([]);
   protected readonly vitalsLoading = signal(false);
 
@@ -2164,15 +2328,22 @@ export class IpdPageComponent implements OnInit {
     { label: 'Maintenance', value: 'MAINTENANCE' },
     { label: 'Blocked', value: 'BLOCKED' }
   ];
+  protected readonly patientConditionOptions: DropdownOption<string>[] = [
+    { label: 'Stable', value: 'STABLE' },
+    { label: 'Improving', value: 'IMPROVING' },
+    { label: 'Critical', value: 'CRITICAL' },
+    { label: 'Deteriorating', value: 'DETERIORATING' },
+    { label: 'Under Observation', value: 'UNDER_OBSERVATION' }
+  ];
 
   protected admissionForm: CreateIpdAdmissionRequest = createAdmissionForm();
   protected wardForm: SaveIpdWardRequest = createWardForm();
   protected roomForm: SaveIpdRoomRequest = createRoomForm();
   protected bedForm: SaveIpdBedRequest = createBedForm();
   protected vitalForm: SaveIpdVitalRequest = createVitalForm();
+  protected doctorRoundForm: SaveIpdDoctorRoundRequest = createDoctorRoundForm();
   protected consultingDoctorId = '';
   protected transferBedId = '';
-  protected doctorRoundNote = '';
   protected nursingNote = '';
   protected dischargeSummary = '';
 
@@ -2577,7 +2748,9 @@ export class IpdPageComponent implements OnInit {
   protected selectAdmission(admission: IpdAdmissionListItem, tab: IpdTab): void {
     this.selectedAdmissionId.set(admission.admissionId);
     this.transferBedId = '';
+    this.resetDoctorRoundForm(admission);
     this.loadAdmissionDraft(admission.admissionId);
+    void this.loadDoctorRounds(admission.admissionId);
     void this.loadVitals(admission.admissionId);
     this.setTab(tab);
   }
@@ -2587,8 +2760,25 @@ export class IpdPageComponent implements OnInit {
     this.activePatientDetailOpen.set(true);
     this.activeDetailTab.set('overview');
     this.transferBedId = '';
+    this.resetDoctorRoundForm(admission);
     this.loadAdmissionDraft(admission.admissionId);
+    void this.loadDoctorRounds(admission.admissionId);
     void this.loadVitals(admission.admissionId);
+  }
+
+  protected openAdmissionDetailTab(admission: IpdAdmissionListItem, tab: IpdDetailTab): void {
+    this.selectedAdmissionId.set(admission.admissionId);
+    this.activePatientDetailOpen.set(true);
+    this.activeDetailTab.set(tab);
+    this.transferBedId = '';
+    this.resetDoctorRoundForm(admission);
+    this.loadAdmissionDraft(admission.admissionId);
+    if (tab === 'rounds') {
+      void this.loadDoctorRounds(admission.admissionId);
+    }
+    if (tab === 'vitals') {
+      void this.loadVitals(admission.admissionId);
+    }
   }
 
   protected closeInpatientDetail(): void {
@@ -2602,6 +2792,12 @@ export class IpdPageComponent implements OnInit {
       const admission = this.selectedAdmission();
       if (admission) {
         void this.loadVitals(admission.admissionId);
+      }
+    }
+    if (tab === 'rounds') {
+      const admission = this.selectedAdmission();
+      if (admission) {
+        void this.loadDoctorRounds(admission.admissionId);
       }
     }
   }
@@ -2631,6 +2827,7 @@ export class IpdPageComponent implements OnInit {
 
     this.selectAdmission(admission, 'patients');
     this.activePatientDetailOpen.set(true);
+    void this.loadDoctorRounds(admission.admissionId);
     void this.loadVitals(admission.admissionId);
   }
 
@@ -2750,30 +2947,88 @@ export class IpdPageComponent implements OnInit {
       return;
     }
 
-    const doctorNote = this.doctorRoundNote.trim();
     const nurseNote = this.nursingNote.trim();
-    if (!doctorNote && !nurseNote) {
-      this.toast.warning('Care note required', 'Add doctor round or nursing note details first.');
+    if (!nurseNote) {
+      this.toast.warning('Nursing note required', 'Add nursing care details before saving.');
       return;
     }
 
     this.saving.set(true);
-    const responses = await Promise.all([
-      doctorNote ? this.service.addDoctorRound(admission.admissionId, doctorNote) : Promise.resolve(null),
-      nurseNote ? this.service.addNursingNote(admission.admissionId, nurseNote) : Promise.resolve(null)
-    ]);
+    const response = await this.service.addNursingNote(admission.admissionId, nurseNote);
     this.saving.set(false);
 
-    const failed = responses.find(response => response && !response.success);
-    if (failed) {
-      this.toast.error('Unable to save care notes', getApiErrorMessage(failed, 'IPD care API failed'));
+    if (!response.success) {
+      this.toast.error('Unable to save nursing note', getApiErrorMessage(response, 'IPD nursing API failed'));
       return;
     }
 
-    this.doctorRoundNote = '';
     this.nursingNote = '';
-    localStorage.removeItem(careDraftKey(admission.admissionId));
-    this.toast.success('Care notes saved', 'Doctor and nursing updates are attached to the admission.');
+    this.saveAdmissionCareDraft(admission.admissionId);
+    this.toast.success('Nursing note saved', 'Nursing update is attached to the admission.');
+  }
+
+  protected async loadDoctorRounds(admissionId: string): Promise<void> {
+    this.roundsLoading.set(true);
+    this.doctorRoundRecords.set([]);
+    const response = await this.service.doctorRounds(admissionId);
+    this.roundsLoading.set(false);
+
+    if (!response.success || !response.data) {
+      this.toast.error('Unable to load doctor rounds', getApiErrorMessage(response, 'IPD doctor rounds API failed'));
+      return;
+    }
+
+    this.doctorRoundRecords.set(response.data);
+  }
+
+  protected setDoctorRoundDate(value: string): void {
+    this.doctorRoundForm.roundAt = value ? new Date(value).toISOString() : null;
+  }
+
+  protected setNextRoundDate(value: string): void {
+    this.doctorRoundForm.nextRoundAt = value ? new Date(value).toISOString() : null;
+  }
+
+  protected resetDoctorRoundForm(admission = this.selectedAdmission()): void {
+    this.doctorRoundForm = createDoctorRoundForm(admission ?? undefined);
+  }
+
+  protected async saveDoctorRound(): Promise<void> {
+    const admission = this.selectedAdmission();
+    if (!admission) {
+      this.toast.warning('Select an inpatient', 'Choose an active IPD patient before recording a doctor round.');
+      return;
+    }
+
+    const request = this.normalizedDoctorRoundRequest(admission);
+    if (!request.doctorId) {
+      this.toast.warning('Doctor required', 'Select the doctor who completed this round.');
+      return;
+    }
+
+    if (!request.patientCondition) {
+      this.toast.warning('Condition required', 'Select the current patient condition.');
+      return;
+    }
+
+    if (!request.clinicalNotes) {
+      this.toast.warning('Clinical notes required', 'Add clinical notes before recording the round.');
+      return;
+    }
+
+    this.saving.set(true);
+    const response = await this.service.addDoctorRound(admission.admissionId, request);
+    this.saving.set(false);
+
+    if (!response.success || !response.data) {
+      this.toast.error('Unable to save doctor round', getApiErrorMessage(response, 'IPD doctor round API failed'));
+      return;
+    }
+
+    await this.loadDoctorRounds(admission.admissionId);
+    this.resetDoctorRoundForm(admission);
+    this.saveAdmissionCareDraft(admission.admissionId);
+    this.toast.success('Doctor round recorded', 'The round is now part of the inpatient clinical timeline.');
   }
 
   protected async loadVitals(admissionId: string): Promise<void> {
@@ -2904,6 +3159,21 @@ export class IpdPageComponent implements OnInit {
     }
 
     return `${record.bloodPressureSystolic} / ${record.bloodPressureDiastolic}`;
+  }
+
+  protected conditionClass(condition: string): string {
+    return `condition-pill condition-${condition.toLowerCase().replace(/_/g, '-')}`;
+  }
+
+  protected roundDetails(round: IpdDoctorRound): { label: string; value: string }[] {
+    return [
+      { label: 'Diagnosis', value: round.diagnosisUpdate },
+      { label: 'Plan', value: round.treatmentPlan },
+      { label: 'Medication', value: round.medicationChanges },
+      { label: 'Investigations', value: round.investigationOrders },
+      { label: 'Procedure', value: round.procedureRecommendation },
+      { label: 'Follow-up', value: round.followUpInstructions }
+    ].filter(item => Boolean(item.value?.trim()));
   }
 
   protected trendPoints(key: 'temperature' | 'pulse' | 'spo2'): { index: number; height: number }[] {
@@ -3218,6 +3488,22 @@ export class IpdPageComponent implements OnInit {
     };
   }
 
+  private normalizedDoctorRoundRequest(admission: IpdAdmissionListItem): SaveIpdDoctorRoundRequest {
+    return {
+      doctorId: this.doctorRoundForm.doctorId || admission.doctorId || '',
+      roundAt: this.doctorRoundForm.roundAt || new Date().toISOString(),
+      patientCondition: this.doctorRoundForm.patientCondition || 'STABLE',
+      clinicalNotes: this.doctorRoundForm.clinicalNotes?.trim() ?? '',
+      diagnosisUpdate: this.doctorRoundForm.diagnosisUpdate?.trim() ?? '',
+      treatmentPlan: this.doctorRoundForm.treatmentPlan?.trim() ?? '',
+      medicationChanges: this.doctorRoundForm.medicationChanges?.trim() ?? '',
+      investigationOrders: this.doctorRoundForm.investigationOrders?.trim() ?? '',
+      procedureRecommendation: this.doctorRoundForm.procedureRecommendation?.trim() ?? '',
+      followUpInstructions: this.doctorRoundForm.followUpInstructions?.trim() ?? '',
+      nextRoundAt: this.doctorRoundForm.nextRoundAt || null
+    };
+  }
+
   private validateAdmissionStep(step: number): boolean {
     const errors: Record<string, string> = {};
     if (step >= 1 && !this.admissionForm.patientId) {
@@ -3343,14 +3629,21 @@ export class IpdPageComponent implements OnInit {
     const careDraft = localStorage.getItem(careDraftKey(admissionId));
     if (careDraft) {
       try {
-        const parsed = JSON.parse(careDraft) as { doctorRoundNote?: string; nursingNote?: string };
-        this.doctorRoundNote = parsed.doctorRoundNote ?? '';
+        const parsed = JSON.parse(careDraft) as {
+          doctorRoundForm?: Partial<SaveIpdDoctorRoundRequest>;
+          doctorRoundNote?: string;
+          nursingNote?: string;
+        };
+        this.doctorRoundForm = {
+          ...this.doctorRoundForm,
+          ...(parsed.doctorRoundForm ?? {}),
+          clinicalNotes: parsed.doctorRoundForm?.clinicalNotes ?? parsed.doctorRoundNote ?? this.doctorRoundForm.clinicalNotes
+        };
         this.nursingNote = parsed.nursingNote ?? '';
       } catch {
         localStorage.removeItem(careDraftKey(admissionId));
       }
     } else {
-      this.doctorRoundNote = '';
       this.nursingNote = '';
     }
 
@@ -3359,7 +3652,7 @@ export class IpdPageComponent implements OnInit {
 
   private saveAdmissionCareDraft(admissionId: string): void {
     localStorage.setItem(careDraftKey(admissionId), JSON.stringify({
-      doctorRoundNote: this.doctorRoundNote,
+      doctorRoundForm: this.doctorRoundForm,
       nursingNote: this.nursingNote
     }));
   }
@@ -3457,6 +3750,22 @@ function createVitalForm(): SaveIpdVitalRequest {
     bloodGlucose: null,
     notes: '',
     recordedBy: 'Hospital staff'
+  };
+}
+
+function createDoctorRoundForm(admission?: IpdAdmissionListItem): SaveIpdDoctorRoundRequest {
+  return {
+    doctorId: admission?.doctorId ?? '',
+    roundAt: new Date().toISOString(),
+    patientCondition: 'STABLE',
+    clinicalNotes: '',
+    diagnosisUpdate: '',
+    treatmentPlan: '',
+    medicationChanges: '',
+    investigationOrders: '',
+    procedureRecommendation: '',
+    followUpInstructions: '',
+    nextRoundAt: null
   };
 }
 

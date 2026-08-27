@@ -9,8 +9,10 @@ import {
   IpdCareNote,
   IpdDashboard,
   IpdDischarge,
+  IpdDoctorRound,
   IpdVitalRecord,
   SaveIpdBedRequest,
+  SaveIpdDoctorRoundRequest,
   SaveIpdRoomRequest,
   SaveIpdVitalRequest,
   SaveIpdWardRequest
@@ -72,8 +74,12 @@ export class IpdManagementService {
     return firstValueFrom(this.api.delete<IpdApiResponse<unknown>>(`/ipd/facility/beds/${bedId}`));
   }
 
-  addDoctorRound(admissionId: string, note: string): Promise<IpdApiResponse<IpdCareNote>> {
-    return firstValueFrom(this.api.post<IpdApiResponse<IpdCareNote>>(`/ipd/admissions/${admissionId}/doctor-rounds`, { note }));
+  doctorRounds(admissionId: string): Promise<IpdApiResponse<IpdDoctorRound[]>> {
+    return firstValueFrom(this.api.get<IpdApiResponse<IpdDoctorRound[]>>(`/ipd/admissions/${admissionId}/doctor-rounds`));
+  }
+
+  addDoctorRound(admissionId: string, request: SaveIpdDoctorRoundRequest): Promise<IpdApiResponse<IpdDoctorRound>> {
+    return firstValueFrom(this.api.post<IpdApiResponse<IpdDoctorRound>>(`/ipd/admissions/${admissionId}/doctor-rounds`, request));
   }
 
   addNursingNote(admissionId: string, note: string): Promise<IpdApiResponse<IpdCareNote>> {
