@@ -23,6 +23,7 @@ interface NavItem {
   path: string;
   label: string;
   icon: string;
+  queryParams?: Record<string, string>;
   requiredPermission?: string;
   hospitalAdminOnly?: boolean;
   children?: NavItem[];
@@ -93,6 +94,7 @@ const fallbackLanguages: Language[] = [
                   @if (item.children?.length) {
                     <a class="nav-item nav-parent"
                        [routerLink]="item.path"
+                       [queryParams]="item.queryParams"
                        routerLinkActive="active"
                        [routerLinkActiveOptions]="{ exact: item.path === '/' }"
                        [title]="sidebarCollapsed() ? item.label : ''">
@@ -106,6 +108,7 @@ const fallbackLanguages: Language[] = [
                         @for (child of item.children; track child.path + child.label) {
                           <a class="nav-child"
                              [routerLink]="child.path"
+                             [queryParams]="child.queryParams"
                              routerLinkActive="active"
                              [routerLinkActiveOptions]="{ exact: child.path === '/' }">
                             <span>{{ child.label }}</span>
@@ -116,6 +119,7 @@ const fallbackLanguages: Language[] = [
                   } @else {
                     <a class="nav-item"
                        [routerLink]="item.path"
+                       [queryParams]="item.queryParams"
                        routerLinkActive="active"
                        [routerLinkActiveOptions]="{ exact: item.path === '/' }"
                        [title]="sidebarCollapsed() ? item.label : ''">
@@ -326,7 +330,7 @@ const fallbackLanguages: Language[] = [
                   <div class="cp-section">
                     <p class="cp-section-label">Quick Navigation</p>
                     @for (item of allNavItems().slice(0,8); track item.path + item.label) {
-                      <a class="cp-item" [routerLink]="item.path" (click)="commandOpen.set(false)">
+                      <a class="cp-item" [routerLink]="item.path" [queryParams]="item.queryParams" (click)="commandOpen.set(false)">
                         <span class="material-symbols-rounded cp-item-icon">{{ item.icon }}</span>
                         <span>{{ item.label }}</span>
                         <span class="cp-tag">Page</span>
@@ -336,7 +340,7 @@ const fallbackLanguages: Language[] = [
                 } @else {
                   <div class="cp-section">
                     @for (item of filteredNav(); track item.path + item.label) {
-                      <a class="cp-item" [routerLink]="item.path" (click)="commandOpen.set(false)">
+                      <a class="cp-item" [routerLink]="item.path" [queryParams]="item.queryParams" (click)="commandOpen.set(false)">
                         <span class="material-symbols-rounded cp-item-icon">{{ item.icon }}</span>
                         <span>{{ item.label }}</span>
                       </a>
@@ -2046,7 +2050,19 @@ export class AppShellComponent implements OnInit {
     {
       label: 'Analytics',
       items: [
-        { path: '/reports', label: 'Reports & Insights', icon: 'analytics' }
+        {
+          path: '/reports',
+          label: 'Reports & Insights',
+          icon: 'analytics',
+          children: [
+            { path: '/reports', queryParams: { report: 'dashboard-overview' }, label: 'Dashboard', icon: 'dashboard' },
+            { path: '/reports', queryParams: { report: 'appointment-summary' }, label: 'Appointments', icon: 'event_available' },
+            { path: '/reports', queryParams: { report: 'opd-summary' }, label: 'OPD Clinical', icon: 'stethoscope' },
+            { path: '/reports', queryParams: { report: 'financial-summary' }, label: 'Revenue', icon: 'payments' },
+            { path: '/reports', queryParams: { report: 'doctor-performance' }, label: 'Doctor Performance', icon: 'monitoring' },
+            { path: '/reports', queryParams: { report: 'inventory-stock' }, label: 'Inventory', icon: 'inventory_2' }
+          ]
+        }
       ]
     },
     {

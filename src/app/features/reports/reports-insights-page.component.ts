@@ -90,177 +90,171 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
           }
         </section>
 
-        <section class="workflow-grid">
-          <aside class="catalog-panel ac-card">
+        <section class="reports-workbench">
+          <aside class="report-menu ac-card">
             <div class="panel-head">
               <div>
-                <p class="ac-eyebrow">Step 1</p>
-                <h2>Choose report area</h2>
+                <p class="ac-eyebrow">Report menu</p>
+                <h2>Dashboards & reports</h2>
               </div>
               <span>{{ model.categories.length }} categories</span>
             </div>
-            <div class="category-list">
+            <div class="submenu-list">
               @for (category of model.categories; track category.key) {
-                <button type="button" class="category-card" [class.active]="selectedCategoryKey() === category.key" [style.--tone]="category.tone" (click)="selectCategory(category)">
-                  <span class="material-symbols-rounded">{{ category.icon }}</span>
-                  <div>
-                    <strong>{{ category.title }}</strong>
-                    <small>{{ category.description }}</small>
-                    <em>{{ category.availableReports }} reports available</em>
-                  </div>
-                </button>
+                <div class="submenu-section" [class.active]="selectedCategoryKey() === category.key" [style.--tone]="category.tone">
+                  <button type="button" class="submenu-parent" (click)="selectCategory(category)">
+                    <span class="material-symbols-rounded">{{ category.icon }}</span>
+                    <div>
+                      <strong>{{ category.title }}</strong>
+                      <small>{{ category.availableReports }} reports</small>
+                    </div>
+                    <span class="material-symbols-rounded">expand_more</span>
+                  </button>
+                  @if (selectedCategoryKey() === category.key) {
+                    <div class="submenu-children">
+                      @for (item of category.reports; track item.key) {
+                        <button type="button" [class.active]="selectedReportKey() === item.key" (click)="selectReport(item)">
+                          <span class="material-symbols-rounded">{{ item.icon }}</span>
+                          <span>{{ item.title }}</span>
+                        </button>
+                      }
+                    </div>
+                  }
+                </div>
               }
+            </div>
+
+            <div class="menu-alerts">
+              <div class="panel-head compact">
+                <div>
+                  <p class="ac-eyebrow">Requires attention</p>
+                  <h3>Operational alerts</h3>
+                </div>
+                <span>{{ model.alerts.length }} live</span>
+              </div>
+              <div class="alert-list compact">
+                @for (alert of model.alerts; track alert.key) {
+                  <a [routerLink]="alert.route" class="alert-row">
+                    <span class="material-symbols-rounded">warning</span>
+                    <div>
+                      <strong>{{ alert.title }}</strong>
+                      <small>{{ alert.area }} · {{ alert.actionLabel }}</small>
+                    </div>
+                  </a>
+                } @empty {
+                  <div class="empty-state compact">No operational alerts for the selected range.</div>
+                }
+              </div>
             </div>
           </aside>
 
-          <section class="report-picker ac-card">
-            <div class="panel-head">
-              <div>
-                <p class="ac-eyebrow">Step 2</p>
-                <h2>Select report</h2>
-              </div>
-              <span>{{ reportsForSelectedCategory().length }} options</span>
-            </div>
-            <div class="report-list">
-              @for (item of reportsForSelectedCategory(); track item.key) {
-                <button type="button" [class.active]="selectedReportKey() === item.key" (click)="selectReport(item)">
-                  <span class="material-symbols-rounded">{{ item.icon }}</span>
-                  <div>
-                    <strong>{{ item.title }}</strong>
-                    <small>{{ item.description }}</small>
-                  </div>
-                  <span class="material-symbols-rounded">chevron_right</span>
-                </button>
-              }
-            </div>
-          </section>
+          @if (report(); as generated) {
+            <section class="result-panel ac-card">
+              <header class="result-head">
+                <div>
+                  <p class="ac-eyebrow">Generated report</p>
+                  <h2>{{ generated.title }}</h2>
+                  <p>{{ generated.description }}</p>
+                </div>
+                <div class="result-meta">
+                  <span>{{ generated.fromDate | date:'dd MMM yyyy' }} - {{ generated.toDate | date:'dd MMM yyyy' }}</span>
+                  <small>Generated {{ generated.generatedAt | date:'short' }}</small>
+                </div>
+              </header>
 
-          <section class="alerts-panel ac-card">
-            <div class="panel-head">
-              <div>
-                <p class="ac-eyebrow">Requires attention</p>
-                <h2>Operational alerts</h2>
-              </div>
-              <span>{{ model.alerts.length }} live</span>
-            </div>
-            <div class="alert-list">
-              @for (alert of model.alerts; track alert.key) {
-                <a [routerLink]="alert.route" class="alert-row">
-                  <span class="material-symbols-rounded">warning</span>
-                  <div>
-                    <strong>{{ alert.title }}</strong>
-                    <small>{{ alert.area }} · {{ alert.actionLabel }}</small>
-                  </div>
-                </a>
-              } @empty {
-                <div class="empty-state">No operational alerts for the selected range.</div>
-              }
-            </div>
-          </section>
-        </section>
+              @if (generating()) {
+                <ac-grid-loader title="Generating report..." message="Aggregating report data from module transactions." [compact]="true" />
+              } @else {
+                <div class="report-kpis">
+                  @for (kpi of generated.kpis; track kpi.label) {
+                    <article class="report-kpi" [style.--tone]="kpi.color">
+                      <span class="material-symbols-rounded">{{ kpi.icon }}</span>
+                      <div>
+                        <small>{{ kpi.label }}</small>
+                        <strong>{{ kpi.value }}</strong>
+                        <em>{{ kpi.meta }}</em>
+                      </div>
+                    </article>
+                  }
+                </div>
 
-        @if (report(); as generated) {
-          <section class="result-panel ac-card">
-            <header class="result-head">
-              <div>
-                <p class="ac-eyebrow">Generated report</p>
-                <h2>{{ generated.title }}</h2>
-                <p>{{ generated.description }}</p>
-              </div>
-              <div class="result-meta">
-                <span>{{ generated.fromDate | date:'dd MMM yyyy' }} - {{ generated.toDate | date:'dd MMM yyyy' }}</span>
-                <small>Generated {{ generated.generatedAt | date:'short' }}</small>
-              </div>
-            </header>
-
-            @if (generating()) {
-              <ac-grid-loader title="Generating report..." message="Aggregating report data from module transactions." [compact]="true" />
-            } @else {
-              <div class="report-kpis">
-                @for (kpi of generated.kpis; track kpi.label) {
-                  <article class="report-kpi" [style.--tone]="kpi.color">
-                    <span class="material-symbols-rounded">{{ kpi.icon }}</span>
-                    <div>
-                      <small>{{ kpi.label }}</small>
-                      <strong>{{ kpi.value }}</strong>
-                      <em>{{ kpi.meta }}</em>
+                @if (generated.trend.length) {
+                  <section class="chart-panel">
+                    <div class="panel-head compact">
+                      <div>
+                        <h3>{{ generated.trend[0].primaryLabel }} vs {{ generated.trend[0].secondaryLabel }}</h3>
+                      </div>
+                      <span>{{ generated.trend.length }} days</span>
                     </div>
-                  </article>
+                    <div class="trend-chart">
+                      @for (point of generated.trend; track point.date) {
+                        <div class="trend-day" [title]="(point.date | date:'dd MMM') + ': ' + point.primaryValue + ' / ' + point.secondaryValue">
+                          <div class="bars">
+                            <span class="bar primary" [style.height.%]="trendHeight(point.primaryValue, generated.trend)"></span>
+                            <span class="bar secondary" [style.height.%]="trendHeight(point.secondaryValue, generated.trend)"></span>
+                          </div>
+                          <small>{{ point.date | date:'dd MMM' }}</small>
+                        </div>
+                      }
+                    </div>
+                  </section>
                 }
-              </div>
 
-              @if (generated.trend.length) {
-                <section class="chart-panel">
+                <section class="table-panel">
                   <div class="panel-head compact">
                     <div>
-                      <h3>{{ generated.trend[0].primaryLabel }} vs {{ generated.trend[0].secondaryLabel }}</h3>
+                      <h3>Detailed data</h3>
                     </div>
-                    <span>{{ generated.trend.length }} days</span>
+                    <span>{{ generated.table.rows.length }} rows</span>
                   </div>
-                  <div class="trend-chart">
-                    @for (point of generated.trend; track point.date) {
-                      <div class="trend-day" [title]="(point.date | date:'dd MMM') + ': ' + point.primaryValue + ' / ' + point.secondaryValue">
-                        <div class="bars">
-                          <span class="bar primary" [style.height.%]="trendHeight(point.primaryValue, generated.trend)"></span>
-                          <span class="bar secondary" [style.height.%]="trendHeight(point.secondaryValue, generated.trend)"></span>
-                        </div>
-                        <small>{{ point.date | date:'dd MMM' }}</small>
-                      </div>
-                    }
-                  </div>
-                </section>
-              }
-
-              <section class="table-panel">
-                <div class="panel-head compact">
-                  <div>
-                    <h3>Detailed data</h3>
-                  </div>
-                  <span>{{ generated.table.rows.length }} rows</span>
-                </div>
-                <div class="table-wrap">
-                  <table class="ac-table">
-                    <thead>
-                      <tr>
-                        @for (column of generated.table.columns; track column) {
-                          <th>{{ column }}</th>
-                        }
-                      </tr>
-                    </thead>
-                    <tbody>
-                      @for (row of generated.table.rows; track $index) {
+                  <div class="table-wrap">
+                    <table class="ac-table">
+                      <thead>
                         <tr>
                           @for (column of generated.table.columns; track column) {
-                            <td>{{ row[column] || '-' }}</td>
+                            <th>{{ column }}</th>
                           }
                         </tr>
-                      } @empty {
-                        <tr>
-                          <td [attr.colspan]="generated.table.columns.length || 1">
-                            <div class="empty-state">No rows found for selected filters.</div>
-                          </td>
-                        </tr>
-                      }
-                    </tbody>
-                  </table>
-                </div>
-              </section>
+                      </thead>
+                      <tbody>
+                        @for (row of generated.table.rows; track $index) {
+                          <tr>
+                            @for (column of generated.table.columns; track column) {
+                              <td>{{ row[column] || '-' }}</td>
+                            }
+                          </tr>
+                        } @empty {
+                          <tr>
+                            <td [attr.colspan]="generated.table.columns.length || 1">
+                              <div class="empty-state compact">No rows found for selected filters.</div>
+                            </td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
 
-              <footer class="drilldown-row">
-                @for (link of generated.drilldowns; track link.route) {
-                  <a class="ac-btn ac-btn-secondary" [routerLink]="link.route">
-                    <span class="material-symbols-rounded">{{ link.icon }}</span>
-                    {{ link.label }}
-                  </a>
-                }
-                <button type="button" class="ac-btn ac-btn-primary" (click)="exportCsv()" [disabled]="!generated.table.rows.length">
-                  <span class="material-symbols-rounded">download</span>
-                  Export CSV
-                </button>
-              </footer>
-            }
-          </section>
-        }
+                <footer class="drilldown-row">
+                  @for (link of generated.drilldowns; track link.route) {
+                    <a class="ac-btn ac-btn-secondary" [routerLink]="link.route">
+                      <span class="material-symbols-rounded">{{ link.icon }}</span>
+                      {{ link.label }}
+                    </a>
+                  }
+                  <button type="button" class="ac-btn ac-btn-primary" (click)="exportCsv()" [disabled]="!generated.table.rows.length">
+                    <span class="material-symbols-rounded">download</span>
+                    Export CSV
+                  </button>
+                </footer>
+              }
+            </section>
+          } @else {
+            <section class="result-panel ac-card">
+              <ac-grid-loader title="Preparing dashboard..." message="Loading the selected dashboard and report data." [compact]="true" />
+            </section>
+          }
+        </section>
       }
     </section>
   `,
@@ -341,8 +335,16 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
     .summary-card small { display: block; margin-top: 3px; color: var(--ac-muted); font-size: 12px; font-weight: 850; }
     .summary-card em { display: block; margin-top: 3px; color: var(--ac-text-2); font-size: 11px; font-style: normal; font-weight: 700; }
 
-    .workflow-grid { display: grid; grid-template-columns: minmax(280px, .95fr) minmax(360px, 1.1fr) minmax(280px, .95fr); gap: 14px; align-items: start; }
-    .catalog-panel, .report-picker, .alerts-panel, .result-panel { padding: 14px; }
+    .reports-workbench { display: grid; grid-template-columns: minmax(300px, 360px) minmax(0, 1fr); gap: 14px; align-items: start; }
+    .report-menu, .result-panel { padding: 14px; }
+    .report-menu {
+      position: sticky;
+      top: 12px;
+      display: grid;
+      gap: 14px;
+      max-height: calc(100vh - 190px);
+      overflow: auto;
+    }
     .panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
     .panel-head h2, .panel-head h3 { margin: 2px 0 0; color: var(--ac-text); font-size: 17px; }
     .panel-head.compact { margin: 0 0 10px; }
@@ -357,15 +359,27 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
       font-weight: 800;
       white-space: nowrap;
     }
-    .category-list, .report-list, .alert-list { display: grid; gap: 8px; }
-    .category-card, .report-list button, .alert-row {
-      width: 100%;
+    .submenu-list, .submenu-children, .alert-list { display: grid; gap: 8px; }
+    .submenu-section {
+      --tone: var(--ac-primary);
       border: 1px solid var(--ac-border);
-      border-radius: 10px;
+      border-radius: 12px;
       background: var(--ac-surface);
+      overflow: hidden;
+      transition: border-color .16s ease, background .16s ease, box-shadow .16s ease;
+    }
+    .submenu-section.active {
+      border-color: color-mix(in srgb, var(--tone) 45%, var(--ac-border));
+      background: color-mix(in srgb, var(--tone) 6%, var(--ac-surface));
+      box-shadow: 0 12px 26px rgba(15,23,42,.055);
+    }
+    .submenu-parent, .submenu-children button, .alert-row {
+      width: 100%;
+      border: 0;
+      background: transparent;
       color: inherit;
       display: grid;
-      grid-template-columns: auto minmax(0, 1fr);
+      grid-template-columns: auto minmax(0, 1fr) auto;
       gap: 10px;
       padding: 12px;
       text-align: left;
@@ -373,13 +387,10 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
       text-decoration: none;
       transition: border-color .16s ease, background .16s ease, transform .16s ease;
     }
-    .category-card { --tone: var(--ac-primary); }
-    .category-card.active, .report-list button.active {
-      border-color: color-mix(in srgb, var(--tone, var(--ac-primary)) 48%, var(--ac-border));
+    .submenu-parent:hover, .submenu-children button:hover, .alert-row:hover {
       background: color-mix(in srgb, var(--tone, var(--ac-primary)) 8%, var(--ac-surface));
     }
-    .category-card:hover, .report-list button:hover, .alert-row:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--ac-primary) 30%, var(--ac-border)); }
-    .category-card > .material-symbols-rounded, .report-list button > .material-symbols-rounded:first-child, .alert-row > .material-symbols-rounded {
+    .submenu-parent > .material-symbols-rounded:first-child, .submenu-children button > .material-symbols-rounded, .alert-row > .material-symbols-rounded {
       width: 36px;
       height: 36px;
       border-radius: 10px;
@@ -388,12 +399,38 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
       color: var(--tone, var(--ac-primary));
       background: color-mix(in srgb, var(--tone, var(--ac-primary)) 10%, var(--ac-surface));
     }
-    .category-card strong, .report-list strong, .alert-row strong { display: block; color: var(--ac-text); font-size: 13.5px; }
-    .category-card small, .report-list small, .alert-row small { display: block; margin-top: 4px; color: var(--ac-muted); font-size: 12px; line-height: 1.35; }
-    .category-card em { display: block; margin-top: 7px; color: var(--tone); font-size: 11px; font-style: normal; font-weight: 850; }
-    .report-list button { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; }
-    .report-list button > .material-symbols-rounded:last-child { color: var(--ac-muted); }
-    .alert-row { grid-template-columns: auto minmax(0, 1fr); align-items: center; }
+    .submenu-parent strong, .alert-row strong { display: block; color: var(--ac-text); font-size: 13.5px; }
+    .submenu-parent small, .alert-row small { display: block; margin-top: 4px; color: var(--ac-muted); font-size: 12px; line-height: 1.35; }
+    .submenu-parent > .material-symbols-rounded:last-child { color: var(--ac-muted); transition: transform .16s ease; }
+    .submenu-section.active .submenu-parent > .material-symbols-rounded:last-child { transform: rotate(180deg); color: var(--tone); }
+    .submenu-children {
+      padding: 0 10px 10px 58px;
+    }
+    .submenu-children button {
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+      min-height: 36px;
+      padding: 8px 10px;
+      border-radius: 9px;
+      color: var(--ac-text-2);
+      font-weight: 850;
+    }
+    .submenu-children button > .material-symbols-rounded {
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      font-size: 17px;
+    }
+    .submenu-children button.active {
+      background: color-mix(in srgb, var(--tone) 14%, var(--ac-surface));
+      color: var(--tone);
+    }
+    .menu-alerts {
+      border-top: 1px solid var(--ac-border);
+      padding-top: 12px;
+    }
+    .alert-list.compact { gap: 7px; }
+    .alert-row { grid-template-columns: auto minmax(0, 1fr); align-items: center; border: 1px solid var(--ac-border); border-radius: 10px; }
     .alert-row > .material-symbols-rounded { color: #F59E0B; background: #FFFBEB; }
 
     .result-panel { display: grid; gap: 14px; }
@@ -439,11 +476,11 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
     .table-wrap .ac-table th, .table-wrap .ac-table td { white-space: nowrap; }
     .drilldown-row { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
     .empty-state { border: 1px dashed var(--ac-border); border-radius: 10px; padding: 18px; color: var(--ac-muted); text-align: center; background: var(--ac-subtle); }
+    .empty-state.compact { padding: 14px; font-size: 13px; }
 
     @media (max-width: 1280px) {
       .filter-panel { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-      .workflow-grid { grid-template-columns: 1fr 1fr; }
-      .alerts-panel { grid-column: 1 / -1; }
+      .reports-workbench { grid-template-columns: minmax(260px, 320px) minmax(0, 1fr); }
       .summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .report-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
@@ -451,7 +488,8 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
       .reports-header, .result-head { display: grid; }
       .header-actions, .drilldown-row { justify-content: stretch; }
       .header-actions .ac-btn, .drilldown-row .ac-btn { width: 100%; }
-      .filter-panel, .workflow-grid, .summary-grid, .report-kpis { grid-template-columns: 1fr; }
+      .filter-panel, .reports-workbench, .summary-grid, .report-kpis { grid-template-columns: 1fr; }
+      .report-menu { position: static; max-height: none; }
       .result-meta { justify-items: start; }
     }
   `,
