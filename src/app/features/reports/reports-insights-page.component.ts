@@ -69,7 +69,7 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
         </label>
         <button type="button" class="ac-btn ac-btn-primary generate-btn" (click)="generateReport()" [disabled]="generating()">
           <span class="material-symbols-rounded">play_arrow</span>
-          Generate Report
+          Apply Filters
         </button>
       </section>
 
@@ -95,13 +95,24 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
           <section class="result-panel ac-card">
             <header class="result-head">
               <div>
-                <p class="ac-eyebrow">Generated report</p>
+                <p class="ac-eyebrow">Reports & Insights</p>
                 <h2>{{ generated.title }}</h2>
                 <p>{{ generated.description }}</p>
               </div>
               <div class="result-meta">
                 <span>{{ generated.fromDate | date:'dd MMM yyyy' }} - {{ generated.toDate | date:'dd MMM yyyy' }}</span>
                 <small>Generated {{ generated.generatedAt | date:'short' }}</small>
+                <div class="result-actions">
+                  <button type="button" class="icon-action" (click)="shareReport()" title="Share report">
+                    <span class="material-symbols-rounded">share</span>
+                  </button>
+                  <button type="button" class="icon-action" (click)="saveReport()" title="Save report">
+                    <span class="material-symbols-rounded">bookmark</span>
+                  </button>
+                  <button type="button" class="icon-action" (click)="exportCsv()" [disabled]="!generated.table.rows.length" title="Export CSV">
+                    <span class="material-symbols-rounded">download</span>
+                  </button>
+                </div>
               </div>
             </header>
 
@@ -128,23 +139,112 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
                       <div>
                         <p class="ac-eyebrow">Trend</p>
                         <h3>{{ generated.trend[0].primaryLabel }} vs {{ generated.trend[0].secondaryLabel }}</h3>
+                        <p>{{ trendCaption(generated) }}</p>
                       </div>
-                      <span>{{ generated.trend.length }} days</span>
+                      <div class="chart-actions">
+                        <span class="range-pill">
+                          <span class="material-symbols-rounded">calendar_month</span>
+                          {{ generated.trend.length }} days
+                        </span>
+                        <button type="button" class="icon-action" (click)="generateReport(false)" title="Refresh chart">
+                          <span class="material-symbols-rounded">more_vert</span>
+                        </button>
+                      </div>
                     </div>
-                    <div class="trend-chart">
-                      @for (point of generated.trend; track point.date) {
-                        <div class="trend-day" [title]="(point.date | date:'dd MMM') + ': ' + point.primaryValue + ' / ' + point.secondaryValue">
-                          <div class="bars">
-                            <span class="bar primary" [style.height.%]="trendHeight(point.primaryValue, generated.trend)"></span>
-                            <span class="bar secondary" [style.height.%]="trendHeight(point.secondaryValue, generated.trend)"></span>
-                          </div>
-                          <small>{{ point.date | date:'dd MMM' }}</small>
+
+                    <div class="trend-summary">
+                      <article>
+                        <span class="dot primary"></span>
+                        <div>
+                          <small>Total {{ generated.trend[0].primaryLabel }}</small>
+                          <strong>{{ trendTotal(generated.trend, 'primary') }}</strong>
+                          <em>in selected period</em>
                         </div>
-                      }
+                      </article>
+                      <article>
+                        <span class="dot secondary"></span>
+                        <div>
+                          <small>Total {{ generated.trend[0].secondaryLabel }}</small>
+                          <strong>{{ trendTotal(generated.trend, 'secondary') }}</strong>
+                          <em>in selected period</em>
+                        </div>
+                      </article>
+                      <article class="rate-card">
+                        <span class="material-symbols-rounded">trending_up</span>
+                        <div>
+                          <strong>{{ trendRate(generated.trend) }}%</strong>
+                          <em>{{ generated.trend[0].secondaryLabel }} rate</em>
+                        </div>
+                      </article>
                     </div>
-                    <div class="chart-legend">
-                      <span><i class="primary"></i>{{ generated.trend[0].primaryLabel }}</span>
-                      <span><i class="secondary"></i>{{ generated.trend[0].secondaryLabel }}</span>
+
+                    <div class="trend-visual">
+                      <div class="y-axis">
+                        @for (tick of chartTicks(generated.trend); track tick) {
+                          <span>{{ tick }}</span>
+                        }
+                      </div>
+                      <div class="chart-stage">
+                        <div class="grid-lines">
+                          @for (tick of chartTicks(generated.trend); track tick) {
+                            <span></span>
+                          }
+                        </div>
+                        <div class="trend-chart">
+                          @for (point of generated.trend; track point.date) {
+                            <div class="trend-day" [title]="(point.date | date:'dd MMM yyyy') + ': ' + point.primaryValue + ' / ' + point.secondaryValue">
+                              <div class="bars">
+                                <span class="bar primary" [style.height.%]="trendHeight(point.primaryValue, generated.trend)"></span>
+                                <span class="bar secondary" [style.height.%]="trendHeight(point.secondaryValue, generated.trend)"></span>
+                              </div>
+                              <small>{{ point.date | date:'dd MMM' }}</small>
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    </div>
+
+                    <footer class="insight-footer">
+                      <div>
+                        <span class="material-symbols-rounded">analytics</span>
+                        <p>{{ generated.description }}</p>
+                      </div>
+                      @if (generated.reportKey === 'dashboard-overview') {
+                        <a class="ac-btn ac-btn-secondary" [routerLink]="['/reports']" [queryParams]="{ report: 'appointment-summary' }">
+                          <span class="material-symbols-rounded">bar_chart</span>
+                          View Full Report
+                        </a>
+                      } @else {
+                        <button type="button" class="ac-btn ac-btn-secondary" (click)="exportCsv()" [disabled]="!generated.table.rows.length">
+                          <span class="material-symbols-rounded">download</span>
+                          Export Records
+                        </button>
+                      }
+                    </footer>
+                  </section>
+                } @else {
+                  <section class="chart-panel trend-panel">
+                    <div class="panel-head compact">
+                      <div>
+                        <p class="ac-eyebrow">Breakdown</p>
+                        <h3>{{ generated.title }} overview</h3>
+                        <p>{{ generated.description }}</p>
+                      </div>
+                      <span>{{ tableBars(generated).length }} items</span>
+                    </div>
+                    <div class="horizontal-bars">
+                      @for (bar of tableBars(generated); track bar.label) {
+                        <div class="hbar-row">
+                          <div>
+                            <strong>{{ bar.label }}</strong>
+                            <small>{{ bar.context }}</small>
+                          </div>
+                          <span>{{ bar.display }}</span>
+                          <i [style.--width]="bar.percent + '%'" [style.--tone]="bar.color"></i>
+                        </div>
+                      } @empty {
+                        <div class="empty-state compact">No chartable values for this report.</div>
+                      }
                     </div>
                   </section>
                 }
@@ -199,7 +299,13 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
                     <p class="ac-eyebrow">Records</p>
                     <h3>Detailed data</h3>
                   </div>
-                  <span>{{ generated.table.rows.length }} rows</span>
+                  <div class="records-actions">
+                    <label class="record-search">
+                      <span class="material-symbols-rounded">search</span>
+                      <input type="search" [value]="recordSearch()" (input)="recordSearch.set($any($event.target).value)" placeholder="Search records..." />
+                    </label>
+                    <span>{{ filteredRows(generated).length }} rows</span>
+                  </div>
                 </div>
                 <div class="table-wrap">
                   <table class="ac-table">
@@ -211,7 +317,7 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
                       </tr>
                     </thead>
                     <tbody>
-                      @for (row of generated.table.rows; track $index) {
+                      @for (row of filteredRows(generated); track $index) {
                         <tr>
                           @for (column of generated.table.columns; track column) {
                             <td>{{ row[column] || '-' }}</td>
@@ -331,6 +437,7 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
     .result-panel { padding: 14px; }
     .panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
     .panel-head h2, .panel-head h3 { margin: 2px 0 0; color: var(--ac-text); font-size: 17px; }
+    .panel-head p { margin: 4px 0 0; color: var(--ac-muted); font-size: 13px; line-height: 1.35; }
     .panel-head.compact { margin: 0 0 10px; }
     .panel-head.compact h3 { font-size: 15px; }
     .panel-head > span, .result-meta span {
@@ -378,6 +485,22 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
     .result-head h2 { margin: 2px 0 0; color: var(--ac-text); font-size: 22px; }
     .result-head p { margin: 5px 0 0; color: var(--ac-muted); }
     .result-meta { display: grid; justify-items: end; gap: 5px; color: var(--ac-muted); font-size: 12px; }
+    .result-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; }
+    .icon-action {
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--ac-border);
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+      color: var(--ac-text-2);
+      background: var(--ac-surface);
+      cursor: pointer;
+      transition: transform .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease;
+    }
+    .icon-action:hover:not(:disabled) { transform: translateY(-1px); color: var(--ac-primary); border-color: rgba(37,99,235,.35); box-shadow: 0 10px 24px rgba(15,23,42,.08); }
+    .icon-action:disabled { opacity: .45; cursor: not-allowed; }
+    .icon-action .material-symbols-rounded { font-size: 19px; }
     .report-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
     .report-kpi {
       --tone: var(--ac-primary);
@@ -406,13 +529,71 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
 
     .analytics-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(280px, .85fr); gap: 12px; align-items: stretch; }
     .chart-panel, .table-panel { border: 1px solid var(--ac-border); border-radius: 12px; padding: 12px; background: var(--ac-surface); min-width: 0; }
-    .trend-panel { background: linear-gradient(180deg, var(--ac-surface), color-mix(in srgb, var(--ac-primary) 3%, var(--ac-surface))); }
-    .trend-chart { min-height: 156px; display: grid; grid-template-columns: repeat(auto-fit, minmax(30px, 1fr)); gap: 7px; align-items: end; padding-top: 6px; }
+    .trend-panel { background: linear-gradient(180deg, var(--ac-surface), color-mix(in srgb, var(--ac-primary) 2%, var(--ac-surface))); }
+    .chart-actions { display: flex; align-items: center; gap: 8px; }
+    .range-pill {
+      min-height: 36px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid var(--ac-border);
+      border-radius: 9px;
+      padding: 0 11px;
+      color: var(--ac-muted);
+      background: var(--ac-surface);
+      font-size: 12px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+    .range-pill .material-symbols-rounded { font-size: 18px; color: var(--ac-text-2); }
+    .trend-summary {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: stretch;
+      border: 1px solid var(--ac-border);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+      background: color-mix(in srgb, var(--ac-surface) 88%, var(--ac-subtle));
+    }
+    .trend-summary article {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      padding-right: 12px;
+      border-right: 1px solid var(--ac-border);
+    }
+    .trend-summary article:last-child { border-right: 0; padding-right: 0; }
+    .dot { width: 10px; height: 10px; border-radius: 999px; flex: 0 0 auto; }
+    .dot.primary { background: var(--ac-primary); box-shadow: 0 0 0 5px rgba(37,99,235,.08); }
+    .dot.secondary { background: #10B981; box-shadow: 0 0 0 5px rgba(16,185,129,.09); }
+    .trend-summary small { display: block; color: var(--ac-muted); font-size: 12px; font-weight: 850; }
+    .trend-summary strong { display: block; margin-top: 4px; color: var(--ac-text); font-size: 24px; line-height: 1; }
+    .trend-summary em { display: block; margin-top: 4px; color: var(--ac-text-2); font-size: 11.5px; font-style: normal; font-weight: 750; }
+    .rate-card {
+      min-width: 140px;
+      border: 0 !important;
+      border-radius: 10px;
+      padding: 10px 12px !important;
+      background: #ECFDF5;
+      color: #047857;
+    }
+    .rate-card .material-symbols-rounded { font-size: 19px; }
+    .rate-card strong, .rate-card em { color: #047857; }
+    .trend-visual { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 8px; align-items: stretch; min-height: 240px; }
+    .y-axis { display: grid; grid-template-rows: repeat(5, 1fr); align-items: start; padding: 4px 0 30px; color: var(--ac-muted); font-size: 11px; font-weight: 800; text-align: right; }
+    .chart-stage { position: relative; min-width: 0; display: grid; align-items: end; padding-top: 4px; }
+    .grid-lines { position: absolute; inset: 4px 0 30px; display: grid; grid-template-rows: repeat(5, 1fr); pointer-events: none; }
+    .grid-lines span { border-top: 1px dashed color-mix(in srgb, var(--ac-border) 84%, var(--ac-muted)); }
+    .trend-chart { position: relative; z-index: 1; min-height: 208px; display: grid; grid-template-columns: repeat(auto-fit, minmax(30px, 1fr)); gap: 7px; align-items: end; padding-top: 6px; }
     .trend-day { display: grid; gap: 6px; justify-items: center; min-width: 0; }
-    .bars { height: 108px; width: 100%; display: flex; align-items: end; justify-content: center; gap: 3px; border-bottom: 1px solid var(--ac-border); }
-    .bar { width: 10px; min-height: 3px; border-radius: 999px 999px 0 0; }
-    .bar.primary { background: var(--ac-primary); }
-    .bar.secondary { background: #10B981; }
+    .bars { height: 178px; width: 100%; display: flex; align-items: end; justify-content: center; gap: 4px; border-bottom: 1px solid var(--ac-border); }
+    .bar { width: 12px; min-height: 4px; border-radius: 999px 999px 0 0; transition: opacity .16s ease, transform .16s ease; }
+    .trend-day:hover .bar { transform: translateY(-2px); opacity: .86; }
+    .bar.primary { background: linear-gradient(180deg, #3B82F6, #2563EB); box-shadow: 0 7px 15px rgba(37,99,235,.22); }
+    .bar.secondary { background: linear-gradient(180deg, #34D399, #10B981); box-shadow: 0 7px 15px rgba(16,185,129,.22); }
     .trend-day small { color: var(--ac-muted); font-size: 10.5px; white-space: nowrap; }
     .chart-legend { display: flex; align-items: center; gap: 14px; margin-top: 10px; color: var(--ac-muted); font-size: 11.5px; font-weight: 800; }
     .chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
@@ -448,8 +629,67 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
     .legend-row i { width: 10px; height: 10px; border-radius: 999px; }
     .legend-row strong { display: block; color: var(--ac-text); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .legend-row small { display: block; margin-top: 1px; color: var(--ac-muted); font-size: 11px; font-weight: 750; }
+    .horizontal-bars { display: grid; gap: 11px; padding: 6px 0 2px; }
+    .hbar-row {
+      display: grid;
+      grid-template-columns: minmax(150px, .8fr) auto minmax(180px, 1fr);
+      gap: 10px;
+      align-items: center;
+    }
+    .hbar-row strong { display: block; color: var(--ac-text); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hbar-row small { display: block; margin-top: 2px; color: var(--ac-muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hbar-row > span { color: var(--ac-text); font-size: 12px; font-weight: 900; white-space: nowrap; }
+    .hbar-row i {
+      --width: 0%;
+      --tone: var(--ac-primary);
+      position: relative;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--ac-subtle);
+      overflow: hidden;
+    }
+    .hbar-row i::after { content: ''; position: absolute; inset: 0 auto 0 0; width: var(--width); border-radius: inherit; background: linear-gradient(90deg, var(--tone), color-mix(in srgb, var(--tone) 58%, #10B981)); }
+    .insight-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 12px;
+      border: 1px solid var(--ac-border);
+      border-radius: 10px;
+      padding: 10px;
+      background: var(--ac-surface);
+    }
+    .insight-footer > div { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .insight-footer .material-symbols-rounded { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; color: var(--ac-primary); background: rgba(37,99,235,.09); flex: 0 0 auto; }
+    .insight-footer p { margin: 0; color: var(--ac-muted); font-size: 12.5px; line-height: 1.35; }
     .table-wrap { overflow: auto; border: 1px solid var(--ac-border); border-radius: 10px; }
     .table-wrap .ac-table th, .table-wrap .ac-table td { white-space: nowrap; }
+    .records-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+    .record-search {
+      width: min(290px, 45vw);
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--ac-border);
+      border-radius: 9px;
+      padding: 0 10px;
+      background: var(--ac-surface);
+      color: var(--ac-muted);
+    }
+    .record-search .material-symbols-rounded { font-size: 18px; }
+    .record-search input {
+      width: 100%;
+      min-width: 0;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--ac-text);
+      font: inherit;
+      font-size: 12.5px;
+      font-weight: 750;
+    }
     .drilldown-row { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
     .empty-state { border: 1px dashed var(--ac-border); border-radius: 10px; padding: 18px; color: var(--ac-muted); text-align: center; background: var(--ac-subtle); }
     .empty-state.compact { padding: 14px; font-size: 13px; }
@@ -459,6 +699,7 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
       .summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .report-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .analytics-grid { grid-template-columns: 1fr; }
+      .trend-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
     @media (max-width: 760px) {
       .reports-header, .result-head { display: grid; }
@@ -467,6 +708,18 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
       .filter-panel, .summary-grid, .report-kpis, .analytics-grid, .donut-layout { grid-template-columns: 1fr; }
       .donut-chart { margin: 0 auto; }
       .result-meta { justify-items: start; }
+      .result-actions { justify-content: flex-start; }
+      .chart-actions, .insight-footer, .records-actions { align-items: stretch; flex-direction: column; }
+      .trend-summary { grid-template-columns: 1fr; }
+      .trend-summary article { border-right: 0; border-bottom: 1px solid var(--ac-border); padding: 0 0 10px; }
+      .trend-summary article:last-child { border-bottom: 0; padding-bottom: 0; }
+      .trend-visual { grid-template-columns: 32px minmax(0, 1fr); }
+      .trend-chart { grid-template-columns: repeat(auto-fit, minmax(24px, 1fr)); gap: 4px; }
+      .bars { gap: 2px; }
+      .bar { width: 8px; }
+      .hbar-row { grid-template-columns: 1fr auto; }
+      .hbar-row i { grid-column: 1 / -1; }
+      .record-search { width: 100%; }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -486,6 +739,7 @@ export class ReportsInsightsPageComponent implements OnInit {
   protected readonly selectedReportKey = signal('dashboard-overview');
   protected readonly activePreset = signal<DatePreset>('30');
   protected readonly filters = signal<ReportFilters>(defaultFilters());
+  protected readonly recordSearch = signal('');
   protected readonly datePresets: Array<{ value: DatePreset; label: string }> = [
     { value: 'today', label: 'Today' },
     { value: '7', label: '7 Days' },
@@ -556,6 +810,7 @@ export class ReportsInsightsPageComponent implements OnInit {
     }
 
     this.report.set(response.data);
+    this.recordSearch.set('');
     this.syncCategoryFromReport();
     if (notify) {
       this.toast.success('Report generated', response.data.title);
@@ -627,6 +882,33 @@ export class ReportsInsightsPageComponent implements OnInit {
     return Math.max(4, Math.round((Number(value || 0) / max) * 100));
   }
 
+  protected chartTicks(points: Array<{ primaryValue: number; secondaryValue: number }>): number[] {
+    const max = Math.max(1, ...points.flatMap(point => [point.primaryValue, point.secondaryValue]));
+    const roundedMax = Math.max(4, Math.ceil(max / 4) * 4);
+    return [roundedMax, Math.round(roundedMax * .75), Math.round(roundedMax * .5), Math.round(roundedMax * .25), 0];
+  }
+
+  protected trendTotal(points: Array<{ primaryValue: number; secondaryValue: number }>, key: 'primary' | 'secondary'): string {
+    const total = points.reduce((sum, point) => sum + (key === 'primary' ? point.primaryValue : point.secondaryValue), 0);
+    return formatNumber(total);
+  }
+
+  protected trendRate(points: Array<{ primaryValue: number; secondaryValue: number }>): string {
+    const primary = points.reduce((sum, point) => sum + point.primaryValue, 0);
+    const secondary = points.reduce((sum, point) => sum + point.secondaryValue, 0);
+    return primary ? ((secondary / primary) * 100).toFixed(1) : '0.0';
+  }
+
+  protected trendCaption(report: ReportResult): string {
+    if (report.reportKey === 'appointment-summary') {
+      return 'Daily comparison of scheduled appointments and completed visits.';
+    }
+    if (report.reportKey === 'dashboard-overview') {
+      return 'Daily comparison of booked appointments and OPD clinical encounters.';
+    }
+    return report.description;
+  }
+
   protected pieSlices(kpis: ReportKpi[]): Array<{ label: string; display: string; value: number; percent: number; color: string }> {
     const values = kpis
       .map(kpi => ({ label: kpi.label, display: kpi.value, value: numericValue(kpi.value), color: kpi.color }))
@@ -657,6 +939,73 @@ export class ReportsInsightsPageComponent implements OnInit {
   protected distributionTotal(kpis: ReportKpi[]): string {
     const total = this.pieSlices(kpis).reduce((sum, slice) => sum + slice.value, 0);
     return total ? formatNumber(total) : '0';
+  }
+
+  protected tableBars(report: ReportResult): Array<{ label: string; context: string; display: string; value: number; percent: number; color: string }> {
+    const labelColumn = report.table.columns[0];
+    const contextColumn = report.table.columns[1];
+    const colors = ['#2563EB', '#10B981', '#0891B2', '#7C3AED', '#F59E0B', '#EF4444'];
+    const bars = report.table.rows
+      .map((row, index) => {
+        const values = report.table.columns
+          .map(column => ({ column, value: numericValue(row[column] ?? '') }))
+          .filter(item => item.value > 0);
+        const strongest = values.sort((left, right) => right.value - left.value)[0];
+        return {
+          label: row[labelColumn] || `Record ${index + 1}`,
+          context: row[contextColumn] || strongest?.column || report.title,
+          display: strongest ? row[strongest.column] : '0',
+          value: strongest?.value ?? 0,
+          percent: 0,
+          color: colors[index % colors.length]
+        };
+      })
+      .filter(item => item.value > 0)
+      .slice(0, 8);
+    const max = Math.max(1, ...bars.map(item => item.value));
+    return bars.map(item => ({ ...item, percent: Math.max(5, Math.round((item.value / max) * 100)) }));
+  }
+
+  protected filteredRows(report: ReportResult): Record<string, string>[] {
+    const search = this.recordSearch().trim().toLowerCase();
+    if (!search) {
+      return report.table.rows;
+    }
+
+    return report.table.rows.filter(row =>
+      report.table.columns.some(column => String(row[column] ?? '').toLowerCase().includes(search)));
+  }
+
+  protected async shareReport(): Promise<void> {
+    const current = this.report();
+    if (!current) {
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('report', current.reportKey);
+    try {
+      await navigator.clipboard.writeText(url.toString());
+      this.toast.success('Report link copied', current.title);
+    } catch {
+      this.toast.warning('Share unavailable', 'Copy the current browser URL to share this report.');
+    }
+  }
+
+  protected saveReport(): void {
+    const current = this.report();
+    if (!current) {
+      return;
+    }
+
+    const saved = {
+      reportKey: current.reportKey,
+      title: current.title,
+      filters: this.filters(),
+      savedAt: new Date().toISOString()
+    };
+    localStorage.setItem(`care360.saved-report.${current.reportKey}`, JSON.stringify(saved));
+    this.toast.success('Report saved', `${current.title} is saved for this browser.`);
   }
 
   protected exportCsv(): void {
