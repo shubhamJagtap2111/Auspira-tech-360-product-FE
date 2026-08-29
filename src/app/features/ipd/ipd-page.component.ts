@@ -914,7 +914,7 @@ interface IpdKpiCard {
                           </div>
                         </article>
 
-                        <article class="panel">
+                        <article class="panel trend-panel">
                           <div class="panel-head">
                             <div>
                               <p class="ac-eyebrow">Trend</p>
@@ -923,29 +923,56 @@ interface IpdKpiCard {
                             <span class="soft-pill">{{ vitalRecords().length }} readings</span>
                           </div>
                           <div class="trend-grid">
-                            <div>
-                              <b>Temperature</b>
-                              <div class="sparkline">
+                            <div class="trend-card temperature">
+                              <div class="trend-card-head">
+                                <span class="material-symbols-rounded">thermostat</span>
+                                <div>
+                                  <b>Temperature</b>
+                                  <strong>{{ latestVitalValue('temperature') }}</strong>
+                                </div>
+                              </div>
+                              <div class="sparkline" aria-label="Temperature trend">
                                 @for (point of trendPoints('temperature'); track point.index) {
                                   <i [style.height.%]="point.height"></i>
+                                } @empty {
+                                  <em>No trend yet</em>
                                 }
                               </div>
+                              <small>{{ trendSummary('temperature') }}</small>
                             </div>
-                            <div>
-                              <b>Pulse</b>
-                              <div class="sparkline pulse">
+                            <div class="trend-card pulse">
+                              <div class="trend-card-head">
+                                <span class="material-symbols-rounded">favorite</span>
+                                <div>
+                                  <b>Pulse</b>
+                                  <strong>{{ latestVitalValue('pulse') }}</strong>
+                                </div>
+                              </div>
+                              <div class="sparkline" aria-label="Pulse trend">
                                 @for (point of trendPoints('pulse'); track point.index) {
                                   <i [style.height.%]="point.height"></i>
+                                } @empty {
+                                  <em>No trend yet</em>
                                 }
                               </div>
+                              <small>{{ trendSummary('pulse') }}</small>
                             </div>
-                            <div>
-                              <b>SpO2</b>
-                              <div class="sparkline spo2">
+                            <div class="trend-card spo2">
+                              <div class="trend-card-head">
+                                <span class="material-symbols-rounded">air</span>
+                                <div>
+                                  <b>SpO2</b>
+                                  <strong>{{ latestVitalValue('spo2') }}</strong>
+                                </div>
+                              </div>
+                              <div class="sparkline" aria-label="SpO2 trend">
                                 @for (point of trendPoints('spo2'); track point.index) {
                                   <i [style.height.%]="point.height"></i>
+                                } @empty {
+                                  <em>No trend yet</em>
                                 }
                               </div>
+                              <small>{{ trendSummary('spo2') }}</small>
                             </div>
                           </div>
                         </article>
@@ -1969,39 +1996,109 @@ interface IpdKpiCard {
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 12px;
     }
+    .trend-panel {
+      border-top: 3px solid var(--ac-primary);
+      background:
+        linear-gradient(135deg, color-mix(in srgb, var(--ac-primary) 7%, transparent), transparent 42%),
+        var(--ac-surface);
+    }
     .trend-grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 12px;
     }
-    .trend-grid > div {
-      min-height: 160px;
+    .trend-card {
+      --trend: var(--ac-primary);
+      min-height: 172px;
       display: grid;
       gap: 12px;
       padding: 14px;
-      border: 1px solid var(--ac-border);
+      border: 1px solid color-mix(in srgb, var(--trend) 24%, var(--ac-border));
       border-radius: 12px;
-      background: var(--ac-surface-2);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--trend) 9%, var(--ac-surface)), var(--ac-surface));
+      box-shadow: 0 14px 30px rgba(15, 23, 42, .06);
     }
-    .trend-grid b { color: var(--ac-text-3); }
+    .trend-card.temperature { --trend: var(--ac-primary); }
+    .trend-card.pulse { --trend: #EF4444; }
+    .trend-card.spo2 { --trend: var(--ac-success); }
+    .trend-card-head {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr);
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .trend-card-head > .material-symbols-rounded {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--trend) 13%, #fff);
+      color: var(--trend);
+      font-size: 23px;
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--trend) 12%, transparent);
+    }
+    .trend-card b {
+      display: block;
+      color: var(--ac-muted);
+      font-size: 11px;
+      line-height: 1.2;
+      text-transform: uppercase;
+    }
+    .trend-card strong {
+      display: block;
+      margin-top: 3px;
+      color: var(--ac-text);
+      font-size: 23px;
+      line-height: 1.1;
+      font-weight: 950;
+    }
+    .trend-card small {
+      color: var(--ac-muted);
+      font-size: 12px;
+      font-weight: 850;
+    }
     .sparkline {
-      height: 104px;
+      position: relative;
+      height: 82px;
       display: flex;
       align-items: end;
       gap: 6px;
-      padding: 10px;
-      border-radius: 10px;
-      background: var(--ac-surface);
-      border: 1px solid var(--ac-border);
+      padding: 12px 12px 11px;
+      overflow: hidden;
+      border-radius: 12px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, .88), color-mix(in srgb, var(--trend) 7%, var(--ac-surface-2)));
+      border: 1px solid color-mix(in srgb, var(--trend) 18%, var(--ac-border));
     }
+    .sparkline::before,
+    .sparkline::after {
+      content: '';
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      border-top: 1px dashed color-mix(in srgb, var(--trend) 25%, var(--ac-border));
+    }
+    .sparkline::before { top: 36%; }
+    .sparkline::after { top: 68%; }
     .sparkline i {
+      position: relative;
+      z-index: 1;
       flex: 1 1 8px;
       min-width: 6px;
-      border-radius: 999px 999px 3px 3px;
-      background: linear-gradient(180deg, var(--ac-primary), #60A5FA);
+      border-radius: 999px 999px 4px 4px;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--trend) 70%, #fff), var(--trend));
+      box-shadow: 0 6px 14px color-mix(in srgb, var(--trend) 22%, transparent);
     }
-    .sparkline.pulse i { background: linear-gradient(180deg, #EF4444, #F97316); }
-    .sparkline.spo2 i { background: linear-gradient(180deg, var(--ac-success), #2DD4BF); }
+    .sparkline em {
+      position: relative;
+      z-index: 1;
+      margin: auto;
+      color: var(--ac-muted);
+      font-size: 12px;
+      font-style: normal;
+      font-weight: 850;
+    }
     .vitals-head, .vitals-row {
       grid-template-columns: 1.05fr .55fr .6fr .55fr .55fr .45fr .7fr .65fr;
     }
@@ -3221,17 +3318,14 @@ export class IpdPageComponent implements OnInit {
   }
 
   protected trendPoints(key: 'temperature' | 'pulse' | 'spo2'): { index: number; height: number }[] {
-    const values = this.vitalRecords()
-      .slice(0, 14)
-      .reverse()
-      .map((record, index) => ({
-        index,
-        value: key === 'temperature' ? record.temperature : key === 'pulse' ? record.pulseRate : record.spo2
-      }))
-      .filter(point => point.value !== null && point.value !== undefined) as { index: number; value: number }[];
+    const values = this.vitalTrendValues(key).map((value, index) => ({ index, value }));
 
     if (values.length === 0) {
       return [];
+    }
+
+    if (values.length === 1) {
+      return values.map(point => ({ index: point.index, height: 70 }));
     }
 
     const min = Math.min(...values.map(point => Number(point.value)));
@@ -3239,8 +3333,41 @@ export class IpdPageComponent implements OnInit {
     const spread = Math.max(max - min, 1);
     return values.map(point => ({
       index: point.index,
-      height: Math.max(12, Math.round(((Number(point.value) - min) / spread) * 82) + 12)
+      height: Math.max(18, Math.round(((Number(point.value) - min) / spread) * 72) + 18)
     }));
+  }
+
+  protected trendSummary(key: 'temperature' | 'pulse' | 'spo2'): string {
+    const values = this.vitalTrendValues(key);
+
+    if (values.length === 0) {
+      return 'Awaiting readings';
+    }
+
+    if (values.length === 1) {
+      return 'Latest reading only';
+    }
+
+    const first = values[0];
+    const last = values[values.length - 1];
+    const change = last - first;
+
+    if (Math.abs(change) < 0.1) {
+      return 'Stable from first reading';
+    }
+
+    const formatted = Number.isInteger(change) ? String(Math.abs(change)) : Math.abs(change).toFixed(1);
+    const unit = key === 'temperature' ? ' °F' : key === 'pulse' ? ' bpm' : '%';
+    return `${change > 0 ? 'Up' : 'Down'} ${formatted}${unit} from first reading`;
+  }
+
+  private vitalTrendValues(key: 'temperature' | 'pulse' | 'spo2'): number[] {
+    return this.vitalRecords()
+      .slice(0, 14)
+      .reverse()
+      .map(record => key === 'temperature' ? record.temperature : key === 'pulse' ? record.pulseRate : record.spo2)
+      .filter((value): value is number => value !== null && value !== undefined && Number.isFinite(Number(value)))
+      .map(value => Number(value));
   }
 
   protected chooseTransferBed(bed: IpdBedStatus): void {
