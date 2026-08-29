@@ -2058,6 +2058,7 @@ export class AppShellComponent implements OnInit {
             { path: '/reports', queryParams: { report: 'dashboard-overview' }, label: 'Dashboard', icon: 'dashboard' },
             { path: '/reports', queryParams: { report: 'appointment-summary' }, label: 'Appointments', icon: 'event_available' },
             { path: '/reports', queryParams: { report: 'opd-summary' }, label: 'OPD Clinical', icon: 'stethoscope' },
+            { path: '/reports', queryParams: { report: 'ipd-bed' }, label: 'IPD Dashboard', icon: 'king_bed' },
             { path: '/reports', queryParams: { report: 'financial-summary' }, label: 'Revenue', icon: 'payments' },
             { path: '/reports', queryParams: { report: 'doctor-performance' }, label: 'Doctor Performance', icon: 'monitoring' },
             { path: '/reports', queryParams: { report: 'inventory-stock' }, label: 'Inventory', icon: 'inventory_2' }
