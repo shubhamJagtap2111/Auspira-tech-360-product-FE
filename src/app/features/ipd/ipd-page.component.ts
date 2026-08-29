@@ -2004,7 +2004,7 @@ interface IpdKpiCard {
     }
     .trend-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
       gap: 12px;
     }
     .trend-card {
@@ -2017,6 +2017,7 @@ interface IpdKpiCard {
       border-radius: 12px;
       background: linear-gradient(180deg, color-mix(in srgb, var(--trend) 9%, var(--ac-surface)), var(--ac-surface));
       box-shadow: 0 14px 30px rgba(15, 23, 42, .06);
+      min-width: 0;
     }
     .trend-card.temperature { --trend: var(--ac-primary); }
     .trend-card.pulse { --trend: #EF4444; }
@@ -2026,6 +2027,9 @@ interface IpdKpiCard {
       grid-template-columns: 42px minmax(0, 1fr);
       align-items: center;
       gap: 10px;
+      min-width: 0;
+    }
+    .trend-card-head > div {
       min-width: 0;
     }
     .trend-card-head > .material-symbols-rounded {
@@ -2045,6 +2049,7 @@ interface IpdKpiCard {
       font-size: 11px;
       line-height: 1.2;
       text-transform: uppercase;
+      overflow-wrap: anywhere;
     }
     .trend-card strong {
       display: block;
@@ -2053,6 +2058,7 @@ interface IpdKpiCard {
       font-size: 23px;
       line-height: 1.1;
       font-weight: 950;
+      overflow-wrap: anywhere;
     }
     .trend-card small {
       color: var(--ac-muted);
@@ -3451,14 +3457,10 @@ export class IpdPageComponent implements OnInit {
       return;
     }
 
-    openPrintWindow(`
-      <h1>IPD Discharge Summary</h1>
-      <p><b>Patient:</b> ${escapeHtml(admission.patientName)} (${escapeHtml(admission.medicalRecordNo)})</p>
-      <p><b>Doctor:</b> ${escapeHtml(admission.doctorName)}</p>
-      <p><b>Ward/Bed:</b> ${escapeHtml(admission.wardName || 'Pending')} / ${escapeHtml(admission.bedNo || 'Pending')}</p>
-      <hr>
-      <pre>${escapeHtml(this.dischargeSummary || 'Draft summary not entered.')}</pre>
-    `);
+    openPrintWindow(
+      'IPD Discharge Summary',
+      buildDischargePrintDocument(admission, this.dischargeSummary || 'Draft summary not entered.')
+    );
   }
 
   protected printAdmissionSummary(): void {
@@ -3468,15 +3470,7 @@ export class IpdPageComponent implements OnInit {
       return;
     }
 
-    openPrintWindow(`
-      <h1>IPD Admission Detail</h1>
-      <p><b>Patient:</b> ${escapeHtml(admission.patientName)} (${escapeHtml(admission.medicalRecordNo)})</p>
-      <p><b>Admission:</b> ${escapeHtml(admission.admissionNo)} · ${escapeHtml(statusText(admission.statusCode))}</p>
-      <p><b>Ward/Bed:</b> ${escapeHtml(admission.wardName || 'Pending')} / ${escapeHtml(admission.bedNo || 'Pending')}</p>
-      <p><b>Doctor:</b> ${escapeHtml(admission.doctorName || 'Unassigned')}</p>
-      <p><b>Stay:</b> Day ${admission.stayDays || 1}</p>
-      <p><b>Outstanding:</b> ${escapeHtml(formatMoney(admission.outstanding || 0))}</p>
-    `);
+    openPrintWindow('IPD Admission Detail', buildAdmissionPrintDocument(admission));
   }
 
   protected exportActivePatients(): void {
@@ -4021,29 +4015,397 @@ function hasVitalMeasurement(request: SaveIpdVitalRequest): boolean {
     Boolean(request.notes?.trim());
 }
 
-function openPrintWindow(body: string): void {
+function buildAdmissionPrintDocument(admission: IpdAdmissionListItem): string {
+  return `
+    ${printDocumentHeader('IPD Admission Detail', 'Inpatient care summary', admission)}
+    ${printPatientBand(admission)}
+    <section class="summary-grid">
+      ${printInfoCard('Admission ID', admission.admissionNo)}
+      ${printInfoCard('Admitted On', printDateTime(admission.admittedAt))}
+      ${printInfoCard('Ward / Room', `${admission.wardName || 'Pending'} / ${admission.roomNumber || 'Pending'}`)}
+      ${printInfoCard('Bed', admission.bedNo || 'Pending')}
+      ${printInfoCard('Doctor', admission.doctorName || 'Unassigned')}
+      ${printInfoCard('Department', admission.departmentName || 'General Medicine')}
+      ${printInfoCard('Stay', `Day ${admission.stayDays || 1}`)}
+      ${printInfoCard('Outstanding', formatMoney(admission.outstanding || 0), 'amount')}
+    </section>
+    <section class="print-section">
+      <div class="section-title">
+        <span>Clinical Intake</span>
+        <b>${escapeHtml(statusText(admission.priorityCode || 'Routine'))}</b>
+      </div>
+      <div class="details-grid">
+        ${printDetail('Admission Source', statusText(admission.admissionSource || '-'))}
+        ${printDetail('Admission Type', statusText(admission.admissionType || '-'))}
+        ${printDetail('Reason', admission.admissionReason || '-')}
+        ${printDetail('Primary Diagnosis', admission.primaryDiagnosis || '-')}
+        ${printDetail('Known Allergies', admission.knownAllergies || 'Not recorded')}
+        ${printDetail('Blood Group', admission.bloodGroup || 'Not recorded')}
+      </div>
+    </section>
+    ${printSignatureBlock(['Prepared By', 'Treating Doctor', 'Patient / Attendant'])}
+  `;
+}
+
+function buildDischargePrintDocument(admission: IpdAdmissionListItem, summary: string): string {
+  return `
+    ${printDocumentHeader('IPD Discharge Summary', 'Discharge readiness document', admission)}
+    ${printPatientBand(admission)}
+    <section class="summary-grid">
+      ${printInfoCard('Admission ID', admission.admissionNo)}
+      ${printInfoCard('Admission Date', printDateTime(admission.admittedAt))}
+      ${printInfoCard('Ward / Bed', `${admission.wardName || 'Pending'} / ${admission.bedNo || 'Pending'}`)}
+      ${printInfoCard('Consultant', admission.doctorName || 'Unassigned')}
+      ${printInfoCard('Department', admission.departmentName || 'General Medicine')}
+      ${printInfoCard('Final Status', statusText(admission.statusCode || '-'))}
+    </section>
+    <section class="print-section">
+      <div class="section-title">
+        <span>Discharge Notes</span>
+        <b>Clinical Summary</b>
+      </div>
+      <div class="narrative">${escapeHtml(summary).replace(/\n/g, '<br>')}</div>
+    </section>
+    <section class="print-section">
+      <div class="section-title">
+        <span>Billing Snapshot</span>
+        <b>${escapeHtml(formatMoney(admission.outstanding || 0))}</b>
+      </div>
+      <div class="details-grid compact">
+        ${printDetail('Current Bed', admission.bedNo || 'Pending')}
+        ${printDetail('Stay Duration', `Day ${admission.stayDays || 1}`)}
+        ${printDetail('Active Orders', String(admission.activeOrders || 0))}
+        ${printDetail('Billing Status', (admission.outstanding || 0) > 0 ? 'Outstanding balance pending' : 'No outstanding balance')}
+      </div>
+    </section>
+    ${printSignatureBlock(['Prepared By', 'Discharging Doctor', 'Patient / Attendant'])}
+  `;
+}
+
+function printDocumentHeader(title: string, subtitle: string, admission: IpdAdmissionListItem): string {
+  return `
+    <header class="doc-header">
+      <div class="brand-lockup">
+        <div class="brand-mark">C360</div>
+        <div>
+          <p>Care360 Healthcare ERP</p>
+          <h1>${escapeHtml(title)}</h1>
+          <span>${escapeHtml(subtitle)}</span>
+        </div>
+      </div>
+      <div class="doc-meta">
+        <span>Generated</span>
+        <strong>${escapeHtml(printDateTime(new Date().toISOString()))}</strong>
+        <small>${escapeHtml(admission.admissionNo)}</small>
+      </div>
+    </header>
+  `;
+}
+
+function printPatientBand(admission: IpdAdmissionListItem): string {
+  return `
+    <section class="patient-band">
+      <div class="patient-avatar">${escapeHtml(printInitials(admission.patientName))}</div>
+      <div class="patient-title">
+        <span>Patient Details</span>
+        <h2>${escapeHtml(admission.patientName)}</h2>
+        <p>${escapeHtml(admission.medicalRecordNo || '-')} · ${escapeHtml(statusText(admission.statusCode || '-'))}</p>
+      </div>
+      <div class="status-badge">${escapeHtml(statusText(admission.statusCode || '-'))}</div>
+    </section>
+  `;
+}
+
+function printInfoCard(label: string, value: string, className = ''): string {
+  return `<div class="info-card ${className}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || '-')}</strong></div>`;
+}
+
+function printDetail(label: string, value: string): string {
+  return `<div class="detail-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || '-')}</strong></div>`;
+}
+
+function printSignatureBlock(labels: string[]): string {
+  return `
+    <footer class="signature-grid">
+      ${labels.map(label => `<div><span></span><b>${escapeHtml(label)}</b></div>`).join('')}
+    </footer>
+  `;
+}
+
+function printInitials(name: string): string {
+  return (name || 'IP')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part.charAt(0).toUpperCase())
+    .join('') || 'IP';
+}
+
+function printDateTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '-';
+  }
+
+  return new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date);
+}
+
+function openPrintWindow(title: string, body: string): void {
   const printWindow = window.open('', '_blank', 'width=960,height=720');
   if (!printWindow) {
     return;
   }
 
+  const safeTitle = escapeHtml(title);
   printWindow.document.write(`
     <html>
       <head>
-        <title>IPD Document</title>
+        <title>${safeTitle}</title>
         <style>
-          body { font-family: Inter, Arial, sans-serif; padding: 32px; color: #0F172A; }
-          h1 { margin: 0 0 18px; }
-          p { margin: 8px 0; }
-          pre { white-space: pre-wrap; font: inherit; line-height: 1.6; border: 1px solid #E2E8F0; border-radius: 8px; padding: 18px; }
+          @page { size: A4; margin: 12mm; }
+          * { box-sizing: border-box; }
+          body {
+            margin: 0;
+            background: #F1F5F9;
+            color: #0F172A;
+            font-family: Inter, Arial, sans-serif;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          .print-page {
+            width: min(210mm, 100%);
+            min-height: 297mm;
+            margin: 0 auto;
+            padding: 18mm;
+            background: #FFFFFF;
+            box-shadow: 0 18px 50px rgba(15, 23, 42, .18);
+          }
+          .doc-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 18px;
+            padding: 18px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #0F766E, #2563EB);
+            color: #FFFFFF;
+          }
+          .brand-lockup { display: flex; gap: 14px; align-items: center; min-width: 0; }
+          .brand-mark {
+            width: 58px;
+            height: 58px;
+            display: grid;
+            place-items: center;
+            flex: 0 0 auto;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, .18);
+            border: 1px solid rgba(255, 255, 255, .28);
+            font-size: 16px;
+            font-weight: 950;
+          }
+          .brand-lockup p,
+          .brand-lockup span,
+          .doc-meta span,
+          .doc-meta small {
+            margin: 0;
+            color: rgba(255, 255, 255, .82);
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+          }
+          h1 {
+            margin: 4px 0;
+            font-size: 26px;
+            line-height: 1.1;
+          }
+          .doc-meta {
+            min-width: 150px;
+            text-align: right;
+            display: grid;
+            align-content: center;
+            gap: 4px;
+          }
+          .doc-meta strong { font-size: 13px; }
+          .patient-band {
+            display: grid;
+            grid-template-columns: 64px minmax(0, 1fr) auto;
+            gap: 14px;
+            align-items: center;
+            margin: 18px 0;
+            padding: 16px;
+            border: 1px solid #D8E1F0;
+            border-radius: 16px;
+            background: #F8FAFC;
+          }
+          .patient-avatar {
+            width: 64px;
+            height: 64px;
+            display: grid;
+            place-items: center;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #2563EB, #0F766E);
+            color: #FFFFFF;
+            font-size: 22px;
+            font-weight: 950;
+          }
+          .patient-title { min-width: 0; }
+          .patient-title span,
+          .info-card span,
+          .detail-row span,
+          .section-title span {
+            color: #64748B;
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+          }
+          h2 {
+            margin: 4px 0;
+            font-size: 25px;
+            line-height: 1.12;
+          }
+          .patient-title p { margin: 0; color: #475569; font-size: 13px; font-weight: 800; }
+          .status-badge {
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: #DBEAFE;
+            color: #1D4ED8;
+            font-size: 12px;
+            font-weight: 900;
+            white-space: nowrap;
+          }
+          .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 18px;
+          }
+          .info-card {
+            min-height: 74px;
+            display: grid;
+            align-content: center;
+            gap: 5px;
+            padding: 13px;
+            border: 1px solid #D8E1F0;
+            border-radius: 14px;
+            background: #FFFFFF;
+          }
+          .info-card strong {
+            font-size: 15px;
+            line-height: 1.25;
+            overflow-wrap: anywhere;
+          }
+          .info-card.amount strong { color: #0F766E; font-size: 18px; }
+          .print-section {
+            margin-top: 14px;
+            padding: 16px;
+            border: 1px solid #D8E1F0;
+            border-radius: 16px;
+            background: #FFFFFF;
+          }
+          .section-title {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 12px;
+          }
+          .section-title b {
+            color: #2563EB;
+            font-size: 12px;
+            font-weight: 950;
+            text-align: right;
+          }
+          .details-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+          }
+          .details-grid.compact { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+          .detail-row {
+            min-height: 58px;
+            display: grid;
+            gap: 4px;
+            align-content: center;
+            padding: 12px;
+            border-radius: 12px;
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+          }
+          .detail-row strong {
+            font-size: 14px;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+          }
+          .narrative {
+            min-height: 150px;
+            padding: 14px;
+            border-radius: 12px;
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            color: #1E293B;
+            font-size: 14px;
+            font-weight: 650;
+            line-height: 1.6;
+          }
+          .signature-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 18px;
+            margin-top: 34px;
+          }
+          .signature-grid span {
+            display: block;
+            height: 42px;
+            border-bottom: 1px solid #94A3B8;
+          }
+          .signature-grid b {
+            display: block;
+            margin-top: 8px;
+            color: #475569;
+            font-size: 12px;
+            text-align: center;
+          }
+          @media print {
+            body { background: #FFFFFF; }
+            .print-page {
+              width: auto;
+              min-height: auto;
+              margin: 0;
+              padding: 0;
+              box-shadow: none;
+            }
+          }
+          @media (max-width: 760px) {
+            .print-page { padding: 18px; }
+            .doc-header,
+            .patient-band {
+              grid-template-columns: 1fr;
+              text-align: left;
+            }
+            .doc-meta { text-align: left; }
+            .summary-grid,
+            .details-grid,
+            .details-grid.compact,
+            .signature-grid {
+              grid-template-columns: 1fr;
+            }
+            .status-badge { width: max-content; }
+          }
         </style>
       </head>
-      <body>${body}</body>
+      <body><main class="print-page">${body}</main></body>
     </html>
   `);
   printWindow.document.close();
   printWindow.focus();
-  printWindow.print();
+  setTimeout(() => printWindow.print(), 120);
 }
 
 function escapeHtml(value: string): string {
