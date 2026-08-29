@@ -2038,7 +2038,16 @@ interface IpdKpiCard {
       border-radius: 12px;
       background: color-mix(in srgb, var(--ac-primary-light) 28%, var(--ac-surface));
     }
-    .compact-actions { grid-column: span 2; align-items: end; }
+    .compact-actions {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding-top: 2px;
+    }
+    .compact-actions .ac-btn { min-height: 44px; }
     .facility-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
     .facility-card {
       display: grid;
@@ -2154,7 +2163,9 @@ interface IpdKpiCard {
       .ipd-page { padding: 16px; }
       .page-header, .panel-head, .section-toolbar { flex-direction: column; }
       .kpi-strip, .admission-filters, .active-filters, .wizard-grid, .patient-step, .review-grid, .facility-form, .facility-grid, .billing-grid, .reports-grid, .detail-kpis, .admission-meta-line, .summary-grid, .location-strip, .vitals-strip, .latest-vitals-grid, .round-form, .round-sections, .vital-form, .trend-grid { grid-template-columns: 1fr; }
-      .wide-field, .wide-review, .compact-actions { grid-column: auto; }
+      .wide-field, .wide-review, .compact-actions { grid-column: 1 / -1; }
+      .compact-actions { justify-content: stretch; }
+      .compact-actions .ac-btn { width: 100%; }
       .admissions-head, .active-head { display: none; }
       .admissions-row, .active-row, .vitals-row { grid-template-columns: 1fr; }
       .mini-row { grid-template-columns: 1fr; }
@@ -2415,8 +2426,20 @@ export class IpdPageComponent implements OnInit {
 
   protected readonly selectedAdmission = computed(() => {
     const id = this.selectedAdmissionId();
-    const items = this.workspace()?.activePatients ?? [];
-    return items.find(item => item.admissionId === id) ?? items[0] ?? null;
+    const workspace = this.workspace();
+    if (!workspace) {
+      return null;
+    }
+
+    if (id) {
+      return findAdmissionById(id, [
+        ...workspace.admissions,
+        ...workspace.activePatients,
+        ...workspace.recentAdmissions
+      ]);
+    }
+
+    return workspace.activePatients[0] ?? workspace.admissions[0] ?? null;
   });
 
   protected readonly availableBedOptions = computed<DropdownOption<string>[]>(() => {
@@ -3788,6 +3811,22 @@ function createDoctorRoundForm(admission?: IpdAdmissionListItem): SaveIpdDoctorR
     followUpInstructions: '',
     nextRoundAt: null
   };
+}
+
+function findAdmissionById(id: string, admissions: IpdAdmissionListItem[]): IpdAdmissionListItem | null {
+  const seen = new Set<string>();
+  for (const admission of admissions) {
+    if (seen.has(admission.admissionId)) {
+      continue;
+    }
+
+    seen.add(admission.admissionId);
+    if (admission.admissionId === id) {
+      return admission;
+    }
+  }
+
+  return null;
 }
 
 function emptySummary() {
