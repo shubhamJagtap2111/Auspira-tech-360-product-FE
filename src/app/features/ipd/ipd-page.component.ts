@@ -536,6 +536,12 @@ interface IpdKpiCard {
                         <label><span>Daily Charge</span><input name="dailyCharge" type="number" min="0" [(ngModel)]="bedForm.dailyCharge" /></label>
                         <div class="form-actions compact-actions">
                           <button class="ac-btn ac-btn-secondary" type="button" (click)="resetBedForm()">Clear</button>
+                          @if (isSelectedBedCleaning()) {
+                            <button class="ac-btn ac-btn-secondary" type="button" [disabled]="saving()" (click)="markSelectedBedAvailable()">
+                              <span class="material-symbols-rounded">cleaning_services</span>
+                              Mark Cleaned & Available
+                            </button>
+                          }
                           <button class="ac-btn ac-btn-primary" type="submit" [disabled]="saving()">Save Bed</button>
                         </div>
                       </form>
@@ -2693,6 +2699,10 @@ export class IpdPageComponent implements OnInit {
   protected resetRoomForm(): void { this.roomForm = createRoomForm(); }
   protected resetBedForm(): void { this.bedForm = createBedForm(); }
 
+  protected isSelectedBedCleaning(): boolean {
+    return Boolean(this.bedForm.bedId) && this.bedForm.statusCode?.toUpperCase() === 'CLEANING';
+  }
+
   protected async saveWard(): Promise<void> {
     if (!this.wardForm.wardName.trim() || !this.wardForm.wardCode.trim()) {
       this.toast.warning('Ward details required', 'Ward name and ward code are mandatory.');
@@ -2730,6 +2740,17 @@ export class IpdPageComponent implements OnInit {
       }
       return response;
     }, 'Bed saved');
+    this.resetBedForm();
+  }
+
+  protected async markSelectedBedAvailable(): Promise<void> {
+    const bedId = this.bedForm.bedId;
+    if (!bedId) {
+      this.toast.warning('Select bed', 'Choose a cleaning bed before marking it available.');
+      return;
+    }
+
+    await this.saveFacility(() => this.service.updateBedStatus(bedId, 'AVAILABLE'), 'Bed marked available');
     this.resetBedForm();
   }
 
