@@ -163,6 +163,13 @@ export const routes: Routes = [
   moduleRoute('billing', 'Billing', ['Invoices', 'Payments', 'Refunds', 'Insurance', 'Discounts']),
   moduleRoute('inventory', 'Inventory', ['Assets', 'Medical Equipment', 'Consumables', 'Purchase Orders', 'Vendor Management']),
   {
+    path: 'reports/mis',
+    canActivate: [authGuard, permissionGuard],
+    data: { permission: 'Reports.View' },
+    loadComponent: () =>
+      import('./features/reports/mis-reports-page.component').then(m => m.MisReportsPageComponent)
+  },
+  {
     path: 'reports',
     canActivate: [authGuard, permissionGuard],
     data: { permission: 'Reports.View' },

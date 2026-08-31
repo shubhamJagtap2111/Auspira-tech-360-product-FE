@@ -11,10 +11,18 @@ export class ReportsInsightsService {
     return firstValueFrom(this.api.get<ReportsApiResponse<ReportsWorkspace>>(`/reports/workspace?${toQuery(filters)}`));
   }
 
+  getMisWorkspace(filters: ReportFilters): Promise<ReportsApiResponse<ReportsWorkspace>> {
+    return firstValueFrom(this.api.get<ReportsApiResponse<ReportsWorkspace>>(`/mis/dashboard?${toQuery(filters)}`));
+  }
+
   generate(reportKey: string, filters: ReportFilters): Promise<ReportsApiResponse<ReportResult>> {
     const query = toQuery(filters);
     query.set('reportKey', reportKey);
     return firstValueFrom(this.api.get<ReportsApiResponse<ReportResult>>(`/reports/generate?${query.toString()}`));
+  }
+
+  generateMis(reportKey: string, filters: ReportFilters): Promise<ReportsApiResponse<ReportResult>> {
+    return firstValueFrom(this.api.get<ReportsApiResponse<ReportResult>>(`/mis/reports/${encodeURIComponent(reportKey)}?${toQuery(filters)}`));
   }
 }
 
