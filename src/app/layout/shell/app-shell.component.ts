@@ -2062,6 +2062,7 @@ export class AppShellComponent implements OnInit {
             { path: '/reports', queryParams: { report: 'financial-summary' }, label: 'Revenue', icon: 'payments' },
             { path: '/reports', queryParams: { report: 'doctor-performance' }, label: 'Doctor Performance', icon: 'monitoring' },
             { path: '/reports', queryParams: { report: 'inventory-stock' }, label: 'Inventory', icon: 'inventory_2' },
+            { path: '/quality', label: 'Quality & KPI', icon: 'health_metrics' },
             { path: '/reports/mis', queryParams: { report: 'patient-mis' }, label: 'MIS Reports', icon: 'analytics' }
           ]
         }

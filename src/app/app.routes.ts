@@ -170,6 +170,13 @@ export const routes: Routes = [
       import('./features/reports/mis-reports-page.component').then(m => m.MisReportsPageComponent)
   },
   {
+    path: 'quality',
+    canActivate: [authGuard, permissionGuard],
+    data: { permission: 'Reports.View' },
+    loadComponent: () =>
+      import('./features/quality/quality-indicators-page.component').then(m => m.QualityIndicatorsPageComponent)
+  },
+  {
     path: 'reports',
     canActivate: [authGuard, permissionGuard],
     data: { permission: 'Reports.View' },
