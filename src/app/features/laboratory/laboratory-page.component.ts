@@ -43,7 +43,7 @@ type LabTab = 'dashboard'|'catalog'|'orders'|'collection'|'worklist'|'verificati
             @if(selectedTest()){<div class="overlay"><section class="detail-drawer"><header><div><p class="ac-eyebrow">{{selectedTest()!.test.code}}</p><h2>{{selectedTest()!.test.name}}</h2><span>{{selectedTest()!.test.category}} · {{selectedTest()!.test.department}}</span></div><button class="icon-btn" type="button" (click)="selectedTest.set(null)"><span class="material-symbols-rounded">close</span></button></header><div class="parameter-table"><div class="table-head"><span>Parameter</span><span>Type</span><span>Unit</span><span>Critical limits</span></div>@for(p of selectedTest()!.parameters;track p.id){<div class="table-row"><span><strong>{{p.name}}</strong><small>{{p.code}}</small></span><span>{{p.dataType}}</span><span>{{p.unit||'-'}}</span><span>{{p.criticalLow??'-'}} – {{p.criticalHigh??'-'}}</span></div>}</div></section></div>}
           }
           @case('orders'){
-            <section class="panel"><div class="panel-head"><div><p class="ac-eyebrow">All sources</p><h2>Lab orders</h2></div><span>OPD, IPD, Emergency, and manual requests</span></div><div class="table"><div class="table-head order-grid"><span>Order / Patient</span><span>Source</span><span>Priority</span><span>Tests</span><span>Status</span></div>@for(o of orders();track o.id){<div class="table-row order-grid"><span><strong>{{o.orderNumber}}</strong><small>{{o.patientName}} · {{o.medicalRecordNo}}</small></span><span><span class="source-tag">{{o.sourceModule}}</span></span><span><mark [class.stat]="o.priority==='STAT'">{{o.priority}}</mark></span><span>{{o.itemCount}}</span><span><b class="status" [ngClass]="statusClass(o.statusCode)">{{status(o.statusCode)}}</b></span></div>}@empty{<div class="empty">No laboratory orders yet.</div>}</div></section>
+            <section class="panel"><div class="panel-head"><div><p class="ac-eyebrow">All sources</p><h2>Lab orders</h2></div><span>OPD, IPD, Emergency, and manual requests</span></div><div class="table"><div class="table-head order-grid"><span>Order / Patient</span><span>Source</span><span>Priority</span><span>Tests</span><span>Status</span></div>@for(o of visibleOrders();track o.id){<div class="table-row order-grid"><span><strong>{{o.orderNumber}}</strong><small>{{o.patientName}} · {{o.medicalRecordNo}}</small></span><span><span class="source-tag">{{o.sourceModule}}</span></span><span><mark [class.stat]="o.priority==='STAT'">{{o.priority}}</mark></span><span>{{o.itemCount}}</span><span><b class="status" [ngClass]="statusClass(o.statusCode)">{{status(o.statusCode)}}</b></span></div>}@empty{<div class="empty">No laboratory orders yet.</div>}</div></section>
           }
           @case('collection'){
             <section class="panel"><div class="panel-head"><div><p>Specimen management</p><h2>Pending collection</h2></div><input [(ngModel)]="barcodeSearch" (keyup.enter)="trackSample()" placeholder="Scan barcode / Sample ID" /></div><div class="table"><div class="table-head collection-grid"><span>Order / Patient</span><span>Tests</span><span>Priority</span><span>Ordered</span><span>Action</span></div>@for(row of pending();track row.orderId){<div class="table-row collection-grid"><span><strong>{{row.orderNumber}}</strong><small>{{row.patientName}} · {{row.medicalRecordNo}}</small></span><span>{{row.tests}}</span><span><mark [class.stat]="row.priority==='STAT'">{{row.priority}}</mark></span><span>{{date(row.orderedAt)}}</span><span><button class="primary compact" (click)="collect(row)">Collect sample</button></span></div>}@empty{<div class="empty">No samples pending collection.</div>}</div></section>
@@ -111,7 +111,7 @@ type LabTab = 'dashboard'|'catalog'|'orders'|'collection'|'worklist'|'verificati
     .alert div,.sample-label div{flex:1;min-width:0}
     .alert small,.sample-label small{display:block;margin-top:3px;color:#667085}
     .alert.critical{border-left:3px solid #d92d20;background:#fff8f7}
-    .alert.stat{border-left:3px solid #f79009;background:#fffcf5}
+    .alert.stat{border-left:3px solid #f79009;background:#fffcf5!important;color:#0f172a!important}
     .toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px}
     .search-field{position:relative;display:block;flex:1;max-width:480px}
     .search-field>span{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#667085;font-size:20px}
@@ -124,7 +124,7 @@ type LabTab = 'dashboard'|'catalog'|'orders'|'collection'|'worklist'|'verificati
     .panel-head input{min-width:260px}
     fieldset{margin:0;border:1px solid #dce3ee;border-radius:4px;padding:12px}
     .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
-    .form-grid .full{grid-column:1/-1}
+    .form-grid .full,.form-grid .wide{grid-column:1/-1}
     .checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;max-height:210px;overflow:auto}
     .checks label{display:flex;align-items:center;gap:8px;padding:7px;border:1px solid transparent;font-size:12px}
     .checks label:hover{background:#f7f9fc;border-color:#e4e7ec}
@@ -172,10 +172,15 @@ type LabTab = 'dashboard'|'catalog'|'orders'|'collection'|'worklist'|'verificati
     .dialog{width:min(760px,96vw);max-height:92vh;overflow:auto;padding:20px;background:#fff;box-shadow:0 20px 48px rgba(16,24,40,.2)}
     .order-dialog{width:min(820px,96vw)}
     .dialog .form-grid{margin-top:18px}
+    .dialog header button.icon-btn{width:36px;height:36px;border:1px solid #d0d5dd;border-radius:4px;padding:0;background:#fff;color:#475467;font-size:14px}
+    .dialog header .ac-eyebrow{opacity:1}
+    .form-grid>footer{grid-column:1/-1}
     .dialog footer{display:flex;justify-content:flex-end;gap:9px;margin-top:16px;padding-top:14px;border-top:1px solid #e4e7ec}
+    .dialog footer .ac-btn-primary{border-color:#155eef;background:#155eef;color:#fff;border-radius:4px}
+    .dialog footer .ac-btn-secondary{border-color:#d0d5dd;background:#fff;color:#344054;border-radius:4px}
     .result-panel{width:min(1000px,96vw);border-radius:0}
     .result-table{margin:18px 0}
-    @media(max-width:900px){.page-head{flex-direction:column}.head-actions{width:100%;flex-wrap:wrap}.form-grid{grid-template-columns:1fr}.form-grid .full{grid-column:auto}}
+    @media(max-width:900px){.page-head{flex-direction:column}.head-actions{width:100%;flex-wrap:wrap}.form-grid{grid-template-columns:1fr}.form-grid .full,.form-grid .wide{grid-column:auto}}
     @media(max-width:650px){.laboratory-page{gap:12px}.page-head h1{font-size:24px}.head-actions .ac-btn{flex:1}.metric-grid{grid-template-columns:1fr}.toolbar,.panel-head{align-items:stretch;flex-direction:column}.panel-head input,.search-field{min-width:0;max-width:none}.checks{grid-template-columns:1fr}.panel,.dialog{padding:14px}.dialog-overlay{padding:8px}}
   `]
 })
@@ -184,8 +189,9 @@ export class LaboratoryPageComponent implements OnInit {
   protected readonly orderDialogOpen=signal(false);
   protected readonly loading=signal(true); protected readonly saving=signal(false); protected readonly activeTab=signal<LabTab>('dashboard'); protected readonly dashboard=signal<LabDashboard|null>(null); protected readonly tests=signal<LabTest[]>([]); protected readonly orders=signal<LabOrder[]>([]); protected readonly pending=signal<PendingCollection[]>([]); protected readonly worklist=signal<LabWorkItem[]>([]); protected readonly verification=signal<VerificationItem[]>([]); protected readonly reports=signal<LabReport[]>([]); protected readonly critical=signal<CriticalResult[]>([]); protected readonly options=signal<OrderOptions|null>(null); protected readonly selectedTest=signal<any|null>(null); protected readonly resultEditor=signal<LabResultDetail|null>(null); protected readonly recentSamples=signal<Array<{id:string;sampleNumber:string;patientName:string;tests:string}>>([]);
   protected search=''; protected barcodeSearch=''; protected resultComments=''; protected resultValues:Record<string,string>={}; protected orderForm={patientId:'',doctorId:'',sourceModule:'MANUAL',priority:'ROUTINE',clinicalNotes:'',testIds:[] as string[]};
-  protected readonly tabs=[{key:'dashboard' as LabTab,label:'Dashboard',icon:'dashboard',count:()=>0},{key:'catalog' as LabTab,label:'Test Catalog',icon:'biotech',count:()=>this.tests().length},{key:'orders' as LabTab,label:'Orders',icon:'assignment',count:()=>this.orders().length},{key:'collection' as LabTab,label:'Sample Collection',icon:'vaccines',count:()=>this.pending().length},{key:'worklist' as LabTab,label:'Processing',icon:'science',count:()=>this.worklist().length},{key:'verification' as LabTab,label:'Verification',icon:'fact_check',count:()=>this.verification().length},{key:'reports' as LabTab,label:'Reports',icon:'description',count:()=>this.reports().length},{key:'critical' as LabTab,label:'Critical',icon:'warning',count:()=>this.critical().filter(x=>!x.acknowledgedAt).length}];
+  protected readonly tabs=[{key:'dashboard' as LabTab,label:'Dashboard',icon:'dashboard',count:()=>0},{key:'catalog' as LabTab,label:'Test Catalog',icon:'biotech',count:()=>this.tests().length},{key:'orders' as LabTab,label:'Orders',icon:'assignment',count:()=>this.visibleOrders().length},{key:'collection' as LabTab,label:'Sample Collection',icon:'vaccines',count:()=>this.pending().length},{key:'worklist' as LabTab,label:'Processing',icon:'science',count:()=>this.worklist().length},{key:'verification' as LabTab,label:'Verification',icon:'fact_check',count:()=>this.verification().length},{key:'reports' as LabTab,label:'Reports',icon:'description',count:()=>this.reports().length},{key:'critical' as LabTab,label:'Critical',icon:'warning',count:()=>this.critical().filter(x=>!x.acknowledgedAt).length}];
   protected readonly filteredTests=computed(()=>{const q=this.search.trim().toLowerCase();return q?this.tests().filter(t=>`${t.code} ${t.name} ${t.category}`.toLowerCase().includes(q)):this.tests();});
+  protected readonly visibleOrders=computed(()=>mergeOrderQueues(this.orders(),this.pending()));
   protected readonly dashboardCards=computed(()=>[{label:"Today's orders",value:this.dashboard()?.todayOrders||0,meta:'Registered today',icon:'assignment',tab:'orders' as LabTab},{label:'Sample pending',value:this.dashboard()?.pendingCollection||0,meta:'Awaiting collection',icon:'vaccines',tab:'collection' as LabTab},{label:'Processing',value:this.dashboard()?.processing||0,meta:'Technical worklist',icon:'science',tab:'worklist' as LabTab},{label:'Verify pending',value:this.dashboard()?.verificationPending||0,meta:'Authorized review',icon:'fact_check',tab:'verification' as LabTab},{label:'Reports today',value:this.dashboard()?.reportsToday||0,meta:'Released today',icon:'description',tab:'reports' as LabTab}]);
   ngOnInit(){void this.refresh();}
   protected openOrderDialog(){this.activeTab.set('orders');this.orderDialogOpen.set(true);}
@@ -206,4 +212,32 @@ export class LaboratoryPageComponent implements OnInit {
   protected download(report:LabReport){window.open(this.service.reportPdfUrl(report.id),'_blank','noopener');}
   protected selectionOptions(json:string|null):string[]{try{return json?JSON.parse(json):[];}catch{return[];}} protected money(value:number){return new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(value||0);} protected duration(minutes:number){return minutes<60?`${minutes} min`:`${Math.floor(minutes/60)}h ${minutes%60||''}`.trim();} protected date(value:string){return value?new Intl.DateTimeFormat('en-IN',{dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'-';} protected status(value:string){return value.replaceAll('_',' ').toLowerCase().replace(/\b\w/g,x=>x.toUpperCase());}
   protected statusClass(value:string){const state=(value||'').toUpperCase();if(['REPORT_RELEASED','VERIFIED','SAMPLE_RECEIVED','COMPLETED'].includes(state))return 'success';if(['CANCELLED','REJECTED','RECOLLECTION_REQUIRED'].includes(state))return 'danger';if(['STAT','VERIFICATION_PENDING','SAMPLE_PENDING','PROCESSING'].includes(state))return 'warning';return 'muted';}
+}
+
+function mergeOrderQueues(orders: LabOrder[], pending: PendingCollection[]): LabOrder[] {
+  const merged = new Map<string, LabOrder>();
+  for (const order of orders) merged.set(order.id, order);
+  for (const row of pending) {
+    if (merged.has(row.orderId)) continue;
+    merged.set(row.orderId, {
+      id: row.orderId,
+      orderNumber: row.orderNumber,
+      patientId: row.patientId,
+      patientName: row.patientName,
+      medicalRecordNo: row.medicalRecordNo,
+      encounterId: null,
+      doctorName: null,
+      sourceModule: row.sourceModule || 'LAB',
+      priority: row.priority,
+      clinicalNotes: null,
+      statusCode: row.statusCode || 'ORDERED',
+      orderedAt: row.orderedAt,
+      itemCount: row.itemCount || row.tests.split(',').filter(Boolean).length || 1
+    });
+  }
+  return Array.from(merged.values()).sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority) || Date.parse(b.orderedAt) - Date.parse(a.orderedAt));
+}
+
+function priorityRank(priority: string): number {
+  return priority === 'STAT' ? 0 : priority === 'URGENT' ? 1 : 2;
 }

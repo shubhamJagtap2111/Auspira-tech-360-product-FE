@@ -33,6 +33,19 @@ export class LaboratoryService {
   critical() { return this.get<CriticalResult[]>('/laboratory/critical-results'); }
   acknowledge(id: string, reason: string) { return this.post(`/laboratory/critical-results/${id}/acknowledge`, { reason }); }
   reportPdfUrl(id: string) { return `/api/v1/laboratory/reports/${id}/pdf`; }
-  private get<T>(path: string): Promise<LabApiResponse<T>> { return firstValueFrom(this.api.get<LabApiResponse<T>>(path)); }
-  private post<T = unknown>(path: string, body: unknown): Promise<LabApiResponse<T>> { return firstValueFrom(this.api.post<LabApiResponse<T>>(path, body)); }
+  private get<T>(path: string): Promise<LabApiResponse<T>> { return firstValueFrom(this.api.get<LabApiResponse<T> | T>(path)).then(toLabResponse<T>); }
+  private post<T = unknown>(path: string, body: unknown): Promise<LabApiResponse<T>> { return firstValueFrom(this.api.post<LabApiResponse<T> | T>(path, body)).then(toLabResponse<T>); }
+}
+
+function toLabResponse<T>(value: LabApiResponse<T> | T): LabApiResponse<T> {
+  if (value && typeof value === 'object' && 'success' in value && 'data' in value) {
+    return value as LabApiResponse<T>;
+  }
+
+  return {
+    success: true,
+    statusCode: 200,
+    message: '',
+    data: value as T
+  };
 }
