@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthStore } from '../../core/auth/auth.store';
+import { getApiErrorMessage } from '../../core/http/api-error-message';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { AcGridLoaderComponent } from '../../shared/ui/grid-loader/grid-loader.component';
 import { CriticalResult, LabDashboard, LabOrder, LabReport, LabResultDetail, LabTest, LabWorkItem, OrderOptions, PendingCollection, VerificationItem } from './laboratory.models';
@@ -40,7 +41,7 @@ type LabTab = 'dashboard'|'catalog'|'orders'|'collection'|'worklist'|'verificati
             <section class="panel"><div class="panel-head"><div><p class="ac-eyebrow">Master data</p><h2>Laboratory test catalog</h2></div><span>Clinical configuration with Billing-owned prices</span></div>
               <div class="cards">@for(test of filteredTests();track test.id){<button class="test-card" type="button" (click)="viewTest(test)"><span class="test-code">{{test.code}}</span><h3>{{test.name}}</h3><p>{{test.category}} · {{test.sampleType||'-'}} / {{test.container||'-'}}</p><div><span>{{duration(test.tatMinutes)}} TAT</span><span>{{money(test.price)}}</span><span>{{test.parameterCount}} parameters</span></div></button>}@empty{<div class="empty">No tests match the search.</div>}</div>
             </section>
-            @if(selectedTest()){<div class="overlay"><section class="detail-drawer"><header><div><p class="ac-eyebrow">{{selectedTest()!.test.code}}</p><h2>{{selectedTest()!.test.name}}</h2><span>{{selectedTest()!.test.category}} · {{selectedTest()!.test.department}}</span></div><button class="icon-btn" type="button" (click)="selectedTest.set(null)"><span class="material-symbols-rounded">close</span></button></header><div class="parameter-table"><div class="table-head"><span>Parameter</span><span>Type</span><span>Unit</span><span>Critical limits</span></div>@for(p of selectedTest()!.parameters;track p.id){<div class="table-row"><span><strong>{{p.name}}</strong><small>{{p.code}}</small></span><span>{{p.dataType}}</span><span>{{p.unit||'-'}}</span><span>{{p.criticalLow??'-'}} – {{p.criticalHigh??'-'}}</span></div>}</div></section></div>}
+            @if(selectedTest()){<div class="overlay"><section class="detail-drawer"><header><div><p class="ac-eyebrow">{{selectedTest()!.test.code}}</p><h2>{{selectedTest()!.test.name}}</h2><span>{{selectedTest()!.test.category}} · {{selectedTest()!.test.department}}</span></div><button class="icon-btn" type="button" (click)="selectedTest.set(null)"><span class="material-symbols-rounded">close</span></button></header><div class="drawer-summary-grid"><span><small>Sample</small><strong>{{selectedTest()!.test.sampleType||'-'}}</strong></span><span><small>Container</small><strong>{{selectedTest()!.test.container||'-'}}</strong></span><span><small>TAT</small><strong>{{duration(selectedTest()!.test.tatMinutes)}}</strong></span><span><small>Price</small><strong>{{money(selectedTest()!.test.price)}}</strong></span></div><div class="parameter-table"><div class="table-head"><span>Parameter</span><span>Type</span><span>Unit</span><span>Critical limits</span></div>@for(p of selectedTest()!.parameters;track p.id){<div class="table-row"><span><strong>{{p.name}}</strong><small>{{p.code}}</small></span><span>{{p.dataType}}</span><span>{{p.unit||'-'}}</span><span>{{p.criticalLow??'-'}} – {{p.criticalHigh??'-'}}</span></div>}@empty{<div class="empty drawer-empty"><span class="material-symbols-rounded">science</span><strong>No parameters configured</strong><p>This test can still be ordered. Add result parameters in the laboratory test catalog setup.</p></div>}</div></section></div>}
           }
           @case('orders'){
             <section class="panel"><div class="panel-head"><div><p class="ac-eyebrow">All sources</p><h2>Lab orders</h2></div><span>OPD, IPD, Emergency, and manual requests</span></div><div class="table"><div class="table-head order-grid"><span>Order / Patient</span><span>Source</span><span>Priority</span><span>Tests</span><span>Status</span></div>@for(o of visibleOrders();track o.id){<div class="table-row order-grid"><span><strong>{{o.orderNumber}}</strong><small>{{o.patientName}} · {{o.medicalRecordNo}}</small></span><span><span class="source-tag">{{o.sourceModule}}</span></span><span><mark [class.stat]="o.priority==='STAT'">{{o.priority}}</mark></span><span>{{o.itemCount}}</span><span><b class="status" [ngClass]="statusClass(o.statusCode)">{{status(o.statusCode)}}</b></span></div>}@empty{<div class="empty">No laboratory orders yet.</div>}</div></section>
@@ -77,24 +78,24 @@ type LabTab = 'dashboard'|'catalog'|'orders'|'collection'|'worklist'|'verificati
   styles: [`
     :host{display:block}.lab-page{padding:24px;background:#f5f7fb;min-height:100vh;color:#17213a}.hero{display:flex;justify-content:space-between;align-items:center;padding:26px 30px;background:linear-gradient(120deg,#173b57,#0d6b72);color:white;border-radius:20px}.hero p,.panel-head p,.drawer p,.result-panel header p{margin:0;text-transform:uppercase;letter-spacing:.13em;font-size:11px;font-weight:800;opacity:.75}.hero h1{margin:4px 0;font-size:31px}.hero span{opacity:.8}.hero button,.table button,.actions button,.critical-card button,.sample-label button,.result-panel button{border:1px solid #d9e0ea;background:white;border-radius:9px;padding:9px 12px;cursor:pointer;display:inline-flex;gap:5px;align-items:center}.tabs{display:flex;gap:6px;overflow:auto;margin:18px 0;background:white;border:1px solid #e0e5ee;border-radius:14px;padding:7px}.tabs button{border:0;background:transparent;padding:10px 13px;border-radius:9px;display:flex;align-items:center;gap:7px;white-space:nowrap;color:#526074;cursor:pointer}.tabs button.active{background:#e5f3f3;color:#075e63;font-weight:800}.tabs b{background:#dbe4ed;padding:2px 6px;border-radius:10px;font-size:10px}.panel{background:white;border:1px solid #e0e5ee;border-radius:17px;padding:19px;margin-bottom:18px;box-shadow:0 8px 24px #20334a0a}.panel-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:16px}.panel-head h2,.drawer h2,.result-panel h2{margin:3px 0;font-size:20px}.panel-head input{min-width:260px}.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}.kpi{border:1px solid #e0e5ee;background:white;border-radius:16px;padding:18px;text-align:left;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;cursor:pointer}.kpi>span{grid-row:1/4;padding:10px;border-radius:12px;background:#e5f3f3;color:#077078}.kpi strong{font-size:25px}.kpi small{font-weight:800}.kpi em{font-style:normal;color:#748096;font-size:11px}.queue-grid,.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}.alert,.sample-label{display:flex;align-items:center;gap:12px;border:1px solid #e1e6ed;padding:15px;border-radius:12px}.alert div,.sample-label div{flex:1}.alert small,.sample-label small{display:block;color:#6d798c;margin-top:3px}.alert.critical{background:#fff3f3}.alert.stat{background:#fff8eb}.split{display:grid;grid-template-columns:minmax(360px,.8fr) minmax(560px,1.4fr);gap:18px}.create form{display:grid;gap:13px}label>span,legend{display:block;font-size:12px;font-weight:800;color:#526074;margin-bottom:5px}input,select,textarea{border:1px solid #ccd5e1;border-radius:9px;padding:10px;width:100%;box-sizing:border-box;background:white}.form-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}fieldset{border:1px solid #dfe5ed;border-radius:12px}.checks{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;max-height:190px;overflow:auto}.checks label{display:flex;gap:7px;align-items:center}.checks input{width:auto}.checks small{color:#718096}.primary{background:#0d7377!important;color:white!important;border-color:#0d7377!important;padding:10px 15px!important;border-radius:9px;border:0;cursor:pointer}.compact{padding:7px 9px!important;font-size:12px}.table{overflow:auto}.table-head,.table-row{display:grid;gap:12px;align-items:center;padding:11px 9px;min-width:720px}.table-head{background:#f2f5f8;color:#647084;text-transform:uppercase;font-size:10px;font-weight:900;border-radius:9px}.table-row{border-bottom:1px solid #edf0f4;font-size:13px}.table-row small,.report-grid small{display:block;color:#7b8798;margin-top:3px}.order-grid{grid-template-columns:2.2fr .8fr .7fr .4fr 1.1fr}.collection-grid{grid-template-columns:1.5fr 2fr .6fr .9fr .9fr}.work-grid{grid-template-columns:1.5fr 1.2fr 1fr .6fr .8fr .8fr}.report-grid{grid-template-columns:1fr 1.5fr 1fr 1fr .6fr}.result-grid{grid-template-columns:1.4fr 1.2fr .7fr 1fr .7fr}.status{color:#096a70}.test-card,.verify-card{border:1px solid #e0e5ee;border-radius:13px;padding:15px;background:white;text-align:left}.test-card{cursor:pointer}.test-card h3,.verify-card h3,.critical-card h3{margin:7px 0}.test-card p,.verify-card p,.critical-card p{color:#667386;margin:5px 0}.test-card>div{display:flex;gap:7px;flex-wrap:wrap}.test-card>div span,.test-code{font-size:10px;font-weight:900;background:#eef3f7;padding:5px 7px;border-radius:7px;color:#476173}.verify-card{display:grid;gap:10px}.actions{display:flex;justify-content:flex-end;gap:8px}.critical-card{display:flex;align-items:center;gap:14px;border:1px solid #f0b5b5;background:#fff5f5;border-radius:13px;padding:15px}.critical-card>div{flex:1}.critical-card.done{background:#f1faf5;border-color:#bde4cb}.danger{background:#b42318!important;color:white!important}.stat{background:#e15b17!important;color:white!important}mark{border-radius:7px;padding:4px 7px;background:#edf1f5}.drawer{position:fixed;right:0;top:0;height:100vh;width:min(570px,90vw);background:white;z-index:30;box-shadow:-12px 0 45px #17213a33;padding:24px;box-sizing:border-box;overflow:auto}.drawer header,.result-panel header{display:flex;justify-content:space-between}.drawer header>button,.result-panel header>button{border:0;background:transparent;font-size:28px;cursor:pointer}.parameter-table{margin-top:20px}.parameter-table .table-head,.parameter-table .table-row{grid-template-columns:1.4fr .8fr .8fr 1fr}.modal{position:fixed;inset:0;background:#10182888;z-index:50;display:grid;place-items:center;padding:20px}.result-panel{background:white;border-radius:18px;width:min(1000px,95vw);max-height:92vh;overflow:auto;padding:22px;box-sizing:border-box}.result-panel footer{display:flex;justify-content:flex-end;gap:9px;margin-top:15px}.result-table{margin:18px 0}.empty{padding:40px;text-align:center;color:#798598}.spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}@media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}.split{grid-template-columns:1fr}}@media(max-width:650px){.lab-page{padding:12px}.hero{padding:20px}.kpis{grid-template-columns:1fr}.form-row,.checks{grid-template-columns:1fr}.panel-head{align-items:stretch;flex-direction:column}.panel-head input{min-width:0}}
   `, `
-    :host{display:block;width:100%;min-width:0;max-width:100%}
-    .laboratory-page{display:grid;gap:16px;min-width:0;max-width:100%;padding-bottom:28px;color:#0f172a}
+    :host{display:block;width:100%;min-width:0;max-width:100%;overflow-x:hidden}
+    .laboratory-page{display:grid;gap:16px;min-width:0;max-width:100%;overflow-x:hidden;padding-bottom:28px;color:#0f172a}
     .laboratory-page *{box-sizing:border-box}
     .page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px}
     .page-head>div:first-child{min-width:0}
     .page-head h1{margin:2px 0 0;font-size:28px;line-height:1.2;color:#0f172a}
     .page-head p:last-child{margin:6px 0 0;max-width:850px;color:#64748b;font-size:14px;line-height:1.5}
     .head-actions{display:flex;gap:10px;flex:none}
-    .laboratory-tabs{display:flex;align-items:center;gap:10px;overflow-x:auto;overflow-y:hidden;background:#fff;border:1px solid #d6e1f2;border-radius:18px;padding:10px 12px 12px;box-shadow:0 8px 22px rgba(16,24,40,.06);scrollbar-width:thin;scrollbar-color:#aeb8c7 #eef3fb}
-    .laboratory-tabs::-webkit-scrollbar{height:8px}
+    .laboratory-tabs{display:flex;align-items:center;gap:7px;overflow-x:auto;overflow-y:hidden;background:#fff;border:1px solid #d6e1f2;border-radius:14px;padding:7px 9px 9px;box-shadow:0 4px 14px rgba(16,24,40,.05);scrollbar-width:thin;scrollbar-color:#aeb8c7 #eef3fb}
+    .laboratory-tabs::-webkit-scrollbar{height:6px}
     .laboratory-tabs::-webkit-scrollbar-track{background:#eef3fb;border-radius:999px}
     .laboratory-tabs::-webkit-scrollbar-thumb{background:#aeb8c7;border-radius:999px}
-    .laboratory-tabs button{height:52px;border:1px solid transparent;border-radius:15px;background:transparent;padding:0 14px;display:flex;align-items:center;gap:10px;white-space:nowrap;color:#5d6b82;cursor:pointer;font:inherit;font-size:14px;font-weight:800;transition:background .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease}
+    .laboratory-tabs button{height:40px;border:1px solid transparent;border-radius:11px;background:transparent;padding:0 10px;display:flex;align-items:center;gap:8px;white-space:nowrap;color:#5d6b82;cursor:pointer;font:inherit;font-size:13px;font-weight:750;transition:background .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease}
     .laboratory-tabs button:hover{background:#f6f9ff;border-color:#e2e9f7;color:#344054}
-    .laboratory-tabs button.active{background:#f4f8ff;border-color:#bfdbfe;color:#155eef;box-shadow:0 5px 14px rgba(21,94,239,.12)}
-    .laboratory-tabs .material-symbols-rounded{width:34px;height:34px;display:grid;place-items:center;flex:none;border-radius:11px;background:#edf4ff;color:#526f9f;font-size:21px}
+    .laboratory-tabs button.active{background:#f4f8ff;border-color:#bfdbfe;color:#155eef;box-shadow:0 3px 9px rgba(21,94,239,.11)}
+    .laboratory-tabs .material-symbols-rounded{width:28px;height:28px;display:grid;place-items:center;flex:none;border-radius:9px;background:#edf4ff;color:#526f9f;font-size:18px}
     .laboratory-tabs button.active .material-symbols-rounded{background:#155eef;color:#fff}
-    .laboratory-tabs b{min-width:20px;height:20px;display:inline-grid;place-items:center;padding:0 6px;border-radius:10px;background:#e8edf5;color:#475467;font-size:11px;font-weight:800;text-align:center}
+    .laboratory-tabs b{min-width:18px;height:18px;display:inline-grid;place-items:center;padding:0 5px;border-radius:9px;background:#e8edf5;color:#475467;font-size:10px;font-weight:800;text-align:center}
     .laboratory-tabs button.active b{background:#dbe8ff;color:#155eef}
     .panel,.metric{min-width:0;background:#fff;border:1px solid #dce3ee;box-shadow:0 1px 2px rgba(16,24,40,.05)}
     .panel{padding:16px;margin:0;border-radius:0}
@@ -166,13 +167,24 @@ type LabTab = 'dashboard'|'catalog'|'orders'|'collection'|'worklist'|'verificati
     .critical-card>div{flex:1;min-width:0}
     .critical-card.done{border-color:#a6f4c5;border-left-color:#12b76a;background:#f6fef9}
     .empty{padding:36px;text-align:center;color:#667085;font-size:13px}
-    .overlay{position:fixed;inset:0;z-index:60;background:rgba(16,24,40,.55)}
-    .detail-drawer{position:absolute;right:0;top:0;width:min(580px,94vw);height:100%;overflow:auto;padding:22px;background:#fff;box-shadow:-12px 0 32px rgba(16,24,40,.16)}
+    .overlay{position:fixed;inset:0;z-index:60;overflow:hidden;background:rgba(16,24,40,.55)}
+    .detail-drawer{position:absolute;right:0;top:0;width:min(640px,100vw);height:100%;max-width:100%;overflow-y:auto;overflow-x:hidden;padding:22px;background:#fff;box-shadow:-12px 0 32px rgba(16,24,40,.16)}
     .detail-drawer header,.dialog header{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding-bottom:14px;border-bottom:1px solid #e4e7ec}
+    .detail-drawer header>div{min-width:0}
+    .detail-drawer header h2,.detail-drawer header span{overflow-wrap:anywhere}
     .icon-btn{width:36px;height:36px;display:grid;place-items:center;flex:none;border:1px solid #d0d5dd;border-radius:4px;background:#fff;color:#475467;cursor:pointer}
     .icon-btn:hover{background:#f7f9fc}
-    .parameter-table{margin-top:18px}
-    .parameter-table .table-head,.parameter-table .table-row{grid-template-columns:1.4fr .8fr .8fr 1fr}
+    .drawer-summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:16px 0}
+    .drawer-summary-grid span{display:grid;gap:4px;padding:11px 12px;border:1px solid #e1e8f5;border-radius:12px;background:#f8fbff}
+    .drawer-summary-grid small{color:#667085;font-size:11px;font-weight:750;text-transform:uppercase;letter-spacing:.04em}
+    .drawer-summary-grid strong{min-width:0;color:#101828;font-size:13px;overflow-wrap:anywhere}
+    .parameter-table{width:100%;max-width:100%;overflow:hidden;margin-top:18px;border:1px solid #e4e7ec;border-radius:12px}
+    .parameter-table .table-head,.parameter-table .table-row{grid-template-columns:minmax(130px,1.4fr) minmax(78px,.75fr) minmax(64px,.6fr) minmax(104px,.9fr);min-width:0;padding-inline:12px}
+    .parameter-table .table-row span{min-width:0;overflow-wrap:anywhere}
+    .drawer-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:220px;padding:30px 18px}
+    .drawer-empty .material-symbols-rounded{width:48px;height:48px;display:grid;place-items:center;border-radius:14px;background:#eef4ff;color:#155eef}
+    .drawer-empty strong{color:#101828}
+    .drawer-empty p{max-width:360px;margin:0;color:#667085}
     .dialog-overlay{display:grid;place-items:center;padding:20px}
     .dialog{width:min(760px,96vw);max-height:92vh;overflow:auto;padding:20px;background:#fff;box-shadow:0 20px 48px rgba(16,24,40,.2)}
     .order-dialog{width:min(820px,96vw)}
@@ -185,6 +197,172 @@ type LabTab = 'dashboard'|'catalog'|'orders'|'collection'|'worklist'|'verificati
     .dialog footer .ac-btn-secondary{border-color:#d0d5dd;background:#fff;color:#344054;border-radius:4px}
     .result-panel{width:min(1000px,96vw);border-radius:0}
     .result-table{margin:18px 0}
+    .panel,.metric,.laboratory-tabs,.test-card,.verify-card,.dialog,.detail-drawer{border-radius:14px}
+    .panel{padding:18px;border-color:#e1e8f5;background:linear-gradient(180deg,#fff,#fbfdff);box-shadow:0 8px 24px rgba(15,23,42,.05)}
+    .panel-head{padding-bottom:10px;border-bottom:1px solid #eef2f7}
+    .panel-head h2{font-size:19px;font-weight:850}
+    .metric-grid{gap:10px}
+    .metric{position:relative;overflow:hidden;min-height:82px;border:1px solid #e1e8f5;border-radius:14px;border-top:0;padding:12px 14px;background:linear-gradient(135deg,#fff 0%,#f8fbff 100%);box-shadow:0 8px 20px rgba(15,23,42,.05)}
+    .metric::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:linear-gradient(180deg,#2563eb,#60a5fa)}
+    .metric:hover{transform:translateY(-1px);border-color:#bfdbfe;box-shadow:0 12px 28px rgba(37,99,235,.12)}
+    .metric>.material-symbols-rounded{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#eaf2ff,#f4f8ff);box-shadow:inset 0 0 0 1px #dbeafe;color:#155eef;font-size:19px}
+    .metric strong{font-size:22px;font-weight:850}
+    .metric small{font-size:12px}
+    .metric em{font-size:11.5px}
+    .queue-grid{gap:14px}
+    .alert,.sample-label,.critical-card{border-radius:13px;background:linear-gradient(135deg,#fff,#fbfdff);box-shadow:0 6px 18px rgba(15,23,42,.04)}
+    .alert{min-height:72px}
+    .alert>span,.sample-label>span,.critical-card>.material-symbols-rounded{width:34px;height:34px;display:grid;place-items:center;border-radius:10px;background:#f1f5ff;color:#2563eb;font-size:20px}
+    .alert.critical{background:linear-gradient(135deg,#fff7f7,#fff);border-color:#fee4e2;border-left-width:4px}
+    .alert.critical>span{background:#fee4e2;color:#d92d20}
+    .alert.stat{background:linear-gradient(135deg,#fffbeb,#fff)!important;border-color:#fedf89;border-left-width:4px}
+    .alert.stat>span{background:#fef0c7;color:#f79009}
+    .small-btn,.table button,.actions button,.sample-label button,.critical-card button{border-radius:9px}
+    .toolbar{border-radius:14px;background:linear-gradient(135deg,#fff,#f8fbff)}
+    .search-field input{height:40px;border-radius:10px;background:#f8fafc}
+    input,select,textarea{border-radius:10px;background:#fbfdff}
+    fieldset{border-radius:12px;background:#fbfdff}
+    .checks label{border-radius:10px}
+    .checks label:has(input:checked){background:#eef4ff;border-color:#bfdbfe}
+    .table{border-radius:12px;background:#fff;border-color:#e1e8f5}
+    .table-head{background:#f3f7fc;border-radius:12px 12px 0 0}
+    .table-row{padding-block:12px}
+    .table-row:hover{background:#f8fbff}
+    .source-tag,.test-code,.test-card>div span{border-radius:999px}
+    .test-card,.verify-card{background:linear-gradient(135deg,#fff,#f9fbff);box-shadow:0 8px 20px rgba(15,23,42,.04)}
+    .test-card h3,.verify-card h3{font-size:15.5px;font-weight:850}
+    .verify-card{min-height:142px}
+    .verify-card .actions{align-self:end}
+    .critical-card{background:linear-gradient(135deg,#fff7f7,#fff)}
+    .dialog,.detail-drawer{background:linear-gradient(180deg,#fff,#fbfdff);border:1px solid #e1e8f5}
+    .dialog header,.detail-drawer header{margin:-2px -2px 0;padding:2px 2px 14px}
+    .dialog .form-grid{padding:2px}
+    .result-panel label{display:block;margin-top:12px}
+    :host-context(.dark) .laboratory-page{color:#e5e7eb}
+    :host-context(.dark) .page-head h1{color:#f8fafc}
+    :host-context(.dark) .page-head p:last-child,
+    :host-context(.dark) .panel-head>span,
+    :host-context(.dark) .dialog header span,
+    :host-context(.dark) .toolbar-summary,
+    :host-context(.dark) .table-row small,
+    :host-context(.dark) .report-grid small,
+    :host-context(.dark) .test-card p,
+    :host-context(.dark) .verify-card p,
+    :host-context(.dark) .critical-card p,
+    :host-context(.dark) .alert small,
+    :host-context(.dark) .sample-label small,
+    :host-context(.dark) .empty{color:#94a3b8}
+    :host-context(.dark) .panel,
+    :host-context(.dark) .metric,
+    :host-context(.dark) .laboratory-tabs,
+    :host-context(.dark) .test-card,
+    :host-context(.dark) .verify-card,
+    :host-context(.dark) .detail-drawer,
+    :host-context(.dark) .dialog{background:#111827;border-color:#263244;box-shadow:0 12px 30px rgba(0,0,0,.24)}
+    :host-context(.dark) .laboratory-tabs{scrollbar-color:#475569 #1f2937}
+    :host-context(.dark) .laboratory-tabs::-webkit-scrollbar-track{background:#1f2937}
+    :host-context(.dark) .laboratory-tabs::-webkit-scrollbar-thumb{background:#475569}
+    :host-context(.dark) .laboratory-tabs button{color:#cbd5e1}
+    :host-context(.dark) .laboratory-tabs button:hover{background:#172033;border-color:#334155;color:#f8fafc}
+    :host-context(.dark) .laboratory-tabs button.active{background:#172554;border-color:#2563eb;color:#93c5fd;box-shadow:0 8px 20px rgba(37,99,235,.2)}
+    :host-context(.dark) .laboratory-tabs .material-symbols-rounded,
+    :host-context(.dark) .metric>.material-symbols-rounded{background:#1e293b;color:#93c5fd}
+    :host-context(.dark) .laboratory-tabs button.active .material-symbols-rounded{background:#2563eb;color:#fff}
+    :host-context(.dark) .laboratory-tabs b{background:#263244;color:#cbd5e1}
+    :host-context(.dark) .laboratory-tabs button.active b{background:#1d4ed8;color:#fff}
+    :host-context(.dark) .metric{border-top-color:#3b82f6}
+    :host-context(.dark) .metric:hover,
+    :host-context(.dark) .test-card:hover{border-color:#3b82f6;box-shadow:0 8px 22px rgba(37,99,235,.16)}
+    :host-context(.dark) .metric strong,
+    :host-context(.dark) .panel-head h2,
+    :host-context(.dark) .detail-drawer h2,
+    :host-context(.dark) .dialog h2,
+    :host-context(.dark) .test-card h3,
+    :host-context(.dark) .verify-card h3,
+    :host-context(.dark) .critical-card h3,
+    :host-context(.dark) .alert strong,
+    :host-context(.dark) .sample-label strong,
+    :host-context(.dark) .table-row strong{color:#f8fafc}
+    :host-context(.dark) .metric small,
+    :host-context(.dark) label>span,
+    :host-context(.dark) legend{color:#d1d5db}
+    :host-context(.dark) .metric em,
+    :host-context(.dark) .panel-head p,
+    :host-context(.dark) .ac-eyebrow{color:#8ab4f8}
+    :host-context(.dark) input,
+    :host-context(.dark) select,
+    :host-context(.dark) textarea{background:#0f172a;border-color:#334155;color:#e5e7eb}
+    :host-context(.dark) input:focus,
+    :host-context(.dark) select:focus,
+    :host-context(.dark) textarea:focus{border-color:#60a5fa;box-shadow:0 0 0 3px rgba(96,165,250,.15)}
+    :host-context(.dark) fieldset,
+    :host-context(.dark) .table,
+    :host-context(.dark) .parameter-table,
+    :host-context(.dark) .detail-drawer header,
+    :host-context(.dark) .dialog header,
+    :host-context(.dark) .dialog footer{border-color:#263244}
+    :host-context(.dark) .table-head{background:#1f2937;border-color:#263244;color:#aeb9c8}
+    :host-context(.dark) .table-row{border-color:#1f2937;color:#e5e7eb}
+    :host-context(.dark) .table-row:hover,
+    :host-context(.dark) .checks label:hover{background:#172033;border-color:#263244}
+    :host-context(.dark) .table button,
+    :host-context(.dark) .actions button,
+    :host-context(.dark) .critical-card button,
+    :host-context(.dark) .sample-label button,
+    :host-context(.dark) .small-btn,
+    :host-context(.dark) .icon-btn,
+    :host-context(.dark) .dialog header button.icon-btn,
+    :host-context(.dark) .dialog footer .ac-btn-secondary{background:#111827;border-color:#334155;color:#e5e7eb}
+    :host-context(.dark) .table button:hover,
+    :host-context(.dark) .actions button:hover,
+    :host-context(.dark) .icon-btn:hover,
+    :host-context(.dark) .small-btn:hover{background:#1f2937}
+    :host-context(.dark) .dialog footer .ac-btn-primary,
+    :host-context(.dark) .primary{background:#2563eb!important;border-color:#2563eb!important;color:#fff!important}
+    :host-context(.dark) .source-tag,
+    :host-context(.dark) .test-card>div span,
+    :host-context(.dark) .test-code{background:#172554;color:#93c5fd}
+    :host-context(.dark) mark{background:#263244;color:#cbd5e1}
+    :host-context(.dark) mark.stat{background:#78350f!important;color:#fde68a!important}
+    :host-context(.dark) mark.danger{background:#7f1d1d!important;color:#fecaca!important}
+    :host-context(.dark) .status{background:#263244;color:#cbd5e1}
+    :host-context(.dark) .status.success{background:#064e3b;color:#a7f3d0}
+    :host-context(.dark) .status.warning{background:#78350f;color:#fde68a}
+    :host-context(.dark) .status.danger{background:#7f1d1d;color:#fecaca}
+    :host-context(.dark) .status.muted{background:#263244;color:#cbd5e1}
+    :host-context(.dark) .alert{background:#111827;border-color:#263244}
+    :host-context(.dark) .alert.critical,
+    :host-context(.dark) .critical-card{background:#2a1214;border-color:#7f1d1d;border-left-color:#ef4444}
+    :host-context(.dark) .alert.stat{background:#241a0b!important;border-color:#854d0e;color:#f8fafc!important;border-left-color:#f59e0b}
+    :host-context(.dark) .critical-card.done{background:#092016;border-color:#166534;border-left-color:#22c55e}
+    :host-context(.dark) .panel,
+    :host-context(.dark) .metric,
+    :host-context(.dark) .toolbar,
+    :host-context(.dark) .test-card,
+    :host-context(.dark) .verify-card,
+    :host-context(.dark) .dialog,
+    :host-context(.dark) .detail-drawer{background:linear-gradient(135deg,#111827,#0f172a);border-color:#263244;box-shadow:0 12px 28px rgba(0,0,0,.26)}
+    :host-context(.dark) .panel-head{border-bottom-color:#1f2937}
+    :host-context(.dark) .metric::before{background:linear-gradient(180deg,#60a5fa,#2563eb)}
+    :host-context(.dark) .metric>.material-symbols-rounded,
+    :host-context(.dark) .alert>span,
+    :host-context(.dark) .sample-label>span,
+    :host-context(.dark) .critical-card>.material-symbols-rounded{background:#172554;box-shadow:inset 0 0 0 1px #1d4ed8;color:#bfdbfe}
+    :host-context(.dark) .alert.critical>span{background:#450a0a;color:#fecaca;box-shadow:inset 0 0 0 1px #7f1d1d}
+    :host-context(.dark) .alert.stat>span{background:#451a03;color:#fde68a;box-shadow:inset 0 0 0 1px #92400e}
+    :host-context(.dark) .search-field input,
+    :host-context(.dark) fieldset,
+    :host-context(.dark) .drawer-summary-grid span{background:#0b1220;border-color:#263244}
+    :host-context(.dark) .drawer-summary-grid small{color:#94a3b8}
+    :host-context(.dark) .drawer-summary-grid strong,
+    :host-context(.dark) .drawer-empty strong{color:#f8fafc}
+    :host-context(.dark) .drawer-empty .material-symbols-rounded{background:#172554;color:#bfdbfe}
+    :host-context(.dark) .drawer-empty p{color:#94a3b8}
+    :host-context(.dark) .checks label:has(input:checked){background:#172554;border-color:#2563eb}
+    :host-context(.dark) .table{background:#0f172a;border-color:#263244}
+    :host-context(.dark) .table-head{background:#172033}
+    :host-context(.dark) .table-row:hover{background:#111c31}
+    :host-context(.dark) .overlay{background:rgba(2,6,23,.72)}
     @media(max-width:900px){.page-head{flex-direction:column}.head-actions{width:100%;flex-wrap:wrap}.form-grid{grid-template-columns:1fr}.form-grid .full,.form-grid .wide{grid-column:auto}}
     @media(max-width:650px){.laboratory-page{gap:12px}.page-head h1{font-size:24px}.head-actions .ac-btn{flex:1}.metric-grid{grid-template-columns:1fr}.toolbar,.panel-head{align-items:stretch;flex-direction:column}.panel-head input,.search-field{min-width:0;max-width:none}.checks{grid-template-columns:1fr}.panel,.dialog{padding:14px}.dialog-overlay{padding:8px}}
   `]
@@ -209,7 +387,7 @@ export class LaboratoryPageComponent implements OnInit {
   protected async start(row:LabWorkItem){const response=await this.service.start(row.processingId);if(response.success){this.toast.success('Processing started',row.sampleNumber);await this.refresh();}else this.toast.error('Unable to start processing',response.message);}
   protected async enterResult(row:LabWorkItem){const response=await this.service.result(row.orderItemId);if(response.success&&response.data){this.resultValues={};for(const p of response.data.parameters){const value=p.numericValue??p.textValue??p.selectionValue??p.richValue??(p.booleanValue===null?'':String(p.booleanValue));this.resultValues[p.parameterId]=String(value??'');}this.resultComments=response.data.header.comments||'';this.resultEditor.set(response.data);}else this.toast.error('Unable to open result',response.message);}
   protected async saveResult(submit:boolean){const editor=this.resultEditor();if(!editor)return;const response=await this.service.saveResult(editor.header.id,{comments:this.resultComments,values:editor.parameters.map(p=>({parameterId:p.parameterId,value:this.resultValues[p.parameterId]||'',comment:''})).filter(x=>x.value!=='')},submit);if(response.success){this.toast.success(submit?'Submitted for verification':'Draft saved',editor.header.testName);this.resultEditor.set(null);await this.refresh();}else this.toast.error('Unable to save results',response.message);}
-  protected async verify(item:VerificationItem){const response=await this.service.verifyRelease(item.resultId);if(response.success){this.toast.success('Result verified','Report released when all ordered tests are verified.');await this.refresh();}else this.toast.error('Verification failed',response.message);}
+  protected async verify(item:VerificationItem){const response=await this.service.verifyRelease(item.resultId);if(response.success){this.toast.success('Result verified','Report released when all ordered tests are verified.');await this.refresh();}else this.toast.error('Verification failed',labError(response,'Please check reviewer permissions and result status.'));}
   protected async rejectResult(item:VerificationItem){const reason=window.prompt('Reason for returning this result to the technician:');if(!reason)return;const response=await this.service.rejectResult(item.resultId,reason);if(response.success){this.toast.success('Result returned','Technician can correct and resubmit it.');await this.refresh();}else this.toast.error('Unable to reject result',response.message);}
   protected async acknowledge(item:CriticalResult){const note=window.prompt('Acknowledgement note:')||'Reviewed by authorized clinical user';const response=await this.service.acknowledge(item.id,note);if(response.success){this.toast.success('Critical result acknowledged',item.patientName);await this.refresh();}else this.toast.error('Acknowledgement failed',response.message);}
   protected async viewTest(test:LabTest){const response=await this.service.test(test.id);if(response.success)this.selectedTest.set(response.data);}
@@ -245,4 +423,8 @@ function mergeOrderQueues(orders: LabOrder[], pending: PendingCollection[]): Lab
 
 function priorityRank(priority: string): number {
   return priority === 'STAT' ? 0 : priority === 'URGENT' ? 1 : 2;
+}
+
+function labError(response: unknown, fallback: string): string {
+  return getApiErrorMessage(response as never, fallback);
 }
