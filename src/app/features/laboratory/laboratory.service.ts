@@ -1,11 +1,15 @@
+import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ApiClientService } from '../../core/http/api-client.service';
+import { API_BASE_URL } from '../../core/http/api-endpoints';
 import { CriticalResult, LabApiResponse, LabDashboard, LabMaster, LabOrder, LabReport, LabResultDetail, LabTest, LabTestDetail, LabWorkItem, OrderOptions, PendingCollection, VerificationItem } from './laboratory.models';
 
 @Injectable({ providedIn: 'root' })
 export class LaboratoryService {
   private readonly api = inject(ApiClientService);
+  private readonly http = inject(HttpClient);
+  private readonly baseUrl = inject(API_BASE_URL);
   dashboard() { return this.get<LabDashboard>('/laboratory/dashboard'); }
   tests() { return this.get<LabTest[]>('/laboratory/tests'); }
   test(id: string) { return this.get<LabTestDetail>(`/laboratory/tests/${id}`); }
@@ -32,6 +36,7 @@ export class LaboratoryService {
   reports() { return this.get<LabReport[]>('/laboratory/reports'); }
   critical() { return this.get<CriticalResult[]>('/laboratory/critical-results'); }
   acknowledge(id: string, reason: string) { return this.post(`/laboratory/critical-results/${id}/acknowledge`, { reason }); }
+  reportPdf(id: string) { return firstValueFrom(this.http.get(`${this.baseUrl}/laboratory/reports/${id}/pdf`, { responseType: 'blob', withCredentials: true })); }
   reportPdfUrl(id: string) { return `/api/v1/laboratory/reports/${id}/pdf`; }
   private get<T>(path: string): Promise<LabApiResponse<T>> { return firstValueFrom(this.api.get<LabApiResponse<T> | T>(path)).then(toLabResponse<T>); }
   private post<T = unknown>(path: string, body: unknown): Promise<LabApiResponse<T>> { return firstValueFrom(this.api.post<LabApiResponse<T> | T>(path, body)).then(toLabResponse<T>); }

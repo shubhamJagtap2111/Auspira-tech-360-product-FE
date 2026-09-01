@@ -47,11 +47,11 @@ type LabTab = 'dashboard'|'catalog'|'orders'|'collection'|'worklist'|'verificati
             <section class="panel"><div class="panel-head"><div><p class="ac-eyebrow">All sources</p><h2>Lab orders</h2></div><span>OPD, IPD, Emergency, and manual requests</span></div><div class="table"><div class="table-head order-grid"><span>Order / Patient</span><span>Source</span><span>Priority</span><span>Tests</span><span>Status</span></div>@for(o of visibleOrders();track o.id){<div class="table-row order-grid"><span><strong>{{o.orderNumber}}</strong><small>{{o.patientName}} · {{o.medicalRecordNo}}</small></span><span><span class="source-tag">{{o.sourceModule}}</span></span><span><mark [class.stat]="o.priority==='STAT'">{{o.priority}}</mark></span><span>{{o.itemCount}}</span><span><b class="status" [ngClass]="statusClass(o.statusCode)">{{status(o.statusCode)}}</b></span></div>}@empty{<div class="empty">No laboratory orders yet.</div>}</div></section>
           }
           @case('collection'){
-            <section class="panel"><div class="panel-head"><div><p>Specimen management</p><h2>Pending collection</h2></div><input [(ngModel)]="barcodeSearch" (keyup.enter)="trackSample()" placeholder="Scan barcode / Sample ID" /></div><div class="table"><div class="table-head collection-grid"><span>Order / Patient</span><span>Tests</span><span>Priority</span><span>Ordered</span><span>Action</span></div>@for(row of pending();track row.orderId){<div class="table-row collection-grid"><span><strong>{{row.orderNumber}}</strong><small>{{row.patientName}} · {{row.medicalRecordNo}}</small></span><span>{{row.tests}}</span><span><mark [class.stat]="row.priority==='STAT'">{{row.priority}}</mark></span><span>{{date(row.orderedAt)}}</span><span><button class="primary compact" (click)="collect(row)">Collect sample</button></span></div>}@empty{<div class="empty">No samples pending collection.</div>}</div></section>
-            @if(recentSamples().length){<section class="panel"><div class="panel-head"><div><p>Just collected</p><h2>Receive samples</h2></div></div><div class="queue-grid">@for(s of recentSamples();track s.id){<article class="sample-label"><span class="material-symbols-rounded">barcode</span><div><strong>{{s.sampleNumber}}</strong><small>{{s.patientName}} · {{s.tests}}</small></div><button class="primary compact" (click)="receive(s.id)">Receive</button></article>}</div></section>}
+            <section class="panel collection-panel"><div class="panel-head"><div><p>Specimen management</p><h2>Pending collection</h2></div><label class="barcode-field"><span class="material-symbols-rounded">qr_code_scanner</span><input [(ngModel)]="barcodeSearch" (keyup.enter)="trackSample()" placeholder="Scan barcode / Sample ID" /><button type="button" class="small-btn" (click)="trackSample()">Track</button></label></div><div class="collection-summary"><span><b>{{pending().length}}</b><small>Awaiting collection</small></span><span><b>{{collectionStats().stat}}</b><small>STAT / urgent</small></span><span><b>{{recentSamples().length}}</b><small>Ready to receive</small></span></div><div class="collection-cards">@for(row of pending();track row.orderId){<article class="collection-card"><div class="specimen-icon"><span class="material-symbols-rounded">vaccines</span></div><div class="collection-main"><div class="work-title"><strong>{{row.orderNumber}}</strong><span class="source-tag">{{row.sourceModule || 'LAB'}}</span><mark [class.stat]="row.priority==='STAT'">{{row.priority}}</mark></div><h3>{{row.patientName}}</h3><p>{{row.medicalRecordNo}} · Ordered {{date(row.orderedAt)}}</p><div class="test-pills">@for(test of testNames(row.tests);track test){<span>{{test}}</span>}</div></div><div class="work-action"><button class="ac-btn ac-btn-primary" (click)="collect(row)"><span class="material-symbols-rounded">add_task</span>Collect sample</button></div></article>}@empty{<div class="empty pretty-empty"><span class="material-symbols-rounded">inventory_2</span><strong>No samples pending collection</strong><small>New lab orders will appear here after registration.</small></div>}</div></section>
+            @if(recentSamples().length){<section class="panel received-panel"><div class="panel-head"><div><p>Just collected</p><h2>Receive samples</h2></div><span>Scan or confirm handover to processing</span></div><div class="barcode-cards">@for(s of recentSamples();track s.id){<article class="barcode-card"><span class="material-symbols-rounded">barcode</span><div><strong>{{s.sampleNumber}}</strong><small>{{s.patientName}}</small><p>{{s.tests}}</p></div><button class="ac-btn ac-btn-primary" (click)="receive(s.id)">Receive</button></article>}</div></section>}
           }
           @case('worklist'){
-            <section class="panel"><div class="panel-head"><div><p>Technical processing</p><h2>Laboratory worklist</h2></div></div><div class="table"><div class="table-head work-grid"><span>Sample / Patient</span><span>Test</span><span>Department</span><span>Priority</span><span>Status</span><span>Action</span></div>@for(w of worklist();track w.processingId){<div class="table-row work-grid"><span><strong>{{w.sampleNumber}}</strong><small>{{w.patientName}} · {{w.medicalRecordNo}}</small></span><span>{{w.testName}}</span><span>{{w.department}}</span><span><mark [class.stat]="w.priority==='STAT'">{{w.priority}}</mark></span><span>{{status(w.statusCode)}}</span><span>@if(w.statusCode==='PENDING'){<button class="compact" (click)="start(w)">Start</button>}@else{<button class="primary compact" (click)="enterResult(w)">Enter result</button>}</span></div>}@empty{<div class="empty">No received samples in the worklist.</div>}</div></section>
+            <section class="panel processing-panel"><div class="panel-head"><div><p>Technical processing</p><h2>Laboratory worklist</h2></div><span>{{worklistStats().ready}} ready · {{worklistStats().running}} in process · {{worklistStats().drafted}} drafted</span></div><div class="processing-summary"><span><b>{{worklist().length}}</b><small>Open work items</small></span><span><b>{{worklistStats().stat}}</b><small>STAT priority</small></span><span><b>{{worklistStats().assigned}}</b><small>Assigned</small></span></div><div class="work-cards">@for(w of worklist();track w.processingId){<article class="work-card"><div class="work-icon"><span class="material-symbols-rounded">{{w.statusCode==='PENDING'?'hourglass_empty':w.statusCode==='RESULT_ENTERED'?'edit_note':'science'}}</span></div><div class="work-main"><div class="work-title"><strong>{{w.sampleNumber}}</strong><mark [class.stat]="w.priority==='STAT'">{{w.priority}}</mark><mark class="status" [class.success]="statusClass(w.statusCode)==='success'" [class.warning]="statusClass(w.statusCode)==='warning'" [class.danger]="statusClass(w.statusCode)==='danger'">{{status(w.statusCode)}}</mark></div><h3>{{w.testName}}</h3><p>{{w.patientName}} · {{w.medicalRecordNo}}</p><div class="work-meta"><span><i class="material-symbols-rounded">receipt_long</i>{{w.orderNumber}}</span><span><i class="material-symbols-rounded">domain</i>{{w.department}}</span><span><i class="material-symbols-rounded">person</i>{{w.technicianName || 'Unassigned'}}</span>@if(w.startedAt){<span><i class="material-symbols-rounded">schedule</i>Started {{date(w.startedAt)}}</span>}</div></div><div class="work-action">@if(w.statusCode==='PENDING'){<button class="ac-btn ac-btn-secondary" (click)="start(w)"><span class="material-symbols-rounded">play_arrow</span>Start</button>}@else{<button class="ac-btn ac-btn-primary" (click)="enterResult(w)"><span class="material-symbols-rounded">edit_square</span>Enter result</button>}</div></article>}@empty{<div class="empty pretty-empty"><span class="material-symbols-rounded">task_alt</span><strong>Processing queue is clear</strong><small>Received samples that need technical work will appear here.</small></div>}</div></section>
           }
           @case('verification'){
             <section class="panel"><div class="panel-head"><div><p>Authorized review</p><h2>Verification queue</h2></div></div><div class="cards">@for(v of verification();track v.resultId){<article class="verify-card"><div><span class="test-code">{{v.sampleNumber}}</span><h3>{{v.patientName}}</h3><p>{{v.testName}} · Technician: {{v.technicianName||'-'}}</p></div>@if(v.hasCritical){<mark class="danger">CRITICAL</mark>}<div class="actions"><button (click)="rejectResult(v)">Reject</button><button class="primary" (click)="verify(v)">Verify & release</button></div></article>}@empty{<div class="empty">No results await verification.</div>}</div></section>
@@ -72,7 +72,7 @@ type LabTab = 'dashboard'|'catalog'|'orders'|'collection'|'worklist'|'verificati
         <footer><button class="ac-btn ac-btn-secondary" type="button" (click)="closeOrderDialog()">Cancel</button><button class="ac-btn ac-btn-primary" type="submit" [disabled]="saving()">Create Order</button></footer>
       </form></section></div>}
 
-      @if(resultEditor()){<div class="overlay dialog-overlay"><section class="dialog result-panel"><header><div><p class="ac-eyebrow">{{resultEditor()!.header.sampleNumber}} · {{resultEditor()!.header.orderNumber}}</p><h2>{{resultEditor()!.header.testName}} result entry</h2><span>{{resultEditor()!.header.patientName}} · {{resultEditor()!.header.medicalRecordNo}}</span></div><button class="icon-btn" type="button" (click)="resultEditor.set(null)"><span class="material-symbols-rounded">close</span></button></header><div class="result-table"><div class="table-head result-grid"><span>Parameter</span><span>Result</span><span>Unit</span><span>Range</span><span>Flag</span></div>@for(p of resultEditor()!.parameters;track p.parameterId){<div class="table-row result-grid"><span><strong>{{p.name}}</strong><small>{{p.code}}</small></span><span>@if(p.dataType==='SELECTION'){<select [(ngModel)]="resultValues[p.parameterId]"><option value="">Select</option>@for(option of selectionOptions(p.selectionOptionsJson);track option){<option>{{option}}</option>}</select>}@else if(p.dataType==='BOOLEAN'){<select [(ngModel)]="resultValues[p.parameterId]"><option value="">Select</option><option value="false">Negative</option><option value="true">Positive</option></select>}@else{<input [(ngModel)]="resultValues[p.parameterId]" [type]="p.dataType==='NUMERIC'?'number':'text'" />}</span><span>{{p.unit||'-'}}</span><span>{{p.referenceRange||'Auto'}}</span><span><mark [class.danger]="p.isCritical">{{p.flag||'-'}}</mark></span></div>}</div><label><span>Technician comment</span><textarea [(ngModel)]="resultComments" rows="2"></textarea></label><footer><button class="ac-btn ac-btn-secondary" type="button" (click)="saveResult(false)">Save Draft</button><button class="ac-btn ac-btn-primary" type="button" (click)="saveResult(true)">Submit for Verification</button></footer></section></div>}
+      @if(resultEditor()){<div class="overlay dialog-overlay"><section class="dialog result-panel"><header><div><p class="ac-eyebrow">{{resultEditor()!.header.sampleNumber}} · {{resultEditor()!.header.orderNumber}}</p><h2>{{resultEditor()!.header.testName}} result entry</h2><span>{{resultEditor()!.header.patientName}} · {{resultEditor()!.header.medicalRecordNo}}</span></div><button class="icon-btn" type="button" (click)="resultEditor.set(null)"><span class="material-symbols-rounded">close</span></button></header><div class="result-table"><div class="table-head result-grid"><span>Parameter</span><span>Result</span><span>Unit</span><span>Range</span><span>Flag</span></div>@for(p of resultEditor()!.parameters;track p.parameterId){<div class="table-row result-grid"><span><strong>{{p.name}}</strong><small>{{p.code}}</small></span><span>@if(p.dataType==='SELECTION'){<select [(ngModel)]="resultValues[p.parameterId]"><option value="">Select</option>@for(option of selectionOptions(p.selectionOptionsJson);track option){<option>{{option}}</option>}</select>}@else if(p.dataType==='BOOLEAN'){<select [(ngModel)]="resultValues[p.parameterId]"><option value="">Select</option><option value="false">Negative</option><option value="true">Positive</option></select>}@else{<input [(ngModel)]="resultValues[p.parameterId]" [type]="p.dataType==='NUMERIC'?'number':'text'" />}</span><span>{{p.unit||'-'}}</span><span>{{p.referenceRange||'Auto'}}</span><span><mark [class.danger]="p.isCritical">{{p.flag||'-'}}</mark></span></div>}@empty{<div class="result-empty"><span class="material-symbols-rounded">rule</span><div><strong>No result fields configured</strong><small>This test has no active parameters yet. Reopen after refresh, or add test parameters in the catalog.</small></div></div>}</div><label><span>Technician comment</span><textarea [(ngModel)]="resultComments" rows="2"></textarea></label><footer><button class="ac-btn ac-btn-secondary" type="button" (click)="saveResult(false)">Save Draft</button><button class="ac-btn ac-btn-primary" type="button" (click)="saveResult(true)">Submit for Verification</button></footer></section></div>}
     </main>
   `,
   styles: [`
@@ -197,6 +197,57 @@ type LabTab = 'dashboard'|'catalog'|'orders'|'collection'|'worklist'|'verificati
     .dialog footer .ac-btn-secondary{border-color:#d0d5dd;background:#fff;color:#344054;border-radius:4px}
     .result-panel{width:min(1000px,96vw);border-radius:0}
     .result-table{margin:18px 0}
+    .result-empty{display:flex;align-items:center;gap:12px;margin-top:10px;padding:18px;border:1px dashed #b9c6d8;border-radius:12px;background:#f8fbff;color:#475467}
+    .result-empty .material-symbols-rounded{width:42px;height:42px;display:grid;place-items:center;border-radius:12px;background:#eef4ff;color:#155eef}
+    .result-empty strong{display:block;color:#101828}
+    .result-empty small{display:block;margin-top:3px;color:#667085}
+    .collection-panel{background:radial-gradient(circle at top left,rgba(13,148,136,.09),transparent 32%),linear-gradient(180deg,#fff,#fbfdff)}
+    .barcode-field{display:flex;align-items:center;gap:8px;min-width:min(520px,100%);padding:7px 8px;border:1px solid #cdd9ec;border-radius:13px;background:#fff;box-shadow:0 5px 14px rgba(15,23,42,.04)}
+    .barcode-field>span{width:32px;height:32px;display:grid;place-items:center;border-radius:10px;background:#eef4ff;color:#155eef}
+    .barcode-field input{border:0;padding:5px;box-shadow:none;background:transparent}
+    .barcode-field input:focus{outline:none;box-shadow:none}
+    .collection-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}
+    .collection-summary span{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border:1px solid #d7eee9;border-radius:12px;background:#f4fbf9}
+    .collection-summary b{font-size:24px;color:#0f766e}
+    .collection-summary small{font-size:12px;font-weight:800;color:#667085}
+    .collection-cards,.barcode-cards{display:grid;gap:12px}
+    .collection-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:14px;align-items:center;padding:15px;border:1px solid #d7eee9;border-radius:16px;background:linear-gradient(135deg,#fff,#f7fffd);box-shadow:0 8px 20px rgba(15,23,42,.05)}
+    .collection-card:hover{border-color:#5eead4;box-shadow:0 14px 30px rgba(13,148,136,.1);transform:translateY(-1px)}
+    .specimen-icon{width:48px;height:48px;display:grid;place-items:center;border-radius:14px;background:#ccfbf1;color:#0f766e}
+    .collection-main{min-width:0}
+    .collection-card h3{margin:7px 0 4px;font-size:18px;color:#101828}
+    .collection-card p{margin:0;color:#667085}
+    .test-pills{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+    .test-pills span{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:5px 8px;border-radius:999px;background:#eef4ff;color:#475467;font-size:12px;font-weight:750}
+    .received-panel{background:radial-gradient(circle at top right,rgba(21,94,239,.08),transparent 32%),linear-gradient(180deg,#fff,#fbfdff)}
+    .barcode-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px;border:1px solid #dbe7fb;border-radius:16px;background:repeating-linear-gradient(90deg,rgba(21,94,239,.05) 0 2px,transparent 2px 9px),#fff;box-shadow:0 8px 20px rgba(15,23,42,.05)}
+    .barcode-card>.material-symbols-rounded{width:44px;height:44px;display:grid;place-items:center;border-radius:13px;background:#eef4ff;color:#155eef}
+    .barcode-card strong{font-size:17px;color:#101828}
+    .barcode-card small,.barcode-card p{display:block;margin:2px 0 0;color:#667085}
+    .barcode-card p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .processing-panel{background:radial-gradient(circle at top right,rgba(21,94,239,.08),transparent 34%),linear-gradient(180deg,#fff,#fbfdff)}
+    .processing-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}
+    .processing-summary span{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border:1px solid #dbe7fb;border-radius:12px;background:#f8fbff}
+    .processing-summary b{font-size:24px;color:#155eef}
+    .processing-summary small{font-size:12px;font-weight:800;color:#667085}
+    .work-cards{display:grid;gap:12px}
+    .work-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:14px;align-items:center;padding:15px;border:1px solid #dbe7fb;border-radius:16px;background:linear-gradient(135deg,#fff,#f8fbff);box-shadow:0 8px 20px rgba(15,23,42,.05)}
+    .work-card:hover{border-color:#9cc3ff;box-shadow:0 14px 30px rgba(21,94,239,.1);transform:translateY(-1px)}
+    .work-icon{width:48px;height:48px;display:grid;place-items:center;border-radius:14px;background:#eef4ff;color:#155eef}
+    .work-main{min-width:0}
+    .work-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .work-title strong{font-size:15px;color:#0f172a}
+    .work-card h3{margin:7px 0 4px;font-size:18px;color:#101828}
+    .work-card p{margin:0;color:#667085}
+    .work-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .work-meta span{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:999px;background:#eef4ff;color:#475467;font-size:12px;font-weight:750}
+    .work-meta i{font-size:15px}
+    .work-action{display:flex;justify-content:flex-end}
+    .work-action .ac-btn{border-radius:10px;white-space:nowrap}
+    .pretty-empty{display:flex;flex-direction:column;align-items:center;gap:5px;border:1px dashed #b9c6d8;border-radius:14px;background:#f8fbff}
+    .pretty-empty .material-symbols-rounded{font-size:34px;color:#155eef}
+    .pretty-empty strong{color:#101828}
+    .pretty-empty small{color:#667085}
     .panel,.metric,.laboratory-tabs,.test-card,.verify-card,.dialog,.detail-drawer{border-radius:14px}
     .panel{padding:18px;border-color:#e1e8f5;background:linear-gradient(180deg,#fff,#fbfdff);box-shadow:0 8px 24px rgba(15,23,42,.05)}
     .panel-head{padding-bottom:10px;border-bottom:1px solid #eef2f7}
@@ -358,13 +409,52 @@ type LabTab = 'dashboard'|'catalog'|'orders'|'collection'|'worklist'|'verificati
     :host-context(.dark) .drawer-empty strong{color:#f8fafc}
     :host-context(.dark) .drawer-empty .material-symbols-rounded{background:#172554;color:#bfdbfe}
     :host-context(.dark) .drawer-empty p{color:#94a3b8}
+    :host-context(.dark) .result-empty{background:#0b1220;border-color:#334155;color:#cbd5e1}
+    :host-context(.dark) .result-empty .material-symbols-rounded{background:#172554;color:#bfdbfe}
+    :host-context(.dark) .result-empty strong{color:#f8fafc}
+    :host-context(.dark) .result-empty small{color:#94a3b8}
+    :host-context(.dark) .collection-panel,
+    :host-context(.dark) .received-panel{background:radial-gradient(circle at top left,rgba(20,184,166,.13),transparent 32%),linear-gradient(135deg,#111827,#0f172a)}
+    :host-context(.dark) .barcode-field,
+    :host-context(.dark) .collection-summary span,
+    :host-context(.dark) .collection-card,
+    :host-context(.dark) .barcode-card{background:#0b1220;border-color:#263244;color:#e5e7eb}
+    :host-context(.dark) .collection-summary b,
+    :host-context(.dark) .specimen-icon{color:#5eead4}
+    :host-context(.dark) .barcode-field>span,
+    :host-context(.dark) .barcode-card>.material-symbols-rounded,
+    :host-context(.dark) .test-pills span{background:#172554;color:#bfdbfe}
+    :host-context(.dark) .collection-card:hover{border-color:#14b8a6;box-shadow:0 14px 30px rgba(20,184,166,.14)}
+    :host-context(.dark) .specimen-icon{background:#134e4a}
+    :host-context(.dark) .collection-summary small,
+    :host-context(.dark) .collection-card p,
+    :host-context(.dark) .barcode-card small,
+    :host-context(.dark) .barcode-card p{color:#94a3b8}
+    :host-context(.dark) .collection-card h3,
+    :host-context(.dark) .barcode-card strong{color:#f8fafc}
+    :host-context(.dark) .processing-panel{background:radial-gradient(circle at top right,rgba(37,99,235,.18),transparent 34%),linear-gradient(135deg,#111827,#0f172a)}
+    :host-context(.dark) .processing-summary span,
+    :host-context(.dark) .work-card,
+    :host-context(.dark) .pretty-empty{background:#0b1220;border-color:#263244}
+    :host-context(.dark) .processing-summary b,
+    :host-context(.dark) .work-icon,
+    :host-context(.dark) .pretty-empty .material-symbols-rounded{color:#93c5fd}
+    :host-context(.dark) .processing-summary small,
+    :host-context(.dark) .work-card p,
+    :host-context(.dark) .pretty-empty small{color:#94a3b8}
+    :host-context(.dark) .work-card:hover{border-color:#3b82f6;box-shadow:0 14px 30px rgba(37,99,235,.16)}
+    :host-context(.dark) .work-icon,
+    :host-context(.dark) .work-meta span{background:#172554;color:#bfdbfe}
+    :host-context(.dark) .work-title strong,
+    :host-context(.dark) .work-card h3,
+    :host-context(.dark) .pretty-empty strong{color:#f8fafc}
     :host-context(.dark) .checks label:has(input:checked){background:#172554;border-color:#2563eb}
     :host-context(.dark) .table{background:#0f172a;border-color:#263244}
     :host-context(.dark) .table-head{background:#172033}
     :host-context(.dark) .table-row:hover{background:#111c31}
     :host-context(.dark) .overlay{background:rgba(2,6,23,.72)}
     @media(max-width:900px){.page-head{flex-direction:column}.head-actions{width:100%;flex-wrap:wrap}.form-grid{grid-template-columns:1fr}.form-grid .full,.form-grid .wide{grid-column:auto}}
-    @media(max-width:650px){.laboratory-page{gap:12px}.page-head h1{font-size:24px}.head-actions .ac-btn{flex:1}.metric-grid{grid-template-columns:1fr}.toolbar,.panel-head{align-items:stretch;flex-direction:column}.panel-head input,.search-field{min-width:0;max-width:none}.checks{grid-template-columns:1fr}.panel,.dialog{padding:14px}.dialog-overlay{padding:8px}}
+    @media(max-width:650px){.laboratory-page{gap:12px}.page-head h1{font-size:24px}.head-actions .ac-btn{flex:1}.metric-grid,.processing-summary,.collection-summary{grid-template-columns:1fr}.toolbar,.panel-head{align-items:stretch;flex-direction:column}.panel-head input,.search-field,.barcode-field{min-width:0;max-width:none}.checks{grid-template-columns:1fr}.panel,.dialog{padding:14px}.dialog-overlay{padding:8px}.work-card,.collection-card,.barcode-card{grid-template-columns:1fr}.work-action{justify-content:stretch}.work-action .ac-btn,.barcode-card .ac-btn{width:100%;justify-content:center}}
   `]
 })
 export class LaboratoryPageComponent implements OnInit {
@@ -376,6 +466,8 @@ export class LaboratoryPageComponent implements OnInit {
   protected readonly filteredTests=computed(()=>{const q=this.search.trim().toLowerCase();return q?this.tests().filter(t=>`${t.code} ${t.name} ${t.category}`.toLowerCase().includes(q)):this.tests();});
   protected readonly visibleOrders=computed(()=>mergeOrderQueues(this.orders(),this.pending()));
   protected readonly dashboardCards=computed(()=>[{label:"Today's orders",value:this.dashboard()?.todayOrders||0,meta:'Registered today',icon:'assignment',tab:'orders' as LabTab},{label:'Sample pending',value:this.dashboard()?.pendingCollection||0,meta:'Awaiting collection',icon:'vaccines',tab:'collection' as LabTab},{label:'Processing',value:this.dashboard()?.processing||0,meta:'Technical worklist',icon:'science',tab:'worklist' as LabTab},{label:'Verify pending',value:this.dashboard()?.verificationPending||0,meta:'Authorized review',icon:'fact_check',tab:'verification' as LabTab},{label:'Reports today',value:this.dashboard()?.reportsToday||0,meta:'Released today',icon:'description',tab:'reports' as LabTab}]);
+  protected readonly collectionStats=computed(()=>{const pending=this.pending();return{stat:pending.filter(x=>['STAT','URGENT'].includes(x.priority)).length};});
+  protected readonly worklistStats=computed(()=>{const items=this.worklist();return{ready:items.filter(x=>x.statusCode==='PENDING').length,running:items.filter(x=>x.statusCode==='PROCESSING').length,drafted:items.filter(x=>x.statusCode==='RESULT_ENTERED').length,stat:items.filter(x=>x.priority==='STAT').length,assigned:items.filter(x=>!!x.technicianName||!!x.technicianId).length};});
   ngOnInit(){void this.refresh();}
   protected openOrderDialog(){this.activeTab.set('orders');this.orderDialogOpen.set(true);}
   protected closeOrderDialog(){this.orderDialogOpen.set(false);}
@@ -386,14 +478,15 @@ export class LaboratoryPageComponent implements OnInit {
   protected async receive(id:string){const response=await this.service.receive(id);if(response.success){this.recentSamples.update(x=>x.filter(s=>s.id!==id));this.toast.success('Sample received','Added to processing worklist.');await this.refresh();}else this.toast.error('Unable to receive sample',response.message);}
   protected async start(row:LabWorkItem){const response=await this.service.start(row.processingId);if(response.success){this.toast.success('Processing started',row.sampleNumber);await this.refresh();}else this.toast.error('Unable to start processing',response.message);}
   protected async enterResult(row:LabWorkItem){const response=await this.service.result(row.orderItemId);if(response.success&&response.data){this.resultValues={};for(const p of response.data.parameters){const value=p.numericValue??p.textValue??p.selectionValue??p.richValue??(p.booleanValue===null?'':String(p.booleanValue));this.resultValues[p.parameterId]=String(value??'');}this.resultComments=response.data.header.comments||'';this.resultEditor.set(response.data);}else this.toast.error('Unable to open result',response.message);}
-  protected async saveResult(submit:boolean){const editor=this.resultEditor();if(!editor)return;const response=await this.service.saveResult(editor.header.id,{comments:this.resultComments,values:editor.parameters.map(p=>({parameterId:p.parameterId,value:this.resultValues[p.parameterId]||'',comment:''})).filter(x=>x.value!=='')},submit);if(response.success){this.toast.success(submit?'Submitted for verification':'Draft saved',editor.header.testName);this.resultEditor.set(null);await this.refresh();}else this.toast.error('Unable to save results',response.message);}
+  protected async saveResult(submit:boolean){const editor=this.resultEditor();if(!editor)return;if(!editor.parameters.length){this.toast.warning('Result fields missing','This test does not have active result parameters. Please reopen after refresh or add parameters in the catalog.');return;}const values=editor.parameters.map(p=>({parameterId:p.parameterId,value:this.resultValues[p.parameterId]||'',comment:''})).filter(x=>x.value!=='');if(submit&&!values.length){this.toast.warning('Enter result value','Add at least one result value before sending for verification.');return;}const response=await this.service.saveResult(editor.header.id,{comments:this.resultComments,values},submit);if(response.success){this.toast.success(submit?'Submitted for verification':'Draft saved',editor.header.testName);this.resultEditor.set(null);await this.refresh();}else this.toast.error('Unable to save results',response.message);}
   protected async verify(item:VerificationItem){const response=await this.service.verifyRelease(item.resultId);if(response.success){this.toast.success('Result verified','Report released when all ordered tests are verified.');await this.refresh();}else this.toast.error('Verification failed',labError(response,'Please check reviewer permissions and result status.'));}
   protected async rejectResult(item:VerificationItem){const reason=window.prompt('Reason for returning this result to the technician:');if(!reason)return;const response=await this.service.rejectResult(item.resultId,reason);if(response.success){this.toast.success('Result returned','Technician can correct and resubmit it.');await this.refresh();}else this.toast.error('Unable to reject result',response.message);}
   protected async acknowledge(item:CriticalResult){const note=window.prompt('Acknowledgement note:')||'Reviewed by authorized clinical user';const response=await this.service.acknowledge(item.id,note);if(response.success){this.toast.success('Critical result acknowledged',item.patientName);await this.refresh();}else this.toast.error('Acknowledgement failed',response.message);}
   protected async viewTest(test:LabTest){const response=await this.service.test(test.id);if(response.success)this.selectedTest.set(response.data);}
   protected async trackSample(){if(!this.barcodeSearch.trim())return;const response=await this.service.sample(this.barcodeSearch.trim());if(response.success)this.toast.success('Sample found','Tracking timeline loaded successfully.');else this.toast.error('Sample not found',response.message);}
-  protected download(report:LabReport){window.open(this.service.reportPdfUrl(report.id),'_blank','noopener');}
+  protected async download(report:LabReport){const viewer=window.open('about:blank','_blank');try{const blob=await this.service.reportPdf(report.id);const url=URL.createObjectURL(new Blob([blob],{type:'application/pdf'}));if(viewer)viewer.location.href=url;else{const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener';link.click();}setTimeout(()=>URL.revokeObjectURL(url),60_000);}catch{viewer?.close();this.toast.error('Unable to open PDF','Your session may have expired or you may not have report download permission.');}}
   protected selectionOptions(json:string|null):string[]{try{return json?JSON.parse(json):[];}catch{return[];}} protected money(value:number){return new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(value||0);} protected duration(minutes:number){return minutes<60?`${minutes} min`:`${Math.floor(minutes/60)}h ${minutes%60||''}`.trim();} protected date(value:string){return value?new Intl.DateTimeFormat('en-IN',{dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'-';} protected status(value:string){return value.replaceAll('_',' ').toLowerCase().replace(/\b\w/g,x=>x.toUpperCase());}
+  protected testNames(value:string):string[]{return (value||'').split(',').map(x=>x.trim()).filter(Boolean).slice(0,5);}
   protected statusClass(value:string){const state=(value||'').toUpperCase();if(['REPORT_RELEASED','VERIFIED','SAMPLE_RECEIVED','COMPLETED'].includes(state))return 'success';if(['CANCELLED','REJECTED','RECOLLECTION_REQUIRED'].includes(state))return 'danger';if(['STAT','VERIFICATION_PENDING','SAMPLE_PENDING','PROCESSING'].includes(state))return 'warning';return 'muted';}
 }
 
