@@ -80,11 +80,19 @@ export class OpdManagementService {
     }));
   }
 
-  createLabOrder(patientId: string, consultationId: string): Promise<OpdApiResponse<OpdLabOrderRecord>> {
+  createLabOrder(patientId: string, consultationId: string, tests: OpdLabTestRecord[], priority: string, clinicalNotes: string, doctorId: string): Promise<OpdApiResponse<OpdLabOrderRecord>> {
     return firstValueFrom(this.api.post<OpdApiResponse<OpdLabOrderRecord>>('/laboratory/orders', {
       patientId,
       consultationId,
-      statusCode: 'ORDERED'
+      encounterId: consultationId,
+      encounterType: 'OPD',
+      doctorId,
+      sourceModule: 'OPD',
+      priority,
+      clinicalNotes,
+      testIds: tests.map(test => test.id),
+      packageIds: [],
+      idempotencyKey: crypto.randomUUID()
     }));
   }
 

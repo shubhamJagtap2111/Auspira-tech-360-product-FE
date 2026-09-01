@@ -6,6 +6,8 @@ import { getApiErrorMessage } from '../../core/http/api-error-message';
 import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dropdown.component';
 import { AcGridLoaderComponent } from '../../shared/ui/grid-loader/grid-loader.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
+import { LabTest } from '../laboratory/laboratory.models';
+import { LaboratoryService } from '../laboratory/laboratory.service';
 import {
   CreateIpdAdmissionRequest,
   IpdAdmissionListItem,
@@ -1070,6 +1072,21 @@ interface IpdKpiCard {
                           <button class="ac-btn ac-btn-secondary" type="button" (click)="saveDischargeDraft()"><span class="material-symbols-rounded">save</span>Save Draft</button>
                           <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="finalizeDischarge()"><span class="material-symbols-rounded">task_alt</span>Finalize Discharge</button>
                         </div>
+                      </section>
+                    }
+                    @case ('lab') {
+                      <section class="panel detail-form-card">
+                        <div class="section-toolbar">
+                          <div><p class="ac-eyebrow">Clinical orders</p><h2>New laboratory order</h2><p>{{ selected.wardName || 'Ward pending' }} · {{ selected.bedNo || 'Bed pending' }}</p></div>
+                          <ac-dropdown name="ipdLabPriority" [(ngModel)]="ipdLabPriority" [options]="labPriorityOptions" />
+                        </div>
+                        <div class="choice-grid">
+                          @for (test of ipdLabTests(); track test.id) {
+                            <label class="choice-card"><input type="checkbox" [checked]="ipdSelectedLabTests().includes(test.id)" (change)="toggleIpdLabTest(test.id)" /><span><strong>{{ test.name }}</strong><small>{{ test.code }} · {{ test.category }} · {{ test.price | currency:'INR' }}</small></span></label>
+                          } @empty { <div class="empty-state">No active laboratory tests are configured.</div> }
+                        </div>
+                        <label class="note-field"><span>Clinical notes</span><textarea rows="3" [(ngModel)]="ipdLabNotes" name="ipdLabNotes" placeholder="Clinical indication and special instructions"></textarea></label>
+                        <div class="inline-actions end"><button class="ac-btn ac-btn-primary" type="button" [disabled]="saving() || !ipdSelectedLabTests().length" (click)="createIpdLabOrder(selected)"><span class="material-symbols-rounded">biotech</span>Create Lab Order</button></div>
                       </section>
                     }
                     @default {
@@ -2637,14 +2654,38 @@ export class IpdPageComponent implements OnInit {
   protected readonly latestVital = computed(() => this.vitalRecords()[0] ?? null);
 
   private readonly service = inject(IpdManagementService);
+  private readonly laboratoryService = inject(LaboratoryService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  protected readonly ipdLabTests = signal<LabTest[]>([]);
+  protected readonly ipdSelectedLabTests = signal<string[]>([]);
+  protected ipdLabPriority = 'ROUTINE';
+  protected ipdLabNotes = '';
+  protected readonly labPriorityOptions: DropdownOption<string>[] = [{ label: 'Routine', value: 'ROUTINE' }, { label: 'Urgent', value: 'URGENT' }, { label: 'STAT', value: 'STAT' }];
 
   async ngOnInit(): Promise<void> {
     this.restoreDrafts();
     await this.load();
+    const labTests = await this.laboratoryService.tests();
+    this.ipdLabTests.set(labTests.data?.filter(test => test.isActive) ?? []);
     this.applyQueryHandoff();
+  }
+
+  protected toggleIpdLabTest(testId: string): void {
+    this.ipdSelectedLabTests.update(items => items.includes(testId) ? items.filter(id => id !== testId) : [...items, testId]);
+  }
+
+  protected async createIpdLabOrder(admission: IpdAdmissionListItem): Promise<void> {
+    if (!this.ipdSelectedLabTests().length) return;
+    this.saving.set(true);
+    try {
+      const response = await this.laboratoryService.createOrder({ patientId: admission.patientId, consultationId: null, encounterId: admission.admissionId, encounterType: 'IPD', doctorId: admission.doctorId, sourceModule: 'IPD', priority: this.ipdLabPriority, clinicalNotes: this.ipdLabNotes, testIds: this.ipdSelectedLabTests(), packageIds: [], idempotencyKey: crypto.randomUUID() });
+      if (response.success) {
+        this.toast.success('Lab order created', `${response.data?.orderNumber || 'Order'} was sent to the laboratory worklist.`);
+        this.ipdSelectedLabTests.set([]); this.ipdLabNotes = ''; this.ipdLabPriority = 'ROUTINE';
+      } else this.toast.error('Unable to create lab order', response.message);
+    } finally { this.saving.set(false); }
   }
 
   protected async refresh(): Promise<void> {

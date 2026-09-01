@@ -4202,17 +4202,13 @@ export class OpdPageComponent implements OnInit {
 
     this.saving.set(true);
     try {
-      const orderResponse = await this.opdService.createLabOrder(visit.appointment.patientId, consultation.id);
+      const selectedTests = pendingOrders.map(item => this.labTests().find(test => test.id === item.testId)).filter((test): test is OpdLabTestRecord => Boolean(test));
+      const orderPriority = pendingOrders.some(item => item.priority === 'STAT') ? 'STAT' : pendingOrders.some(item => item.priority === 'Urgent' || item.priority === 'URGENT') ? 'URGENT' : 'ROUTINE';
+      const clinicalNotes = pendingOrders.map(item => item.notes).filter(Boolean).join(' · ');
+      const orderResponse = await this.opdService.createLabOrder(visit.appointment.patientId, consultation.id, selectedTests, orderPriority, clinicalNotes, visit.appointment.doctorId);
       if (!orderResponse.success || !orderResponse.data) {
         this.toast.error('Unable to create lab order', getApiErrorMessage(orderResponse, 'Laboratory API failed'));
         return;
-      }
-
-      for (const item of pendingOrders) {
-        const test = this.labTests().find(testItem => testItem.id === item.testId);
-        if (test) {
-          await this.opdService.createLabOrderItem(orderResponse.data.id, test);
-        }
       }
 
       this.clinicalForm.update(form => ({
