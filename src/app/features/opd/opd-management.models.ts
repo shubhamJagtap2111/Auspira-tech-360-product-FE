@@ -134,6 +134,15 @@ export interface OpdInvoiceRecord {
   updatedAt: string | null;
 }
 
+export interface OpdBillableChargeRecord {
+  id: string;
+  patientId: string;
+  serviceCode: string;
+  description: string;
+  netAmount: number;
+  statusCode: string;
+}
+
 export interface OpdInvoiceItemRecord {
   id: string;
   invoiceId: string;

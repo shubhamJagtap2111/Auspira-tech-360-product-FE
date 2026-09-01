@@ -4595,15 +4595,36 @@ export class OpdPageComponent implements OnInit {
     }
 
     const services = this.billableServices(visit);
-    const grossAmount = services.reduce((total, service) => total + service.amount, 0);
-    const invoiceResponse = await this.opdService.createInvoice(visit.appointment.patientId, grossAmount);
+    const chargeIds: string[] = [];
+    for (const [index, service] of services.entries()) {
+      const category = service.description.startsWith('Lab Test') ? 'Laboratory' : service.description.startsWith('Procedure') ? 'Procedure' : 'Consultation';
+      const department = category === 'Laboratory' ? 'Laboratory' : 'OPD';
+      const chargeResponse = await this.opdService.createBillableCharge(
+        visit.appointment.patientId,
+        visit.consultation?.id || visit.appointment.id,
+        `${visit.appointment.id}-${index + 1}`,
+        category === 'Consultation' ? 'OPD-CONSULT' : category === 'Laboratory' ? `OPD-LAB-${index + 1}` : `OPD-PROC-${index + 1}`,
+        service.description,
+        department,
+        category,
+        service.quantity,
+        service.rate
+      );
+      if (!chargeResponse.success || !chargeResponse.data) {
+        this.toast.error('Unable to generate OPD charge', getApiErrorMessage(chargeResponse, 'Billing charge service failed'));
+        return;
+      }
+      chargeIds.push(chargeResponse.data.id);
+    }
+
+    const invoiceResponse = await this.opdService.createInvoiceFromCharges(
+      visit.appointment.patientId,
+      visit.consultation?.id || visit.appointment.id,
+      chargeIds
+    );
     if (!invoiceResponse.success || !invoiceResponse.data) {
       this.toast.error('Unable to generate OPD bill', getApiErrorMessage(invoiceResponse, 'Billing API failed'));
       return;
-    }
-
-    for (const service of services) {
-      await this.opdService.createInvoiceItem(invoiceResponse.data.id, service.description, service.quantity, service.rate);
     }
 
     this.clinicalForm.update(form => ({ ...form, invoiceId: invoiceResponse.data?.id ?? '' }));

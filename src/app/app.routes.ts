@@ -160,7 +160,13 @@ export const routes: Routes = [
   moduleRoute('emergency', 'Emergency', ['Emergency Triage', 'Critical Queue', 'Ambulance Intake', 'Bed Escalation', 'Incident Notes']),
   moduleRoute('laboratory', 'Laboratory', ['Test Master', 'Sample Collection', 'Result Entry', 'PDF Reports']),
   moduleRoute('pharmacy', 'Pharmacy', ['Medicine Catalog', 'Stock Management', 'Purchase Entry', 'Sales Entry', 'Expiry Tracking', 'Low Stock Alerts']),
-  moduleRoute('billing', 'Billing', ['Invoices', 'Payments', 'Refunds', 'Insurance', 'Discounts']),
+  {
+    path: 'billing',
+    canActivate: [authGuard, permissionGuard],
+    data: { permission: 'Billing.View' },
+    loadComponent: () =>
+      import('./features/billing/billing-page.component').then(m => m.BillingPageComponent)
+  },
   moduleRoute('inventory', 'Inventory', ['Assets', 'Medical Equipment', 'Consumables', 'Purchase Orders', 'Vendor Management']),
   {
     path: 'reports/mis',

@@ -10,7 +10,7 @@ import {
   OpdDiagnosisRecord,
   OpdEncounterForm,
   OpdFollowUpRecord,
-  OpdInvoiceItemRecord,
+  OpdBillableChargeRecord,
   OpdInvoiceRecord,
   OpdLabOrderForm,
   OpdLabOrderItemRecord,
@@ -114,24 +114,34 @@ export class OpdManagementService {
     }));
   }
 
-  createInvoice(patientId: string, grossAmount: number): Promise<OpdApiResponse<OpdInvoiceRecord>> {
-    return firstValueFrom(this.api.post<OpdApiResponse<OpdInvoiceRecord>>('/billing/invoices', {
+  createBillableCharge(patientId: string, encounterId: string, sourceId: string, serviceCode: string, description: string, department: string, category: string, quantity: number, unitPrice: number): Promise<OpdApiResponse<OpdBillableChargeRecord>> {
+    return firstValueFrom(this.api.post<OpdApiResponse<OpdBillableChargeRecord>>('/billing/charges', {
       patientId,
-      invoiceNo: `INV-${Date.now().toString(36).toUpperCase()}`,
-      grossAmount,
+      encounterId,
+      chargeMasterId: null,
+      sourceModule: 'OPD',
+      sourceEntity: 'OPD_VISIT',
+      sourceId,
+      serviceCode,
+      description,
+      department,
+      category,
+      unit: 'Each',
+      quantity,
+      unitPrice,
       discountAmount: 0,
-      netAmount: grossAmount,
-      statusCode: 'DRAFT'
+      taxPercent: 0,
+      chargeDate: null
     }));
   }
 
-  createInvoiceItem(invoiceId: string, description: string, quantity: number, rate: number): Promise<OpdApiResponse<OpdInvoiceItemRecord>> {
-    return firstValueFrom(this.api.post<OpdApiResponse<OpdInvoiceItemRecord>>('/billing/invoice-items', {
-      invoiceId,
-      description,
-      quantity,
-      rate,
-      amount: quantity * rate
+  createInvoiceFromCharges(patientId: string, encounterId: string, chargeIds: string[]): Promise<OpdApiResponse<OpdInvoiceRecord>> {
+    return firstValueFrom(this.api.post<OpdApiResponse<OpdInvoiceRecord>>('/billing/invoices', {
+      patientId,
+      encounterId,
+      invoiceType: 'OPD',
+      chargeIds,
+      dueDate: null
     }));
   }
 
