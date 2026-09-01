@@ -85,11 +85,16 @@ type LabTab = 'dashboard'|'catalog'|'orders'|'collection'|'worklist'|'verificati
     .page-head h1{margin:2px 0 0;font-size:28px;line-height:1.2;color:#0f172a}
     .page-head p:last-child{margin:6px 0 0;max-width:850px;color:#64748b;font-size:14px;line-height:1.5}
     .head-actions{display:flex;gap:10px;flex:none}
-    .laboratory-tabs{display:flex;gap:2px;overflow-x:auto;background:#fff;border:1px solid #dce3ee;padding:5px;box-shadow:0 1px 2px rgba(16,24,40,.05)}
-    .laboratory-tabs button{height:42px;border:0;background:transparent;padding:0 13px;display:flex;align-items:center;gap:7px;white-space:nowrap;color:#526074;cursor:pointer;font:inherit;font-size:13px}
-    .laboratory-tabs button:hover{background:#f7f9fc;color:#344054}
-    .laboratory-tabs button.active{background:#eef4ff;color:#155eef;font-weight:700}
-    .laboratory-tabs b{min-width:18px;padding:2px 5px;border-radius:10px;background:#e8edf5;color:#475467;font-size:10px;text-align:center}
+    .laboratory-tabs{display:flex;align-items:center;gap:10px;overflow-x:auto;overflow-y:hidden;background:#fff;border:1px solid #d6e1f2;border-radius:18px;padding:10px 12px 12px;box-shadow:0 8px 22px rgba(16,24,40,.06);scrollbar-width:thin;scrollbar-color:#aeb8c7 #eef3fb}
+    .laboratory-tabs::-webkit-scrollbar{height:8px}
+    .laboratory-tabs::-webkit-scrollbar-track{background:#eef3fb;border-radius:999px}
+    .laboratory-tabs::-webkit-scrollbar-thumb{background:#aeb8c7;border-radius:999px}
+    .laboratory-tabs button{height:52px;border:1px solid transparent;border-radius:15px;background:transparent;padding:0 14px;display:flex;align-items:center;gap:10px;white-space:nowrap;color:#5d6b82;cursor:pointer;font:inherit;font-size:14px;font-weight:800;transition:background .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease}
+    .laboratory-tabs button:hover{background:#f6f9ff;border-color:#e2e9f7;color:#344054}
+    .laboratory-tabs button.active{background:#f4f8ff;border-color:#bfdbfe;color:#155eef;box-shadow:0 5px 14px rgba(21,94,239,.12)}
+    .laboratory-tabs .material-symbols-rounded{width:34px;height:34px;display:grid;place-items:center;flex:none;border-radius:11px;background:#edf4ff;color:#526f9f;font-size:21px}
+    .laboratory-tabs button.active .material-symbols-rounded{background:#155eef;color:#fff}
+    .laboratory-tabs b{min-width:20px;height:20px;display:inline-grid;place-items:center;padding:0 6px;border-radius:10px;background:#e8edf5;color:#475467;font-size:11px;font-weight:800;text-align:center}
     .laboratory-tabs button.active b{background:#dbe8ff;color:#155eef}
     .panel,.metric{min-width:0;background:#fff;border:1px solid #dce3ee;box-shadow:0 1px 2px rgba(16,24,40,.05)}
     .panel{padding:16px;margin:0;border-radius:0}
