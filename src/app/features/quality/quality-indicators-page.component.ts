@@ -133,7 +133,13 @@ type QualityTab = 'dashboard' | 'indicators' | 'audits' | 'events' | 'builder';
                     <em>{{ indicator.displayValue }}</em>
                   </button>
                 } @empty {
-                  <div class="empty-state compact">No priority indicators for this period.</div>
+                  <div class="priority-empty">
+                    <span class="material-symbols-rounded">verified</span>
+                    <div>
+                      <strong>No indicators need attention</strong>
+                      <small>All available results are within target for this period.</small>
+                    </div>
+                  </div>
                 }
               </div>
             </article>
@@ -291,7 +297,7 @@ type QualityTab = 'dashboard' | 'indicators' | 'audits' | 'events' | 'builder';
                 <span>Auditor</span>
                 <input name="auditorName" [(ngModel)]="auditForm.auditorName" placeholder="Quality officer" />
               </label>
-              <label>
+              <label class="span-2">
                 <span>Notes</span>
                 <textarea name="auditNotes" [(ngModel)]="auditForm.notes" rows="3" placeholder="Observations and corrective action notes"></textarea>
               </label>
@@ -479,8 +485,13 @@ type QualityTab = 'dashboard' | 'indicators' | 'audits' | 'events' | 'builder';
     </section>
   `,
   styles: `
-    .quality-page { display: grid; gap: 16px; }
+    :host { display: block; width: 100%; min-width: 0; max-width: 100%; }
+    .quality-page { display: grid; gap: 16px; width: 100%; min-width: 0; max-width: 100%; padding-bottom: 24px; }
+    .quality-page * { box-sizing: border-box; }
     .quality-header, .panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .quality-header > div:first-child, .panel-head > div { min-width: 0; }
+    .quality-header > div:first-child { max-width: 900px; }
+    .quality-header h1, .panel-head h2, .panel-head h3 { overflow-wrap: anywhere; }
     .quality-header p, .detail-copy { margin: 5px 0 0; color: var(--ac-muted); line-height: 1.45; }
     .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .header-actions .material-symbols-rounded, .filter-panel .material-symbols-rounded, .entry-form .material-symbols-rounded { font-size: 18px; }
@@ -490,18 +501,20 @@ type QualityTab = 'dashboard' | 'indicators' | 'audits' | 'events' | 'builder';
     input { min-height: 38px; }
     textarea { padding-top: 9px; resize: vertical; line-height: 1.4; }
     input:focus, textarea:focus { border-color: var(--ac-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ac-primary) 14%, transparent); }
-    .tab-bar { display: flex; gap: 6px; padding: 6px; overflow-x: auto; }
+    .tab-bar { display: flex; gap: 6px; max-width: 100%; padding: 6px; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: thin; }
     .tab-bar button { min-height: 38px; border: 0; border-radius: 8px; background: transparent; color: var(--ac-muted); padding: 0 12px; display: flex; align-items: center; gap: 7px; font: inherit; font-size: 12.5px; font-weight: 900; white-space: nowrap; cursor: pointer; }
     .tab-bar button.active { background: var(--ac-primary); color: #fff; box-shadow: var(--ac-sh-sm); }
     .tab-bar .material-symbols-rounded { font-size: 18px; }
     .summary-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
-    .summary-card { --tone: var(--ac-primary); display: flex; gap: 10px; align-items: center; padding: 13px; border-color: color-mix(in srgb, var(--tone) 24%, var(--ac-border)); }
+    .summary-card { --tone: var(--ac-primary); display: flex; gap: 10px; min-width: 0; align-items: center; padding: 13px; border-color: color-mix(in srgb, var(--tone) 24%, var(--ac-border)); }
     .summary-card > span { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 8px; background: color-mix(in srgb, var(--tone) 13%, transparent); color: var(--tone); flex: 0 0 auto; }
     .summary-card small, .why-grid small { color: var(--ac-muted); font-size: 11px; font-weight: 850; text-transform: uppercase; }
     .summary-card strong { display: block; margin-top: 2px; color: var(--ac-text); font-size: 21px; line-height: 1.05; }
     .summary-card em { display: block; margin-top: 3px; color: var(--ac-muted); font-size: 11.5px; font-style: normal; }
-    .dashboard-grid { display: grid; grid-template-columns: .9fr 1.1fr; gap: 12px; }
+    .dashboard-grid { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 12px; align-items: start; }
     .score-panel { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; align-items: center; padding: 16px; }
+    .attention-panel { min-width: 0; padding: 14px; align-self: start; }
+    .attention-panel .panel-head { margin-bottom: 10px; }
     .score-ring { --score: 0; width: 152px; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; align-content: center; background: conic-gradient(#10B981 calc(var(--score) * 1%), #E2E8F0 0); position: relative; color: var(--ac-text); }
     .score-ring::after { content: ''; position: absolute; inset: 18px; border-radius: 50%; background: var(--ac-surface); box-shadow: inset 0 0 0 1px var(--ac-border); }
     .score-ring strong, .score-ring small { position: relative; z-index: 1; text-align: center; }
@@ -512,15 +525,21 @@ type QualityTab = 'dashboard' | 'indicators' | 'audits' | 'events' | 'builder';
     .icon-action { width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-text); cursor: pointer; }
     .icon-action:hover { border-color: var(--ac-primary); color: var(--ac-primary); }
     .priority-list, .activity-list, .source-list { display: grid; gap: 8px; }
+    .priority-empty { min-height: 64px; display: flex; align-items: center; gap: 11px; border: 1px dashed color-mix(in srgb, #10B981 38%, var(--ac-border)); border-radius: 8px; padding: 11px 13px; background: color-mix(in srgb, #10B981 7%, var(--ac-surface)); }
+    .priority-empty > span { width: 36px; height: 36px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 8px; color: #059669; background: color-mix(in srgb, #10B981 13%, transparent); }
+    .priority-empty div { min-width: 0; }
+    .priority-empty strong { display: block; color: var(--ac-text); font-size: 13px; }
+    .priority-empty small { display: block; margin-top: 2px; color: var(--ac-muted); font-size: 11.5px; line-height: 1.35; }
     .priority-row { width: 100%; min-height: 56px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); padding: 9px; text-align: left; cursor: pointer; }
     .priority-row > span { width: 9px; height: 34px; border-radius: 999px; background: var(--status); }
     .priority-row strong, .activity-row strong, .source-row strong { display: block; color: var(--ac-text); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .priority-row small, .activity-row small, .source-row small { display: block; margin-top: 2px; color: var(--ac-muted); font-size: 11.5px; }
     .priority-row em { color: var(--ac-text); font-size: 12px; font-style: normal; font-weight: 900; }
     .indicator-layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(360px, .6fr); gap: 12px; align-items: start; }
-    .indicator-table, .detail-panel { padding: 14px; }
+    .indicator-table, .detail-panel { min-width: 0; padding: 14px; }
     .panel-head span { color: var(--ac-muted); font-size: 12px; font-weight: 850; }
-    .table-wrap { overflow: auto; border: 1px solid var(--ac-border); border-radius: 8px; }
+    .table-wrap { width: 100%; max-width: 100%; overflow: auto; border: 1px solid var(--ac-border); border-radius: 8px; }
+    .table-wrap table { min-width: 700px; }
     .ac-table tbody tr { cursor: pointer; }
     .ac-table tbody tr.selected { background: color-mix(in srgb, var(--ac-primary) 10%, transparent); }
     .ac-table td strong { display: block; color: var(--ac-text); font-size: 13px; }
@@ -547,7 +566,10 @@ type QualityTab = 'dashboard' | 'indicators' | 'audits' | 'events' | 'builder';
     .indicator-card p { margin: 6px 0 0; color: var(--ac-muted); font-size: 12px; line-height: 1.35; }
     .indicator-card em { display: block; margin-top: 9px; color: var(--status); font-size: 11.5px; font-style: normal; font-weight: 900; }
     .entry-grid, .builder-grid { display: grid; grid-template-columns: minmax(380px, .8fr) minmax(0, 1.2fr); gap: 12px; align-items: start; }
-    .entry-form, .recent-panel, .source-panel { padding: 14px; display: grid; gap: 10px; }
+    .entry-form, .recent-panel, .source-panel { min-width: 0; padding: 14px; display: grid; gap: 10px; align-content: start; }
+    .entry-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .entry-form > .panel-head, .entry-form > .value-row, .entry-form > .ac-btn { grid-column: 1 / -1; }
+    .entry-form > .ac-btn { justify-self: start; }
     .value-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
     .span-2 { grid-column: 1 / -1; }
     .activity-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; border: 1px solid var(--ac-border); border-radius: 8px; padding: 10px; background: var(--ac-surface); }
@@ -567,9 +589,15 @@ type QualityTab = 'dashboard' | 'indicators' | 'audits' | 'events' | 'builder';
     }
     @media (max-width: 760px) {
       .quality-header, .header-actions, .panel-head, .score-panel { display: grid; }
-      .filter-panel, .summary-grid, .master-grid, .value-row, .why-grid { grid-template-columns: 1fr; }
+      .filter-panel, .summary-grid, .master-grid, .entry-form, .value-row, .why-grid { grid-template-columns: 1fr; }
       .header-actions .ac-btn { width: 100%; }
+      .filter-panel > .ac-btn { width: 100%; }
+      .entry-form > .panel-head, .entry-form > .value-row, .entry-form > .ac-btn, .span-2 { grid-column: auto; }
+      .entry-form > .ac-btn { width: 100%; }
       .score-ring { margin: 0 auto; }
+      .score-panel { text-align: center; }
+      .priority-empty { align-items: flex-start; }
+      .indicator-table, .detail-panel, .entry-form, .recent-panel, .source-panel { padding: 12px; }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
