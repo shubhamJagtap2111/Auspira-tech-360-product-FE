@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { ApiResponse } from '../../core/auth/auth.models';
 import { BranchContextOption, BranchContextService } from '../../core/context/branch-context.service';
 import { getApiErrorMessage } from '../../core/http/api-error-message';
 import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dropdown.component';
@@ -4098,7 +4099,7 @@ export class OpdPageComponent implements OnInit {
       this.interactionOverrideReason = '';
       resolve?.(true);
     } catch (error) {
-      this.toast.error('Override could not be recorded', getApiErrorMessage(error, 'Medication-safety audit failed'));
+      this.toast.error('Override could not be recorded', getApiErrorMessage(error as ApiResponse<unknown>, 'Medication-safety audit failed'));
     } finally {
       this.saving.set(false);
     }
@@ -4543,7 +4544,7 @@ export class OpdPageComponent implements OnInit {
         this.interactionReviewResolver = resolve;
       });
     } catch (error) {
-      this.toast.error('Medication safety check failed', getApiErrorMessage(error, 'Prescription was not issued because interaction validation is unavailable.'));
+      this.toast.error('Medication safety check failed', getApiErrorMessage(error as ApiResponse<unknown>, 'Prescription was not issued because interaction validation is unavailable.'));
       return false;
     }
   }
