@@ -105,12 +105,26 @@ export class AuthStore {
   }
 
   hasPermission(permissionCode: string): boolean {
-    return this.permissions().includes(permissionCode);
+    return hasPermission(this.permissions(), permissionCode);
   }
 
   ensureValidSession(): boolean {
     return this.isAuthenticated();
   }
+}
+
+function hasPermission(availablePermissions: readonly string[], requiredPermission: string): boolean {
+  const normalizedRequired = requiredPermission.trim().toLowerCase();
+  if (!normalizedRequired) {
+    return true;
+  }
+
+  const moduleCode = normalizedRequired.split('.')[0];
+  const legacyManagePermission = `${moduleCode}.manage`;
+  return availablePermissions.some(permission => {
+    const normalizedPermission = permission.trim().toLowerCase();
+    return normalizedPermission === normalizedRequired || normalizedPermission === legacyManagePermission;
+  });
 }
 
 function isSessionUsable(session: AuthResponse | null): session is AuthResponse {
