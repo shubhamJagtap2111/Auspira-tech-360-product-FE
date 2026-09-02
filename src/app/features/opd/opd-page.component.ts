@@ -18,6 +18,7 @@ import {
   OpdComplaintForm,
   OpdConsultationRecord,
   OpdDiagnosisForm,
+  OpdDrugInteractionAlert,
   OpdEncounterForm,
   OpdEncounterSection,
   OpdFollowUpRecord,
@@ -741,6 +742,7 @@ import { OpdManagementService } from './opd-management.service';
                                           <button type="button" (click)="selectMedicineSuggestion(medicine)">
                                             <strong>{{ medicine.label }}</strong>
                                             <small>{{ medicine.name }} · {{ medicine.strength || '-' }} · {{ medicine.form || '-' }}</small>
+                                            @if (medicine.formularyStatus === 'RESTRICTED') { <small class="medicine-formulary-warning">Restricted{{ medicine.approvalRequired ? ' · Approval required' : '' }}{{ medicine.restrictionReason ? ' · ' + medicine.restrictionReason : '' }}</small> }
                                           </button>
                                         }
                                       </div>
@@ -1209,6 +1211,30 @@ import { OpdManagementService } from './opd-management.service';
             </section>
           </div>
         }
+      }
+
+      @if (interactionReviewOpen()) {
+        <div class="prescription-backdrop" (click)="cancelInteractionReview()">
+          <section class="print-options-modal interaction-review-modal" (click)="$event.stopPropagation()" aria-label="Drug interaction review">
+            <header>
+              <div><p class="ac-eyebrow">Medication Safety</p><h2>Potential Drug Interactions</h2><span>{{ interactionAlerts().length }} clinical {{ interactionAlerts().length === 1 ? 'rule' : 'rules' }} matched this prescription</span></div>
+              <button class="modal-close" type="button" aria-label="Close interaction review" (click)="cancelInteractionReview()"><span class="material-symbols-rounded">close</span></button>
+            </header>
+            <div class="interaction-alert-list">
+              @for (alert of interactionAlerts(); track alert.interactionId + alert.medicineAId + alert.medicineBId) {
+                <article [class.blocking]="alert.behaviorCode==='BLOCK'" [class.override]="alert.behaviorCode==='REQUIRE_OVERRIDE'">
+                  <div class="interaction-alert-head"><span class="material-symbols-rounded">{{ alert.behaviorCode==='BLOCK' ? 'block' : alert.behaviorCode==='REQUIRE_OVERRIDE' ? 'approval' : 'warning' }}</span><div><strong>{{ alert.medicineAName }} {{ alert.medicineAStrength }} + {{ alert.medicineBName }} {{ alert.medicineBStrength }}</strong><small>{{ interactionLabel(alert.severity) }} · {{ interactionLabel(alert.behaviorCode) }}</small></div></div>
+                  <p>{{ alert.description }}</p><div class="clinical-recommendation"><strong>Clinical recommendation</strong><span>{{ alert.clinicalRecommendation }}</span></div>
+                </article>
+              }
+            </div>
+            @if (requiresInteractionOverride() && !hasBlockingInteraction()) {
+              <label class="field interaction-reason"><span>Clinical override reason *</span><textarea rows="3" [(ngModel)]="interactionOverrideReason" placeholder="Document why the expected benefit outweighs the interaction risk..."></textarea><small>This reason and your identity will be stored in the medication-safety audit trail.</small></label>
+            }
+            @if (hasBlockingInteraction()) { <div class="interaction-stop"><span class="material-symbols-rounded">gpp_bad</span><div><strong>Prescription cannot be issued</strong><small>Remove or replace the blocked medicine combination, then run the safety check again.</small></div></div> }
+            <footer><button class="ac-btn ac-btn-secondary" type="button" (click)="cancelInteractionReview()">Return to prescription</button><button class="ac-btn ac-btn-primary" type="button" [disabled]="hasBlockingInteraction() || saving() || (requiresInteractionOverride() && interactionOverrideReason.trim().length < 5)" (click)="continueAfterInteractionReview()"><span class="material-symbols-rounded">{{ requiresInteractionOverride() ? 'approval' : 'check_circle' }}</span>{{ saving() ? 'Recording...' : requiresInteractionOverride() ? 'Override & Continue' : 'Acknowledge & Continue' }}</button></footer>
+          </section>
+        </div>
       }
 
       @if (saveTemplateOpen()) {
@@ -2778,6 +2804,24 @@ import { OpdManagementService } from './opd-management.service';
       .snapshot-grid { grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); }
       .clinical-board { overflow: visible; }
     }
+    .interaction-review-modal { width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow: auto; }
+    .interaction-review-modal header span { display: block; color: #64748b; margin-top: 4px; }
+    .interaction-alert-list { display: grid; gap: 12px; padding: 18px 22px; }
+    .interaction-alert-list article { border: 1px solid #d8e2ec; border-left: 4px solid #e9a23b; border-radius: 12px; padding: 14px; background: #fff; }
+    .interaction-alert-list article.blocking { border-left-color: #d43d51; background: #fff7f8; }
+    .interaction-alert-list article.override { border-left-color: #c67a15; background: #fffbf3; }
+    .interaction-alert-head { display: flex; gap: 10px; align-items: flex-start; }
+    .interaction-alert-head > span { color: #b15d14; }
+    .interaction-alert-head div { display: grid; gap: 3px; }
+    .interaction-alert-head small { color: #64748b; font-weight: 700; }
+    .interaction-alert-list p { margin: 11px 0; color: #334155; }
+    .clinical-recommendation { display: grid; gap: 3px; border-radius: 8px; padding: 10px; background: #eef6fa; color: #23425a; }
+    .interaction-reason { margin: 0 22px 18px; }
+    .interaction-reason textarea { width: 100%; resize: vertical; }
+    .interaction-reason small { display: block; color: #64748b; margin-top: 5px; }
+    .interaction-stop { display: flex; gap: 10px; margin: 0 22px 18px; padding: 13px; border-radius: 10px; background: #fdecef; color: #9f1f35; }
+    .interaction-stop div { display: grid; gap: 3px; }
+
     @media (max-width: 1480px) {
       .encounter-list { padding: 10px; }
       .encounter-card { padding: 12px; }
@@ -2866,6 +2910,8 @@ export class OpdPageComponent implements OnInit {
   protected readonly prescriptionPreviewOpen = signal(false);
   protected readonly saveTemplateOpen = signal(false);
   protected readonly printOptionsOpen = signal(false);
+  protected readonly interactionReviewOpen = signal(false);
+  protected readonly interactionAlerts = signal<OpdDrugInteractionAlert[]>([]);
   protected readonly prescriptionStatus = signal<PrescriptionStatus>('DRAFT');
   protected readonly prescriptionRevisionNo = signal(1);
   protected readonly customFrequencyMode = signal(false);
@@ -2875,6 +2921,7 @@ export class OpdPageComponent implements OnInit {
   protected transferDoctorId = '';
   protected selectedPrescriptionTemplateId = '';
   protected printOptions: PrescriptionPrintOptions = defaultPrescriptionPrintOptions();
+  protected interactionOverrideReason = '';
   protected saveTemplateDraft: PrescriptionTemplateDraft = emptyPrescriptionTemplateDraft();
   protected readonly prescriptionTemplates = signal<PrescriptionTemplate[]>(loadPrescriptionTemplates());
   protected readonly prescriptionTemplateOptions = computed<DropdownOption<string>[]>(() => [
@@ -2966,6 +3013,8 @@ export class OpdPageComponent implements OnInit {
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private interactionReviewResolver: ((allowed: boolean) => void) | null = null;
+  private approvedInteractionSignature = '';
 
   protected readonly doctorFilterOptions = computed<DropdownOption<string>[]>(() => [
     { label: 'All Doctors', value: '' },
@@ -3839,6 +3888,11 @@ export class OpdPageComponent implements OnInit {
     if (!this.ensurePrescriptionEditable()) {
       return;
     }
+    if (medicine.formularyStatus === 'RESTRICTED') {
+      this.toast.warning(
+        medicine.approvalRequired ? 'Restricted medicine — approval required' : 'Restricted formulary medicine',
+        medicine.restrictionReason || 'Review the hospital formulary policy before prescribing.');
+    }
     this.clinicalForm.update(form => ({
       ...form,
       prescriptionDraft: {
@@ -3983,6 +4037,71 @@ export class OpdPageComponent implements OnInit {
 
   protected closePrescriptionPreview(): void {
     this.prescriptionPreviewOpen.set(false);
+  }
+
+  protected hasBlockingInteraction(): boolean {
+    return this.interactionAlerts().some(alert => alert.behaviorCode === 'BLOCK');
+  }
+
+  protected requiresInteractionOverride(): boolean {
+    return this.interactionAlerts().some(alert => alert.behaviorCode === 'REQUIRE_OVERRIDE');
+  }
+
+  protected interactionLabel(value: string): string {
+    return value.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, letter => letter.toUpperCase());
+  }
+
+  protected cancelInteractionReview(): void {
+    const resolve = this.interactionReviewResolver;
+    this.interactionReviewResolver = null;
+    this.interactionReviewOpen.set(false);
+    this.interactionAlerts.set([]);
+    this.interactionOverrideReason = '';
+    resolve?.(false);
+  }
+
+  protected async continueAfterInteractionReview(): Promise<void> {
+    if (this.hasBlockingInteraction()) {
+      return;
+    }
+
+    const visit = this.selectedVisit();
+    const reason = this.interactionOverrideReason.trim();
+    const overrideAlerts = this.interactionAlerts().filter(alert => alert.behaviorCode === 'REQUIRE_OVERRIDE');
+    if (overrideAlerts.length && (!visit || reason.length < 5)) {
+      this.toast.warning('Clinical reason required', 'Enter at least 5 characters explaining why prescribing should continue.');
+      return;
+    }
+
+    this.saving.set(true);
+    try {
+      for (const alert of overrideAlerts) {
+        const response = await this.opdService.recordDrugInteractionOverride({
+          interactionId: alert.interactionId,
+          medicineAId: alert.medicineAId,
+          medicineBId: alert.medicineBId,
+          patientId: visit!.appointment.patientId,
+          consultationId: visit!.consultation?.id || this.encounterForm().consultationId || null,
+          prescriptionId: this.clinicalForm().prescriptionId || null,
+          overrideReason: reason
+        });
+        if (!response.success || !response.data) {
+          throw response;
+        }
+      }
+
+      this.approvedInteractionSignature = this.currentInteractionSignature();
+      const resolve = this.interactionReviewResolver;
+      this.interactionReviewResolver = null;
+      this.interactionReviewOpen.set(false);
+      this.interactionAlerts.set([]);
+      this.interactionOverrideReason = '';
+      resolve?.(true);
+    } catch (error) {
+      this.toast.error('Override could not be recorded', getApiErrorMessage(error, 'Medication-safety audit failed'));
+    } finally {
+      this.saving.set(false);
+    }
   }
 
   protected async savePrescriptionDraft(): Promise<void> {
@@ -4388,7 +4507,49 @@ export class OpdPageComponent implements OnInit {
       return false;
     }
 
+    if (!await this.reviewDrugInteractions()) {
+      return false;
+    }
+
     return Boolean(await this.saveEncounter('IN_PROGRESS'));
+  }
+
+  private async reviewDrugInteractions(): Promise<boolean> {
+    const medicineIds = [...new Set(this.clinicalForm().prescriptions.map(item => item.medicineId).filter((id): id is string => Boolean(id)))];
+    if (medicineIds.length < 2) {
+      return true;
+    }
+
+    const signature = medicineIds.slice().sort().join('|');
+    if (signature === this.approvedInteractionSignature) {
+      return true;
+    }
+
+    try {
+      const response = await this.opdService.checkDrugInteractions(medicineIds);
+      if (!response.success || !response.data) {
+        this.toast.error('Medication safety check failed', getApiErrorMessage(response, 'Interaction service did not return a result.'));
+        return false;
+      }
+      if (!response.data.length) {
+        this.approvedInteractionSignature = signature;
+        return true;
+      }
+
+      this.interactionAlerts.set(response.data);
+      this.interactionOverrideReason = '';
+      this.interactionReviewOpen.set(true);
+      return await new Promise<boolean>(resolve => {
+        this.interactionReviewResolver = resolve;
+      });
+    } catch (error) {
+      this.toast.error('Medication safety check failed', getApiErrorMessage(error, 'Prescription was not issued because interaction validation is unavailable.'));
+      return false;
+    }
+  }
+
+  private currentInteractionSignature(): string {
+    return [...new Set(this.clinicalForm().prescriptions.map(item => item.medicineId).filter((id): id is string => Boolean(id)))].sort().join('|');
   }
 
   private async ensureFinalPrescription(): Promise<boolean> {
@@ -4420,6 +4581,7 @@ export class OpdPageComponent implements OnInit {
     if (this.prescriptionLocked()) {
       return;
     }
+    this.approvedInteractionSignature = '';
     this.prescriptionStatus.set('DRAFT');
   }
 
@@ -5893,6 +6055,9 @@ interface MedicineSuggestion {
   name: string;
   strength: string;
   form: string;
+  formularyStatus?: 'APPROVED' | 'RESTRICTED';
+  approvalRequired?: boolean;
+  restrictionReason?: string | null;
 }
 
 const fallbackMedicineSuggestions: MedicineSuggestion[] = [
@@ -5926,7 +6091,10 @@ function toMedicineSuggestion(record: OpdMedicineRecord): MedicineSuggestion {
     label,
     name: parsed.name || record.name,
     strength: parsed.strength,
-    form: parsed.form || record.unit || ''
+    form: parsed.form || record.unit || '',
+    formularyStatus: record.formularyStatus,
+    approvalRequired: record.approvalRequired,
+    restrictionReason: record.restrictionReason
   };
 }
 

@@ -82,6 +82,28 @@ export interface OpdMedicineRecord {
   salePrice: number;
   createdAt: string;
   updatedAt: string | null;
+  formularyStatus?: 'APPROVED' | 'RESTRICTED';
+  approvalRequired?: boolean;
+  restrictionReason?: string | null;
+  alternativeMedicineName?: string | null;
+  allowedDepartments?: string[];
+}
+
+export type OpdDrugInteractionBehavior = 'INFORM' | 'WARN' | 'REQUIRE_OVERRIDE' | 'BLOCK';
+export interface OpdDrugInteractionAlert {
+  interactionId: string;
+  medicineAId: string;
+  medicineAName: string;
+  medicineAStrength: string;
+  genericDrugAName: string;
+  medicineBId: string;
+  medicineBName: string;
+  medicineBStrength: string;
+  genericDrugBName: string;
+  severity: 'MINOR' | 'MODERATE' | 'MAJOR' | 'CONTRAINDICATED';
+  behaviorCode: OpdDrugInteractionBehavior;
+  description: string;
+  clinicalRecommendation: string;
 }
 
 export interface OpdLabTestRecord {

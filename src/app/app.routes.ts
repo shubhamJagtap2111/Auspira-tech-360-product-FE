@@ -165,7 +165,13 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/laboratory/laboratory-page.component').then(m => m.LaboratoryPageComponent)
   },
-  moduleRoute('pharmacy', 'Pharmacy', ['Medicine Catalog', 'Stock Management', 'Purchase Entry', 'Sales Entry', 'Expiry Tracking', 'Low Stock Alerts']),
+  {
+    path: 'pharmacy',
+    canActivate: [authGuard, permissionGuard],
+    data: { permission: 'Pharmacy.View' },
+    loadComponent: () =>
+      import('./features/pharmacy/pharmacy-page.component').then(m => m.PharmacyPageComponent)
+  },
   {
     path: 'billing',
     canActivate: [authGuard, permissionGuard],

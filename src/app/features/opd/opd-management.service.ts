@@ -8,6 +8,7 @@ import {
   OpdConsultationRecord,
   OpdDiagnosisForm,
   OpdDiagnosisRecord,
+  OpdDrugInteractionAlert,
   OpdEncounterForm,
   OpdFollowUpRecord,
   OpdBillableChargeRecord,
@@ -40,7 +41,15 @@ export class OpdManagementService {
   }
 
   listMedicines(pageNumber = 1, pageSize = 100): Promise<OpdApiResponse<OpdMedicineRecord[]>> {
-    return firstValueFrom(this.api.get<OpdApiResponse<OpdMedicineRecord[]>>(`/pharmacy/medicines?pageNumber=${pageNumber}&pageSize=${pageSize}`));
+    return firstValueFrom(this.api.get<OpdApiResponse<OpdMedicineRecord[]>>(`/pharmacy/prescribing-catalog?pageNumber=${pageNumber}&pageSize=${pageSize}`));
+  }
+
+  checkDrugInteractions(medicineIds: string[]): Promise<OpdApiResponse<OpdDrugInteractionAlert[]>> {
+    return firstValueFrom(this.api.post<OpdApiResponse<OpdDrugInteractionAlert[]>>('/pharmacy/interactions/check', { medicineIds }));
+  }
+
+  recordDrugInteractionOverride(body: { interactionId: string; medicineAId: string; medicineBId: string; patientId: string; consultationId: string | null; prescriptionId: string | null; overrideReason: string }): Promise<OpdApiResponse<{ id: string }>> {
+    return firstValueFrom(this.api.post<OpdApiResponse<{ id: string }>>('/pharmacy/interactions/overrides', body));
   }
 
   createConsultation(form: OpdEncounterForm): Promise<OpdApiResponse<OpdConsultationRecord>> {
