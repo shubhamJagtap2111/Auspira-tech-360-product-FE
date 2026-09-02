@@ -2023,7 +2023,7 @@ export class AppShellComponent implements OnInit {
       label: 'Operations',
       items: [
         { path: '/laboratory', label: 'Laboratory', icon: 'biotech' },
-        { path: '/pharmacy',   label: 'Pharmacy',   icon: 'medication' },
+        { path: '/pharmacy',   label: 'Pharmacy',   icon: 'medication', requiredPermission: 'Pharmacy.View' },
         { path: '/billing',    label: 'Billing',    icon: 'receipt_long', requiredPermission: 'Billing.View' },
         { path: '/inventory',  label: 'Inventory',  icon: 'inventory_2' }
       ]
