@@ -1,0 +1,52 @@
+
+> auspira-care360-web@0.1.0 start
+> ng serve --port 4203 --host 127.0.0.1
+
+> Building...
+√ Building...
+Initial chunk files | Names                              |  Raw size | Estimated transfer size
+chunk-GKHDPCOO.js   | -                                  | 232.10 kB |                65.47 kB
+main.js             | main                               | 155.82 kB |                35.63 kB
+chunk-6USZ6A53.js   | -                                  |  84.05 kB |                21.32 kB
+chunk-5K3E7CEN.js   | -                                  |  44.08 kB |                 8.81 kB
+polyfills.js        | polyfills                          |  34.59 kB |                11.33 kB
+chunk-LKIMY5XV.js   | -                                  |  17.27 kB |                 3.63 kB
+styles.css          | styles                             |  16.29 kB |                 3.38 kB
+chunk-TX5W5JEC.js   | -                                  |   7.23 kB |                 2.28 kB
+chunk-5TT3SCQA.js   | -                                  |   4.14 kB |                 1.24 kB
+chunk-YWZPLDZT.js   | -                                  |   3.96 kB |                 1.17 kB
+chunk-26P7YZT7.js   | -                                  |   3.83 kB |                 1.35 kB
+chunk-PNWDHYTJ.js   | -                                  |   3.15 kB |                 1.05 kB
+chunk-MFAYD3ZG.js   | -                                  |   1.80 kB |               756 bytes
+chunk-KGSVTLFO.js   | -                                  |   1.67 kB |               622 bytes
+chunk-6C6NO537.js   | -                                  | 830 bytes |               830 bytes
+chunk-FQEIBGYC.js   | -                                  | 538 bytes |               538 bytes
+chunk-KOSU7VSY.js   | -                                  | 380 bytes |               380 bytes
+chunk-LIH2H7VS.js   | -                                  | 366 bytes |               366 bytes
+
+                    | Initial total                      | 612.08 kB |               160.14 kB
+
+Lazy chunk files    | Names                              |  Raw size | Estimated transfer size
+chunk-S5OCGDY7.js   | opd-page-component                 | 242.89 kB |                40.47 kB
+chunk-5AFZWFGL.js   | ipd-page-component                 | 169.84 kB |                29.88 kB
+chunk-MQA6U42T.js   | billing-page-component             | 104.39 kB |                19.55 kB
+chunk-BTXUT63O.js   | pharmacy-page-component            | 102.49 kB |                18.32 kB
+chunk-YDCXVVS5.js   | laboratory-page-component          | 101.92 kB |                15.60 kB
+chunk-KNVNB5X3.js   | patient-profile-page-component     |  86.05 kB |                15.44 kB
+chunk-CUAGNSFP.js   | dashboard-page-component           |  79.98 kB |                14.35 kB
+chunk-WG4JLZ2U.js   | doctor-profile-page-component      |  73.10 kB |                13.31 kB
+chunk-FXOXEJDS.js   | patient-list-page-component        |  72.90 kB |                14.60 kB
+chunk-5QM5RQJK.js   | appointment-page-component         |  62.26 kB |                13.02 kB
+chunk-VW6YMRYL.js   | quality-indicators-page-component  |  49.34 kB |                10.60 kB
+chunk-WWKRZZHR.js   | doctor-list-page-component         |  41.58 kB |                 9.07 kB
+chunk-LJNH7QUD.js   | profile-page-component             |  40.91 kB |                10.02 kB
+chunk-RMIVZZEX.js   | reports-insights-page-component    |  40.77 kB |                 9.16 kB
+chunk-TMBH4ZVP.js   | hospital-management-page-component |  37.71 kB |                 7.06 kB
+...and 29 more lazy chunks files. Use "--verbose" to show all the files.
+
+Application bundle generation complete. [30.896 seconds] - 2026-09-02T06:21:39.307Z
+
+Watch mode enabled. Watching for file changes...
+NOTE: Raw file sizes do not reflect development server per-request transformations.
+  ➜  Local:   http://127.0.0.1:4203/
+  ➜  press h + enter to show help
