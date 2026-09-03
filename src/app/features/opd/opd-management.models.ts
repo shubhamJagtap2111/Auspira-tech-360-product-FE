@@ -106,6 +106,21 @@ export interface OpdDrugInteractionAlert {
   clinicalRecommendation: string;
 }
 
+export interface OpdDrugAllergyAlert {
+  mappingId: string;
+  patientAllergyId: string;
+  allergenName: string;
+  reaction: string | null;
+  allergySeverity: string;
+  isCritical: boolean;
+  medicineId: string;
+  medicineName: string;
+  medicineStrength: string;
+  genericDrugName: string;
+  behaviorCode: 'REQUIRE_OVERRIDE' | 'BLOCK';
+  clinicalRecommendation: string;
+}
+
 export interface OpdLabTestRecord {
   id: string;
   code: string;

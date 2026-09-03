@@ -8,6 +8,7 @@ import {
   OpdConsultationRecord,
   OpdDiagnosisForm,
   OpdDiagnosisRecord,
+  OpdDrugAllergyAlert,
   OpdDrugInteractionAlert,
   OpdEncounterForm,
   OpdFollowUpRecord,
@@ -50,6 +51,14 @@ export class OpdManagementService {
 
   recordDrugInteractionOverride(body: { interactionId: string; medicineAId: string; medicineBId: string; patientId: string; consultationId: string | null; prescriptionId: string | null; overrideReason: string }): Promise<OpdApiResponse<{ id: string }>> {
     return firstValueFrom(this.api.post<OpdApiResponse<{ id: string }>>('/pharmacy/interactions/overrides', body));
+  }
+
+  checkDrugAllergies(patientId: string, medicineIds: string[]): Promise<OpdApiResponse<OpdDrugAllergyAlert[]>> {
+    return firstValueFrom(this.api.post<OpdApiResponse<OpdDrugAllergyAlert[]>>('/pharmacy/allergies/check', { patientId, medicineIds }));
+  }
+
+  recordDrugAllergyOverride(body: { mappingId: string; patientAllergyId: string; patientId: string; medicineId: string; consultationId: string | null; prescriptionId: string | null; overrideReason: string }): Promise<OpdApiResponse<{ id: string }>> {
+    return firstValueFrom(this.api.post<OpdApiResponse<{ id: string }>>('/pharmacy/allergies/overrides', body));
   }
 
   createConsultation(form: OpdEncounterForm): Promise<OpdApiResponse<OpdConsultationRecord>> {

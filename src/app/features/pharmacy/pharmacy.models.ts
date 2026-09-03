@@ -1,4 +1,4 @@
-export type PharmacyTab = 'dashboard' | 'prescriptions' | 'dispensing' | 'medicines' | 'formulary' | 'interactions' | 'stock';
+export type PharmacyTab = 'dashboard' | 'prescriptions' | 'dispensing' | 'medicines' | 'formulary' | 'interactions' | 'allergies' | 'stock';
 export interface PharmacyDashboard { pendingPrescriptions: number; dispensedToday: number; salesToday: number; lowStockItems: number; expiringBatches: number; expiredBatches: number; stockValue: number; recentDispensings: RecentDispensing[]; }
 export interface RecentDispensing { id: string; dispenseNumber: string; patientName: string; medicalRecordNo: string; totalAmount: number; statusCode: string; dispensedAt: string; }
 export interface PrescriptionQueueItem { id: string; prescriptionNumber: string; statusCode: string; prescribedAt: string; patientId: string; patientName: string; medicalRecordNo: string; doctorName: string | null; encounterId: string; itemCount: number; availableItemCount: number; }
@@ -20,5 +20,9 @@ export type DrugInteractionBehavior = 'INFORM' | 'WARN' | 'REQUIRE_OVERRIDE' | '
 export interface DrugInteractionRule { id: string; genericDrugAId: string; genericDrugACode: string; genericDrugAName: string; genericDrugBId: string; genericDrugBCode: string; genericDrugBName: string; severity: DrugInteractionSeverity; behaviorCode: DrugInteractionBehavior; description: string; clinicalRecommendation: string; isActive: boolean; reviewedBy: string | null; reviewedAt: string | null; reviewNotes: string | null; updatedAt: string | null; }
 export interface DrugInteractionOptions { genericDrugs: Array<{ id: string; code: string; name: string }>; severities: DrugInteractionSeverity[]; behaviors: DrugInteractionBehavior[]; }
 export interface SaveDrugInteractionRequest { genericDrugAId: string; genericDrugBId: string; severity: DrugInteractionSeverity; behaviorCode: DrugInteractionBehavior; description: string; clinicalRecommendation: string; reviewNotes: string; isActive: boolean; }
+export type DrugAllergyBehavior = 'REQUIRE_OVERRIDE' | 'BLOCK';
+export interface DrugAllergyMapping { id: string; genericDrugId: string; genericDrugCode: string; genericDrugName: string; allergenName: string; allergenAliases: string[]; behaviorCode: DrugAllergyBehavior; clinicalRecommendation: string; isActive: boolean; reviewedBy: string | null; reviewedAt: string | null; reviewNotes: string | null; updatedAt: string | null; }
+export interface DrugAllergyMappingOptions { genericDrugs: Array<{ id: string; code: string; name: string }>; behaviors: DrugAllergyBehavior[]; }
+export interface SaveDrugAllergyMappingRequest { genericDrugId: string; allergenName: string; allergenAliases: string[]; behaviorCode: DrugAllergyBehavior; clinicalRecommendation: string; reviewNotes: string; isActive: boolean; }
 export interface ReceiveBatchRequest { medicineId: string; batchNumber: string; expiryDate: string; quantity: number; purchasePrice: number; mrp: number; salePrice: number; locationId: string | null; }
 export interface DispenseLine { prescriptionItemId: string; medicineId: string; batchId: string; quantity: number; }

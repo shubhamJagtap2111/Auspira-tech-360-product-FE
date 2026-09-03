@@ -19,6 +19,7 @@ import {
   OpdComplaintForm,
   OpdConsultationRecord,
   OpdDiagnosisForm,
+  OpdDrugAllergyAlert,
   OpdDrugInteractionAlert,
   OpdEncounterForm,
   OpdEncounterSection,
@@ -1212,6 +1213,26 @@ import { OpdManagementService } from './opd-management.service';
             </section>
           </div>
         }
+      }
+
+      @if (allergyReviewOpen()) {
+        <div class="prescription-backdrop" (click)="cancelAllergyReview()">
+          <section class="print-options-modal interaction-review-modal" (click)="$event.stopPropagation()" aria-label="Allergy alert review">
+            <header><div><p class="ac-eyebrow">Allergy Alert</p><h2>Patient Allergy Match</h2><span>The prescribed medication matches an active Patient Profile allergy.</span></div><button class="modal-close" type="button" aria-label="Close allergy review" (click)="cancelAllergyReview()"><span class="material-symbols-rounded">close</span></button></header>
+            <div class="interaction-alert-list">
+              @for (alert of allergyAlerts(); track alert.mappingId + alert.patientAllergyId + alert.medicineId) {
+                <article class="allergy-alert" [class.blocking]="alert.behaviorCode==='BLOCK'">
+                  <div class="interaction-alert-head"><span class="material-symbols-rounded">emergency_home</span><div><strong>{{ alert.allergenName }} allergy → {{ alert.medicineName }} {{ alert.medicineStrength }}</strong><small>{{ alert.allergySeverity || 'Severity not recorded' }}{{ alert.isCritical ? ' · Critical' : '' }} · {{ interactionLabel(alert.behaviorCode) }}</small></div></div>
+                  @if (alert.reaction) { <p><strong>Recorded reaction:</strong> {{ alert.reaction }}</p> }
+                  <div class="clinical-recommendation"><strong>Clinical recommendation</strong><span>{{ alert.clinicalRecommendation }}</span></div>
+                </article>
+              }
+            </div>
+            @if (!hasBlockingAllergy()) { <label class="field interaction-reason"><span>Clinical override reason *</span><textarea rows="3" [(ngModel)]="allergyOverrideReason" placeholder="Document why the medication is still required and the monitoring or mitigation plan..."></textarea><small>Your identity, patient, medicine, allergy, encounter, and reason will be audited.</small></label> }
+            @if (hasBlockingAllergy()) { <div class="interaction-stop"><span class="material-symbols-rounded">gpp_bad</span><div><strong>This allergy rule cannot be overridden</strong><small>Cancel and replace the medication before issuing the prescription.</small></div></div> }
+            <footer><button class="ac-btn ac-btn-secondary" type="button" (click)="cancelAllergyReview()">Cancel</button><button class="ac-btn ac-btn-primary" type="button" [disabled]="hasBlockingAllergy() || saving() || allergyOverrideReason.trim().length < 5" (click)="continueAfterAllergyReview()"><span class="material-symbols-rounded">approval</span>{{ saving() ? 'Recording...' : 'Override with Reason' }}</button></footer>
+          </section>
+        </div>
       }
 
       @if (interactionReviewOpen()) {
@@ -2913,6 +2934,8 @@ export class OpdPageComponent implements OnInit {
   protected readonly printOptionsOpen = signal(false);
   protected readonly interactionReviewOpen = signal(false);
   protected readonly interactionAlerts = signal<OpdDrugInteractionAlert[]>([]);
+  protected readonly allergyReviewOpen = signal(false);
+  protected readonly allergyAlerts = signal<OpdDrugAllergyAlert[]>([]);
   protected readonly prescriptionStatus = signal<PrescriptionStatus>('DRAFT');
   protected readonly prescriptionRevisionNo = signal(1);
   protected readonly customFrequencyMode = signal(false);
@@ -2923,6 +2946,7 @@ export class OpdPageComponent implements OnInit {
   protected selectedPrescriptionTemplateId = '';
   protected printOptions: PrescriptionPrintOptions = defaultPrescriptionPrintOptions();
   protected interactionOverrideReason = '';
+  protected allergyOverrideReason = '';
   protected saveTemplateDraft: PrescriptionTemplateDraft = emptyPrescriptionTemplateDraft();
   protected readonly prescriptionTemplates = signal<PrescriptionTemplate[]>(loadPrescriptionTemplates());
   protected readonly prescriptionTemplateOptions = computed<DropdownOption<string>[]>(() => [
@@ -3016,6 +3040,8 @@ export class OpdPageComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private interactionReviewResolver: ((allowed: boolean) => void) | null = null;
   private approvedInteractionSignature = '';
+  private allergyReviewResolver: ((allowed: boolean) => void) | null = null;
+  private approvedAllergySignature = '';
 
   protected readonly doctorFilterOptions = computed<DropdownOption<string>[]>(() => [
     { label: 'All Doctors', value: '' },
@@ -4040,6 +4066,61 @@ export class OpdPageComponent implements OnInit {
     this.prescriptionPreviewOpen.set(false);
   }
 
+  protected hasBlockingAllergy(): boolean {
+    return this.allergyAlerts().some(alert => alert.behaviorCode === 'BLOCK');
+  }
+
+  protected cancelAllergyReview(): void {
+    const resolve = this.allergyReviewResolver;
+    this.allergyReviewResolver = null;
+    this.allergyReviewOpen.set(false);
+    this.allergyAlerts.set([]);
+    this.allergyOverrideReason = '';
+    resolve?.(false);
+  }
+
+  protected async continueAfterAllergyReview(): Promise<void> {
+    if (this.hasBlockingAllergy() || this.allergyOverrideReason.trim().length < 5) {
+      return;
+    }
+
+    const visit = this.selectedVisit();
+    if (!visit) {
+      this.cancelAllergyReview();
+      return;
+    }
+
+    this.saving.set(true);
+    try {
+      for (const alert of this.allergyAlerts()) {
+        const response = await this.opdService.recordDrugAllergyOverride({
+          mappingId: alert.mappingId,
+          patientAllergyId: alert.patientAllergyId,
+          patientId: visit.appointment.patientId,
+          medicineId: alert.medicineId,
+          consultationId: visit.consultation?.id || this.encounterForm().consultationId || null,
+          prescriptionId: this.clinicalForm().prescriptionId || null,
+          overrideReason: this.allergyOverrideReason.trim()
+        });
+        if (!response.success || !response.data) {
+          throw response;
+        }
+      }
+
+      this.approvedAllergySignature = this.currentAllergySignature();
+      const resolve = this.allergyReviewResolver;
+      this.allergyReviewResolver = null;
+      this.allergyReviewOpen.set(false);
+      this.allergyAlerts.set([]);
+      this.allergyOverrideReason = '';
+      resolve?.(true);
+    } catch (error) {
+      this.toast.error('Allergy override could not be recorded', getApiErrorMessage(error as ApiResponse<unknown>, 'Medication-allergy audit failed'));
+    } finally {
+      this.saving.set(false);
+    }
+  }
+
   protected hasBlockingInteraction(): boolean {
     return this.interactionAlerts().some(alert => alert.behaviorCode === 'BLOCK');
   }
@@ -4508,11 +4589,52 @@ export class OpdPageComponent implements OnInit {
       return false;
     }
 
-    if (!await this.reviewDrugInteractions()) {
+    if (!await this.reviewDrugAllergies() || !await this.reviewDrugInteractions()) {
       return false;
     }
 
     return Boolean(await this.saveEncounter('IN_PROGRESS'));
+  }
+
+  private async reviewDrugAllergies(): Promise<boolean> {
+    const visit = this.selectedVisit();
+    const medicineIds = [...new Set(this.clinicalForm().prescriptions.map(item => item.medicineId).filter((id): id is string => Boolean(id)))];
+    if (!visit || medicineIds.length === 0) {
+      return true;
+    }
+
+    const signature = `${visit.appointment.patientId}|${medicineIds.slice().sort().join('|')}`;
+    if (signature === this.approvedAllergySignature) {
+      return true;
+    }
+
+    try {
+      const response = await this.opdService.checkDrugAllergies(visit.appointment.patientId, medicineIds);
+      if (!response.success || !response.data) {
+        this.toast.error('Allergy safety check failed', getApiErrorMessage(response, 'Allergy service did not return a result.'));
+        return false;
+      }
+      if (!response.data.length) {
+        this.approvedAllergySignature = signature;
+        return true;
+      }
+
+      this.allergyAlerts.set(response.data);
+      this.allergyOverrideReason = '';
+      this.allergyReviewOpen.set(true);
+      return await new Promise<boolean>(resolve => {
+        this.allergyReviewResolver = resolve;
+      });
+    } catch (error) {
+      this.toast.error('Allergy safety check failed', getApiErrorMessage(error as ApiResponse<unknown>, 'Prescription was not issued because allergy validation is unavailable.'));
+      return false;
+    }
+  }
+
+  private currentAllergySignature(): string {
+    const patientId = this.selectedVisit()?.appointment.patientId || '';
+    const medicines = [...new Set(this.clinicalForm().prescriptions.map(item => item.medicineId).filter((id): id is string => Boolean(id)))].sort().join('|');
+    return `${patientId}|${medicines}`;
   }
 
   private async reviewDrugInteractions(): Promise<boolean> {
@@ -4583,6 +4705,7 @@ export class OpdPageComponent implements OnInit {
       return;
     }
     this.approvedInteractionSignature = '';
+    this.approvedAllergySignature = '';
     this.prescriptionStatus.set('DRAFT');
   }
 

@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ApiClientService } from '../../core/http/api-client.service';
-import { DispenseLine, DrugInteractionBehavior, DrugInteractionOptions, DrugInteractionRule, DrugInteractionSeverity, DrugMasterOptions, FormularyOptions, FormularyPolicy, FormularyStatus, Medicine, PharmacyDashboard, PrescriptionDetail, PrescriptionQueueItem, ReceiveBatchRequest, RecentDispensing, SaveDrugInteractionRequest, SaveFormularyPolicyRequest, SaveGenericDrugRequest, SaveMedicineRequest, StockBatch } from './pharmacy.models';
+import { DispenseLine, DrugAllergyBehavior, DrugAllergyMapping, DrugAllergyMappingOptions, DrugInteractionBehavior, DrugInteractionOptions, DrugInteractionRule, DrugInteractionSeverity, DrugMasterOptions, FormularyOptions, FormularyPolicy, FormularyStatus, Medicine, PharmacyDashboard, PrescriptionDetail, PrescriptionQueueItem, ReceiveBatchRequest, RecentDispensing, SaveDrugAllergyMappingRequest, SaveDrugInteractionRequest, SaveFormularyPolicyRequest, SaveGenericDrugRequest, SaveMedicineRequest, StockBatch } from './pharmacy.models';
 
 @Injectable({ providedIn: 'root' })
 export class PharmacyService {
@@ -24,6 +24,10 @@ export class PharmacyService {
   interactionOptions() { return this.get<DrugInteractionOptions>('/pharmacy/interactions/options'); }
   createInteraction(body: SaveDrugInteractionRequest) { return this.post<{ id: string }>('/pharmacy/interactions', body); }
   updateInteraction(id: string, body: SaveDrugInteractionRequest) { return this.put<{ id: string }>(`/pharmacy/interactions/${id}`, body); }
+  allergyMappings(search = '', behavior: DrugAllergyBehavior | '' = '') { return this.get<DrugAllergyMapping[]>(`/pharmacy/allergy-mappings?search=${encodeURIComponent(search)}&behavior=${encodeURIComponent(behavior)}`); }
+  allergyMappingOptions() { return this.get<DrugAllergyMappingOptions>('/pharmacy/allergy-mappings/options'); }
+  createAllergyMapping(body: SaveDrugAllergyMappingRequest) { return this.post<{ id: string }>('/pharmacy/allergy-mappings', body); }
+  updateAllergyMapping(id: string, body: SaveDrugAllergyMappingRequest) { return this.put<{ id: string }>(`/pharmacy/allergy-mappings/${id}`, body); }
   stock(search = '', state = '') { return this.get<StockBatch[]>(`/pharmacy/stock?search=${encodeURIComponent(search)}&state=${encodeURIComponent(state)}`); }
   receiveBatch(body: ReceiveBatchRequest) { return this.post<{ id: string }>('/pharmacy/stock/batches', body); }
   dispense(prescriptionId: string, items: DispenseLine[], notes = '') { return this.post<{ id: string; dispenseNumber: string; saleNumber: string; totalAmount: number }>('/pharmacy/dispensings', { prescriptionId, locationId: null, notes, items }); }
