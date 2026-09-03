@@ -1825,6 +1825,8 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
       backdrop-filter: blur(6px);
     }
     .patient-prescription-modal {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
       width: min(900px, 100%);
       max-height: min(90vh, 860px);
       overflow: hidden;
@@ -1855,7 +1857,7 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
       padding: 20px 24px;
-      max-height: calc(90vh - 176px);
+      min-height: 0;
       overflow: auto;
     }
     .patient-prescription-sheet .sheet-row,
@@ -1997,11 +1999,17 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
     }
     .patient-prescription-modal footer {
       display: flex;
+      align-items: center;
       justify-content: flex-end;
+      flex-wrap: wrap;
       gap: 10px;
-      padding: 16px 24px;
+      padding: 14px 24px 18px;
       border-top: 1px solid var(--ac-border);
       background: color-mix(in srgb, var(--ac-surface) 94%, white);
+    }
+    .patient-prescription-modal footer .ac-btn {
+      min-height: 42px;
+      padding: 9px 16px;
     }
 
     @media (max-width: 620px) {
