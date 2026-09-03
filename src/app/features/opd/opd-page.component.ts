@@ -769,6 +769,8 @@ import { OpdManagementService } from './opd-management.service';
                                     <label class="field"><span>Custom Frequency</span><input name="customFrequency" [(ngModel)]="clinicalForm().prescriptionDraft.frequency" placeholder="Enter custom frequency" /></label>
                                   }
                                   <label class="field wide"><span>Instructions</span><input name="instructions" [(ngModel)]="clinicalForm().prescriptionDraft.instructions" placeholder="After Food" /></label>
+                                  <label class="field prescription-prn"><span>As needed (PRN)</span><input type="checkbox" name="isPrn" [(ngModel)]="clinicalForm().prescriptionDraft.isPrn" /></label>
+                                  @if (clinicalForm().prescriptionDraft.isPrn) { <label class="field wide"><span>PRN reason / indication</span><input name="prnReason" [(ngModel)]="clinicalForm().prescriptionDraft.prnReason" placeholder="Example: Fever above 38°C or pain" /></label> }
                                 </div>
                                 <button class="ac-btn ac-btn-secondary" type="button" (click)="addPrescriptionItem()"><span class="material-symbols-rounded">add</span>Add Medicine</button>
                               </section>
@@ -940,6 +942,10 @@ import { OpdManagementService } from './opd-management.service';
                                     <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving() || prescriptionLocked()" (click)="finalizePrescription()">
                                       <span class="material-symbols-rounded">verified</span>
                                       Finalize
+                                    </button>
+                                    <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving() || prescriptionSentToPharmacy()" (click)="sendPrescriptionToPharmacy()">
+                                      <span class="material-symbols-rounded">local_pharmacy</span>
+                                      {{ prescriptionSentToPharmacy() ? 'Sent to Pharmacy' : 'Send to Pharmacy' }}
                                     </button>
                                     <button class="ac-btn ac-btn-primary complete-action" type="button" [disabled]="saving()" (click)="completeVisit()">
                                       <span class="material-symbols-rounded">task_alt</span>
@@ -2937,6 +2943,7 @@ export class OpdPageComponent implements OnInit {
   protected readonly allergyReviewOpen = signal(false);
   protected readonly allergyAlerts = signal<OpdDrugAllergyAlert[]>([]);
   protected readonly prescriptionStatus = signal<PrescriptionStatus>('DRAFT');
+  protected readonly prescriptionSentToPharmacy = signal(false);
   protected readonly prescriptionRevisionNo = signal(1);
   protected readonly customFrequencyMode = signal(false);
   protected readonly customDietAdviceMode = signal(false);
@@ -3362,6 +3369,7 @@ export class OpdPageComponent implements OnInit {
     this.encounterForm.set(toEncounterForm(visit, 'IN_PROGRESS'));
     this.clinicalForm.set(draftState?.form ?? emptyClinicalForm(visit.consultation?.notes ?? ''));
     this.prescriptionStatus.set('DRAFT');
+    this.prescriptionSentToPharmacy.set(false);
     this.prescriptionRevisionNo.set(1);
     this.prescriptionPreviewOpen.set(false);
     this.activeEncounterSection.set(draftState?.section ?? 'snapshot');
@@ -4231,6 +4239,42 @@ export class OpdPageComponent implements OnInit {
     return true;
   }
 
+  protected async sendPrescriptionToPharmacy(): Promise<void> {
+    if (this.prescriptionSentToPharmacy()) {
+      return;
+    }
+    this.commitPrescriptionDraft();
+    const invalid = this.clinicalForm().prescriptions.find(item => !item.medicineId || !item.dosage.trim() || !item.route.trim() || !item.frequency.trim() || parsePrescriptionDuration(item.duration) === null || parsePrescriptionQuantity(item.quantity) === null || (item.isPrn && !item.prnReason?.trim()));
+    if (invalid) {
+      this.toast.warning('Complete prescription details', 'Every medicine sent to Pharmacy requires a mapped drug, dose, route, frequency, duration, quantity, and PRN indication when applicable.');
+      this.activeEncounterSection.set('prescription');
+      return;
+    }
+    if (!await this.finalizePrescription(false)) {
+      return;
+    }
+    const prescriptionId = this.clinicalForm().prescriptionId;
+    if (!prescriptionId) {
+      this.toast.error('Prescription unavailable', 'Save the prescription before sending it to Pharmacy.');
+      return;
+    }
+
+    this.saving.set(true);
+    try {
+      const response = await this.opdService.sendPrescriptionToPharmacy(prescriptionId);
+      if (!response.success || !response.data) {
+        this.toast.error('Unable to send prescription', getApiErrorMessage(response, 'Pharmacy handoff failed'));
+        return;
+      }
+      this.prescriptionSentToPharmacy.set(true);
+      this.toast.success('Prescription sent to Pharmacy', `${response.data.prescriptionNumber} is now in the pharmacy work queue.`);
+    } catch (error) {
+      this.toast.error('Unable to send prescription', getApiErrorMessage(error as ApiResponse<unknown>, 'Pharmacy handoff failed'));
+    } finally {
+      this.saving.set(false);
+    }
+  }
+
   protected async printPrescription(saveBeforePrint = true): Promise<void> {
     if (saveBeforePrint && !await this.ensureFinalPrescription()) {
       return;
@@ -4325,6 +4369,7 @@ export class OpdPageComponent implements OnInit {
 
   protected createRevisedPrescription(): void {
     this.prescriptionStatus.set('DRAFT');
+    this.prescriptionSentToPharmacy.set(false);
     this.prescriptionRevisionNo.update(value => value + 1);
     this.clinicalForm.update(form => ({
       ...form,
@@ -4706,6 +4751,7 @@ export class OpdPageComponent implements OnInit {
     }
     this.approvedInteractionSignature = '';
     this.approvedAllergySignature = '';
+    this.prescriptionSentToPharmacy.set(false);
     this.prescriptionStatus.set('DRAFT');
   }
 
@@ -4844,6 +4890,10 @@ export class OpdPageComponent implements OnInit {
       const context = buildPrescriptionContext(visit, consultation, prescriptionNo, this.prescriptionStatusLabel(), this.prescriptionRevisionNo());
       const response = await this.opdService.createPrescription(
         consultation.id,
+        visit.appointment.patientId,
+        visit.appointment.doctorId,
+        prescriptionNo,
+        form.diagnoses.map(item => [item.diagnosisCode,item.diagnosisName].filter(Boolean).join(' - ')).join('; '),
         buildPrescriptionInstructions(form, this.labTests(), context, form.includeVitalsInPrescription ? buildPrescriptionVitals(form) : [])
       );
       if (response.success && response.data) {
@@ -5492,7 +5542,18 @@ function emptyDiagnosisForm(): OpdDiagnosisForm {
 }
 
 function emptyPrescriptionItemForm(): OpdPrescriptionItemForm {
-  return { medicine: '', strength: '', dosageForm: 'Tablet', dosage: '', route: 'Oral', frequency: '', duration: '', quantity: '', instructions: '' };
+  return { medicine: '', strength: '', dosageForm: 'Tablet', dosage: '', route: 'Oral', frequency: '', duration: '', quantity: '', instructions: '', isPrn: false, prnReason: '' };
+}
+
+function parsePrescriptionDuration(value: string): number | null {
+  const match = String(value || '').match(/\d+/);
+  const parsed = match ? Number(match[0]) : 0;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function parsePrescriptionQuantity(value: string): number | null {
+  const parsed = Number(String(value || '').replace(/[^0-9.]/g, ''));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
 function emptyLabOrderForm() {
@@ -5763,12 +5824,8 @@ function buildPrescriptionInstructions(form: OpdClinicalForm, labTests: OpdLabTe
     `- Hospital: ${context.hospitalName}`,
     `- Patient: ${context.patientName}`,
     `- MRN: ${context.patientMrn}`,
-    `- Patient ID: ${context.patientId}`,
     `- Appointment: ${context.appointmentNo}`,
-    `- Appointment ID: ${context.appointmentId}`,
     `- OPD Encounter: ${context.opdEncounterNo}`,
-    `- OPD Encounter ID: ${context.opdEncounterId}`,
-    `- Clinical Record: ${context.clinicalRecordNo}`,
     `- Prescription No: ${context.prescriptionNo}`,
     `- Status: ${context.statusLabel}`,
     `- Revision: ${context.revisionNo}`,

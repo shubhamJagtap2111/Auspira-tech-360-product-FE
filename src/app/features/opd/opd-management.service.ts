@@ -80,9 +80,17 @@ export class OpdManagementService {
     }));
   }
 
-  createPrescription(consultationId: string, instructions: string): Promise<OpdApiResponse<OpdPrescriptionRecord>> {
+  createPrescription(consultationId: string, patientId: string, doctorId: string, prescriptionNo: string, diagnosisSummary: string, instructions: string): Promise<OpdApiResponse<OpdPrescriptionRecord>> {
     return firstValueFrom(this.api.post<OpdApiResponse<OpdPrescriptionRecord>>('/opd/prescriptions', {
       consultationId,
+      patientId,
+      doctorId,
+      encounterId: consultationId,
+      encounterType: 'OPD',
+      sourceModule: 'OPD',
+      diagnosisSummary: diagnosisSummary.trim() || null,
+      prescriptionNo,
+      statusCode: 'DRAFT',
       instructions: instructions.trim()
     }));
   }
@@ -92,10 +100,25 @@ export class OpdManagementService {
       prescriptionId,
       medicineId: item.medicineId || null,
       medicineName: item.medicine.trim(),
-      dosage: [item.dosage, item.strength, item.dosageForm, item.quantity ? `Qty ${item.quantity}` : ''].filter(Boolean).join(' · '),
-      frequency: [item.frequency, item.route, item.instructions].filter(Boolean).join(' · '),
-      days: parseDurationDays(item.duration)
+      dosage: item.dosage.trim(),
+      frequency: item.frequency.trim(),
+      days: parseDurationDays(item.duration),
+      strength: item.strength.trim() || null,
+      dosageForm: item.dosageForm.trim() || null,
+      dose: item.dosage.trim(),
+      route: item.route.trim(),
+      durationValue: parseDurationDays(item.duration),
+      durationUnit: 'DAY',
+      quantity: parsePositiveNumber(item.quantity),
+      quantityUnit: item.dosageForm.trim() || 'Unit',
+      instructions: item.instructions.trim() || null,
+      isPrn: Boolean(item.isPrn),
+      prnReason: item.prnReason?.trim() || null
     }));
+  }
+
+  sendPrescriptionToPharmacy(prescriptionId: string): Promise<OpdApiResponse<{ id: string; prescriptionNumber: string; statusCode: string; sentToPharmacyAt: string }>> {
+    return firstValueFrom(this.api.post<OpdApiResponse<{ id: string; prescriptionNumber: string; statusCode: string; sentToPharmacyAt: string }>>(`/prescriptions/${prescriptionId}/send-to-pharmacy`, {}));
   }
 
   createLabOrder(patientId: string, consultationId: string, tests: OpdLabTestRecord[], priority: string, clinicalNotes: string, doctorId: string): Promise<OpdApiResponse<OpdLabOrderRecord>> {
@@ -208,4 +231,9 @@ function formatDiagnosisText(diagnosis: OpdDiagnosisForm): string {
 function parseDurationDays(value: string): number {
   const match = value.match(/\d+/);
   return match ? Math.max(Number(match[0]), 1) : 1;
+}
+
+function parsePositiveNumber(value: string): number | null {
+  const parsed = Number(String(value || '').replace(/[^0-9.]/g, ''));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }

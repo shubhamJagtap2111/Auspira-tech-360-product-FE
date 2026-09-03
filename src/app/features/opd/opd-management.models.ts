@@ -56,7 +56,15 @@ export interface OpdDiagnosisRecord {
 
 export interface OpdPrescriptionRecord {
   id: string;
-  consultationId: string;
+  consultationId: string | null;
+  patientId?: string | null;
+  doctorId?: string | null;
+  encounterId?: string | null;
+  encounterType?: string;
+  sourceModule?: string;
+  diagnosisSummary?: string | null;
+  prescriptionNo?: string | null;
+  statusCode?: string;
   instructions: string;
   createdAt: string;
   updatedAt: string | null;
@@ -70,6 +78,17 @@ export interface OpdPrescriptionItemRecord {
   dosage: string;
   frequency: string;
   days: number;
+  strength?: string | null;
+  dosageForm?: string | null;
+  dose?: string | null;
+  route?: string | null;
+  durationValue?: number | null;
+  durationUnit?: string;
+  quantity?: number | null;
+  quantityUnit?: string | null;
+  instructions?: string | null;
+  isPrn?: boolean;
+  prnReason?: string | null;
   createdAt: string;
   updatedAt: string | null;
 }
@@ -242,6 +261,8 @@ export interface OpdPrescriptionItemForm {
   duration: string;
   quantity: string;
   instructions: string;
+  isPrn?: boolean;
+  prnReason?: string;
 }
 
 export interface OpdLabOrderForm {
