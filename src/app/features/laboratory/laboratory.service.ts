@@ -32,6 +32,7 @@ export class LaboratoryService {
   result(orderItemId: string) { return this.get<LabResultDetail>(`/laboratory/results/by-item/${orderItemId}`); }
   saveResult(id: string, body: unknown, submit: boolean) { return this.post(`/laboratory/results/${id}/${submit ? 'submit' : 'draft'}`, body); }
   verification() { return this.get<VerificationItem[]>('/laboratory/verification'); }
+  reviewResult(id: string) { return this.get<LabResultDetail>(`/laboratory/verification/${id}/review`); }
   verifyRelease(id: string) { return this.post(`/laboratory/verification/${id}/verify-release`, {}); }
   rejectResult(id: string, reason: string) { return this.post(`/laboratory/verification/${id}/reject`, { reason }); }
   reports() { return this.get<LabReport[]>('/laboratory/reports'); }
