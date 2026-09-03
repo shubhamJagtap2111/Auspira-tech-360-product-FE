@@ -26,7 +26,7 @@ type PendingReportOrder = LabOrder & { processingCount: number; verificationCoun
         </div>
       </header>
       <nav class="laboratory-tabs" aria-label="Laboratory workspace">
-        @for(tab of tabs; track tab.key){<button type="button" [class.active]="activeTab()===tab.key" (click)="activeTab.set(tab.key)"><span class="material-symbols-rounded">{{tab.icon}}</span>{{tab.label}}@if(tab.count()){<b>{{tab.count()}}</b>}</button>}
+        @for(tab of tabs; track tab.key){<button type="button" [class.active]="activeTab()===tab.key" (click)="setActiveTab(tab.key)"><span class="material-symbols-rounded">{{tab.icon}}</span>{{tab.label}}@if(tab.count()){<b>{{tab.count()}}</b>}</button>}
       </nav>
 
       @if(loading()){<section class="panel"><ac-grid-loader title="Loading laboratory workspace..." message="Reconciling orders, specimens, processing, verification, and reports." [compact]="true" /></section>}
@@ -34,9 +34,9 @@ type PendingReportOrder = LabOrder & { processingCount: number; verificationCoun
         @switch(activeTab()){
           @case('dashboard'){
             <section class="metric-grid">
-              @for(card of dashboardCards(); track card.label){<button type="button" class="metric" (click)="activeTab.set(card.tab)"><span class="material-symbols-rounded">{{card.icon}}</span><div><small>{{card.label}}</small><strong>{{card.value}}</strong><em>{{card.meta}}</em></div></button>}
+              @for(card of dashboardCards(); track card.label){<button type="button" class="metric" (click)="setActiveTab(card.tab)"><span class="material-symbols-rounded">{{card.icon}}</span><div><small>{{card.label}}</small><strong>{{card.value}}</strong><em>{{card.meta}}</em></div></button>}
             </section>
-            <section class="panel"><div class="panel-head"><div><p class="ac-eyebrow">Priority watch</p><h2>Actionable laboratory queues</h2></div><span>Items requiring immediate attention</span></div><div class="queue-grid"><article class="alert critical"><span class="material-symbols-rounded">emergency</span><div><strong>{{dashboard()?.criticalUnacknowledged||0}} critical results</strong><small>Awaiting clinical acknowledgement</small></div><button class="small-btn" (click)="activeTab.set('critical')">Open</button></article><article class="alert stat"><span class="material-symbols-rounded">bolt</span><div><strong>{{dashboard()?.statOpen||0}} STAT orders</strong><small>Open high-priority diagnostics</small></div><button class="small-btn" (click)="activeTab.set('orders')">Open</button></article></div></section>
+            <section class="panel"><div class="panel-head"><div><p class="ac-eyebrow">Priority watch</p><h2>Actionable laboratory queues</h2></div><span>Items requiring immediate attention</span></div><div class="queue-grid"><article class="alert critical"><span class="material-symbols-rounded">emergency</span><div><strong>{{dashboard()?.criticalUnacknowledged||0}} critical results</strong><small>Awaiting clinical acknowledgement</small></div><button class="small-btn" (click)="setActiveTab('critical')">Open</button></article><article class="alert stat"><span class="material-symbols-rounded">bolt</span><div><strong>{{dashboard()?.statOpen||0}} STAT orders</strong><small>Open high-priority diagnostics</small></div><button class="small-btn" (click)="setActiveTab('orders')">Open</button></article></div></section>
           }
           @case('catalog'){
             <section class="toolbar panel"><label class="search-field"><span class="material-symbols-rounded">search</span><input type="search" [(ngModel)]="search" placeholder="Search code, name, or category..." /></label><span class="toolbar-summary"><strong>{{filteredTests().length}}</strong> configured tests</span></section>
@@ -528,7 +528,7 @@ type PendingReportOrder = LabOrder & { processingCount: number; verificationCoun
 export class LaboratoryPageComponent implements OnInit {
   private readonly service=inject(LaboratoryService); private readonly toast=inject(ToastService); protected readonly auth=inject(AuthStore);
   protected readonly orderDialogOpen=signal(false);
-  protected readonly loading=signal(true); protected readonly saving=signal(false); protected readonly activeTab=signal<LabTab>('dashboard'); protected readonly dashboard=signal<LabDashboard|null>(null); protected readonly tests=signal<LabTest[]>([]); protected readonly orders=signal<LabOrder[]>([]); protected readonly pending=signal<PendingCollection[]>([]); protected readonly worklist=signal<LabWorkItem[]>([]); protected readonly verification=signal<VerificationItem[]>([]); protected readonly reports=signal<LabReport[]>([]); protected readonly critical=signal<CriticalResult[]>([]); protected readonly options=signal<OrderOptions|null>(null); protected readonly selectedTest=signal<any|null>(null); protected readonly resultEditor=signal<LabResultDetail|null>(null); protected readonly reviewEditor=signal<LabResultDetail|null>(null); protected readonly rejectTarget=signal<RejectTarget|null>(null); protected readonly acknowledgeItem=signal<CriticalResult|null>(null); protected readonly recentSamples=signal<CollectedSample[]>([]);
+  protected readonly loading=signal(true); protected readonly saving=signal(false); protected readonly activeTab=signal<LabTab>(readStoredLaboratoryTab()); protected readonly dashboard=signal<LabDashboard|null>(null); protected readonly tests=signal<LabTest[]>([]); protected readonly orders=signal<LabOrder[]>([]); protected readonly pending=signal<PendingCollection[]>([]); protected readonly worklist=signal<LabWorkItem[]>([]); protected readonly verification=signal<VerificationItem[]>([]); protected readonly reports=signal<LabReport[]>([]); protected readonly critical=signal<CriticalResult[]>([]); protected readonly options=signal<OrderOptions|null>(null); protected readonly selectedTest=signal<any|null>(null); protected readonly resultEditor=signal<LabResultDetail|null>(null); protected readonly reviewEditor=signal<LabResultDetail|null>(null); protected readonly rejectTarget=signal<RejectTarget|null>(null); protected readonly acknowledgeItem=signal<CriticalResult|null>(null); protected readonly recentSamples=signal<CollectedSample[]>([]);
   protected search=''; protected barcodeSearch=''; protected resultComments=''; protected rejectReason=''; protected acknowledgeNote=''; protected resultValues:Record<string,string>={}; protected orderForm={patientId:'',doctorId:'',sourceModule:'MANUAL',priority:'ROUTINE',clinicalNotes:'',testIds:[] as string[]};
   protected readonly tabs=[{key:'dashboard' as LabTab,label:'Dashboard',icon:'dashboard',count:()=>0},{key:'catalog' as LabTab,label:'Test Catalog',icon:'biotech',count:()=>this.tests().length},{key:'orders' as LabTab,label:'Orders',icon:'assignment',count:()=>this.visibleOrders().length},{key:'collection' as LabTab,label:'Sample Collection',icon:'vaccines',count:()=>this.pending().length},{key:'worklist' as LabTab,label:'Processing',icon:'science',count:()=>this.worklist().length},{key:'verification' as LabTab,label:'Verification',icon:'fact_check',count:()=>this.verification().length},{key:'reports' as LabTab,label:'Reports',icon:'description',count:()=>this.reports().length+this.pendingReportOrders().length},{key:'critical' as LabTab,label:'Critical',icon:'warning',count:()=>this.critical().filter(x=>!x.acknowledgedAt).length}];
   protected readonly filteredTests=computed(()=>{const q=this.search.trim().toLowerCase();return q?this.tests().filter(t=>`${t.code} ${t.name} ${t.category}`.toLowerCase().includes(q)):this.tests();});
@@ -539,7 +539,8 @@ export class LaboratoryPageComponent implements OnInit {
   protected readonly sortedWorklist=computed(()=>[...this.worklist()].sort((a,b)=>workStatusRank(a.statusCode)-workStatusRank(b.statusCode)||priorityRank(a.priority)-priorityRank(b.priority)||dateRank(b.startedAt)-dateRank(a.startedAt)||a.testName.localeCompare(b.testName)));
   protected readonly pendingReportOrders=computed(()=>{const released=new Set(this.reports().map(r=>r.orderNumber));const working=countByOrder(this.worklist().map(w=>w.orderNumber));const verifying=countByOrder(this.verification().map(v=>v.orderNumber));return this.visibleOrders().filter(o=>!released.has(o.orderNumber)&&!['REPORT_RELEASED','CANCELLED'].includes((o.statusCode||'').toUpperCase())).map(o=>({...o,processingCount:working.get(o.orderNumber)||0,verificationCount:verifying.get(o.orderNumber)||0})).filter(o=>o.processingCount||o.verificationCount||['VERIFICATION_PENDING','RESULT_ENTERED','PROCESSING','SAMPLE_RECEIVED','SAMPLE_COLLECTED','ORDERED'].includes((o.statusCode||'').toUpperCase())).sort((a,b)=>priorityRank(a.priority)-priorityRank(b.priority)||dateRank(b.orderedAt)-dateRank(a.orderedAt));});
   ngOnInit(){void this.refresh();}
-  protected openOrderDialog(){this.activeTab.set('orders');this.orderDialogOpen.set(true);}
+  protected setActiveTab(tab:LabTab){this.activeTab.set(tab);persistLaboratoryTab(tab);}
+  protected openOrderDialog(){this.setActiveTab('orders');this.orderDialogOpen.set(true);}
   protected closeOrderDialog(){this.orderDialogOpen.set(false);}
   protected async refresh(){this.loading.set(true);try{const [d,t,o,p,cs,w,v,r,c,x]=await Promise.all([this.service.dashboard(),this.service.tests(),this.service.orders(),this.service.pendingCollection(),this.service.collectedSamples(),this.service.worklist(),this.service.verification(),this.service.reports(),this.service.critical(),this.service.orderOptions()]);this.dashboard.set(d.data);this.tests.set(t.data||[]);this.orders.set(o.data||[]);this.pending.set(p.data||[]);this.recentSamples.set(cs.data||[]);this.worklist.set(w.data||[]);this.verification.set(v.data||[]);this.reports.set(r.data||[]);this.critical.set(c.data||[]);this.options.set(x.data);}finally{this.loading.set(false);}}
   protected toggleTest(id:string){this.orderForm.testIds=this.orderForm.testIds.includes(id)?this.orderForm.testIds.filter(x=>x!==id):[...this.orderForm.testIds,id];}
@@ -555,14 +556,14 @@ export class LaboratoryPageComponent implements OnInit {
   protected openRejectResult(item:VerificationItem){this.rejectReason='';this.rejectTarget.set({resultId:item.resultId,title:`${item.patientName} · ${item.testName}`,subtitle:`${item.sampleNumber} · ${item.orderNumber}`,fromReview:false});}
   protected openRejectReviewedResult(){const editor=this.reviewEditor();if(!editor)return;this.rejectReason='';this.rejectTarget.set({resultId:editor.header.id,title:`${editor.header.patientName} · ${editor.header.testName}`,subtitle:`${editor.header.sampleNumber} · ${editor.header.orderNumber}`,fromReview:true});}
   protected closeRejectDialog(){this.rejectTarget.set(null);this.rejectReason='';}
-  protected async submitReject(){const target=this.rejectTarget();const reason=this.rejectReason.trim();if(!target)return;if(!reason){this.toast.warning('Rejection reason required','Please enter why this result is being returned to the technician.');return;}this.saving.set(true);try{const response=await this.service.rejectResult(target.resultId,reason);if(response.success){this.toast.success('Result returned to Processing','Technician can correct and resubmit it.');this.closeRejectDialog();if(target.fromReview)this.reviewEditor.set(null);this.activeTab.set('worklist');await this.refresh();}else this.toast.error('Unable to reject result',response.message);}finally{this.saving.set(false);}}
+  protected async submitReject(){const target=this.rejectTarget();const reason=this.rejectReason.trim();if(!target)return;if(!reason){this.toast.warning('Rejection reason required','Please enter why this result is being returned to the technician.');return;}this.saving.set(true);try{const response=await this.service.rejectResult(target.resultId,reason);if(response.success){this.toast.success('Result returned to Processing','Technician can correct and resubmit it.');this.closeRejectDialog();if(target.fromReview)this.reviewEditor.set(null);this.setActiveTab('worklist');await this.refresh();}else this.toast.error('Unable to reject result',response.message);}finally{this.saving.set(false);}}
   protected openAcknowledge(item:CriticalResult){this.acknowledgeItem.set(item);this.acknowledgeNote='';}
   protected closeAcknowledge(){this.acknowledgeItem.set(null);this.acknowledgeNote='';}
   protected async submitAcknowledge(){const item=this.acknowledgeItem();const note=this.acknowledgeNote.trim();if(!item)return;if(!note){this.toast.warning('Acknowledgement note required','Please enter the clinical acknowledgement note before submitting.');return;}this.saving.set(true);try{const response=await this.service.acknowledge(item.id,note);if(response.success){this.toast.success('Critical result acknowledged',item.patientName);this.closeAcknowledge();await this.refresh();}else this.toast.error('Acknowledgement failed',response.message);}finally{this.saving.set(false);}}
   protected async viewTest(test:LabTest){const response=await this.service.test(test.id);if(response.success)this.selectedTest.set(response.data);}
   protected async trackSample(){if(!this.barcodeSearch.trim())return;const response=await this.service.sample(this.barcodeSearch.trim());if(response.success)this.toast.success('Sample found','Tracking timeline loaded successfully.');else this.toast.error('Sample not found',response.message);}
   protected async download(report:LabReport){const viewer=window.open('about:blank','_blank');try{const blob=await this.service.reportPdf(report.id);const url=URL.createObjectURL(new Blob([blob],{type:'application/pdf'}));if(viewer)viewer.location.href=url;else{const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener';link.click();}setTimeout(()=>URL.revokeObjectURL(url),60_000);}catch{viewer?.close();this.toast.error('Unable to open PDF','Your session may have expired or you may not have report download permission.');}}
-  protected openReportBlocker(order:PendingReportOrder){this.activeTab.set(order.verificationCount?'verification':'worklist');}
+  protected openReportBlocker(order:PendingReportOrder){this.setActiveTab(order.verificationCount?'verification':'worklist');}
   protected reportBlockingText(order:PendingReportOrder):string{if(order.verificationCount)return `${order.verificationCount} result${order.verificationCount===1?'':'s'} waiting for authorized verification.`;if(order.processingCount)return `${order.processingCount} test${order.processingCount===1?'':'s'} still need processing/correction before the report can release.`;return 'Waiting for all ordered tests to complete before PDF generation.';}
   protected selectionOptions(json:string|null):string[]{try{return json?JSON.parse(json):[];}catch{return[];}} protected money(value:number){return new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(value||0);} protected duration(minutes:number){return minutes<60?`${minutes} min`:`${Math.floor(minutes/60)}h ${minutes%60||''}`.trim();} protected date(value:string){return value?new Intl.DateTimeFormat('en-IN',{dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'-';} protected status(value:string){return value.replaceAll('_',' ').toLowerCase().replace(/\b\w/g,x=>x.toUpperCase());}
   protected resultValue(p:LabResultDetail['parameters'][number]):string{const value=p.numericValue??p.textValue??p.selectionValue??p.richValue??(p.booleanValue===null||p.booleanValue===undefined?null:p.booleanValue?'Positive':'Negative');return String(value??'-');}
@@ -619,4 +620,28 @@ function countByOrder(orderNumbers: string[]): Map<string, number> {
 
 function labError(response: unknown, fallback: string): string {
   return getApiErrorMessage(response as never, fallback);
+}
+
+const LABORATORY_ACTIVE_TAB_STORAGE_KEY = 'care360.laboratory.activeTab';
+const VALID_LABORATORY_TABS: LabTab[] = ['dashboard', 'catalog', 'orders', 'collection', 'worklist', 'verification', 'reports', 'critical'];
+
+function readStoredLaboratoryTab(): LabTab {
+  try {
+    const storedTab = typeof localStorage === 'undefined' ? null : localStorage.getItem(LABORATORY_ACTIVE_TAB_STORAGE_KEY);
+    return isLaboratoryTab(storedTab) ? storedTab : 'dashboard';
+  } catch {
+    return 'dashboard';
+  }
+}
+
+function persistLaboratoryTab(tab: LabTab): void {
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(LABORATORY_ACTIVE_TAB_STORAGE_KEY, tab);
+  } catch {
+    // Remembering the active tab is a convenience only.
+  }
+}
+
+function isLaboratoryTab(value: unknown): value is LabTab {
+  return VALID_LABORATORY_TABS.includes(value as LabTab);
 }
