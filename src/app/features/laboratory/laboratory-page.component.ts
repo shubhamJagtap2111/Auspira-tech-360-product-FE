@@ -482,6 +482,10 @@ type RejectTarget = { resultId: string; title: string; subtitle: string; fromRev
     :host-context(.dark) .ack-critical>.material-symbols-rounded{background:#450a0a;color:#fecaca}
     :host-context(.dark) .ack-critical strong{color:#f8fafc}
     :host-context(.dark) .ack-critical small{color:#94a3b8}
+    :host-context(.dark) .reject-warning{background:#241a0b;border-color:#854d0e;border-left-color:#f59e0b}
+    :host-context(.dark) .reject-warning>.material-symbols-rounded{background:#451a03;color:#fde68a}
+    :host-context(.dark) .reject-warning strong{color:#f8fafc}
+    :host-context(.dark) .reject-warning small{color:#94a3b8}
     :host-context(.dark) .processing-panel{background:radial-gradient(circle at top right,rgba(37,99,235,.18),transparent 34%),linear-gradient(135deg,#111827,#0f172a)}
     :host-context(.dark) .processing-summary span,
     :host-context(.dark) .work-card,
