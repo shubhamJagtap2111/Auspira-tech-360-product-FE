@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ApiClientService } from '../../core/http/api-client.service';
 import { API_BASE_URL } from '../../core/http/api-endpoints';
-import { CriticalResult, LabApiResponse, LabDashboard, LabMaster, LabOrder, LabReport, LabResultDetail, LabTest, LabTestDetail, LabWorkItem, OrderOptions, PendingCollection, VerificationItem } from './laboratory.models';
+import { CollectedSample, CriticalResult, LabApiResponse, LabDashboard, LabMaster, LabOrder, LabReport, LabResultDetail, LabTest, LabTestDetail, LabWorkItem, OrderOptions, PendingCollection, VerificationItem } from './laboratory.models';
 
 @Injectable({ providedIn: 'root' })
 export class LaboratoryService {
@@ -22,6 +22,7 @@ export class LaboratoryService {
   register(id: string) { return this.post(`/laboratory/orders/${id}/register`, {}); }
   cancel(id: string, reason: string) { return this.post(`/laboratory/orders/${id}/cancel`, { reason }); }
   pendingCollection() { return this.get<PendingCollection[]>('/laboratory/samples/pending-collection'); }
+  collectedSamples() { return this.get<CollectedSample[]>('/laboratory/samples/collected'); }
   collect(orderId: string) { return this.post<{ id: string; sampleNumber: string; barcodeValue: string }>('/laboratory/samples/collect', { orderId, orderItemIds: [], sampleTypeId: null, containerId: null, predecessorSampleId: null, notes: '' }); }
   receive(sampleId: string) { return this.post(`/laboratory/samples/${sampleId}/receive`, {}); }
   sample(value: string) { return this.get<unknown>(`/laboratory/samples/${encodeURIComponent(value)}`); }
