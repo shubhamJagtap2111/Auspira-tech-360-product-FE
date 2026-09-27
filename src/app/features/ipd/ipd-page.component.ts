@@ -1,5 +1,7 @@
+import { buildIpdManagerTasks, ManagerTask } from './ipd-manager-workflow';
+import { PatientManagementService } from '../patients/patient-management.service';
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { getApiErrorMessage } from '../../core/http/api-error-message';
@@ -13,6 +15,7 @@ import {
   IpdAdmissionListItem,
   IpdBedStatus,
   IpdDashboard,
+  IpdDischargeReadiness,
   IpdDoctorRound,
   IpdOption,
   IpdRoom,
@@ -54,12 +57,22 @@ interface IpdKpiCard {
   standalone: true,
   imports: [CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent],
   template: `
+    <ng-template #readinessPanel>
+      <section class="readiness-panel" aria-label="Discharge preparation">
+        <h3>Discharge preparation</h3>
+        @if (dischargeReadiness(); as readiness) {
+          <div class="readiness-items"><span>Pending investigations <b>{{ readiness.pendingInvestigations }}</b></span><span>Unbilled charges <b>{{ readiness.unbilledCharges }}</b></span><span>Outstanding for this stay <b>{{ readiness.outstanding | currency:'INR' }}</b></span></div>
+          <p>Review pending results and billing with the responsible team. The treating team must approve the discharge and final summary.</p>
+        } @else { <p>{{ readinessError() || 'Checking investigations and billing…' }}</p> }
+        <small aria-live="polite">{{ dischargeDraftStatus() }}</small>
+      </section>
+    </ng-template>
     <section class="ipd-page">
       <header class="page-header">
         <div>
-          <p class="ac-eyebrow">Connected clinical journey</p>
-          <h1 class="ac-page-title">IPD Workspace</h1>
-          <p class="page-desc">Track admissions, beds, inpatient care, billing readiness, and discharge movement from one screen.</p>
+          <p class="ac-eyebrow">Inpatient operations</p>
+          <h1 class="ac-page-title">IPD Manager</h1>
+          <p class="page-desc">See what needs attention, admit patients, and keep beds moving.</p>
         </div>
         <div class="header-actions">
           <button class="ac-btn ac-btn-secondary" type="button" [disabled]="refreshing()" (click)="refresh()">
@@ -87,29 +100,14 @@ interface IpdKpiCard {
           }
         </section>
 
-        <section class="journey-card">
-          @for (step of journeySteps; track step.label; let index = $index) {
-            <button type="button" class="journey-step" [class.active]="index === journeyIndex()" [class.done]="index < journeyIndex()" (click)="jumpToJourney(index)">
-              <span class="journey-dot">
-                @if (index < journeyIndex()) {
-                  <span class="material-symbols-rounded">check</span>
-                } @else {
-                  {{ index + 1 }}
-                }
-              </span>
-              <strong>{{ step.label }}</strong>
-              <small>{{ step.meta }}</small>
-            </button>
-          }
-        </section>
-
         <nav class="module-tabs" aria-label="IPD areas">
-          @for (tab of tabs; track tab.key) {
+          @for (tab of visibleManagerTabs(); track tab.key) {
             <button type="button" [class.active]="activeTab() === tab.key" (click)="setTab(tab.key)">
               <span class="material-symbols-rounded">{{ tab.icon }}</span>
               {{ tab.label }}
             </button>
           }
+          <button type="button" [class.active]="moreTools()" (click)="moreTools.set(!moreTools())"><span class="material-symbols-rounded">more_horiz</span>{{ moreTools() ? 'Fewer tools' : 'More tools' }}</button>
         </nav>
 
         @if (loading()) {
@@ -117,108 +115,20 @@ interface IpdKpiCard {
         } @else {
           @switch (activeTab()) {
             @case ('dashboard') {
-              <section class="dashboard-grid">
-                <article class="panel occupancy-panel">
-                  <div class="panel-head">
-                    <div>
-                      <p class="ac-eyebrow">Bed occupancy</p>
-                      <h2>Ward capacity</h2>
-                    </div>
-                    <span class="soft-pill">{{ model.summary.occupancyPercent | number: '1.0-1' }}% hospital</span>
-                  </div>
-                  <div class="ward-list">
-                    @for (ward of model.wards; track ward.wardId) {
-                      <div class="ward-row">
-                        <div class="ward-meta">
-                          <strong>{{ ward.wardName }}</strong>
-                          <span>{{ ward.occupiedBeds }}/{{ ward.totalBeds }} occupied</span>
-                        </div>
-                        <div class="bar-track">
-                          <span class="bar-fill" [style.width.%]="ward.occupancyPercent"></span>
-                        </div>
-                        <b>{{ ward.occupancyPercent | number: '1.0-0' }}%</b>
-                      </div>
-                    } @empty {
-                      <div class="empty-state">No wards configured yet.</div>
-                    }
-                  </div>
-                </article>
-
-                <article class="panel bed-mix-panel">
-                  <div class="panel-head">
-                    <div>
-                      <p class="ac-eyebrow">Live mix</p>
-                      <h2>Bed status</h2>
-                    </div>
-                    <span class="soft-pill">{{ model.summary.totalBeds }} beds</span>
-                  </div>
-                  <div class="donut-wrap">
-                    <div class="donut" [style.--occupied]="occupancyArc()" [style.--available]="availableArc()">
-                      <div class="donut-center">
-                        <strong>{{ model.summary.totalBeds }}</strong>
-                        <span>Total beds</span>
-                      </div>
-                    </div>
-                    <div class="legend">
-                      <span>
-                        <i class="occupied"></i>
-                        <em><strong>Occupied</strong><small>{{ bedStatusPercent(model.summary.occupiedBeds) }} used</small></em>
-                        <b>{{ model.summary.occupiedBeds }}</b>
-                      </span>
-                      <span>
-                        <i class="available"></i>
-                        <em><strong>Available</strong><small>{{ bedStatusPercent(model.summary.availableBeds) }} free</small></em>
-                        <b>{{ model.summary.availableBeds }}</b>
-                      </span>
-                    </div>
-                  </div>
-                </article>
-
-                <article class="panel recent-panel">
-                  <div class="panel-head">
-                    <div>
-                      <p class="ac-eyebrow">Recent admissions</p>
-                      <h2>Latest IPD intake</h2>
-                    </div>
-                    <button class="link-btn" type="button" (click)="setTab('admissions')">View all</button>
-                  </div>
-                  <div class="mini-table">
-                    @for (admission of model.recentAdmissions; track admission.admissionId) {
-                      <button type="button" class="mini-row" (click)="selectAdmission(admission, 'care')">
-                        <span>
-                          <strong>{{ admission.patientName }}</strong>
-                          <small>{{ admission.medicalRecordNo }}</small>
-                        </span>
-                        <span>{{ admission.wardName || 'Bed pending' }}</span>
-                        <span>{{ admission.bedNo || '-' }}</span>
-                        <b>{{ formatTime(admission.admittedAt) }}</b>
-                      </button>
-                    } @empty {
-                      <div class="empty-state">No IPD admissions yet.</div>
-                    }
-                  </div>
-                </article>
-
-                <article class="panel attention-panel">
-                  <div class="panel-head">
-                    <div>
-                      <p class="ac-eyebrow">Requires attention</p>
-                      <h2>Operational watch</h2>
-                    </div>
-                    <span class="soft-pill">{{ model.attentionItems.length }} items</span>
-                  </div>
-                  <div class="attention-list">
-                    @for (item of model.attentionItems; track item.key + item.title) {
-                      <div class="attention-item" [class]="item.severity">
-                        <span class="material-symbols-rounded">{{ item.icon }}</span>
-                        <div>
-                          <strong>{{ item.title }}</strong>
-                          <small>{{ item.detail }}</small>
-                        </div>
-                      </div>
-                    }
-                  </div>
-                </article>
+              <section class="manager-board">
+                <div class="manager-heading"><div><p class="ac-eyebrow">Today’s work</p><h2>{{ managerTasks().length ? managerTasks().length + ' items need attention' : 'You’re up to date' }}</h2><p>Admission numbers, occupancy, pending investigations, and bed turnover update from saved activity.</p></div><span class="soft-pill">Updated {{ formatTime(model.generatedAt) }} · auto-refresh on</span></div>
+                <div class="manager-shortcuts"><button (click)="openAdmissionPanel()"><span class="material-symbols-rounded">person_add</span>Admit a patient</button><button (click)="setTab('patients')"><span class="material-symbols-rounded">groups</span>Find an inpatient</button><button (click)="setTab('beds')"><span class="material-symbols-rounded">bed</span>View available beds</button></div>
+                <div class="manager-columns">
+                  <article class="panel"><div class="panel-head"><div><p class="ac-eyebrow">Action list</p><h2>What to do next</h2></div></div>
+                    @for (task of managerTasks(); track task.key) {
+                      <div class="manager-task"><span class="material-symbols-rounded" [class.urgent]="task.urgent">{{ task.icon }}</span><div><strong>{{ task.title }}</strong><p>{{ task.detail }}</p></div><button class="ac-btn ac-btn-secondary" [disabled]="saving()" (click)="resolveManagerTask(task)">{{ task.action }}</button></div>
+                    } @empty { <div class="empty-state">No pending admissions, bed assignments, cleaning tasks, or discharge preparation in the current records.</div> }
+                  </article>
+                  <article class="panel"><div class="panel-head"><div><p class="ac-eyebrow">Live capacity</p><h2>Ward availability</h2></div></div>
+                    @for (ward of model.wards; track ward.wardId) { <div class="manager-ward"><div><strong>{{ ward.wardName }}</strong><small>{{ ward.occupiedBeds }} occupied / {{ ward.totalBeds }} beds</small></div><span class="soft-pill">{{ ward.availableBeds }} available</span><div class="bar-track"><span class="bar-fill" [style.width.%]="ward.occupancyPercent"></span></div></div> } @empty { <p class="empty-state">Add wards and beds to start managing capacity.</p> }
+                    <p class="helper-text">Transferred and discharged beds move to cleaning automatically. Mark them ready after cleaning is finished.</p>
+                  </article>
+                </div>
               </section>
             }
 
@@ -249,6 +159,23 @@ interface IpdKpiCard {
                 </div>
 
                 @if (admissionPanelOpen()) {
+                  <div class="manager-heading"><p class="helper-text">Start with the essentials. Admission number, timestamps, and bed status are managed automatically.</p><button class="link-btn" (click)="advancedAdmission.set(!advancedAdmission())">{{ advancedAdmission() ? 'Simple admission' : 'Detailed admission' }}</button></div>
+                  @if (!advancedAdmission()) {
+                    <article class="panel simple-admission"><div class="panel-head"><h2>Admit a patient</h2><button class="icon-btn" aria-label="Close admission" (click)="closeAdmissionPanel()"><span class="material-symbols-rounded">close</span></button></div>
+                      <div class="form-grid">
+                        <label><span>Patient *</span><ac-dropdown name="quickPatient" [disabled]="!!admissionForm.admissionId || saving()" [ngModel]="admissionForm.patientId" (ngModelChange)="chooseAdmissionPatient($event)" [options]="patientOptions(model.patients)" /></label>
+                        <label><span>Attending doctor *</span><ac-dropdown name="quickDoctor" [ngModel]="admissionForm.doctorId" (ngModelChange)="chooseAdmissionDoctor($event)" [options]="doctorOptions(model.doctors)" /></label>
+                        <label><span>Department *</span><ac-dropdown name="quickDepartment" [(ngModel)]="admissionForm.departmentName" [options]="departmentOptions()" /></label>
+                        <label><span>Admission source</span><ac-dropdown name="quickSource" [(ngModel)]="admissionForm.source" [options]="sourceOptions" /></label>
+                        <label><span>Priority</span><ac-dropdown name="quickPriority" [(ngModel)]="admissionForm.priority" [options]="priorityOptions" /></label>
+                        <label><span>Available bed *</span><ac-dropdown name="quickBed" [(ngModel)]="admissionForm.bedId" [options]="quickAdmissionBedOptions()" /></label>
+                        <label class="wide-field"><span>Reason for admission *</span><textarea name="quickReason" [(ngModel)]="admissionForm.reason" rows="2" placeholder="Enter the reason provided by the treating team"></textarea></label>
+                      </div>
+                      @if (patientContextLoading()) { <p class="helper-text">Loading the patient’s recorded history…</p> }
+                      @if (admissionForm.knownAllergies || admissionForm.bloodGroup) { <p class="helper-text">Recorded allergies: {{ admissionForm.knownAllergies || 'Not recorded' }} · Blood group: {{ admissionForm.bloodGroup || 'Not recorded' }}</p> }
+                      <div class="header-actions"><button class="ac-btn ac-btn-secondary" [disabled]="saving() || patientContextLoading()" (click)="saveAdmissionDraft()">Save for later</button><button class="ac-btn ac-btn-primary" [disabled]="saving() || patientContextLoading()" (click)="confirmAdmission()">{{ saving() ? 'Saving…' : 'Confirm & admit' }}</button></div>
+                    </article>
+                  } @else {
                   <article class="admission-wizard">
                     <div class="wizard-head">
                       <div>
@@ -426,6 +353,7 @@ interface IpdKpiCard {
                       }
                     </div>
                   </article>
+                  }
                 }
                 <div class="records-table">
                   <div class="table-head admissions-head">
@@ -1048,6 +976,7 @@ interface IpdKpiCard {
                       </section>
                     }
                     @case ('discharge') {
+              <section class="panel"><div class="panel-head"><h2>Choose a patient for discharge preparation</h2></div><div class="manager-patient-picker">@for (patient of model.activePatients; track patient.admissionId) { <button [class.selected]="selectedAdmissionId() === patient.admissionId" (click)="selectAdmission(patient, 'discharge')">{{ patient.patientName }} · {{ patient.bedNo || 'Bed pending' }}</button> }</div></section>
                       <section class="panel">
                         <div class="section-toolbar">
                           <div>
@@ -1065,7 +994,7 @@ interface IpdKpiCard {
                           </aside>
                           <label class="note-field">
                             <span>Discharge summary *</span>
-                            <textarea rows="9" [(ngModel)]="dischargeSummary" name="detailDischargeSummary" placeholder="Diagnosis, treatment given, condition at discharge, medication advice, follow-up, and billing clearance"></textarea>
+                            <ng-container *ngTemplateOutlet="readinessPanel" /><textarea rows="9" [(ngModel)]="dischargeSummary" (ngModelChange)="scheduleDischargeSave()" name="detailDischargeSummary" placeholder="Diagnosis, treatment given, condition at discharge, medication advice, follow-up, and billing clearance"></textarea>
                           </label>
                         </div>
                         <div class="inline-actions end">
@@ -1270,7 +1199,7 @@ interface IpdKpiCard {
                   </aside>
                   <label class="note-field">
                     <span>Discharge summary *</span>
-                    <textarea rows="9" [(ngModel)]="dischargeSummary" name="dischargeSummary" placeholder="Diagnosis, treatment given, condition at discharge, medication advice, follow-up, and billing clearance"></textarea>
+                    <ng-container *ngTemplateOutlet="readinessPanel" /><textarea rows="9" [(ngModel)]="dischargeSummary" (ngModelChange)="scheduleDischargeSave()" name="dischargeSummary" placeholder="Diagnosis, treatment given, condition at discharge, medication advice, follow-up, and billing clearance"></textarea>
                   </label>
                 </div>
                 <div class="inline-actions end">
@@ -2295,10 +2224,25 @@ interface IpdKpiCard {
       .overview-list span, .timeline-list span { grid-template-columns: 1fr; }
       .timeline-list i { display: none; }
     }
+    .manager-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 10px 0 20px; }
+    .manager-heading h2 { margin: 5px 0; font-size: 24px; color: var(--ac-text); } .manager-heading p { color: var(--ac-muted); font-size: 12px; }
+    .manager-shortcuts { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+    .manager-shortcuts button { display: flex; align-items: center; gap: 9px; padding: 14px 18px; border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-surface); color: var(--ac-primary); font: inherit; font-weight: 700; cursor: pointer; }
+    .manager-columns { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr); gap: 18px; align-items: start; }
+    .manager-task { display: flex; align-items: center; gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--ac-border); }
+    .manager-task > div { flex: 1; min-width: 0; } .manager-task p { margin: 5px 0 0; color: var(--ac-muted); font-size: 12px; }
+    .manager-task > span { display: grid; place-items: center; padding: 10px; border-radius: 12px; background: var(--ac-subtle); color: var(--ac-primary); } .manager-task > span.urgent { color: #be123c; background: #fff1f2; }
+    .manager-ward { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 16px 0; } .manager-ward small { display: block; color: var(--ac-muted); margin-top: 5px; } .manager-ward .bar-track { grid-column: 1 / -1; }
+    .simple-admission { margin: 15px 0; } .simple-admission .header-actions { justify-content: flex-end; margin-top: 18px; }
+    .readiness-panel { display: block; padding: 16px; margin: 12px 0; border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-subtle); }
+    .readiness-panel p { font-size: 12px; color: var(--ac-muted); line-height: 1.6; } .readiness-items { display: flex; flex-wrap: wrap; gap: 12px; } .readiness-items span { display: grid; gap: 8px; padding: 12px; background: var(--ac-surface); border-radius: 8px; font-size: 12px; }
+    .manager-patient-picker { display: flex; flex-wrap: wrap; gap: 8px; } .manager-patient-picker button { padding: 10px; background: var(--ac-surface); border: 1px solid var(--ac-border); border-radius: 8px; color: var(--ac-text); cursor: pointer; } .manager-patient-picker button.selected { border-color: var(--ac-primary); color: var(--ac-primary); }
+    @media(max-width: 900px) { .manager-columns { grid-template-columns: 1fr; } .manager-heading { align-items: flex-start; flex-direction: column; } .manager-task { flex-wrap: wrap; } .manager-task .ac-btn { margin-left: auto; } }
+
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class IpdPageComponent implements OnInit {
+export class IpdPageComponent implements OnInit, OnDestroy {
   protected readonly workspace = signal<IpdDashboard | null>(null);
   protected readonly loading = signal(true);
   protected readonly refreshing = signal(false);
@@ -2328,9 +2272,22 @@ export class IpdPageComponent implements OnInit {
   protected readonly vitalRecords = signal<IpdVitalRecord[]>([]);
   protected readonly vitalsLoading = signal(false);
 
+  protected readonly moreTools = signal(false);
+  protected readonly advancedAdmission = signal(false);
+  protected readonly patientContextLoading = signal(false);
+  protected readonly dischargeReadiness = signal<IpdDischargeReadiness | null>(null);
+  protected readonly readinessError = signal('');
+  protected readonly dischargeDraftStatus = signal('');
+  private readonly patientService = inject(PatientManagementService);
+  private refreshTimer?: ReturnType<typeof setInterval>;
+  private dischargeSaveTimer?: ReturnType<typeof setTimeout>;
+  private dischargeSaveChain: Promise<void> = Promise.resolve();
+  protected readonly visibleManagerTabs = computed(() => this.tabs.filter(tab => this.moreTools() || ['dashboard', 'admissions', 'beds', 'patients', 'discharge'].includes(tab.key) || tab.key === this.activeTab()));
+  protected readonly managerTasks = computed(() => buildIpdManagerTasks(this.workspace()));
+
   protected readonly tabs: IpdTabItem[] = [
-    { key: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
-    { key: 'admissions', label: 'Admissions', icon: 'assignment_add' },
+    { key: 'dashboard', label: 'Today', icon: 'dashboard' },
+    { key: 'admissions', label: 'Admission Desk', icon: 'assignment_add' },
     { key: 'beds', label: 'Ward & Beds', icon: 'bed' },
     { key: 'patients', label: 'Active Patients', icon: 'personal_injury' },
     { key: 'care', label: 'Clinical Care', icon: 'stethoscope' },
@@ -2670,6 +2627,54 @@ export class IpdPageComponent implements OnInit {
     const labTests = await this.laboratoryService.tests();
     this.ipdLabTests.set(labTests.data?.filter(test => test.isActive) ?? []);
     this.applyQueryHandoff();
+    this.refreshTimer = setInterval(() => {
+      if (document.visibilityState === 'visible' && this.activeTab() === 'dashboard' && !this.saving() && !this.refreshing()) void this.refreshManagerQuietly();
+    }, 60000);
+  }
+
+  ngOnDestroy(): void { if (this.refreshTimer) clearInterval(this.refreshTimer); if (this.dischargeSaveTimer) clearTimeout(this.dischargeSaveTimer); }
+
+  private async refreshManagerQuietly(): Promise<void> {
+    this.refreshing.set(true);
+    try { await this.load(false); } finally { this.refreshing.set(false); }
+  }
+
+  protected async resolveManagerTask(task: ManagerTask): Promise<void> {
+    if (this.saving()) return;
+    if (task.kind === 'clean' && task.bed) {
+      try { await this.saveFacility(() => this.service.updateBedStatus(task.bed!.bedId, 'AVAILABLE'), 'Bed ready for the next patient'); } finally { this.saving.set(false); }
+    } else if (task.admission) {
+      if (task.kind === 'admit') this.openAdmissionRecord(task.admission);
+      else if (task.kind === 'bed') this.selectAdmission(task.admission, 'transfers');
+      else if (task.kind === 'discharge') this.selectAdmission(task.admission, 'discharge');
+      else { this.setTab('patients'); this.openAdmissionDetailTab(task.admission, 'lab'); }
+    }
+  }
+
+  protected quickAdmissionBedOptions(): DropdownOption<string>[] {
+    return [{ label: 'Choose a bed', value: '' }, ...(this.workspace()?.beds ?? []).filter(bed => bed.statusCode === 'AVAILABLE' || bed.bedId === this.admissionForm.bedId).map(bed => ({ value: bed.bedId, label: bed.wardName + ' · ' + bed.bedNo + ' · ₹' + bed.dailyCharge + '/day' }))];
+  }
+
+  protected chooseAdmissionDoctor(id: string): void {
+    this.admissionForm.doctorId = id;
+    this.admissionForm.departmentName = this.workspace()?.doctors.find(doctor => doctor.value === id)?.departmentName || '';
+  }
+
+  protected async chooseAdmissionPatient(id: string): Promise<void> {
+    this.admissionForm.patientId = id;
+    this.admissionForm.knownAllergies = ''; this.admissionForm.bloodGroup = ''; this.admissionForm.medicalHistory = '';
+    this.patientContextLoading.set(false);
+    if (!id) return;
+    this.patientContextLoading.set(true);
+    try {
+      const response = await this.patientService.get(id);
+      if (this.admissionForm.patientId !== id) return;
+      if (response.success && response.data) {
+        this.admissionForm.knownAllergies = response.data.allergies.filter(allergy => allergy.statusCode === 'ACTIVE').map(allergy => allergy.allergen).join(', ') || response.data.knownAllergies || '';
+        this.admissionForm.bloodGroup = response.data.bloodGroupName || '';
+        this.admissionForm.medicalHistory = response.data.pastMedicalHistory || '';
+      }
+    } catch { if (this.admissionForm.patientId === id) this.toast.warning('Patient history unavailable', 'Review the recorded details before confirming admission.'); } finally { if (this.admissionForm.patientId === id) this.patientContextLoading.set(false); }
   }
 
   protected toggleIpdLabTest(testId: string): void {
@@ -2690,9 +2695,7 @@ export class IpdPageComponent implements OnInit {
 
   protected async refresh(): Promise<void> {
     this.refreshing.set(true);
-    await this.load(false);
-    this.refreshing.set(false);
-    this.toast.success('IPD refreshed', 'Latest admissions and bed status loaded.');
+    try { await this.load(false); } finally { this.refreshing.set(false); }
   }
 
   protected setTab(tab: IpdTab): void {
@@ -2812,6 +2815,7 @@ export class IpdPageComponent implements OnInit {
   }
 
   protected async selectAdmissionBed(bed: IpdBedStatus): Promise<void> {
+    if (this.saving()) return;
     if (bed.statusCode.toUpperCase() !== 'AVAILABLE' && this.admissionForm.bedId !== bed.bedId) {
       this.toast.warning('Bed unavailable', `${bed.bedNo} is ${statusText(bed.statusCode).toLowerCase()}.`);
       return;
@@ -3048,6 +3052,7 @@ export class IpdPageComponent implements OnInit {
   }
 
   protected async saveAdmissionDraft(showToast = true): Promise<boolean> {
+    if (this.saving()) return false;
     localStorage.setItem(admissionDraftKey, JSON.stringify(this.admissionForm));
     if (!this.admissionForm.patientId) {
       if (showToast) {
@@ -3057,6 +3062,7 @@ export class IpdPageComponent implements OnInit {
     }
 
     this.saving.set(true);
+    try {
     const response = await this.service.saveAdmissionDraft({
       ...this.admissionForm,
       admissionId: this.admissionForm.admissionId ?? null,
@@ -3068,7 +3074,7 @@ export class IpdPageComponent implements OnInit {
       admissionDate: this.admissionForm.admittedAt || new Date().toISOString(),
       progressStep: this.admissionStep()
     });
-    this.saving.set(false);
+
 
     if (!response.success || !response.data) {
       this.toast.error('Unable to save admission draft', getApiErrorMessage(response, 'IPD admission draft API failed'));
@@ -3079,11 +3085,13 @@ export class IpdPageComponent implements OnInit {
     if (response.data.allocation) {
       this.admissionForm.bedId = response.data.allocation.bedId;
     }
+    localStorage.setItem(admissionDraftKey, JSON.stringify(this.admissionForm));
     await this.load(false);
     if (showToast) {
       this.toast.success('Admission draft saved', 'You can continue this admission from the Admission Desk.');
     }
     return true;
+    } catch { this.toast.error('Unable to save admission', 'Your draft is retained. Please retry.'); return false; } finally { this.saving.set(false); }
   }
 
   protected async confirmAdmission(): Promise<void> {
@@ -3091,7 +3099,7 @@ export class IpdPageComponent implements OnInit {
       return;
     }
 
-    await this.saveAdmissionDraft(false);
+    if (this.saving() || !await this.saveAdmissionDraft(false)) return;
     const admissionId = this.admissionForm.admissionId;
     if (!admissionId) {
       this.toast.error('Unable to confirm admission', 'Draft admission was not created.');
@@ -3099,8 +3107,8 @@ export class IpdPageComponent implements OnInit {
     }
 
     this.saving.set(true);
-    const response = await this.service.confirmAdmission(admissionId);
-    this.saving.set(false);
+    let response;
+    try { response = await this.service.confirmAdmission(admissionId); } catch { this.toast.error('Admission not confirmed', 'Please retry from the retained draft.'); return; } finally { this.saving.set(false); }
 
     if (!response.success || !response.data) {
       this.toast.error('Unable to confirm admission', getApiErrorMessage(response, 'IPD admission confirmation failed'));
@@ -3453,18 +3461,51 @@ export class IpdPageComponent implements OnInit {
     this.toast.success('Bed allocation saved', `${response.data.wardName} ${response.data.bedNo} is now allocated.`);
   }
 
-  protected saveDischargeDraft(): void {
-    const admission = this.selectedAdmission();
-    if (!admission) {
-      this.toast.warning('Select an inpatient', 'Choose a patient before saving discharge draft.');
-      return;
-    }
+  private async loadDischargeReadiness(admissionId: string): Promise<void> {
+    this.dischargeReadiness.set(null); this.readinessError.set(''); this.dischargeDraftStatus.set('');
+    const initialSummary = this.dischargeSummary;
+    try {
+      const response = await this.service.dischargeReadiness(admissionId);
+      if (this.selectedAdmissionId() !== admissionId) return;
+      if (!response.success || !response.data) { this.readinessError.set('Readiness could not be loaded. Refresh before finalizing.'); return; }
+      this.dischargeReadiness.set(response.data);
+      if (!initialSummary && this.dischargeSummary === initialSummary) this.dischargeSummary = response.data.draft;
+    } catch { if (this.selectedAdmissionId() === admissionId) this.readinessError.set('Readiness unavailable. Refresh to retry.'); }
+  }
 
+  protected scheduleDischargeSave(): void {
+    const admission = this.selectedAdmission();
+    if (!admission) return;
+    const summary = this.dischargeSummary;
+    localStorage.setItem(dischargeDraftKey(admission.admissionId), summary);
+    if (this.dischargeSaveTimer) clearTimeout(this.dischargeSaveTimer);
+    this.dischargeDraftStatus.set('Saving draft…');
+    this.dischargeSaveTimer = setTimeout(() => void this.persistDischargeDraft(admission.admissionId, summary), 900);
+  }
+
+  private persistDischargeDraft(admissionId: string, summary: string): Promise<void> {
+    this.dischargeSaveChain = this.dischargeSaveChain.then(() => this.writeDischargeDraft(admissionId, summary));
+    return this.dischargeSaveChain;
+  }
+
+  private async writeDischargeDraft(admissionId: string, summary: string): Promise<void> {
+    try {
+      const response = await this.service.saveDischargeDraft(admissionId, summary);
+      if (this.selectedAdmissionId() === admissionId) this.dischargeDraftStatus.set(response.success ? 'Draft saved to patient record' : 'Server save failed. Draft retained in this browser.');
+    } catch { if (this.selectedAdmissionId() === admissionId) this.dischargeDraftStatus.set('Server save failed. Draft retained in this browser.'); }
+  }
+
+  protected async saveDischargeDraft(): Promise<void> {
+    const admission = this.selectedAdmission();
+    if (!admission) return;
+    if (this.dischargeSaveTimer) clearTimeout(this.dischargeSaveTimer);
     localStorage.setItem(dischargeDraftKey(admission.admissionId), this.dischargeSummary);
-    this.toast.success('Discharge draft saved', 'Summary is saved in this browser.');
+    await this.persistDischargeDraft(admission.admissionId, this.dischargeSummary);
   }
 
   protected async finalizeDischarge(): Promise<void> {
+    if (this.saving()) return;
+    if (this.dischargeSaveTimer) clearTimeout(this.dischargeSaveTimer);
     const admission = this.selectedAdmission();
     if (!admission) {
       this.toast.warning('Select an inpatient', 'Choose a patient before finalizing discharge.');
@@ -3477,8 +3518,8 @@ export class IpdPageComponent implements OnInit {
     }
 
     this.saving.set(true);
-    const response = await this.service.discharge(admission.admissionId, this.dischargeSummary.trim());
-    this.saving.set(false);
+    let response;
+    try { response = await this.service.discharge(admission.admissionId, this.dischargeSummary.trim()); } catch { this.toast.error('Discharge not completed', 'Your summary is retained. Please retry.'); return; } finally { this.saving.set(false); }
 
     if (!response.success || !response.data) {
       this.toast.error('Unable to discharge patient', getApiErrorMessage(response, 'IPD discharge API failed'));
@@ -3488,7 +3529,7 @@ export class IpdPageComponent implements OnInit {
     localStorage.removeItem(dischargeDraftKey(admission.admissionId));
     await this.load(false);
     this.setTab('dashboard');
-    this.toast.success('Patient discharged', 'Bed released and discharge summary saved.');
+    this.toast.success('Patient discharged', 'Discharge saved. The bed is now awaiting cleaning.');
   }
 
   protected printDischargeSummary(): void {
@@ -3816,7 +3857,7 @@ export class IpdPageComponent implements OnInit {
     }
 
     if (savedTab && this.tabs.some(tab => tab.key === savedTab)) {
-      this.activeTab.set(savedTab);
+      this.activeTab.set('dashboard');
     }
   }
 
@@ -3854,6 +3895,7 @@ export class IpdPageComponent implements OnInit {
     }
 
     this.dischargeSummary = localStorage.getItem(dischargeDraftKey(admissionId)) ?? '';
+    void this.loadDischargeReadiness(admissionId);
   }
 
   private saveAdmissionCareDraft(admissionId: string): void {

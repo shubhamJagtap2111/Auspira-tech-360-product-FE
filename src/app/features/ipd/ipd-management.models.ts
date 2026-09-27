@@ -106,6 +106,7 @@ export interface IpdAttentionItem {
 }
 
 export interface IpdOption {
+  departmentName?: string;
   value: string;
   label: string;
   meta: string;
@@ -278,4 +279,8 @@ export interface SaveIpdBedRequest {
   bedType: string;
   statusCode: string;
   dailyCharge: number;
+}
+
+export interface IpdDischargeReadiness {
+  admissionId: string; statusCode: string; draft: string; pendingInvestigations: number; outstanding: number; unbilledCharges: number;
 }

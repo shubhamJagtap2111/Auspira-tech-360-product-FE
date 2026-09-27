@@ -9,6 +9,7 @@ import {
   IpdCareNote,
   IpdDashboard,
   IpdDischarge,
+  IpdDischargeReadiness,
   IpdDoctorRound,
   IpdVitalRecord,
   SaveIpdBedRequest,
@@ -96,6 +97,14 @@ export class IpdManagementService {
 
   deleteVitals(admissionId: string, vitalId: string): Promise<IpdApiResponse<unknown>> {
     return firstValueFrom(this.api.delete<IpdApiResponse<unknown>>(`/ipd/admissions/${admissionId}/vitals/${vitalId}`));
+  }
+
+  dischargeReadiness(admissionId: string): Promise<IpdApiResponse<IpdDischargeReadiness>> {
+    return firstValueFrom(this.api.get<IpdApiResponse<IpdDischargeReadiness>>(`/ipd/admissions/${admissionId}/discharge-readiness`));
+  }
+
+  saveDischargeDraft(admissionId: string, summary: string): Promise<IpdApiResponse<{ saved: boolean }>> {
+    return firstValueFrom(this.api.put<IpdApiResponse<{ saved: boolean }>>(`/ipd/admissions/${admissionId}/discharge-draft`, { summary }));
   }
 
   discharge(admissionId: string, summary: string): Promise<IpdApiResponse<IpdDischarge>> {
