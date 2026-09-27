@@ -4,11 +4,14 @@ import { DoctorSummary } from '../doctors/doctor-management.models';
 import { PatientSummary } from '../patients/patient-management.models';
 
 export type OpdApiResponse<T> = ApiResponse<T>;
-export type OpdTab = 'dashboard' | 'queue' | 'check-in' | 'active' | 'completed' | 'encounter';
+export type OpdTab = 'dashboard' | 'queue' | 'check-in' | 'active' | 'completed' | 'encounter' | 'follow-ups' | 'history';
 export type OpdConsultationStatus = 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 export type OpdEncounterSection = 'snapshot' | 'vitals' | 'consultation' | 'diagnosis' | 'lab-orders' | 'procedures' | 'notes' | 'prescription' | 'follow-up';
 
 export interface OpdConsultationRecord {
+  clinicalData?: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
   id: string;
   patientId: string;
   doctorId: string;
@@ -20,6 +23,7 @@ export interface OpdConsultationRecord {
 }
 
 export interface OpdEncounterForm {
+  clinicalData?: string;
   consultationId: string;
   patientId: string;
   doctorId: string;
@@ -346,4 +350,9 @@ export interface OpdStats {
   completed: number;
   followUps: number;
   noShows: number;
+}
+
+export interface OpdLabResultSummary {
+  id: string; testName: string; parameterName: string; value: string; unit: string | null;
+  referenceRange: string | null; flagCode: string; isCritical: boolean; verifiedAt: string | null;
 }

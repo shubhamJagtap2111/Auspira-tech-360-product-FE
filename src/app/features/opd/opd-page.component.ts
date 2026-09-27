@@ -1,5 +1,7 @@
+import { AuthStore } from '../../core/auth/auth.store';
+import { PatientProfile } from '../patients/patient-management.models';
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiResponse } from '../../core/auth/auth.models';
@@ -16,6 +18,7 @@ import { PatientSummary } from '../patients/patient-management.models';
 import { PatientManagementService } from '../patients/patient-management.service';
 import {
   OpdClinicalForm,
+  OpdLabResultSummary,
   OpdComplaintForm,
   OpdConsultationRecord,
   OpdDiagnosisForm,
@@ -38,12 +41,22 @@ import { OpdManagementService } from './opd-management.service';
   standalone: true,
   imports: [CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent],
   template: `
+    <ng-template #previousVisitPanel let-visit>
+      <section class="history-visit"><h3>Previous visit</h3>
+        @if (previousConsultation(visit); as previous) {
+          <p>{{ previous.createdAt | date:'mediumDate' }}</p>
+          @for (section of clinicalSummaryPreview(previous.notes).sections; track section.title) {
+            @if (['Diagnosis', 'Prescription', 'Clinical Notes', 'Follow-up'].includes(section.title)) { <h4>{{ section.title }}</h4>@for (item of section.items; track item) { <p>{{ item }}</p> } }
+          }
+        } @else { <p>{{ historyByPatient()[visit.appointment.patientId] ? 'No previous completed visit recorded.' : (contextError() || 'Loading history…') }}</p> }
+      </section>
+    </ng-template>
     <section class="opd-page">
       <header class="page-header">
         <div>
-          <p class="ac-eyebrow">Clinical operations</p>
-          <h1 class="ac-page-title">OPD Workspace</h1>
-          <p class="page-desc">Manage today's queue, check-ins, active consultations, completed visits, and OPD encounters from one workspace.</p>
+          <p class="ac-eyebrow">Clinical workspace</p>
+          <h1 class="ac-page-title">Today's OPD</h1>
+          <p class="page-desc">Your waiting patients, current consultation, and clinical decisions in one place.</p>
         </div>
         <div class="header-actions">
           <button class="ac-btn ac-btn-secondary" type="button" (click)="reload()">
@@ -68,11 +81,12 @@ import { OpdManagementService } from './opd-management.service';
           </button>
         }
       </div>
+      @if (averageConsultationMinutes(); as minutes) { <p class="page-desc">Average consultation time today: {{ minutes }} min</p> }
 
       <section class="opd-shell ac-card">
         <div class="opd-tabs">
           @for (tab of tabs; track tab.id) {
-            <button type="button" [class.active]="activeTab() === tab.id" (click)="setActiveTab(tab.id)">
+            <button type="button" [class.active]="activeTab() === tab.id" [disabled]="saving()" (click)="setActiveTab(tab.id)">
               <span class="material-symbols-rounded">{{ tab.icon }}</span>
               <span class="tab-label">{{ tab.label }}</span>
               @if (tabCount(tab.id); as count) {
@@ -93,186 +107,77 @@ import { OpdManagementService } from './opd-management.service';
           </button>
         </div>
 
-        <div class="quick-action-bar">
-          <button type="button" [class.active]="activeTab() === 'check-in'" (click)="setActiveTab('check-in')">
-            <span class="material-symbols-rounded">how_to_reg</span>
-            <span>Check-In</span>
-            <strong>{{ tabCount('check-in') || '0' }}</strong>
-          </button>
-          <button type="button" [class.active]="activeTab() === 'queue'" (click)="setActiveTab('queue')">
-            <span class="material-symbols-rounded">queue</span>
-            <span>Queue</span>
-            <strong>{{ tabCount('queue') || '0' }}</strong>
-          </button>
-          <button type="button" [class.active]="activeTab() === 'active'" (click)="setActiveTab('active')">
-            <span class="material-symbols-rounded">stethoscope</span>
-            <span>Consulting</span>
-            <strong>{{ tabCount('active') || '0' }}</strong>
-          </button>
-          <button type="button" [disabled]="!selectedVisit()" (click)="savePrescriptionDraft()">
-            <span class="material-symbols-rounded">save</span>
-            <span>Draft</span>
-          </button>
-          <button type="button" [disabled]="!selectedVisit()" (click)="printPrescription()">
-            <span class="material-symbols-rounded">print</span>
-            <span>Print</span>
-          </button>
-        </div>
-
         @if (loading()) {
           <ac-grid-loader title="Loading OPD workspace..." message="Preparing queue, check-ins, consultations, and lab context." />
         } @else {
           @switch (activeTab()) {
             @case ('dashboard') {
+              @if (completedPatientName()) {
+                <div class="completion-banner" role="status"><span class="material-symbols-rounded">task_alt</span> Consultation completed for {{ completedPatientName() }}. Your next patient is ready below.</div>
+              }
               <section class="opd-today-grid">
                 <article class="panel today-queue-panel">
-                  <div class="panel-topline">
-                    <div>
-                      <p class="ac-eyebrow">Today's Queue</p>
-                      <h2>Simple OPD Flow</h2>
-                      <span>{{ doctorQueueSummary().doctorName }} · {{ formatNumberValue(totalOperationalVisits()) }} visits</span>
-                    </div>
-                    <button class="ac-btn ac-btn-secondary" type="button" (click)="setActiveTab('check-in')">
-                      <span class="material-symbols-rounded">add_task</span>
-                      Check-In
-                    </button>
-                  </div>
-
-                  <div class="queue-flow-strip">
-                    <button type="button" class="flow-step waiting" (click)="setActiveTab('queue')">
-                      <span class="material-symbols-rounded">pending_actions</span>
-                      <small>Waiting</small>
-                      <strong>{{ stats().waiting }}</strong>
-                    </button>
-                    <button type="button" class="flow-step active" (click)="setActiveTab('active')">
-                      <span class="material-symbols-rounded">medical_services</span>
-                      <small>In Consultation</small>
-                      <strong>{{ stats().inConsultation }}</strong>
-                    </button>
-                    <button type="button" class="flow-step completed" (click)="setActiveTab('completed')">
-                      <span class="material-symbols-rounded">task_alt</span>
-                      <small>Completed</small>
-                      <strong>{{ stats().completed }}</strong>
-                    </button>
-                    <button type="button" class="flow-step danger" (click)="setActiveTab('queue')">
-                      <span class="material-symbols-rounded">event_busy</span>
-                      <small>No Shows</small>
-                      <strong>{{ stats().noShows }}</strong>
-                    </button>
-                  </div>
-
+                  <div class="panel-topline"><div><p class="ac-eyebrow">My Queue</p><h2>Waiting patients</h2><span>{{ doctorQueueSummary().doctorName }} · {{ waitingQueue().length }} waiting</span></div></div>
                   <div class="simple-queue-list">
-                    @for (visit of queueVisits().slice(0, 7); track visit.appointment.id) {
-                      <button type="button" class="simple-queue-row" [class.selected]="selectedVisit()?.appointment?.id === visit.appointment.id" (click)="selectVisit(visit, 'dashboard')">
+                    @for (visit of waitingQueue(); track visit.appointment.id) {
+                      <div class="simple-queue-row">
                         <span class="token-pill">{{ visit.tokenNumber }}</span>
-                        <span class="patient-cell">
-                          <strong>{{ visit.patientName }}</strong>
-                          <small>{{ visit.patientMrn }} · {{ patientAgeGender(visit) }}</small>
-                        </span>
-                        <span class="doctor-cell">
-                          <strong>{{ visit.doctorName }}</strong>
-                          <small>{{ visit.appointmentTime }} · {{ visit.arrivalTime || 'Not arrived' }}</small>
-                        </span>
-                        <span class="queue-status" [ngClass]="queueStatusClass(visit)">{{ queueStatusLabel(visit) }}</span>
-                      </button>
-                    } @empty {
-                      <div class="empty-state compact">No patients in today's OPD queue.</div>
-                    }
-                  </div>
-                </article>
-
-                <article class="panel encounter-focus-panel">
-                  @if (dashboardFocusVisit(); as visit) {
-                    <div class="focus-head">
-                      <div class="patient-avatar">{{ patientInitials(visit) }}</div>
-                      <div>
-                        <p class="ac-eyebrow">Patient Snapshot</p>
-                        <h2>{{ visit.patientName }}</h2>
-                        <span>{{ visit.patientMrn }} · {{ patientAgeGender(visit) }}</span>
+                        <span class="patient-cell"><strong>{{ visit.patientName }}</strong><small>{{ visit.patientMrn }} · {{ patientAgeGender(visit) }}</small><small>{{ waitingTime(visit) }} · {{ visit.priorityCode }}</small></span>
+                        <button type="button" class="ac-btn ac-btn-primary" [disabled]="saving()" (click)="startEncounter(visit)">Start Consultation</button>
                       </div>
-                      <span class="status-badge">{{ encounterStatusLabel(visit) }}</span>
-                    </div>
-
+                    } @empty { <div class="empty-state compact">No patients waiting. {{ activeConsultations().length ? 'Your current consultation is shown alongside.' : 'Checked-in patients will appear here.' }}</div> }
+                  </div>
+                  <button type="button" class="ac-btn ac-btn-secondary" (click)="goToAppointments()">Reception / Check-In</button>
+                </article>
+                <article class="panel patient-focus-panel">
+                  @if (dashboardFocusVisit(); as visit) {
+                    <p class="ac-eyebrow">{{ visit.consultation ? 'Current patient' : 'Next patient' }}</p>
+                    <div class="focus-head"><div><h2>{{ visit.patientName }}</h2><span>{{ patientAgeGender(visit) }} · {{ visit.patientMrn }}</span></div><span class="status-badge">{{ visit.consultation ? encounterStatusLabel(visit) : 'Waiting' }}</span></div>
                     <div class="focus-details">
                       <span><small>Token</small><strong>{{ visit.tokenNumber }}</strong></span>
-                      <span><small>Doctor</small><strong>{{ visit.doctorName }}</strong></span>
-                      <span><small>Department</small><strong>{{ visit.departmentName }}</strong></span>
-                      <span><small>Arrival</small><strong>{{ visit.arrivalTime || '-' }}</strong></span>
-                      <span><small>Blood Group</small><strong>{{ visit.patient?.bloodGroupName || '-' }}</strong></span>
-                      <span><small>Allergies</small><strong>{{ visit.patient?.knownAllergies || 'None' }}</strong></span>
+                      <span><small>Arrival</small><strong>{{ visit.arrivalTime || 'Not recorded' }}</strong></span>
+                      <span><small>Allergies</small><strong>{{ allergySummary(visit) }}</strong></span>
+                      <span><small>Previous visits</small><strong>{{ previousVisitCount(visit) }}</strong></span>
+                      <span><small>Lab orders pending</small><strong>{{ pendingLabCount(visit) }}</strong></span>
+                      <span><small>Medication history</small><strong>{{ recordedMedicationSummary(visit) }}</strong></span>
+                      <span><small>Medical history</small><strong>{{ visit.patient?.pastMedicalHistory || 'Not recorded' }}</strong></span>
                     </div>
-
-                    <div class="clinical-summary-card">
-                      @if (clinicalSummaryPreview(visit.consultation?.notes); as summary) {
-                        <div class="summary-card-head">
-                          <div>
-                            <h3>Clinical Summary</h3>
-                            <p>{{ summary.caption }}</p>
-                          </div>
-                          @if (summary.sections.length) {
-                            <span>{{ summary.sections.length }} sections</span>
-                          }
-                        </div>
-
-                        @if (summary.sections.length) {
-                          <div class="summary-section-grid">
-                            @for (section of summary.sections; track section.title) {
-                              <section class="summary-section">
-                                <div class="summary-section-title">
-                                  <span class="material-symbols-rounded">{{ section.icon }}</span>
-                                  <strong>{{ section.title }}</strong>
-                                </div>
-                                <div class="summary-chip-list">
-                                  @for (item of section.items; track item) {
-                                    <span>{{ item }}</span>
-                                  }
-                                </div>
-                              </section>
-                            }
-                          </div>
-                        } @else {
-                          <div class="summary-empty">
-                            <span class="material-symbols-rounded">clinical_notes</span>
-                            <p>No clinical notes saved yet. Start the consultation or save a draft from the encounter.</p>
-                          </div>
+                    @if (clinicalSummaryPreview(visit.consultation?.notes); as summary) {
+                      @for (section of summary.sections; track section.title) {
+                        @if (section.title === 'Vitals' || section.title === 'Complaints') {
+                          <section class="summary-section"><h3>{{ section.title }}</h3>@for (item of section.items; track item) { <p>{{ item }}</p> }</section>
                         }
                       }
-                    </div>
-
+                    }
                     <div class="focus-action-grid">
-                      @if (!visit.queue) {
-                        <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="quickCheckIn(visit)">
-                          <span class="material-symbols-rounded">how_to_reg</span>
-                          Check-In
-                        </button>
-                      } @else if (!visit.consultation) {
-                        <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="startEncounter(visit)">
-                          <span class="material-symbols-rounded">play_arrow</span>
-                          Start Consultation
-                        </button>
-                      } @else {
-                        <button class="ac-btn ac-btn-primary" type="button" (click)="selectVisit(visit, 'encounter')">
-                          <span class="material-symbols-rounded">clinical_notes</span>
-                          Open Encounter
-                        </button>
-                      }
-                      <button class="ac-btn ac-btn-secondary" type="button" (click)="selectVisit(visit, 'encounter'); activeEncounterSection.set('prescription')">
-                        <span class="material-symbols-rounded">receipt_long</span>
-                        Prescription
-                      </button>
-                      <button class="ac-btn ac-btn-secondary" type="button" [disabled]="saving()" (click)="selectVisit(visit, 'dashboard'); savePrescriptionDraft()">
-                        <span class="material-symbols-rounded">save</span>
-                        Save Draft
-                      </button>
-                      <button class="ac-btn ac-btn-secondary" type="button" [disabled]="saving()" (click)="selectVisit(visit, 'dashboard'); printPrescription()">
-                        <span class="material-symbols-rounded">print</span>
-                        Print
-                      </button>
+                      <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="visit.consultation ? selectVisit(visit, 'encounter') : startEncounter(visit)">{{ visit.consultation ? 'Open Consultation' : 'Call Next Patient' }}</button>
+                      <button class="ac-btn ac-btn-secondary" type="button" (click)="showHistory(visit)">View complete history →</button>
                     </div>
-                  } @else {
-                    <div class="empty-state compact">Select a patient from queue or check in an appointment.</div>
-                  }
+                    <ng-container *ngTemplateOutlet="previousVisitPanel; context: { $implicit: visit }" />
+                  } @else { <div class="empty-state compact">No current consultation or waiting patients.</div> }
                 </article>
+              </section>
+            }
+            @case ('follow-ups') {
+              <section class="panel"><h2>Upcoming follow-ups</h2>
+                @for (followUp of visibleFollowUps(); track followUp.id) {
+                  <div class="visit-row"><div><strong>{{ patientNameFor(followUp.patientId) }}</strong><p>{{ followUp.followUpDate | date:'mediumDate' }}</p><p>{{ followUp.notes || 'No follow-up notes recorded' }}</p></div><button class="ac-btn ac-btn-secondary" (click)="openPatientProfile(followUp.patientId)">Patient history</button></div>
+                } @empty { <p class="empty-state">No upcoming follow-ups for this doctor.</p> }
+              </section>
+            }
+            @case ('history') {
+              <section class="panel"><h2>Patient history</h2>
+                @if (selectedVisit() || dashboardFocusVisit(); as visit) {
+                  <h3>{{ visit.patientName }} · {{ visit.patientMrn }}</h3>
+                  <button class="ac-btn ac-btn-secondary" (click)="openPatientProfile(visit.appointment.patientId)">Open complete patient record</button>
+                  @if (historyByPatient()[visit.appointment.patientId]; as history) {
+                    @for (record of history; track record.id) {
+                      <article class="history-visit"><details><summary>Full clinical notes</summary><p style="white-space: pre-wrap">{{ record.notes }}</p></details><h3>{{ record.createdAt | date:'medium' }} · {{ record.statusCode }}</h3>
+                        @for (section of clinicalSummaryPreview(record.notes).sections; track section.title) { <h4>{{ section.title }}</h4>@for (item of section.items; track item) { <p>{{ item }}</p> } }
+                      </article>
+                    } @empty { <p>No previous consultations recorded.</p> }
+                  } @else { <p>{{ contextError() || 'Loading patient history…' }}</p> }
+                } @else { <p>Select a patient from My Queue or Today's Visits to see their history.</p> }
               </section>
             }
 
@@ -371,7 +276,7 @@ import { OpdManagementService } from './opd-management.service';
             }
 
             @case ('completed') {
-              <ng-container *ngTemplateOutlet="visitList; context: { visits: completedVisits(), action: 'Review Visit' }" />
+              <ng-container *ngTemplateOutlet="visitList; context: { visits: todaysVisits(), action: 'Open Visit' }" />
             }
 
             @case ('encounter') {
@@ -387,7 +292,7 @@ import { OpdManagementService } from './opd-management.service';
                     </div>
                     <div class="encounter-switcher-grid">
                       @for (visit of encounterCandidates(); track visit.appointment.id) {
-                        <button type="button" [class.active]="selectedVisit()?.appointment?.id === visit.appointment.id" (click)="selectVisit(visit, 'encounter')">
+                        <button type="button" [class.active]="selectedVisit()?.appointment?.id === visit.appointment.id" (click)="visit.consultationStatus === 'COMPLETED' ? showHistory(visit) : selectVisit(visit, 'encounter')">
                           <strong>{{ visit.patientName }}</strong>
                           <small>{{ visit.tokenNumber }} · {{ visit.doctorName }}</small>
                         </button>
@@ -421,7 +326,7 @@ import { OpdManagementService } from './opd-management.service';
                           <span class="material-symbols-rounded">badge</span>
                           <div>
                             <p class="ac-eyebrow">Always Visible</p>
-                            <h3>Patient Snapshot</h3>
+                            <h3>Patient Summary</h3>
                           </div>
                         </div>
                         <div class="snapshot-grid">
@@ -429,11 +334,22 @@ import { OpdManagementService } from './opd-management.service';
                           <span><small>Name</small><strong>{{ visit.patientName }}</strong></span>
                           <span><small>Age / Gender</small><strong>{{ patientAgeGender(visit) }}</strong></span>
                           <span><small>Blood Group</small><strong>{{ visit.patient?.bloodGroupName || '-' }}</strong></span>
-                          <span><small>Allergies</small><strong>{{ visit.patient?.knownAllergies || 'None recorded' }}</strong></span>
+                          <span><small>Allergies</small><strong>{{ allergySummary(visit) }}</strong></span>
                           <span><small>Medical Conditions</small><strong>{{ visit.patient?.knownConditions || 'None recorded' }}</strong></span>
                           <span><small>Previous Visits</small><strong>{{ previousVisitCount(visit) }}</strong></span>
-                          <span><small>Current Medications</small><strong>{{ currentMedicationSummary() }}</strong></span>
+                          <span><small>Current Medications</small><strong>{{ recordedMedicationSummary(visit) }}</strong></span>
                         </div>
+                        <ng-container *ngTemplateOutlet="previousVisitPanel; context: { $implicit: visit }" />
+                        <p>Pending lab orders: {{ pendingLabCount(visit) }}</p>
+                        @for (lab of patientContexts()[visit.appointment.patientId]?.labOrders || []; track lab.recordGuid) { <p>{{ lab.title }} · {{ lab.statusCode }} · {{ lab.eventDate | date:'shortDate' }}</p> }
+                        <h4>Verified lab results</h4>
+                        @for (result of patientLabResults()[visit.appointment.patientId] || []; track result.id) {
+                          <div class="history-visit"><strong>{{ result.testName }} · {{ result.parameterName }}</strong><p>{{ result.value }} {{ result.unit }} · {{ result.flagCode }} {{ result.isCritical ? '— CRITICAL' : '' }}</p><small>Reference: {{ result.referenceRange || 'Not supplied' }} · {{ result.verifiedAt | date:'shortDate' }}</small></div>
+                        } @empty { <p>{{ patientLabResults()[visit.appointment.patientId] ? 'No verified lab results recorded.' : 'Lab results unavailable or loading.' }}</p> }
+                        <h4>Radiology documents</h4>
+                        @for (document of radiologyDocuments(visit); track document.documentGuid) { <p>{{ document.documentName }} · {{ document.uploadedDate | date:'shortDate' }}</p> } @empty { <p>No radiology documents loaded.</p> }
+                        <p>Medical history: {{ visit.patient?.pastMedicalHistory || 'Not recorded' }}</p>
+                        <button class="ac-btn ac-btn-secondary" (click)="showHistory(visit)">View complete history →</button>
                       </aside>
 
                       <section class="clinical-board">
@@ -1370,12 +1286,15 @@ import { OpdManagementService } from './opd-management.service';
     </section>
   `,
   styles: `
+    .history-visit { padding: 16px; margin-top: 12px; border: 1px solid var(--ac-border); border-radius: 12px; overflow-wrap: anywhere; }
+    .history-visit h4 { margin: 12px 0 4px; }
+    .completion-banner { display: flex; gap: 10px; padding: 16px; background: #ecfdf5; color: #065f46; }
     :host { display: block; min-width: 0; }
     .opd-page { width: 100%; max-width: 100%; min-width: 0; display: grid; gap: 10px; overflow-x: hidden; }
     .page-header { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
     .page-desc { margin: 3px 0 0; max-width: 760px; color: var(--ac-muted); font-size: 13px; }
     .header-actions, .queue-actions, .encounter-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .stats-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; }
+    .stats-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
     .stat-card { min-height: 56px; display: flex; gap: 9px; align-items: center; padding: 8px 10px; border: 1px solid var(--ac-border); color: inherit; text-align: left; cursor: pointer; }
     .stat-card:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(15, 23, 42, .07); }
     .stat-icon { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; font-size: 17px; }
@@ -1472,7 +1391,7 @@ import { OpdManagementService } from './opd-management.service';
     .simple-queue-row {
       min-width: 0;
       display: grid;
-      grid-template-columns: minmax(78px, auto) minmax(160px, 1fr) minmax(160px, 1fr) auto;
+      grid-template-columns: auto minmax(0, 1fr) auto;
       gap: 10px;
       align-items: center;
       border: 1px solid var(--ac-border);
@@ -1492,8 +1411,9 @@ import { OpdManagementService } from './opd-management.service';
     .patient-cell, .doctor-cell { min-width: 0; display: grid; gap: 3px; }
     .patient-cell strong, .doctor-cell strong { min-width: 0; color: var(--ac-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .patient-cell small, .doctor-cell small { min-width: 0; color: var(--ac-muted); font-size: 11.5px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .patient-focus-panel { display: grid; gap: 16px; }
     .encounter-focus-panel { position: sticky; top: 10px; }
-    .focus-head { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+    .focus-head { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; }
     .patient-avatar { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 8px; background: linear-gradient(135deg, #2563eb, #0f766e); color: white; font-size: 15px; font-weight: 950; }
     .focus-head h2 { margin: 0; color: var(--ac-text); font-size: 21px; line-height: 1.15; overflow-wrap: anywhere; }
     .focus-head span:not(.status-badge) { color: var(--ac-muted); font-size: 12px; font-weight: 800; }
@@ -2929,7 +2849,7 @@ export class OpdPageComponent implements OnInit {
   protected readonly medicines = signal<OpdMedicineRecord[]>([]);
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
-  protected readonly activeTab = signal<OpdTab>(readStoredOpdTab());
+  protected readonly activeTab = signal<OpdTab>('dashboard');
   protected readonly activeEncounterSection = signal<OpdEncounterSection>('snapshot');
   protected readonly selectedVisit = signal<OpdVisitVm | null>(null);
   protected readonly transferVisit = signal<OpdVisitVm | null>(null);
@@ -3017,12 +2937,11 @@ export class OpdPageComponent implements OnInit {
   ];
 
   protected readonly tabs: Array<{ id: OpdTab; label: string; icon: string }> = [
-    { id: 'dashboard', label: 'OPD Dashboard', icon: 'dashboard' },
-    { id: 'queue', label: "Today's Queue", icon: 'queue' },
-    { id: 'check-in', label: 'Check-In', icon: 'how_to_reg' },
-    { id: 'active', label: 'Active Consultations', icon: 'clinical_notes' },
-    { id: 'completed', label: 'Completed Visits', icon: 'task_alt' },
-    { id: 'encounter', label: 'OPD Encounter', icon: 'stethoscope' }
+    { id: 'dashboard', label: 'My Queue', icon: 'queue' },
+    { id: 'encounter', label: 'Active Consultation', icon: 'stethoscope' },
+    { id: 'completed', label: "Today's Visits", icon: 'task_alt' },
+    { id: 'follow-ups', label: 'Follow-ups', icon: 'event_repeat' },
+    { id: 'history', label: 'History', icon: 'history' }
   ];
 
   protected readonly encounterSections: Array<{ id: OpdEncounterSection; label: string; icon: string }> = [
@@ -3105,7 +3024,7 @@ export class OpdPageComponent implements OnInit {
   protected readonly bmiValue = computed(() => calculateBmi(this.clinicalForm().vitals.height, this.clinicalForm().vitals.weight));
 
   protected readonly visitModels = computed<OpdVisitVm[]>(() => {
-    const patientMap = new Map(this.patients().map(patient => [patient.patientGuid, patient]));
+    const patientMap = new Map([...this.patients(), ...Object.values(this.patientContexts())].map(patient => [patient.patientGuid, patient]));
     const doctorMap = new Map(this.doctors().map(doctor => [doctor.doctorGuid, doctor]));
     const queueMap = new Map<string, AppointmentQueueRecord>();
     this.queues().forEach(queue => {
@@ -3114,7 +3033,7 @@ export class OpdPageComponent implements OnInit {
         queueMap.set(appointmentId, queue);
       }
     });
-    const consultationMap = new Map(this.consultations().filter(item => item.appointmentId).map(item => [item.appointmentId as string, item]));
+    const consultationMap = new Map([...this.consultations()].sort((a, b) => safeTime(a.createdAt) - safeTime(b.createdAt)).filter(item => item.appointmentId).map(item => [item.appointmentId as string, item]));
 
     return this.appointments()
       .map(appointment => {
@@ -3145,9 +3064,11 @@ export class OpdPageComponent implements OnInit {
           consultationStatus
         };
       })
-      .filter(visit => this.matchesSearch(visit))
+      .filter(visit => isActiveConsultation(visit) || this.matchesSearch(visit))
       .filter(visit => !this.doctorFilter() || visit.appointment.doctorId === this.doctorFilter())
       .sort((a, b) => {
+        const rank = (visit: OpdVisitVm) => ({ EMERGENCY: 0, URGENT: 1, HIGH: 1, NORMAL: 2 }[normalizeCode(visit.queue?.priorityCode || 'NORMAL')] ?? 2);
+        if (rank(a) !== rank(b)) return rank(a) - rank(b);
         const left = a.queueNo ?? 9999;
         const right = b.queueNo ?? 9999;
         return left === right
@@ -3164,6 +3085,7 @@ export class OpdPageComponent implements OnInit {
 
   protected readonly waitingQueue = computed(() => this.visitModels().filter(visit =>
     isQueueVisibleToday(visit)
+    && !isTerminalQueueVisit(visit)
     && isWaitingVisit(visit)
     && !isActiveOrCompletedConsultation(visit)
   ));
@@ -3177,8 +3099,9 @@ export class OpdPageComponent implements OnInit {
     isActiveConsultation(visit)
   ));
 
+  protected readonly todaysVisits = computed(() => this.visitModels().filter(visit => isToday(visit.appointment.startsAt)));
   protected readonly completedVisits = computed(() => this.visitModels().filter(visit =>
-    isCompletedVisit(visit)
+    isCompletedVisit(visit) && isToday(visit.appointment.startsAt)
   ));
 
   protected readonly noShowVisits = computed(() => this.visitModels().filter(visit =>
@@ -3192,12 +3115,7 @@ export class OpdPageComponent implements OnInit {
   ]);
 
   protected readonly nextWaitingVisit = computed(() => this.waitingQueue()[0] ?? null);
-  protected readonly dashboardFocusVisit = computed(() =>
-    this.selectedVisit()
-    ?? this.nextWaitingVisit()
-    ?? this.activeConsultations()[0]
-    ?? this.pendingCheckIns()[0]
-    ?? null);
+  protected readonly dashboardFocusVisit = computed(() => this.activeConsultations()[0] ?? this.nextWaitingVisit() ?? null);
 
   protected readonly recentCompletedVisits = computed(() =>
     [...this.completedVisits()]
@@ -3235,21 +3153,24 @@ export class OpdPageComponent implements OnInit {
   protected readonly statCards = computed(() => {
     const stats = this.stats();
     return [
-      { label: 'Waiting', value: formatNumber(stats.waiting), icon: 'queue', color: '#2563eb', bg: '#eff6ff', tab: 'queue' as OpdTab },
-      { label: 'In Consultation', value: formatNumber(stats.inConsultation), icon: 'clinical_notes', color: '#0f766e', bg: '#f0fdfa', tab: 'active' as OpdTab },
+      { label: 'Waiting', value: formatNumber(stats.waiting), icon: 'queue', color: '#2563eb', bg: '#eff6ff', tab: 'dashboard' as OpdTab },
+      { label: 'Current', value: formatNumber(stats.inConsultation), icon: 'clinical_notes', color: '#0f766e', bg: '#f0fdfa', tab: 'encounter' as OpdTab },
       { label: 'Completed', value: formatNumber(stats.completed), icon: 'task_alt', color: '#059669', bg: '#ecfdf5', tab: 'completed' as OpdTab },
-      { label: 'Follow-ups', value: formatNumber(stats.followUps), icon: 'event_repeat', color: '#7c3aed', bg: '#f5f3ff', tab: 'dashboard' as OpdTab },
-      { label: 'No Shows', value: formatNumber(stats.noShows), icon: 'event_busy', color: '#dc2626', bg: '#fef2f2', tab: 'queue' as OpdTab }
+      { label: 'Follow-ups', value: formatNumber(stats.followUps), icon: 'event_repeat', color: '#7c3aed', bg: '#f5f3ff', tab: 'follow-ups' as OpdTab }
     ];
   });
 
   protected tabCount(tabId: OpdTab): string | null {
     const stats = this.stats();
     switch (tabId) {
+      case 'dashboard':
       case 'queue':
-        return formatNumber(this.queueVisits().length);
+        return formatNumber(this.waitingQueue().length);
+      case 'follow-ups':
+        return formatNumber(this.visibleFollowUps().length);
       case 'check-in':
         return formatNumber(this.pendingCheckIns().length);
+      case 'encounter':
       case 'active':
         return formatNumber(stats.inConsultation);
       case 'completed':
@@ -3275,16 +3196,39 @@ export class OpdPageComponent implements OnInit {
     this.applyRouteContext();
   }
 
+  private async loadPatients() {
+    const first = await this.patientService.search('', '', '', '', '', 1, 100);
+    if (!first.success || !first.data) return first;
+    const registry = first.data;
+    for (let page = 2; registry.patients.length < registry.totalCount; page++) {
+      const next = await this.patientService.search('', '', '', '', '', page, 100);
+      if (!next.success || !next.data) return next;
+      if (!next.data.patients.length) break;
+      registry.patients.push(...next.data.patients);
+    }
+    return first;
+  }
+
+  private async loadAll<T>(fetch: (page: number) => Promise<ApiResponse<T[]>>): Promise<ApiResponse<T[]>> {
+    const rows: T[] = [];
+    for (let page = 1; ; page++) {
+      const response = await fetch(page);
+      if (!response.success || !response.data) return response;
+      rows.push(...response.data);
+      if (response.data.length < 100) return { ...response, data: rows };
+    }
+  }
+
   protected async reload(): Promise<void> {
     this.loading.set(true);
     try {
       const [appointments, queues, patients, doctors, consultations, followUps, labTests, medicines] = await Promise.all([
-        this.appointmentService.list(1, 100),
-        this.appointmentService.listQueue(1, 100),
-        this.patientService.search('', '', '', '', '', 1, 100),
+        this.loadAll(page => this.appointmentService.list(page, 100)),
+        this.loadAll(page => this.appointmentService.listQueue(page, 100)),
+        this.loadPatients(),
         this.doctorService.search({ searchText: '', departmentName: '', specializationName: '', branchName: '', employmentType: '', statusCode: '', pageNumber: 1, pageSize: 100 }),
-        this.opdService.listConsultations(1, 100),
-        this.opdService.listFollowUps(1, 100),
+        this.loadAll(page => this.opdService.listConsultations(page, 100)),
+        this.loadAll(page => this.opdService.listFollowUps(page, 100)),
         this.opdService.listLabTests(1, 100),
         this.opdService.listMedicines(1, 100)
       ]);
@@ -3337,16 +3281,23 @@ export class OpdPageComponent implements OnInit {
         this.medicines.set([]);
       }
     } finally {
+      const email = (this.auth.profile()?.email || this.auth.session()?.email || '').toLowerCase();
+      const doctor = this.doctors().find(item => item.email?.toLowerCase() === email);
+      if (doctor && !this.doctorFilter()) this.doctorFilter.set(doctor.doctorGuid);
+      const focus = this.dashboardFocusVisit();
+      if (focus) void this.loadPatientContext(focus);
       this.loading.set(false);
     }
   }
 
   protected clearFilters(): void {
     this.searchQuery.set('');
-    this.doctorFilter.set('');
+    const email = (this.auth.profile()?.email || this.auth.session()?.email || '').toLowerCase();
+    this.doctorFilter.set(this.doctors().find(doctor => doctor.email?.toLowerCase() === email)?.doctorGuid ?? '');
   }
 
   protected setActiveTab(tab: OpdTab): void {
+    if (tab === 'encounter' && (!this.selectedVisit() || isCompletedVisit(this.selectedVisit()!)) && this.activeConsultations()[0]) { this.selectVisit(this.activeConsultations()[0], tab); return; }
     this.activeTab.set(tab);
     persistOpdTab(tab);
   }
@@ -3365,14 +3316,19 @@ export class OpdPageComponent implements OnInit {
 
   protected selectVisit(visit: OpdVisitVm, tab: OpdTab = 'encounter'): void {
     const draftState = readEncounterDraftState(visit);
+    if (this.saving()) return;
+    if (this.selectedVisit()?.appointment.id === visit.appointment.id) { this.setActiveTab(tab); return; }
+    const previous = this.selectedVisit();
+    if (previous && !isCompletedVisit(previous)) persistEncounterDraftState(previous, this.activeEncounterSection(), this.clinicalForm());
     this.selectedVisit.set(visit);
+    void this.loadPatientContext(visit);
     this.encounterForm.set(toEncounterForm(visit, 'IN_PROGRESS'));
-    this.clinicalForm.set(draftState?.form ?? emptyClinicalForm(visit.consultation?.notes ?? ''));
+    this.clinicalForm.set(draftState?.form ?? restoreClinicalForm(visit.consultation));
     this.prescriptionStatus.set('DRAFT');
     this.prescriptionSentToPharmacy.set(false);
     this.prescriptionRevisionNo.set(1);
     this.prescriptionPreviewOpen.set(false);
-    this.activeEncounterSection.set(draftState?.section ?? 'snapshot');
+    this.activeEncounterSection.set(draftState?.section ?? 'consultation');
     this.setActiveTab(tab);
   }
 
@@ -3407,6 +3363,8 @@ export class OpdPageComponent implements OnInit {
   }
 
   protected async startEncounter(visit: OpdVisitVm): Promise<void> {
+    if (this.saving()) return;
+    if (visit.consultation) { this.selectVisit(visit); return; }
     if (!visit.queue) {
       this.toast.warning('Check-in required', 'Add the patient to the OPD queue before starting consultation.');
       return;
@@ -3414,7 +3372,7 @@ export class OpdPageComponent implements OnInit {
 
     this.saving.set(true);
     try {
-      let consultation = visit.consultation;
+      let consultation: OpdConsultationRecord | null = visit.consultation;
       if (!consultation) {
         const response = await this.opdService.createConsultation(this.createStartEncounterForm(visit));
         if (!response.success || !response.data) {
@@ -3425,21 +3383,11 @@ export class OpdPageComponent implements OnInit {
         this.upsertConsultation(consultation);
       }
 
-      const appointmentResponse = await this.appointmentService.updateStatus(visit.appointment, 'IN_CONSULTATION');
-      if (appointmentResponse.success && appointmentResponse.data) {
-        this.upsertAppointment(appointmentResponse.data);
-      } else {
-        this.toast.error('Encounter created, but appointment status was not updated', getApiErrorMessage(appointmentResponse, 'Appointment API failed'));
-      }
-
-      const queueResponse = await this.opdService.updateQueueStatus(visit.queue, 'IN_CONSULTATION');
-      if (queueResponse.success && queueResponse.data) {
-        this.upsertQueue(queueResponse.data);
-      } else {
-        this.toast.error('Encounter created, but queue status was not updated', getApiErrorMessage(queueResponse, 'Queue API failed'));
-      }
-
+      if (consultation.statusCode === 'COMPLETED' || consultation.statusCode === 'CANCELLED') { this.applyVisitStatus(visit, consultation.statusCode); this.toast.info('Visit already closed', 'Refresh to see the latest queue.'); return; }
+      this.applyVisitStatus(visit, 'IN_CONSULTATION');
+      this.completedPatientName.set('');
       const updatedVisit = this.visitModels().find(item => item.appointment.id === visit.appointment.id) ?? { ...visit, consultation };
+      this.saving.set(false);
       this.selectVisit(updatedVisit, 'encounter');
       this.toast.success('OPD consultation started', `${this.encounterRecordNo({ ...updatedVisit, consultation })} is now the active clinical record.`);
     } finally {
@@ -3616,8 +3564,79 @@ export class OpdPageComponent implements OnInit {
     return [visit.patient?.age ? `${visit.patient.age} yrs` : '-', visit.patient?.genderName || '-'].join(' / ');
   }
 
+  protected readonly patientLabResults = signal<Record<string, OpdLabResultSummary[]>>({});
+  protected readonly patientContexts = signal<Record<string, PatientProfile>>({});
+  protected readonly historyByPatient = signal<Record<string, OpdConsultationRecord[]>>({});
+  protected readonly contextError = signal('');
+  protected readonly averageConsultationMinutes = computed(() => {
+    const durations = this.completedVisits().map(visit => visit.consultation).filter(record => record?.startedAt && record.completedAt).map(record => (safeTime(record!.completedAt) - safeTime(record!.startedAt)) / 60000).filter(minutes => minutes >= 0);
+    return durations.length ? Math.max(1, Math.round(durations.reduce((sum, value) => sum + value, 0) / durations.length)) : null;
+  });
+  protected readonly completedPatientName = signal('');
+  private readonly auth = inject(AuthStore);
+  private focusPatientId = '';
+  constructor() {
+    effect(() => {
+      const focus = this.dashboardFocusVisit();
+      if (focus && this.focusPatientId !== focus.appointment.patientId) {
+        this.focusPatientId = focus.appointment.patientId;
+        void this.loadPatientContext(focus);
+      }
+    });
+  }
+
+  private async loadPatientContext(visit: OpdVisitVm): Promise<void> {
+    const id = visit.appointment.patientId;
+    this.contextError.set('');
+    try {
+      const [profile, history, labs] = await Promise.all([this.patientService.get(id), this.opdService.patientHistory(id), this.opdService.patientLabResults(id)]);
+      if (labs.success && labs.data) this.patientLabResults.update(all => ({ ...all, [id]: labs.data! }));
+      if (profile.success && profile.data) this.patientContexts.update(all => ({ ...all, [id]: profile.data! }));
+      if (history.success && history.data) this.historyByPatient.update(all => ({ ...all, [id]: history.data! }));
+      if (!profile.success || !history.success || !labs.success) this.contextError.set('Some patient context could not be loaded. Open the patient record or refresh to retry.');
+    } catch { this.contextError.set('Patient context unavailable. Refresh to retry.'); }
+  }
+
   protected previousVisitCount(visit: OpdVisitVm): string {
-    return formatNumber(this.consultations().filter(item => item.patientId === visit.appointment.patientId && item.id !== visit.consultation?.id).length);
+    const history = this.historyByPatient()[visit.appointment.patientId];
+    return history ? String(history.filter(record => record.id !== visit.consultation?.id && record.statusCode === 'COMPLETED').length) : 'Loading…';
+  }
+
+  protected previousConsultation(visit: OpdVisitVm): OpdConsultationRecord | null {
+    return this.historyByPatient()[visit.appointment.patientId]?.find(record => record.id !== visit.consultation?.id && record.statusCode === 'COMPLETED') ?? null;
+  }
+
+  protected allergySummary(visit: OpdVisitVm): string {
+    const allergies = this.patientContexts()[visit.appointment.patientId]?.allergies.filter(item => item.statusCode === 'ACTIVE').map(item => item.allergen + (item.isCritical ? ' (critical)' : ''));
+    return allergies?.length ? allergies.join(', ') : visit.patient?.knownAllergies || 'Not recorded — verify with patient';
+  }
+
+  protected pendingLabCount(visit: OpdVisitVm): string {
+    const profile = this.patientContexts()[visit.appointment.patientId];
+    return profile ? String(profile.labOrders.filter(item => !['COMPLETED', 'CANCELLED', 'REPORTED', 'VERIFIED', 'RELEASED', 'REPORT_RELEASED'].includes(item.statusCode)).length) : 'Unavailable';
+  }
+
+  protected recordedMedicationSummary(visit: OpdVisitVm): string {
+    const previous = this.previousConsultation(visit);
+    const items = previous ? parseClinicalNoteSections(previous.notes).get('prescription') : null;
+    return items?.length ? items.join('; ') + ' (previous prescription; confirm current use)' : 'Not reconciled';
+  }
+
+  protected waitingTime(visit: OpdVisitVm): string {
+    const arrival = safeTime(visit.queue?.arrivedAt);
+    return arrival ? Math.max(0, Math.floor((Date.now() - arrival) / 60000)) + ' min waiting' : 'Arrival not recorded';
+  }
+
+  protected radiologyDocuments(visit: OpdVisitVm) {
+    return this.patientContexts()[visit.appointment.patientId]?.documents.filter(document => /radiology|imaging|x.ray|mri|ultrasound|ct.scan/i.test(document.documentType + ' ' + document.documentName)) ?? [];
+  }
+
+  protected patientNameFor(id: string): string { return this.patients().find(patient => patient.patientGuid === id)?.fullName ?? 'Patient'; }
+  protected openPatientProfile(id: string): void { void this.router.navigate(['/patients', id]); }
+  protected showHistory(visit: OpdVisitVm): void { this.selectVisit(visit, 'history'); void this.loadPatientContext(visit); }
+  private applyVisitStatus(visit: OpdVisitVm, statusCode: string): void {
+    this.upsertAppointment({ ...visit.appointment, statusCode });
+    if (visit.queue) this.upsertQueue({ ...visit.queue, statusCode });
   }
 
   protected currentMedicationSummary(): string {
@@ -4535,9 +4554,7 @@ export class OpdPageComponent implements OnInit {
 
   protected async saveEncounter(statusCode: 'IN_PROGRESS' | 'COMPLETED', showToast = true): Promise<OpdConsultationRecord | null> {
     const visit = this.selectedVisit();
-    if (!visit) {
-      return null;
-    }
+    if (!visit || isCompletedVisit(visit) || this.saving()) return null;
 
     this.saving.set(true);
     try {
@@ -4545,6 +4562,7 @@ export class OpdPageComponent implements OnInit {
       const form = {
         ...this.encounterForm(),
         notes,
+        clinicalData: JSON.stringify(this.clinicalForm()),
         statusCode: statusCode === 'COMPLETED' ? 'COMPLETED' : 'IN_PROGRESS'
       } satisfies OpdEncounterForm;
       const response = form.consultationId
@@ -4556,7 +4574,14 @@ export class OpdPageComponent implements OnInit {
         return null;
       }
 
-      await this.createClinicalChildRecords(response.data, visit);
+      this.upsertConsultation(response.data);
+      this.encounterForm.update(current => ({ ...current, consultationId: response.data!.id }));
+      if (statusCode !== 'COMPLETED') {
+        await this.createClinicalChildRecords(response.data, visit);
+        const persisted = await this.opdService.updateConsultation({ ...form, consultationId: response.data.id, clinicalData: JSON.stringify(this.clinicalForm()) });
+        if (!persisted.success || !persisted.data) throw new Error('Unable to persist clinical draft. Please retry saving.');
+        response.data = persisted.data;
+      }
       this.upsertConsultation(response.data);
       const updatedVisit = { ...visit, consultation: response.data };
       this.selectedVisit.set(updatedVisit);
@@ -4574,6 +4599,10 @@ export class OpdPageComponent implements OnInit {
         );
       }
       return response.data;
+    } catch (error) {
+      persistEncounterDraftState(this.selectedVisit() ?? visit, this.activeEncounterSection(), this.clinicalForm());
+      this.toast.error('Unable to save consultation', error instanceof Error ? error.message : 'Your draft is retained. Please retry.');
+      return null;
     } finally {
       this.saving.set(false);
     }
@@ -4581,30 +4610,22 @@ export class OpdPageComponent implements OnInit {
 
   protected async completeVisit(): Promise<void> {
     const visit = this.selectedVisit();
-    if (!visit) {
-      return;
-    }
-
+    if (!visit || this.saving() || isCompletedVisit(visit)) return;
+    const draft = await this.saveEncounter('IN_PROGRESS', false);
+    if (!draft) return;
     const consultation = await this.saveEncounter('COMPLETED');
     if (!consultation) {
       return;
     }
 
-    await this.generateEncounterBill(visit);
+    try { await this.generateEncounterBill(visit); } catch { this.toast.warning('Consultation completed', 'Billing could not be generated. Please retry from billing.'); }
 
-    const appointmentResponse = await this.appointmentService.updateStatus(visit.appointment, 'COMPLETED');
-    if (appointmentResponse.success && appointmentResponse.data) {
-      this.upsertAppointment(appointmentResponse.data);
-    }
-
-    if (visit.queue) {
-      const queueResponse = await this.opdService.updateQueueStatus(visit.queue, 'COMPLETED');
-      if (queueResponse.success && queueResponse.data) {
-        this.upsertQueue(queueResponse.data);
-      }
-    }
-
-    this.setActiveTab('completed');
+    this.applyVisitStatus(visit, 'COMPLETED');
+    this.completedPatientName.set(visit.patientName);
+    this.selectedVisit.set(null);
+    const next = this.dashboardFocusVisit();
+    if (next) void this.loadPatientContext(next);
+    this.setActiveTab('dashboard');
   }
 
   private async ensureEncounterForAction(visit: OpdVisitVm): Promise<OpdConsultationRecord | null> {
@@ -4872,7 +4893,7 @@ export class OpdPageComponent implements OnInit {
       const response = await this.opdService.createSymptom(consultation.id, formatComplaint(complaint));
       if (response.success && response.data) {
         complaint.id = response.data.id;
-      }
+      } else { throw new Error('Unable to save symptom.'); }
     }
 
     const diagnoses = [...form.diagnoses];
@@ -4880,7 +4901,7 @@ export class OpdPageComponent implements OnInit {
       const response = await this.opdService.createDiagnosis(consultation.id, diagnosis);
       if (response.success && response.data) {
         diagnosis.id = response.data.id;
-      }
+      } else { throw new Error('Unable to save diagnosis.'); }
     }
 
     let prescriptionId = form.prescriptionId;
@@ -4898,7 +4919,8 @@ export class OpdPageComponent implements OnInit {
       );
       if (response.success && response.data) {
         prescriptionId = response.data.id;
-      }
+        this.clinicalForm.update(current => ({ ...current, prescriptionId, prescriptionNo }));
+      } else { throw new Error('Unable to save prescription.'); }
     }
 
     const prescriptions = [...form.prescriptions];
@@ -4907,7 +4929,7 @@ export class OpdPageComponent implements OnInit {
         const response = await this.opdService.createPrescriptionItem(prescriptionId, item);
         if (response.success && response.data) {
           item.id = response.data.id;
-        }
+        } else { throw new Error('Unable to save prescription item.'); }
       }
     }
 
@@ -5569,6 +5591,7 @@ const clinicalSummaryDisplaySections: Array<{ title: string; icon: string; keys:
   { title: 'Complaints', icon: 'sick', keys: ['chief complaints'], maxItems: 3 },
   { title: 'Diagnosis', icon: 'diagnosis', keys: ['diagnosis'], maxItems: 3 },
   { title: 'Prescription', icon: 'medication', keys: ['prescription'], maxItems: 3 },
+  { title: 'Clinical Notes', icon: 'clinical_notes', keys: ['clinical notes'], maxItems: 4 },
   { title: 'Advice', icon: 'health_and_safety', keys: ['advice', 'diet advice'], maxItems: 4 },
   { title: 'Follow-up', icon: 'event_repeat', keys: ['follow-up'], maxItems: 4 }
 ];
@@ -6442,7 +6465,7 @@ function isNoShowStatus(status: string): boolean {
 }
 
 function isActiveConsultation(visit: OpdVisitVm): boolean {
-  return ['DRAFT', 'IN_PROGRESS', 'IN_CONSULTATION'].includes(normalizeCode(visit.consultationStatus));
+  return !isCompletedVisit(visit) && !isTerminalQueueVisit(visit) && ['DRAFT', 'IN_PROGRESS', 'IN_CONSULTATION'].includes(normalizeCode(visit.consultationStatus));
 }
 
 function isActiveOrCompletedConsultation(visit: OpdVisitVm): boolean {
@@ -6577,4 +6600,12 @@ function calculateBmi(heightValue: string, weightValue: string): string {
 
   const heightM = heightCm / 100;
   return (weightKg / (heightM * heightM)).toFixed(1);
+}
+
+function restoreClinicalForm(consultation: OpdConsultationRecord | null): OpdClinicalForm {
+  try {
+    const data: unknown = JSON.parse(consultation?.clinicalData || '{}');
+    if (isClinicalDraftForm(data)) return data;
+  } catch { /* Legacy visits keep their narrative notes. */ }
+  return emptyClinicalForm(consultation?.notes ?? '');
 }

@@ -4,6 +4,7 @@ import { ApiClientService } from '../../core/http/api-client.service';
 import { AppointmentQueueRecord } from '../appointments/appointment-management.models';
 import {
   OpdAdmissionRecord,
+  OpdLabResultSummary,
   OpdApiResponse,
   OpdConsultationRecord,
   OpdDiagnosisForm,
@@ -28,6 +29,14 @@ import {
 @Injectable({ providedIn: 'root' })
 export class OpdManagementService {
   private readonly api = inject(ApiClientService);
+
+  patientLabResults(patientId: string): Promise<OpdApiResponse<OpdLabResultSummary[]>> {
+    return firstValueFrom(this.api.get<OpdApiResponse<OpdLabResultSummary[]>>(`/opd/consultations/patient/${patientId}/lab-results`));
+  }
+
+  patientHistory(patientId: string): Promise<OpdApiResponse<OpdConsultationRecord[]>> {
+    return firstValueFrom(this.api.get<OpdApiResponse<OpdConsultationRecord[]>>(`/opd/consultations/patient/${patientId}/history`));
+  }
 
   listConsultations(pageNumber = 1, pageSize = 100): Promise<OpdApiResponse<OpdConsultationRecord[]>> {
     return firstValueFrom(this.api.get<OpdApiResponse<OpdConsultationRecord[]>>(`/opd/consultations?pageNumber=${pageNumber}&pageSize=${pageSize}`));
@@ -215,6 +224,7 @@ function createConsultationPayload(form: OpdEncounterForm) {
     doctorId: form.doctorId,
     appointmentId: form.appointmentId,
     notes: form.notes.trim(),
+    clinicalData: form.clinicalData || "{}",
     statusCode: form.statusCode
   };
 }
