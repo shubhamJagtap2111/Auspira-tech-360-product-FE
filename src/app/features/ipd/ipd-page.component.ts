@@ -1492,7 +1492,7 @@ interface IpdKpiCard {
 
     .admission-filters {
       display: grid;
-      grid-template-columns: minmax(260px, 1fr) repeat(4, minmax(160px, .35fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
       gap: 10px;
       margin-bottom: 14px;
     }
@@ -1635,7 +1635,7 @@ interface IpdKpiCard {
 
     .active-filters {
       display: grid;
-      grid-template-columns: minmax(280px, 1fr) repeat(4, minmax(150px, .32fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
       gap: 10px;
       margin-bottom: 14px;
     }

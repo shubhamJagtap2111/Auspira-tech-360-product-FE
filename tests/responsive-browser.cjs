@@ -1,0 +1,55 @@
+const fs=require('node:fs');
+const path=require('node:path');
+const { chromium }=require('playwright');
+const base=process.env.RESPONSIVE_BASE_URL||'http://127.0.0.1:4205';
+const permissions=[...fs.readFileSync('src/app/app.routes.ts','utf8').matchAll(/permission: '([^']+)'/g)].map(m=>m[1]);
+const session={userId:'responsive-test',email:'layout@example.test',fullName:'Responsive Test Administrator',accessToken:'local-fixture',refreshToken:'fixture',accessTokenExpiresAt:'2099-01-01T00:00:00Z',permissions,roleCodes:['HOSPITAL_ADMIN'],menuItems:[],hospitalName:'Care360 Test Hospital',tenantCode:'layout'};
+const report={reportKey:'ipd-bed',categoryKey:'ipd',title:'IPD & Bed Overview',description:'Admissions, discharges, occupancy, and ward status.',fromDate:'2026-09-01',toDate:'2026-09-27',branch:'',department:'',doctorId:null,kpis:['Active IPD','Admissions','Discharges','Occupancy'].map((label,i)=>({label,value:String(i+2),meta:'Current period',icon:'bed',color:'#2563eb'})),trend:[],table:{columns:['Ward','Total beds','Occupied','Available','Cleaning','Maintenance'],rows:[{'Ward':'General Ward','Total beds':'30','Occupied':'20','Available':'8','Cleaning':'1','Maintenance':'1'}]},drilldowns:[{label:'Open IPD',route:'/ipd',icon:'bed'},{label:'View all admissions',route:'/ipd',icon:'arrow_forward'}],generatedAt:'2026-09-27T10:00:00Z'};
+const workspace={fromDate:report.fromDate,toDate:report.toDate,branch:'',categories:[{key:'ipd',title:'IPD',description:'Inpatient reports',icon:'bed',tone:'blue',availableReports:1,reports:[{key:'ipd-bed',categoryKey:'ipd',title:report.title,description:report.description,icon:'bed',route:'/ipd'}]}],summary:{patients:12,appointments:9,opdVisits:5,activeIpd:2,revenue:1200,outstanding:300},trend:[],alerts:[],branches:[],departments:[],doctors:[],generatedAt:report.generatedAt};
+const routes=(process.env.RESPONSIVE_ROUTES||'/reports?report=ipd-bed,/patients,/doctors,/appointments,/opd,/ipd,/laboratory,/pharmacy,/billing,/inventory,/reports/mis,/quality,/users,/roles,/permissions,/departments,/branches,/hospital,/settings').split(',');
+const widths=(process.env.RESPONSIVE_WIDTHS||'360,768,1024,1280,1366,1920').split(',').map(Number);
+(async()=>{
+ const browser=await chromium.launch({headless:true});
+ const page=await browser.newPage();
+ await page.addInitScript(session=>localStorage.setItem('care360.auth.session',JSON.stringify(session)),session);
+ await page.route('**/*',async route=>{
+   const url=new URL(route.request().url());
+   if(url.pathname.includes('/api/')) {
+     let data=null;
+     if(url.pathname.endsWith('/auth/me'))data=session;
+     if(url.pathname.endsWith('/reports/workspace')||url.pathname.endsWith('/mis/dashboard'))data=workspace;
+     if(url.pathname.endsWith('/reports/generate'))data=report;
+     return route.fulfill({json:{success:data!==null,data,message:'Local layout fixture',errors:[],statusCode:200}});
+   }
+   if(url.origin!==base)return route.abort();
+   return route.continue();
+ });
+ const results=[];
+ for(const width of widths){
+   await page.setViewportSize({width,height:900});
+   for(const route of routes){
+     await page.goto(base+route);await page.waitForTimeout(700);
+     const result=await page.evaluate(()=>{
+       const main=document.querySelector('.main-content');
+       if(!main)return {missing:true,url:location.pathname};
+       const clips=[];
+       for(const el of document.querySelectorAll('.main-content button,.main-content input,.main-content select,.header button')){
+         const box=el.getBoundingClientRect();if(!box.width||!box.height)continue;
+         if(box.right<=innerWidth+1&&box.left>=-1)continue;
+         let scrollable=false;
+         for(let p=el.parentElement;p&&!p.classList.contains('main-content');p=p.parentElement){if(['auto','scroll'].includes(getComputedStyle(p).overflowX)&&p.scrollWidth>p.clientWidth){scrollable=true;break;}}
+         if(!scrollable)clips.push((el.textContent||el.getAttribute('placeholder')||el.tagName).trim().slice(0,65));
+       }
+       return {url:location.pathname,overflow:main.scrollWidth-main.clientWidth,headerOverflow:document.querySelector('.header').scrollWidth-document.querySelector('.header').clientWidth,clips:[...new Set(clips)]};
+     });
+     results.push({width,route,...result});
+     if(result.missing||result.overflow>1||result.headerOverflow>1||result.clips?.length)console.log(JSON.stringify(results.at(-1)));
+   }
+ }
+ fs.mkdirSync('artifacts/responsive',{recursive:true});fs.writeFileSync('artifacts/responsive/results.json',JSON.stringify(results,null,2));
+ await page.setViewportSize({width:1366,height:900});await page.goto(base+'/reports?report=ipd-bed');await page.waitForTimeout(600);await page.screenshot({path:'artifacts/responsive/reports-laptop.png'});
+ await page.setViewportSize({width:768,height:1024});await page.screenshot({path:'artifacts/responsive/reports-tablet.png'});
+ await browser.close();
+ const failures=results.filter(r=>r.missing||r.overflow>1||r.headerOverflow>1||r.clips?.length);
+ console.log(`${results.length-failures.length}/${results.length} viewport checks passed`);process.exitCode=failures.length?1:0;
+})();

@@ -495,7 +495,7 @@ type QualityTab = 'dashboard' | 'indicators' | 'audits' | 'events' | 'builder';
     .quality-header p, .detail-copy { margin: 5px 0 0; color: var(--ac-muted); line-height: 1.45; }
     .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .header-actions .material-symbols-rounded, .filter-panel .material-symbols-rounded, .entry-form .material-symbols-rounded { font-size: 18px; }
-    .filter-panel { display: grid; grid-template-columns: repeat(4, minmax(145px, 1fr)) minmax(240px, 1.4fr) auto; gap: 10px; align-items: end; padding: 12px; }
+    .filter-panel { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 10px; align-items: end; padding: 12px; }
     label { display: grid; gap: 5px; color: var(--ac-muted); font-size: 11.5px; font-weight: 850; min-width: 0; }
     input, textarea { width: 100%; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-text); padding: 0 11px; font: inherit; font-weight: 750; outline: 0; }
     input { min-height: 38px; }

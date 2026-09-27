@@ -277,7 +277,7 @@ const defaultResetPassword = 'Reset@123';
     .page-head { align-items: flex-start; justify-content: space-between; }
     .page-actions { align-items: center; justify-content: flex-end; flex-wrap: wrap; margin-left: auto; }
     .page-head p { margin: 4px 0 0; color: var(--ac-muted); font-size: 13px; }
-    .toolbar { display: grid; grid-template-columns: minmax(240px, 1.2fr) repeat(4, minmax(150px, .8fr)) 44px; align-items: end; padding: 14px; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; box-shadow: var(--ac-sh-sm); }
+    .toolbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); align-items: end; padding: 14px; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; box-shadow: var(--ac-sh-sm); }
     .audit-panel { padding: 14px; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; display: flex; gap: 12px; align-items: end; }
     .audit-panel { flex-direction: column; align-items: stretch; }
     .audit-panel h2 { margin: 0; font-size: 16px; }

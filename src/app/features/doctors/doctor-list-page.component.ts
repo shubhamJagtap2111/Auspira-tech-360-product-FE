@@ -286,7 +286,7 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
     .stat-icon { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; font-size: 18px; }
     .stat-value { margin: 0; font-size: 19px; line-height: 1; font-weight: 900; color: var(--ac-text); }
     .stat-label { margin: 2px 0 0; color: var(--ac-muted); font-size: 11.5px; }
-    .toolbar { flex: 0 0 auto; display: grid; grid-template-columns: minmax(240px, 1fr) 160px 180px 160px 140px 36px auto; gap: 7px; align-items: center; padding: 8px 10px; }
+    .toolbar { flex: 0 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); gap: 7px; align-items: center; padding: 8px 10px; }
     .search-field { min-width: 0; display: flex; align-items: center; gap: 8px; height: 36px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-input-bg, var(--ac-subtle)); padding: 0 10px; }
     .search-icon, .clear-btn span { color: var(--ac-muted); }
     .toolbar-input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ac-text); font: inherit; }

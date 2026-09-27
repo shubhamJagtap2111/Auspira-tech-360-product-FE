@@ -93,7 +93,7 @@ const fallbackLanguages: Language[] = [
                 @for (item of group.items; track item.path + item.label) {
                   @if (item.children?.length) {
                     <a class="nav-item nav-parent"
-                       [routerLink]="item.path"
+                       [attr.aria-label]="item.label" [routerLink]="item.path"
                        [queryParams]="item.queryParams"
                        routerLinkActive="active"
                        [routerLinkActiveOptions]="{ exact: item.path === '/' }"
@@ -118,7 +118,7 @@ const fallbackLanguages: Language[] = [
                     }
                   } @else {
                     <a class="nav-item"
-                       [routerLink]="item.path"
+                       [attr.aria-label]="item.label" [routerLink]="item.path"
                        [queryParams]="item.queryParams"
                        routerLinkActive="active"
                        [routerLinkActiveOptions]="{ exact: item.path === '/' }"
@@ -151,7 +151,7 @@ const fallbackLanguages: Language[] = [
 
             <!-- Search -->
             <div class="header-left">
-              <button class="search-btn" (click)="commandOpen.set(true)">
+              <button aria-label="Search application" class="search-btn" (click)="commandOpen.set(true)">
                 <span class="material-symbols-rounded" style="font-size:18px;color:var(--ac-muted)">search</span>
                 <span class="search-placeholder">Search anything...</span>
                 <kbd class="search-kbd">⌘K</kbd>
@@ -289,7 +289,7 @@ const fallbackLanguages: Language[] = [
               </div>
               <hr class="pd-sep" />
               @for (item of profileMenu; track item.label) {
-                <a class="pd-item" [routerLink]="item.path" (click)="profileOpen.set(false)">
+                <a class="pd-item" [attr.aria-label]="item.label" [routerLink]="item.path" (click)="profileOpen.set(false)">
                   <span class="material-symbols-rounded pd-item-icon">{{ item.icon }}</span>
                   <span>{{ item.label }}</span>
                 </a>
@@ -330,7 +330,7 @@ const fallbackLanguages: Language[] = [
                   <div class="cp-section">
                     <p class="cp-section-label">Quick Navigation</p>
                     @for (item of allNavItems().slice(0,8); track item.path + item.label) {
-                      <a class="cp-item" [routerLink]="item.path" [queryParams]="item.queryParams" (click)="commandOpen.set(false)">
+                      <a class="cp-item" [attr.aria-label]="item.label" [routerLink]="item.path" [queryParams]="item.queryParams" (click)="commandOpen.set(false)">
                         <span class="material-symbols-rounded cp-item-icon">{{ item.icon }}</span>
                         <span>{{ item.label }}</span>
                         <span class="cp-tag">Page</span>
@@ -340,7 +340,7 @@ const fallbackLanguages: Language[] = [
                 } @else {
                   <div class="cp-section">
                     @for (item of filteredNav(); track item.path + item.label) {
-                      <a class="cp-item" [routerLink]="item.path" [queryParams]="item.queryParams" (click)="commandOpen.set(false)">
+                      <a class="cp-item" [attr.aria-label]="item.label" [routerLink]="item.path" [queryParams]="item.queryParams" (click)="commandOpen.set(false)">
                         <span class="material-symbols-rounded cp-item-icon">{{ item.icon }}</span>
                         <span>{{ item.label }}</span>
                       </a>
@@ -480,7 +480,7 @@ const fallbackLanguages: Language[] = [
 
     .shell {
       display: flex;
-      height: 100vh;
+      height: 100dvh;
       overflow: hidden;
       background: var(--ac-bg);
     }
@@ -1148,6 +1148,12 @@ const fallbackLanguages: Language[] = [
       z-index: 199;
     }
 
+    .header-center { min-width: 0; }
+    .tenant-chip { min-width: 0; max-width: 220px; }
+    .tenant-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .profile-meta { max-width: 190px; overflow: hidden; }
+    .main-content { min-width: 0; min-height: 0; }
+
     /* ── Main Content ── */
     .main-content {
       flex: 1;
@@ -1686,7 +1692,7 @@ const fallbackLanguages: Language[] = [
       70%, 100% { transform: scale(1.45); opacity: 0; }
     }
 
-    @media (max-width: 980px) {
+    @media (max-width: 1280px) {
       .search-placeholder,
       .search-kbd,
       .profile-meta,
@@ -1702,7 +1708,7 @@ const fallbackLanguages: Language[] = [
       }
     }
 
-    @media (max-width: 760px) {
+    @media (max-width: 1024px) {
       :host { height: 100dvh; overflow: hidden; }
       .shell { display: block; height: 100dvh; overflow: hidden; }
       .shell-main { height: calc(100dvh - 68px); min-width: 0; }
@@ -1809,6 +1815,25 @@ const fallbackLanguages: Language[] = [
       }
       .ai-chat-body { padding: 10px; }
       .ai-message { max-width: 92%; }
+    }
+
+    /* Keep branch selection and search reachable on touch screens. */
+    @media (min-width: 641px) and (max-width: 1024px) {
+      .header-left { display: block; flex: 0 0 auto; }
+      .branch-select { display: flex; min-width: 170px; }
+      .lang-btn { display: inline-flex; }
+    }
+    @media (max-width: 640px) {
+      .header { height: 104px; min-height: 104px; flex-wrap: wrap; align-content: center; gap: 6px; }
+      .header-left { display: block; flex: 0 0 34px; }
+      .search-btn { width: 34px; height: 34px; }
+      .header-center { display: contents; }
+      .tenant-chip { flex: 1; max-width: none; }
+      .tenant-name { max-width: 100%; }
+      .branch-select { display: flex; order: 4; flex: 1 0 100%; min-width: 0; max-width: 100%; }
+      .branch-select ac-dropdown { max-width: none; flex: 1; }
+      .main-content { height: auto; }
+      .notif-panel, .lang-drop, .profile-drop { top: 112px; }
     }
 
     @media (max-width: 380px) {

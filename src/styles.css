@@ -641,3 +641,34 @@ body.dark input:-webkit-autofill:focus {
 
 /* ── Focus ── */
 :focus-visible { outline: 2px solid var(--ac-primary); outline-offset: 2px; }
+
+/* Responsive workspace foundation. Wide data stays in its own scroll region;
+   page actions and filters must fit the workspace, including an expanded sidebar. */
+.main-content > router-outlet + * {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+}
+.main-content :where(section, article, form, fieldset, div) { min-width: 0; }
+.main-content :is(.table-wrap, .table-scroll, .table-container, .table-responsive) {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+.main-content :is(.page-header, .page-head, .panel-head, .section-head, .toolbar, .filters, .filter-row, .actions, .header-actions, .page-actions, .hero) {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.main-content :is(input, select, textarea, ac-dropdown) { min-width: 0; max-width: 100%; }
+.main-content :is(.tabs, .tab-bar, .module-tabs, .workspace-tabs) { min-width: 0; max-width: 100%; overflow-x: auto; }
+.main-content :is(.tabs, .tab-bar, .module-tabs, .workspace-tabs) > button { flex-shrink: 0; }
+@media (max-width: 1024px) {
+  .main-content :is(.page-header, .page-head, .panel-head, .section-head, .hero) { gap: 12px; }
+  .main-content :is(.actions, .header-actions, .page-actions) { flex-wrap: wrap; }
+}
+@media (max-width: 640px) {
+  .main-content .ac-btn { max-width: 100%; min-height: 40px; height: auto; padding-block: 8px; white-space: normal; }
+  .main-content :is(.search, .search-field, .record-search) { min-width: 0; max-width: 100%; }
+  .main-content :is(.modal, .drawer, .dialog) :is(footer, .modal-footer, .dialog-actions) { flex-wrap: wrap; gap: 8px; }
+}
