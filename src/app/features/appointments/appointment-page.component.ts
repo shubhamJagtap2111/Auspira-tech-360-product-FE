@@ -1,3 +1,4 @@
+import { appointmentCalendarDates, calendarDateKey, CalendarPeriod, shiftAppointmentCalendar } from './appointment-calendar';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -38,7 +39,7 @@ import { AppointmentManagementService } from './appointment-management.service';
         <div>
           <p class="ac-eyebrow">Clinical workflow</p>
           <h1 class="ac-page-title">Appointment Management</h1>
-          <p class="page-desc">Bridge patients and doctors through scheduled care, walk-ins, check-in, and OPD handoff.</p>
+          <p class="page-desc">See who’s coming in, choose a day, and manage each appointment in one place.</p>
         </div>
         <div class="header-actions">
           <button class="ac-btn ac-btn-secondary" type="button" (click)="setToday()">
@@ -82,56 +83,68 @@ import { AppointmentManagementService } from './appointment-management.service';
               <span class="material-symbols-rounded">search</span>
               <input type="text" name="appointmentSearch" [(ngModel)]="searchQuery" placeholder="Search patient, MRN, doctor, reason..." />
             </div>
-            <ac-dropdown name="patientFilter" [(ngModel)]="patientFilter" [options]="patientFilterOptions()" />
-            <ac-dropdown name="branchFilter" [(ngModel)]="branchFilter" [options]="branchFilterOptions()" />
-            <ac-dropdown name="departmentFilter" [(ngModel)]="departmentFilter" [options]="departmentFilterOptions()" />
             <ac-dropdown name="doctorFilter" [(ngModel)]="doctorFilter" [options]="doctorFilterOptions()" />
-            <ac-dropdown name="statusFilter" [(ngModel)]="statusFilter" [options]="statusOptions" />
+            <button class="filter-toggle" type="button" [class.active]="showCalendarFilters() || activeFilterCount() > 0" [attr.aria-expanded]="showCalendarFilters()" (click)="showCalendarFilters.set(!showCalendarFilters())"><span class="material-symbols-rounded">tune</span> Filters @if (activeFilterCount()) { <span>{{ activeFilterCount() }}</span> }</button>
             <button class="icon-btn" type="button" title="Refresh" aria-label="Refresh appointments" [disabled]="refreshing()" (click)="reload()">
               <span class="material-symbols-rounded" [class.spin]="refreshing()">{{ refreshing() ? 'progress_activity' : 'refresh' }}</span>
             </button>
           </div>
         </div>
 
+        @if (showCalendarFilters()) {
+          <div class="advanced-filters">
+            <ac-dropdown name="patientFilter" [(ngModel)]="patientFilter" [options]="patientFilterOptions()" />
+            <ac-dropdown name="branchFilter" [(ngModel)]="branchFilter" [options]="branchFilterOptions()" />
+            <ac-dropdown name="departmentFilter" [(ngModel)]="departmentFilter" [options]="departmentFilterOptions()" />
+            <ac-dropdown name="statusFilter" [(ngModel)]="statusFilter" [options]="statusOptions" />
+            <button type="button" class="filter-toggle" (click)="clearCalendarFilters()">Clear filters</button>
+          </div>
+        }
         @if (initialLoading()) {
           <ac-grid-loader title="Loading appointments..." message="Preparing patient and doctor links for the calendar." />
         } @else {
           @if (viewMode() === 'calendar') {
             <section class="calendar-view">
-              <div class="calendar-head">
-                <button class="icon-btn" type="button" title="Previous week" (click)="moveCalendar(-7)">
-                  <span class="material-symbols-rounded">chevron_left</span>
-                </button>
-                <label class="date-control">
-                  <span class="material-symbols-rounded">event</span>
-                  <input type="date" name="calendarDate" [(ngModel)]="calendarDate" />
-                </label>
-                <button class="icon-btn" type="button" title="Next week" (click)="moveCalendar(7)">
-                  <span class="material-symbols-rounded">chevron_right</span>
-                </button>
-                <div class="calendar-range">{{ calendarRangeLabel() }}</div>
+              <div class="schedule-heading">
+                <div><p class="ac-eyebrow">Your schedule</p><h2>{{ calendarHeading() }}</h2><p>{{ visibleAppointmentCount() }} appointments in this {{ calendarPeriod() }} · select a date to see its schedule</p></div>
+                <div class="period-switch" aria-label="Calendar period">
+                  @for (period of calendarPeriods; track period) { <button type="button" [class.active]="calendarPeriod() === period" [attr.aria-pressed]="calendarPeriod() === period" (click)="calendarPeriod.set(period)">{{ period | titlecase }}</button> }
+                </div>
               </div>
-
-              <div class="calendar-grid">
-                @for (day of calendarDays(); track day.dateKey) {
-                  <article class="day-column" [class.today]="day.isToday">
-                    <header>
-                      <span>{{ day.weekday }}</span>
-                      <strong>{{ day.dayNo }}</strong>
-                    </header>
-                    <div class="day-appointments">
-                      @for (appointment of day.appointments; track appointment.id) {
-                        <button class="appointment-chip" type="button" [class]="statusClass(appointment.statusCode)" (click)="selectAppointment(appointment)">
-                          <small>{{ formatTime(appointment.startsAt) }}</small>
-                          <strong>{{ appointment.patientName }}</strong>
-                          <span>{{ appointment.doctorName }}</span>
+              <div class="schedule-navigation">
+                <div class="date-navigation"><button class="icon-btn" type="button" [attr.aria-label]="'Previous ' + calendarPeriod()" (click)="navigateCalendar(-1)"><span class="material-symbols-rounded">chevron_left</span></button><button class="filter-toggle" (click)="setToday()">Today</button><button class="icon-btn" type="button" [attr.aria-label]="'Next ' + calendarPeriod()" (click)="navigateCalendar(1)"><span class="material-symbols-rounded">chevron_right</span></button><label class="date-control"><input aria-label="Go to date" type="date" name="calendarDate" [(ngModel)]="calendarDate" /></label></div>
+                <div class="calendar-legend"><span><i class="scheduled-dot"></i>Scheduled</span><span><i class="checked-dot"></i>Checked in</span><span><i class="completed-dot"></i>Completed</span><span><i class="cancelled-dot"></i>Cancelled / No show</span></div>
+              </div>
+              <div class="schedule-layout" [class.day-layout]="calendarPeriod() === 'day'">
+                @if (calendarPeriod() !== 'day') {
+                  <div class="calendar-board" [class.week-board]="calendarPeriod() === 'week'">
+                    <div class="weekday-row">@for (weekday of weekdays; track weekday) { <span>{{ weekday }}</span> }</div>
+                    <div class="month-grid">
+                      @for (day of calendarDays(); track day.dateKey) {
+                        <button type="button" class="calendar-cell" [class.outside-month]="!day.inMonth" [class.selected-day]="day.dateKey === calendarDate" [class.is-today]="day.isToday" [attr.aria-pressed]="day.dateKey === calendarDate" [attr.aria-label]="day.fullLabel + ', ' + day.appointments.length + ' appointments'" (click)="calendarDate = day.dateKey">
+                          <span class="cell-heading"><strong>{{ day.dayNo }}</strong>@if (day.appointments.length) { <span class="cell-count">{{ day.appointments.length }}</span> }</span>
+                          <span class="cell-events">@for (appointment of day.appointments.slice(0, calendarPeriod() === 'week' ? 5 : 2); track appointment.id) { <span class="mini-event" [ngClass]="statusClass(appointment.statusCode)"><time>{{ formatTime(appointment.startsAt) }}</time><span>{{ appointment.patientName }}</span></span> }</span>
+                          @if (day.appointments.length > (calendarPeriod() === 'week' ? 5 : 2)) { <span class="more-events">+{{ day.appointments.length - (calendarPeriod() === 'week' ? 5 : 2) }} more</span> }
+                          @if (day.isToday) { <span class="today-caption">Today</span> }
                         </button>
-                      } @empty {
-                        <div class="day-empty">No appointments</div>
                       }
                     </div>
-                  </article>
+                  </div>
                 }
+                <aside class="day-agenda" aria-label="Selected day appointments">
+                  <header class="agenda-heading"><div><p class="ac-eyebrow">{{ selectedDayIsToday() ? 'Today’s agenda' : 'Day agenda' }}</p><h3>{{ selectedDayLabel() }}</h3></div><span class="agenda-count">{{ selectedDayAppointments().length }}</span></header>
+                  <div class="agenda-list">
+                    @for (appointment of selectedDayAppointments(); track appointment.id) {
+                      <article class="agenda-appointment" [class.selected]="selectedAppointment()?.id === appointment.id">
+                        <button class="agenda-open" type="button" (click)="selectAppointment(appointment)"><span class="agenda-time">{{ formatTime(appointment.startsAt) }}</span><span class="agenda-patient"><strong>{{ appointment.patientName }}</strong><small>{{ appointment.patientMrn }} · {{ appointment.displayAppointmentType }}</small><span>{{ appointment.doctorName }}</span><small>{{ appointment.doctorDepartment }}</small></span><span class="material-symbols-rounded">chevron_right</span></button>
+                        <div class="agenda-card-footer"><span class="status-badge" [ngClass]="statusClass(appointment.statusCode)">{{ statusLabel(appointment.statusCode) }}</span>@if (canCheckIn(appointment)) { <button class="agenda-checkin" type="button" [disabled]="checkingIn()" (click)="openCheckIn(appointment)">Check in <span class="material-symbols-rounded">arrow_forward</span></button> }</div>
+                      </article>
+                    } @empty {
+                      <div class="agenda-empty"><span class="material-symbols-rounded">event_available</span><h4>No appointments{{ activeFilterCount() || searchQuery || doctorFilter ? ' match' : ' yet' }}</h4><p>{{ activeFilterCount() || searchQuery || doctorFilter ? 'Try another date or clear your filters.' : 'A clear day. Book an appointment to add it to this schedule.' }}</p>@if (activeFilterCount() || searchQuery || doctorFilter) { <button class="filter-toggle" (click)="clearCalendarFilters()">Clear filters</button> }</div>
+                    }
+                  </div>
+                  <button type="button" class="ac-btn ac-btn-primary agenda-book" (click)="openCreate()"><span class="material-symbols-rounded">add</span> Book for {{ selectedDayLabel() }}</button>
+                </aside>
               </div>
             </section>
           } @else {
@@ -578,6 +591,67 @@ import { AppointmentManagementService } from './appointment-management.service';
       .toolbar-filters .icon-btn { width: 100%; }
       .queue-ticket { grid-template-columns: 1fr; }
     }
+    .schedule-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 4px 18px; }
+    .schedule-heading h2 { margin: 4px 0; font-size: 26px; letter-spacing: -.7px; color: var(--ac-text); }
+    .schedule-heading p:not(.ac-eyebrow) { margin: 0; color: var(--ac-muted); font-size: 12px; }
+    .period-switch { display: flex; padding: 4px; background: var(--ac-subtle); border: 1px solid var(--ac-border); border-radius: 10px; }
+    .period-switch button { border: 0; border-radius: 7px; padding: 8px 14px; background: transparent; color: var(--ac-muted); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .period-switch button.active { background: var(--ac-primary); color: white; box-shadow: 0 3px 8px #2563eb24; }
+    .filter-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 7px 11px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-text); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .filter-toggle.active { color: var(--ac-primary); border-color: var(--ac-primary); }
+    .filter-toggle .material-symbols-rounded { font-size: 18px; }
+    .advanced-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto; gap: 8px; padding: 12px; background: var(--ac-subtle); border-radius: 10px; }
+    .schedule-navigation { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+    .date-navigation { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+    .calendar-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 10px; color: var(--ac-muted); }
+    .calendar-legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .calendar-legend i { width: 7px; height: 7px; border-radius: 50%; }
+    .scheduled-dot { background: #6366f1; } .checked-dot { background: #0891b2; } .completed-dot { background: #059669; } .cancelled-dot { background: #e11d48; }
+    .schedule-layout { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 18px; align-items: start; }
+    .schedule-layout.day-layout { grid-template-columns: 1fr; }
+    .calendar-board { min-width: 0; overflow: hidden; border: 1px solid var(--ac-border); border-radius: 12px; }
+    .weekday-row, .month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+    .weekday-row { background: var(--ac-subtle); border-bottom: 1px solid var(--ac-border); }
+    .weekday-row span { padding: 12px 4px; text-align: center; color: var(--ac-muted); font-size: 11px; font-weight: 800; }
+    .calendar-cell { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 100px; gap: 5px; padding: 8px 5px; border: 0; border-right: 1px solid var(--ac-border); border-bottom: 1px solid var(--ac-border); background: var(--ac-surface); color: var(--ac-text); text-align: left; font: inherit; cursor: pointer; }
+    .calendar-cell:nth-child(7n) { border-right: 0; }
+    .calendar-cell:nth-last-child(-n+7) { border-bottom: 0; }
+    .calendar-cell:hover { background: color-mix(in srgb, var(--ac-primary) 5%, var(--ac-surface)); }
+    .calendar-cell.outside-month { background: var(--ac-subtle); color: var(--ac-muted); }
+    .calendar-cell.selected-day { background: color-mix(in srgb, var(--ac-primary) 7%, var(--ac-surface)); box-shadow: inset 0 0 0 2px var(--ac-primary); z-index: 1; }
+    .cell-heading { display: flex; align-items: center; justify-content: space-between; gap: 2px; }
+    .cell-heading strong { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; font-size: 12px; }
+    .is-today .cell-heading strong { background: var(--ac-primary); color: white; }
+    .cell-count { color: var(--ac-muted); font-size: 10px; padding-right: 3px; }
+    .cell-events { display: grid; gap: 4px; min-width: 0; width: 100%; }
+    .mini-event { display: flex; gap: 4px; min-width: 0; padding: 3px 4px; border-radius: 4px; border-left: 2px solid #6366f1; background: #eef2ff; color: #4338ca; font-size: 9px; }
+    .mini-event time { font-weight: 800; white-space: nowrap; } .mini-event > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mini-event.status-checked-in, .mini-event.status-in-consultation { border-color: #0891b2; background: #ecfeff; color: #0e7490; }
+    .mini-event.status-completed { border-color: #059669; background: #ecfdf5; color: #047857; }
+    .mini-event.status-cancelled, .mini-event.status-no-show { border-color: #e11d48; background: #fff1f2; color: #be123c; }
+    .more-events, .today-caption { font-size: 9px; color: var(--ac-muted); padding-left: 4px; } .today-caption { margin-top: auto; color: var(--ac-primary); }
+    .week-board .calendar-cell { min-height: 280px; } .week-board .mini-event { flex-direction: column; }
+    .day-agenda { min-width: 0; border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-subtle); padding: 14px; }
+    .agenda-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .agenda-heading h3 { font-size: 18px; margin: 5px 0 0; color: var(--ac-text); }
+    .agenda-count { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: var(--ac-surface); color: var(--ac-primary); font-weight: 800; }
+    .agenda-list { display: grid; gap: 10px; max-height: 480px; overflow: auto; }
+    .agenda-appointment { min-width: 0; border: 1px solid var(--ac-border); border-radius: 10px; padding: 12px; background: var(--ac-surface); }
+    .agenda-appointment.selected { border-color: var(--ac-primary); }
+    .agenda-open { display: flex; align-items: flex-start; gap: 9px; width: 100%; text-align: left; padding: 0; border: 0; background: transparent; color: var(--ac-text); font: inherit; cursor: pointer; }
+    .agenda-time { font-size: 11px; font-weight: 800; color: var(--ac-primary); white-space: nowrap; padding-top: 2px; }
+    .agenda-patient { flex: 1; min-width: 0; display: grid; gap: 5px; font-size: 12px; overflow-wrap: anywhere; }
+    .agenda-patient small { font-size: 10px; color: var(--ac-muted); } .agenda-open > .material-symbols-rounded { font-size: 18px; color: var(--ac-muted); }
+    .agenda-card-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .agenda-checkin { display: inline-flex; align-items: center; gap: 4px; border: 0; background: transparent; color: var(--ac-primary); font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; } .agenda-checkin span { font-size: 15px; }
+    .agenda-empty { display: grid; justify-items: center; text-align: center; align-content: center; min-height: 230px; color: var(--ac-muted); padding: 18px; }
+    .agenda-empty > span { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 16px; background: color-mix(in srgb, var(--ac-primary) 9%, var(--ac-surface)); color: var(--ac-primary); font-size: 27px; }
+    .agenda-empty h4 { margin: 15px 0 5px; color: var(--ac-text); } .agenda-empty p { margin: 0 0 12px; font-size: 12px; line-height: 1.6; }
+    .agenda-book { width: 100%; margin-top: 14px; font-size: 12px; }
+    button:focus-visible { outline: 3px solid var(--ac-primary); outline-offset: 2px; }
+    @media (max-width: 1200px) { .schedule-layout { grid-template-columns: minmax(0, 1fr); } .agenda-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .agenda-empty { grid-column: 1 / -1; min-height: 160px; } .calendar-cell { min-height: 92px; } }
+    @media (max-width: 650px) { .schedule-heading { align-items: flex-start; flex-direction: column; } .schedule-heading h2 { font-size: 22px; } .advanced-filters { grid-template-columns: 1fr 1fr; } .calendar-cell { min-height: 64px; padding: 5px 2px; } .cell-events { display: none; } .cell-count { font-size: 10px; background: var(--ac-subtle); border-radius: 4px; padding: 2px 4px; } .more-events, .today-caption { display: none; } .agenda-list { grid-template-columns: 1fr; } .week-board .calendar-cell { min-height: 80px; } .header-actions { flex-wrap: wrap; } }
+
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -863,20 +937,22 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
     ];
   });
 
-  protected readonly calendarDays = computed(() => {
-    const start = startOfWeek(parseDateInput(this.calendarDate));
-    return Array.from({ length: 7 }, (_, index) => {
-      const date = addDays(start, index);
-      const key = inputValue(date);
-      return {
-        dateKey: key,
-        weekday: new Intl.DateTimeFormat('en-IN', { weekday: 'short' }).format(date),
-        dayNo: new Intl.DateTimeFormat('en-IN', { day: '2-digit' }).format(date),
-        isToday: key === todayInputValue(),
-        appointments: this.filteredAppointments().filter(appointment => dateKey(appointment.startsAt) === key)
-      };
-    });
-  });
+  protected readonly calendarPeriod = signal<CalendarPeriod>('month');
+  protected readonly calendarPeriods: CalendarPeriod[] = ['month', 'week', 'day'];
+  protected readonly weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  protected readonly showCalendarFilters = signal(false);
+  protected readonly activeFilterCount = computed(() => [this.patientFilter, this.branchFilter, this.departmentFilter, this.statusFilter].filter(Boolean).length);
+  protected readonly selectedDayAppointments = computed(() => this.filteredAppointments().filter(item => dateKey(item.startsAt) === this.calendarDate));
+  protected readonly selectedDayIsToday = computed(() => this.calendarDate === todayInputValue());
+  protected readonly selectedDayLabel = computed(() => new Intl.DateTimeFormat('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }).format(parseDateInput(this.calendarDate)));
+  protected readonly calendarHeading = computed(() => this.calendarPeriod() === 'week' ? this.calendarRangeLabel() : new Intl.DateTimeFormat('en-IN', this.calendarPeriod() === 'day' ? { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' } : { month: 'long', year: 'numeric' }).format(parseDateInput(this.calendarDate)));
+  protected readonly calendarDays = computed(() => appointmentCalendarDates(this.calendarDate, this.calendarPeriod()).map(date => {
+    const key = calendarDateKey(date);
+    return { dateKey: key, dayNo: date.getDate(), isToday: key === todayInputValue(), inMonth: key.slice(0, 7) === this.calendarDate.slice(0, 7), fullLabel: new Intl.DateTimeFormat('en-IN', { dateStyle: 'full' }).format(date), appointments: this.filteredAppointments().filter(item => dateKey(item.startsAt) === key) };
+  }));
+  protected readonly visibleAppointmentCount = computed(() => this.calendarDays().filter(day => this.calendarPeriod() !== 'month' || day.inMonth).reduce((count, day) => count + day.appointments.length, 0));
+  protected navigateCalendar(direction: number): void { this.calendarDate = shiftAppointmentCalendar(this.calendarDate, this.calendarPeriod(), direction); }
+  protected clearCalendarFilters(): void { this.searchQuery = ''; this.patientFilter = ''; this.branchFilter = ''; this.departmentFilter = ''; this.doctorFilter = ''; this.statusFilter = ''; }
 
   async ngOnInit(): Promise<void> {
     this.initialLoading.set(true);
@@ -944,9 +1020,11 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
     this.form.set({
       ...createEmptyAppointmentForm(),
       branchName: selectedBranch,
+      doctorId: this.doctorFilter,
       appointmentDate: this.calendarDate || todayInputValue()
     });
     this.selectedDoctorProfile.set(null);
+    if (this.doctorFilter) void this.loadDoctorProfile(this.doctorFilter);
     this.drawerOpen.set(true);
   }
 
