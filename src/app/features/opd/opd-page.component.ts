@@ -5352,7 +5352,7 @@ function persistOpdTab(tab: OpdTab): void {
 }
 
 function readEncounterDraftState(visit: OpdVisitVm): EncounterDraftState | null {
-  if (normalizeCode(visit.consultationStatus) === 'COMPLETED') {
+  if (normalizeCode(visit.consultation?.statusCode || visit.consultationStatus) === 'COMPLETED') {
     clearEncounterDraftState(visit);
     return null;
   }
@@ -5375,7 +5375,7 @@ function readEncounterDraftState(visit: OpdVisitVm): EncounterDraftState | null 
 }
 
 function persistEncounterDraftState(visit: OpdVisitVm, section: OpdEncounterSection, form: OpdClinicalForm): void {
-  if (normalizeCode(visit.consultationStatus) === 'COMPLETED') {
+  if (normalizeCode(visit.consultation?.statusCode || visit.consultationStatus) === 'COMPLETED') {
     clearEncounterDraftState(visit);
     return;
   }
@@ -6465,15 +6465,15 @@ function isNoShowStatus(status: string): boolean {
 }
 
 function isActiveConsultation(visit: OpdVisitVm): boolean {
-  return !isCompletedVisit(visit) && !isTerminalQueueVisit(visit) && ['DRAFT', 'IN_PROGRESS', 'IN_CONSULTATION'].includes(normalizeCode(visit.consultationStatus));
+  return !isCompletedVisit(visit) && !isTerminalQueueVisit(visit) && ['DRAFT', 'IN_PROGRESS', 'IN_CONSULTATION'].includes(normalizeCode(visit.consultation?.statusCode || visit.consultationStatus));
 }
 
 function isActiveOrCompletedConsultation(visit: OpdVisitVm): boolean {
-  return isActiveConsultation(visit) || normalizeCode(visit.consultationStatus) === 'COMPLETED';
+  return isActiveConsultation(visit) || normalizeCode(visit.consultation?.statusCode || visit.consultationStatus) === 'COMPLETED';
 }
 
 function isCompletedVisit(visit: OpdVisitVm): boolean {
-  return normalizeCode(visit.consultationStatus) === 'COMPLETED' || normalizeCode(visit.statusCode) === 'COMPLETED';
+  return normalizeCode(visit.consultation?.statusCode || visit.consultationStatus) === 'COMPLETED' || normalizeCode(visit.statusCode) === 'COMPLETED';
 }
 
 function isWaitingVisit(visit: OpdVisitVm): boolean {
