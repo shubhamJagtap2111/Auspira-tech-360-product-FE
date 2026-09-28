@@ -1,3 +1,4 @@
+import { HospitalSaveSection, mergeHospitalSave, hasHospitalDraft } from './hospital-profile-save';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -191,8 +192,8 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
             @if (can(permissions.edit)) {
               <section class="panel save-card">
                 <div>
-                  <strong>Ready to update?</strong>
-                  <p>Changes are saved to the hospital profile and reflected in the header.</p>
+                  <strong>{{ hasUnsavedChanges() ? 'Unsaved changes' : 'All changes saved' }}</strong>
+                  <p>{{ hasUnsavedChanges() ? 'Save each edited section to keep your changes. New edits made during a save remain unsaved.' : 'The saved hospital profile is reflected in the header.' }}</p>
                 </div>
                 <button class="ac-btn ac-btn-primary" type="button" (click)="saveProfile()" [disabled]="saving()">
                   <span class="material-symbols-rounded">save</span>
@@ -491,6 +492,8 @@ export class HospitalManagementPageComponent implements OnInit {
   private readonly branchContext = inject(BranchContextService);
 
   protected readonly profile = signal<HospitalProfile | null>(null);
+  private readonly savedProfile = signal<HospitalProfile | null>(null);
+  protected hasUnsavedChanges(): boolean { return hasHospitalDraft(this.profile(), this.savedProfile()); }
   protected readonly profileDrawer = signal<HospitalProfileDrawer | null>(null);
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
@@ -547,6 +550,7 @@ export class HospitalManagementPageComponent implements OnInit {
       const response = await this.service.getProfile();
       if (revision !== this.profileRequestRevision) return;
       if (response.success && response.data) {
+        this.savedProfile.set(structuredClone(response.data));
         this.profile.set(response.data);
         this.branchContext.setHospitalName(response.data.hospitalName);
         return;
@@ -568,43 +572,47 @@ export class HospitalManagementPageComponent implements OnInit {
   }
 
   protected async saveProfile(): Promise<void> {
-    const current = this.profile();
+    const draft = this.profile();
+    const current = draft ? structuredClone(draft) : null;
     if (!current) {
       return;
     }
 
-    await this.save(() => this.service.updateProfile(current), 'Administration.Hospital.Messages.Updated');
+    await this.save(current, 'profile', () => this.service.updateProfile(current), 'Administration.Hospital.Messages.Updated');
   }
 
   protected async saveBranding(): Promise<void> {
-    const current = this.profile();
+    const draft = this.profile();
+    const current = draft ? structuredClone(draft) : null;
     if (!current) {
       return;
     }
 
-    if (await this.save(() => this.service.updateBranding(current.branding), 'Administration.Hospital.Messages.BrandingUpdated')) {
+    if (await this.save(current, 'branding', () => this.service.updateBranding(current.branding), 'Administration.Hospital.Messages.BrandingUpdated')) {
       this.closeDrawer();
     }
   }
 
   protected async saveSettings(): Promise<void> {
-    const current = this.profile();
+    const draft = this.profile();
+    const current = draft ? structuredClone(draft) : null;
     if (!current) {
       return;
     }
 
-    if (await this.save(() => this.service.updateSettings(current.settings), 'Administration.Hospital.Messages.SettingsUpdated')) {
+    if (await this.save(current, 'settings', () => this.service.updateSettings(current.settings), 'Administration.Hospital.Messages.SettingsUpdated')) {
       this.closeDrawer();
     }
   }
 
   protected async saveSubscription(): Promise<void> {
-    const current = this.profile();
+    const draft = this.profile();
+    const current = draft ? structuredClone(draft) : null;
     if (!current) {
       return;
     }
 
-    if (await this.save(() => this.service.updateProfile(current), 'Administration.Hospital.Messages.Updated')) {
+    if (await this.save(current, 'profile', () => this.service.updateProfile(current), 'Administration.Hospital.Messages.Updated')) {
       this.closeDrawer();
     }
   }
@@ -618,7 +626,7 @@ export class HospitalManagementPageComponent implements OnInit {
     this.profile.set({ ...current, settings: [...current.settings, createSetting()] });
   }
 
-  private async save(operation: () => Promise<{ success: boolean; message: string; data: HospitalProfile | null }>, successKey: string): Promise<boolean> {
+  private async save(submitted: HospitalProfile, section: HospitalSaveSection, operation: () => Promise<{ success: boolean; message: string; data: HospitalProfile | null }>, successKey: string): Promise<boolean> {
     if (this.saving()) {
       return false;
     }
@@ -633,7 +641,8 @@ export class HospitalManagementPageComponent implements OnInit {
         return false;
       }
 
-      this.profile.set(response.data);
+      this.savedProfile.set(structuredClone(response.data));
+      this.profile.set(mergeHospitalSave(this.profile() ?? submitted, submitted, response.data, section));
       this.branchContext.setHospitalName(response.data.hospitalName);
       this.toast.success(this.t(successKey));
       return true;
