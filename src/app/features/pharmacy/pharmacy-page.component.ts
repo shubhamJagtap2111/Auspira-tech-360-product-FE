@@ -163,6 +163,59 @@ type DrugMasterType = 'dosage-forms' | 'routes' | 'categories' | 'manufacturers'
     @media(max-width:1400px){.metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.metrics button:nth-child(4),.metrics button:nth-child(5){min-height:112px}}
     @media(max-width:1050px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-grid{grid-template-columns:1fr}}
     @media(max-width:720px){.pharmacy-page{padding:0 0 20px}.page-head{display:grid;gap:16px}.page-head h1{font-size:27px}.head-actions{width:100%}.head-actions .ac-btn{flex:1;padding-inline:12px}.pharmacy-tabs{margin:0}.metrics{grid-template-columns:1fr}.metrics button{min-height:106px}.toolbar{flex-wrap:wrap}.search{min-width:100%}.line-fields,.form-grid,.master-config{grid-template-columns:1fr}.master-add{grid-template-columns:1fr}.span-2{grid-column:auto}.modal{width:100%}}
+
+    /* Use the same compact registry surfaces as Patients and Doctors. */
+    .pharmacy-page { gap: 10px; color: var(--ac-text); }
+    .page-head { gap: 12px; flex-wrap: wrap; }
+    .page-head h1 { font-size: 24px; color: var(--ac-text); }
+    .page-head p { font-size: 13px; line-height: 1.35; color: var(--ac-muted); }
+    .head-actions { flex-wrap: wrap; gap: 8px; }
+    .head-actions .ac-btn { min-height: 36px; height: auto; padding: 8px 14px; border-radius: 8px; font-size: 13px; }
+    .head-actions .ac-btn-secondary { background: var(--ac-surface); color: var(--ac-text-3); border-color: var(--ac-border); }
+    .pharmacy-tabs { border-radius: 10px; padding: 6px; background: var(--ac-surface); border-color: var(--ac-border); box-shadow: var(--ac-sh-sm); }
+    .pharmacy-tabs button { height: 38px; border-radius: 8px; flex-shrink: 0; color: var(--ac-muted); }
+    .pharmacy-tabs button.active { background: var(--ac-primary-light); color: var(--ac-primary); border-color: var(--ac-primary-lighter); box-shadow: none; }
+    .pharmacy-tabs .material-symbols-rounded { width: 26px; height: 26px; border-radius: 7px; background: var(--ac-surface-2); color: var(--ac-primary); }
+    .metrics { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+    .metrics small { white-space: normal; overflow: visible; text-overflow: clip; }
+    .flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); gap: 12px; overflow: visible; }
+    .flow b { display: none; }
+    @media (max-width: 1100px) { .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    .metrics button, .metrics button:nth-child(4), .metrics button:nth-child(5) { min-height: 76px; padding: 12px; border-radius: 12px; box-shadow: var(--ac-sh-sm); border-color: var(--ac-border); background: var(--ac-surface); gap: 10px; }
+    .metrics button::before { display: none; }
+    .metrics .material-symbols-rounded { width: 32px; height: 32px; font-size: 18px; border-radius: 8px; }
+    .metrics small, .metrics strong { color: var(--ac-text); }
+    .metrics strong { font-size: 20px; }
+    .metrics em { color: var(--ac-muted); white-space: normal; }
+    .panel { padding: 14px; border-radius: 12px; border-color: var(--ac-border); box-shadow: var(--ac-sh-sm); background: var(--ac-surface); }
+    .panel-head { flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+    .panel-head h2 { font-size: 16px; color: var(--ac-text); }
+    .panel-head > span, .panel-head .ac-eyebrow { color: var(--ac-muted); }
+    .dashboard-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 350px), 1fr)); gap: 12px; }
+    .toolbar { flex-wrap: wrap; padding: 10px; }
+    .search { min-width: min(100%, 220px); min-height: 36px; background: var(--ac-surface); border-color: var(--ac-border); border-radius: 8px; }
+    .search input { min-height: 34px; background: transparent; color: var(--ac-text); }
+    .toolbar select { min-height: 36px; max-width: 100%; }
+    .table-wrap { border-radius: 8px; border-color: var(--ac-border); }
+    th { padding: 9px 12px; background: var(--ac-surface-2); color: var(--ac-muted); }
+    td { padding: 10px 12px; color: var(--ac-text-3); border-color: var(--ac-border); }
+    td strong { color: var(--ac-text); }
+    tbody tr:hover { background: var(--ac-surface-2); }
+    .modal, .modal > header, .master-config article, .formulary-metrics button { background: var(--ac-surface); color: var(--ac-text); border-color: var(--ac-border); }
+    .modal :is(input, select, textarea), .toolbar select { background: var(--ac-surface); color: var(--ac-text); border-color: var(--ac-border); }
+    .backdrop { grid-template-columns: minmax(0, 1fr); }
+    .modal { min-width: 0; max-width: 100%; }
+    .modal .field-action { grid-template-columns: minmax(0, 1fr) auto; }
+    .modal footer { flex-wrap: wrap; }
+    @media (max-width: 640px) {
+      .page-head h1 { font-size: 24px; }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .metrics button { grid-template-columns: 1fr; }
+      .metrics small { white-space: normal; }
+      .head-actions { width: 100%; }
+      .toolbar > select { flex: 1 1 140px; }
+      .policy-status-grid, .formulary-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
   `]
 })
 export class PharmacyPageComponent implements OnInit {

@@ -462,7 +462,7 @@ import { AppointmentManagementService } from './appointment-management.service';
     .stat-label { margin: 2px 0 0; color: var(--ac-muted); font-size: 11.5px; }
     .appointment-shell { display: grid; gap: 10px; padding: 10px; overflow: visible; }
     .workspace-toolbar { display: grid; grid-template-columns: minmax(170px, auto) minmax(0, 1fr); gap: 12px; align-items: center; }
-    .mode-tabs { display: inline-flex; gap: 6px; padding: 5px; border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-subtle); }
+    .mode-tabs { max-width: 100%; flex-wrap: wrap; display: inline-flex; gap: 6px; padding: 5px; border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-subtle); }
     .mode-tabs button { min-height: 34px; display: inline-flex; align-items: center; gap: 7px; border: 0; border-radius: 9px; padding: 0 10px; background: transparent; color: var(--ac-muted); font: inherit; font-weight: 850; cursor: pointer; }
     .mode-tabs button.active { background: var(--ac-surface); color: var(--ac-primary); box-shadow: 0 8px 20px rgba(15, 23, 42, .08); }
     .mode-tabs .material-symbols-rounded { font-size: 20px; }

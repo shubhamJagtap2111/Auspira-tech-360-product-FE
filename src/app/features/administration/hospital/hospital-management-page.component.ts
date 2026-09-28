@@ -35,7 +35,7 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
               {{ t('Administration.Hospital.Actions.SaveProfile') }}
             </button>
           }
-          <button class="icon-btn" type="button" (click)="loadProfile()" [attr.title]="t('Administration.Rbac.Actions.Refresh')">
+          <button class="icon-btn" type="button" (click)="loadProfile()" [disabled]="saving() || loading()" [attr.title]="t('Administration.Rbac.Actions.Refresh')">
             <span class="material-symbols-rounded">refresh</span>
           </button>
         </div>
@@ -536,11 +536,16 @@ export class HospitalManagementPageComponent implements OnInit {
     }[drawer];
   }
 
+  private profileRequestRevision = 0;
+
   protected async loadProfile(): Promise<void> {
+    if (this.saving()) return;
+    const revision = ++this.profileRequestRevision;
     this.loading.set(true);
     this.loadError.set(null);
     try {
       const response = await this.service.getProfile();
+      if (revision !== this.profileRequestRevision) return;
       if (response.success && response.data) {
         this.profile.set(response.data);
         this.branchContext.setHospitalName(response.data.hospitalName);
@@ -552,12 +557,13 @@ export class HospitalManagementPageComponent implements OnInit {
       this.loadError.set(message);
       this.toast.error(message);
     } catch {
+      if (revision !== this.profileRequestRevision) return;
       this.profile.set(null);
       const message = 'The hospital profile did not load. Please check the API service and try again.';
       this.loadError.set(message);
       this.toast.error(message);
     } finally {
-      this.loading.set(false);
+      if (revision === this.profileRequestRevision) this.loading.set(false);
     }
   }
 
@@ -617,6 +623,8 @@ export class HospitalManagementPageComponent implements OnInit {
       return false;
     }
 
+    ++this.profileRequestRevision;
+    this.loading.set(false);
     this.saving.set(true);
     try {
       const response = await operation();

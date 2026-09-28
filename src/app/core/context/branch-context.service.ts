@@ -42,6 +42,7 @@ export class BranchContextService {
   private readonly hospitalNameSignal = signal<string | null>(readStoredHospitalName(this.authStore.session()?.tenantCode));
   private loadingPromise: Promise<void> | null = null;
   private loadedBranchesSuccessfully = false;
+  private hospitalNameRevision = 0;
 
   readonly branches = this.branchesSignal.asReadonly();
   readonly selectedBranchCode = this.selectedBranchCodeSignal.asReadonly();
@@ -86,6 +87,7 @@ export class BranchContextService {
   }
 
   setHospitalName(hospitalName: string | null | undefined): void {
+    ++this.hospitalNameRevision;
     const normalized = hospitalName?.trim();
     if (normalized) {
       this.hospitalNameSignal.set(normalized);
@@ -113,21 +115,18 @@ export class BranchContextService {
   }
 
   private async fetchHospitalName(): Promise<void> {
+    const revision = this.hospitalNameRevision;
     try {
       const response = await firstValueFrom(
         this.api.get<BranchApiResponse<HospitalProfileResponse>>('/administration/hospital')
       );
       const hospitalName = response.success ? response.data?.hospitalName?.trim() : null;
-      if (hospitalName) {
+      if (hospitalName && revision === this.hospitalNameRevision) {
         this.hospitalNameSignal.set(hospitalName);
         writeStoredHospitalName(this.authStore.session()?.tenantCode, hospitalName);
       }
     } catch {
-      this.hospitalNameSignal.set(
-        this.authStore.profile()?.hospitalName?.trim()
-        || this.authStore.session()?.hospitalName?.trim()
-        || null
-      );
+      // Keep the last saved name during temporary network failures.
     }
   }
 
