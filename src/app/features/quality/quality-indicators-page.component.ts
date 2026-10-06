@@ -515,7 +515,7 @@ type QualityTab = 'dashboard' | 'indicators' | 'audits' | 'events' | 'builder';
     .score-panel { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; align-items: center; padding: 16px; }
     .attention-panel { min-width: 0; padding: 14px; align-self: start; }
     .attention-panel .panel-head { margin-bottom: 10px; }
-    .score-ring { --score: 0; width: 152px; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; align-content: center; background: conic-gradient(#10B981 calc(var(--score) * 1%), #E2E8F0 0); position: relative; color: var(--ac-text); }
+    .score-ring { --score: 0; width: 152px; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; align-content: center; background: conic-gradient(#10B981 calc(var(--score) * 1%), var(--ac-border) 0); position: relative; color: var(--ac-text); }
     .score-ring::after { content: ''; position: absolute; inset: 18px; border-radius: 50%; background: var(--ac-surface); box-shadow: inset 0 0 0 1px var(--ac-border); }
     .score-ring strong, .score-ring small { position: relative; z-index: 1; text-align: center; }
     .score-ring strong { font-size: 25px; line-height: 1; }
@@ -544,11 +544,11 @@ type QualityTab = 'dashboard' | 'indicators' | 'audits' | 'events' | 'builder';
     .ac-table tbody tr.selected { background: color-mix(in srgb, var(--ac-primary) 10%, transparent); }
     .ac-table td strong { display: block; color: var(--ac-text); font-size: 13px; }
     .ac-table td small { display: block; margin-top: 2px; color: var(--ac-muted); font-size: 11px; }
-    .status-pill { --status: #64748B; display: inline-flex; align-items: center; min-height: 24px; border-radius: 999px; padding: 0 9px; color: var(--status); background: color-mix(in srgb, var(--status) 12%, transparent); font-size: 11.5px; font-weight: 900; white-space: nowrap; }
+    .status-pill { --status: var(--ac-muted); display: inline-flex; align-items: center; min-height: 24px; border-radius: 999px; padding: 0 9px; color: var(--status); background: color-mix(in srgb, var(--status) 12%, transparent); font-size: 11.5px; font-weight: 900; white-space: nowrap; }
     .on-target { --status: #10B981; }
     .attention { --status: #F59E0B; }
     .critical { --status: #EF4444; }
-    .no-data { --status: #64748B; }
+    .no-data { --status: var(--ac-muted); }
     .why-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 12px 0; }
     .why-grid article { border: 1px solid var(--ac-border); border-radius: 8px; padding: 10px; background: var(--ac-subtle); }
     .why-grid strong { display: block; margin-top: 4px; color: var(--ac-text); font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -559,7 +559,7 @@ type QualityTab = 'dashboard' | 'indicators' | 'audits' | 'events' | 'builder';
     .month-bar span { width: 13px; min-height: 4px; border-radius: 999px 999px 0 0; background: var(--status); }
     .month-bar small { position: absolute; bottom: -19px; color: var(--ac-muted); font-size: 10px; }
     .master-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-    .indicator-card { --status: #64748B; min-height: 150px; border: 1px solid color-mix(in srgb, var(--status) 30%, var(--ac-border)); border-radius: 8px; background: var(--ac-surface); padding: 14px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; text-align: left; cursor: pointer; }
+    .indicator-card { --status: var(--ac-muted); min-height: 150px; border: 1px solid color-mix(in srgb, var(--status) 30%, var(--ac-border)); border-radius: 8px; background: var(--ac-surface); padding: 14px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; text-align: left; cursor: pointer; }
     .indicator-card > span { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 8px; color: var(--status); background: color-mix(in srgb, var(--status) 12%, transparent); }
     .indicator-card small { color: var(--ac-muted); font-size: 11px; font-weight: 850; }
     .indicator-card strong { display: block; margin-top: 4px; color: var(--ac-text); font-size: 14px; }

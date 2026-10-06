@@ -336,7 +336,7 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
       padding: 16px;
       border: 1px solid var(--ac-border);
       border-radius: 8px;
-      background: linear-gradient(135deg, color-mix(in srgb, #eff6ff 74%, var(--ac-surface)), var(--ac-surface));
+      background: linear-gradient(135deg, color-mix(in srgb, var(--ac-primary-light) 74%, var(--ac-surface)), var(--ac-surface));
       box-shadow: 0 14px 34px rgba(15,23,42,.05);
     }
     .hospital-mark {
@@ -435,7 +435,7 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
       border-radius: 8px;
       background: var(--ac-surface-2);
     }
-    .readiness-list .material-symbols-rounded { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; color: #2563eb; background: rgba(37,99,235,.1); font-size: 19px; }
+    .readiness-list .material-symbols-rounded { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; color: var(--ac-primary); background: rgba(37,99,235,.1); font-size: 19px; }
     .readiness-list p { margin: 0; color: var(--ac-muted); font-size: 12px; line-height: 1.35; }
     .readiness-list strong { display: block; margin-bottom: 2px; color: var(--ac-text); font-size: 13px; }
     .status-list div {

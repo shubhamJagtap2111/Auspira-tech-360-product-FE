@@ -80,7 +80,7 @@ export interface DropdownOption<T = string> {
     .ac-dropdown-trigger:hover { border-color: color-mix(in srgb, var(--ac-primary) 45%, var(--ac-border)); }
     .open .ac-dropdown-trigger {
       border-color: var(--ac-primary);
-      box-shadow: 0 0 0 3px color-mix(in srgb, var(--ac-primary) 14%, transparent);
+      box-shadow: none;
     }
     .ac-dropdown-trigger > span:first-child {
       min-width: 0;

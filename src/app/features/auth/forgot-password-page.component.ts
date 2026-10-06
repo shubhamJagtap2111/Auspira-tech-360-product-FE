@@ -106,7 +106,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
   `,
   styles: `
     .auth-page { height: 100dvh; min-height: 0; display: grid; grid-template-columns: minmax(520px, 1.05fr) minmax(420px, .95fr); background: radial-gradient(circle at 84% 12%, rgba(37,99,235,.08), transparent 28%), var(--ac-bg); overflow: hidden; }
-    .auth-brand { position: relative; display: flex; align-items: center; justify-content: center; gap: 32px; padding: clamp(30px, 4vw, 48px); color: #fff; background: linear-gradient(145deg, #102a63, #2563eb 48%, #0f766e); overflow: hidden; }
+    .auth-brand { position: relative; display: flex; align-items: center; justify-content: center; gap: 32px; padding: clamp(30px, 4vw, 48px); color: #fff; background: linear-gradient(145deg, #102a63, var(--ac-primary) 48%, #0f766e); overflow: hidden; }
     .auth-brand::before, .auth-brand::after { content: ''; position: absolute; border-radius: 50%; background: rgba(255,255,255,.1); }
     .auth-brand::before { width: 280px; height: 280px; top: -100px; right: -70px; }
     .auth-brand::after { width: 220px; height: 220px; bottom: -90px; left: -70px; }
@@ -126,7 +126,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
     .visual-title { display: flex; align-items: center; gap: 10px; color: rgba(255,255,255,.9); font-size: 13px; }
     .status-dot { width: 9px; height: 9px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 7px rgba(34,197,94,.14); }
     .lock-card { display: grid; grid-template-columns: 56px 1fr; align-items: center; gap: 12px; margin-top: 18px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,.12); }
-    .lock-card .material-symbols-rounded { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: #fff; color: #2563eb; font-size: 32px; }
+    .lock-card .material-symbols-rounded { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: var(--ac-surface); color: var(--ac-primary); font-size: 32px; }
     .lock-card strong, .lock-card small { display: block; }
     .lock-card small { color: rgba(255,255,255,.68); margin-top: 3px; line-height: 1.4; }
     .pulse-track { display: grid; gap: 10px; margin-top: 18px; }
@@ -145,7 +145,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
     .input-shell:focus-within { border-color: var(--ac-primary); box-shadow: 0 0 0 4px rgba(37,99,235,.12); transform: translateY(-1px); }
     .input-shell > .material-symbols-rounded { width: 44px; color: var(--ac-muted); font-size: 20px; text-align: center; }
     input { width: 100%; min-width: 0; height: 46px; border: 0; border-radius: 13px; padding: 0 12px 0 0; background: transparent; color: var(--ac-text); font: inherit; font-weight: 700; outline: none; }
-    .primary { height: 48px; display: flex; align-items: center; justify-content: center; gap: 10px; border: 0; border-radius: 13px; background: linear-gradient(135deg,#2563eb,#3b82f6); color: #fff; font-weight: 900; cursor: pointer; box-shadow: 0 16px 32px rgba(37,99,235,.28); transition: transform .18s ease, box-shadow .18s ease, filter .18s ease; }
+    .primary { height: 48px; display: flex; align-items: center; justify-content: center; gap: 10px; border: 0; border-radius: 13px; background: linear-gradient(135deg,var(--ac-primary),#3b82f6); color: #fff; font-weight: 900; cursor: pointer; box-shadow: 0 16px 32px rgba(37,99,235,.28); transition: transform .18s ease, box-shadow .18s ease, filter .18s ease; }
     .primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 20px 40px rgba(37,99,235,.34); filter: saturate(1.05); }
     .primary:disabled { opacity: .82; cursor: not-allowed; }
     .button-pulse svg { width: 34px; height: 24px; display: block; }

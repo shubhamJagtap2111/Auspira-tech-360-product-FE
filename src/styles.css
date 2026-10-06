@@ -193,6 +193,17 @@ body.dark input:-webkit-autofill:focus {
 
 /* ── Material Symbols config ── */
 .material-symbols-rounded {
+  font-family: 'Material Symbols Rounded';
+  font-style: normal;
+  font-weight: 400;
+  font-feature-settings: 'liga';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  vertical-align: middle;
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   font-size: 20px;
   line-height: 1;
@@ -291,7 +302,7 @@ body.dark input:-webkit-autofill:focus {
   outline: none;
   transition: all var(--ac-t);
 }
-.ac-input:focus { border-color: var(--ac-primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+.ac-input:focus { border-color: var(--ac-primary); }
 .ac-input::placeholder { color: var(--ac-muted-2); }
 
 /* ── Typography ── */
@@ -579,7 +590,7 @@ body.dark input:-webkit-autofill:focus {
 .ac-admin-form-section textarea:hover { border-color: color-mix(in srgb, var(--ac-primary) 34%, var(--ac-border)); }
 .ac-admin-form-section input:focus,
 .ac-admin-form-section select:focus,
-.ac-admin-form-section textarea:focus { outline: none; border-color: var(--ac-primary); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+.ac-admin-form-section textarea:focus { border-color: var(--ac-primary); }
 .ac-admin-switch-row { min-height: 38px; flex-direction: row !important; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-bg); }
 .ac-admin-switch-row input { width: 16px !important; height: 16px !important; accent-color: var(--ac-primary); }
 .ac-admin-fieldset { max-height: 320px; overflow: auto; border: 1px solid var(--ac-border); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
@@ -640,7 +651,33 @@ body.dark input:-webkit-autofill:focus {
 ::-webkit-scrollbar-thumb:hover { background: var(--ac-muted-2); }
 
 /* ── Focus ── */
-:focus-visible { outline: 2px solid var(--ac-primary); outline-offset: 2px; }
+/* Keep the focus indicator on the control edge. These shared rules override
+   component halos so lazy-loaded pages use the same compact treatment. */
+:is(input, select, textarea, [contenteditable="true"]):focus {
+  box-shadow: none !important;
+}
+:focus-visible {
+  outline: 1px solid var(--ac-primary) !important;
+  outline-offset: -1px !important;
+  box-shadow: none !important;
+}
+.ac-btn-primary:focus-visible {
+  outline-color: var(--ac-primary-fg) !important;
+  outline-offset: -3px !important;
+}
+:is(.input-shell, .input-wrap, .search):focus-within {
+  border-color: var(--ac-primary);
+  box-shadow: none !important;
+  transform: none !important;
+}
+/* Composite fields show focus on their outer border instead of a second ring. */
+:is(.input-shell, .input-wrap, .search) input:focus-visible {
+  outline: none !important;
+}
+@media (forced-colors: active) {
+  :focus-visible { outline-color: Highlight !important; }
+  :is(.input-shell, .input-wrap, .search):focus-within { border-color: Highlight !important; }
+}
 
 /* Responsive workspace foundation. Wide data stays in its own scroll region;
    page actions and filters must fit the workspace, including an expanded sidebar. */

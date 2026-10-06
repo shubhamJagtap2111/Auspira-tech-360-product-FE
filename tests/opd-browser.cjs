@@ -14,6 +14,13 @@ const patient = { patientGuid: ids.patient, medicalRecordNo: 'TEST-001', fullNam
 const doctor = { doctorGuid: ids.doctor, fullName: 'Dr. Test', email: session.email, departmentName: 'General Medicine', branchName: 'Main Branch', primarySpecialization: 'General Medicine', consultationFee: 0, statusCode: 'ACTIVE' };
 const appointment = { id: ids.appointment, appointmentNo: 'APT-001', patientId: ids.patient, doctorId: ids.doctor, startsAt: now, appointmentType: 'NEW_CONSULTATION', branchName: 'Main Branch', departmentName: 'General Medicine', statusCode: 'CHECKED_IN', createdAt: now };
 const queue = { id: '50000000-0000-0000-0000-000000000001', appointmentId: ids.appointment, queueNo: 1, tokenNumber: 'T001', arrivedAt: now, priorityCode: 'NORMAL', statusCode: 'WAITING', createdAt: now };
+const previousVisits = [
+  { id: 'prior-1', patientId: ids.patient, doctorId: ids.doctor, statusCode: 'COMPLETED', createdAt: new Date(Date.now() - 86400000 * 7).toISOString(), notes: '## Vitals\n- Blood Pressure: 120/80\n- Pulse Rate: 72\n- SpO2: 99\n- Height: 157\n- Weight: 65\n- BMI: 26.4\n\n## Chief Complaints\n- Review of prior symptoms | 2 days | Moderate\n\n## Clinical History\n- Present Illness: Recorded narrative,\ncontinued on the next line.\n- Family History: -\n\n## Examination\n- General Examination: Previous examination documented\n\n## Diagnosis\n- PRIMARY | R69 | Prior diagnostic review\n\n## Prescription\n- Example medicine | 500 mg | Tablet | 1 tablet | Qty: 6 | Twice Daily | Oral | 3 days | After food\n\n## Advice\n- Advice recorded for the patient\n\n## Follow-up\n- Required: Yes\n- After: 7 days' },
+  { id: 'prior-2', patientId: ids.patient, doctorId: ids.doctor, statusCode: 'DRAFT', createdAt: new Date(Date.now() - 86400000 * 30).toISOString(), notes: 'Older free-form clinical note.\nFurther narrative is preserved.' }
+];
+const labResult = { id: 'result-1', testName: 'Example panel', parameterName: 'Example parameter', value: '12.5', unit: 'g/dL', referenceRange: '12–15', flagCode: 'NORMAL', isCritical: false, verifiedAt: now };
+const labReport = { id: 'report-1', reportNumber: 'LAB-TEST-001', orderNumber: 'LO-001', patientId: ids.patient, currentVersion: 2, statusCode: 'REPORT_RELEASED', releasedAt: now };
+patient.documents = [{ documentGuid: 'document-1', documentName: 'Example imaging report', documentType: 'Radiology', uploadedDate: now }];
 const server = http.createServer((req, res) => {
   let file = path.resolve(root, '.' + decodeURIComponent(new URL(req.url, 'http://localhost').pathname));
   if (!file.startsWith(root + path.sep) && file !== root) { res.writeHead(403); return res.end(); }
@@ -30,7 +37,7 @@ const server = http.createServer((req, res) => {
     fs.mkdirSync(artifacts, { recursive: true });
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
     const errors = [], writes = [];
-    let consultation = null, conflictNextSave = false;
+    let consultation = null, conflictNextSave = false, failReportDownload = true;
     page.on('pageerror', error => errors.push(error.message));
     await page.addInitScript(session => localStorage.setItem('care360.auth.session', JSON.stringify(session)), session);
     await page.route('**/*', async route => {
@@ -40,6 +47,11 @@ const server = http.createServer((req, res) => {
         return route.continue();
       }
       const p = url.pathname.replace(/^.*\/api\/v1/, ''), method = request.method();
+      if (p === '/laboratory/reports/report-1/pdf') {
+        assert.equal(url.searchParams.get('version'), '2');
+        if (failReportDownload) { failReportDownload = false; return route.fulfill({ status: 503, json: { message: 'Unavailable' } }); }
+        return route.fulfill({ contentType: 'application/pdf', body: '%PDF-1.4\nSynthetic test report\n%%EOF' });
+      }
       let data = [];
       if (method !== 'GET') writes.push({ path: p, body: request.postDataJSON() });
       if (p === '/auth/me') data = session;
@@ -68,7 +80,12 @@ const server = http.createServer((req, res) => {
         assert.equal(body.expectedUpdatedAt, consultation.updatedAt);
         consultation = { ...consultation, ...body.consultation, updatedAt: new Date().toISOString() };
         data = consultation;
-      } else if (p.endsWith('/history')) data = consultation ? [consultation] : [];
+      } else if (p.endsWith('/history')) data = [...(consultation ? [consultation] : []), ...previousVisits];
+      else if (p.endsWith('/lab-results')) data = [labResult];
+      else if (p === '/laboratory/reports') {
+        assert.equal(url.searchParams.get('patientId'), ids.patient);
+        data = [labReport, { ...labReport, id: 'other-patient', patientId: 'other-patient' }, { ...labReport, id: 'unreleased', statusCode: 'DRAFT' }];
+      }
       else if (method !== 'GET') data = { ...request.postDataJSON(), id: crypto.randomUUID() };
       return route.fulfill({ json: { success: true, statusCode: 200, data, message: '', errors: [] } });
     });
@@ -83,7 +100,46 @@ const server = http.createServer((req, res) => {
     assert.equal(writes.some(write => /prescriptions|symptoms|diagnoses|laboratory\/orders/.test(write.path)), false, 'autosave must not create downstream records');
     await page.getByRole('button', { name: 'History & results', exact: true }).click();
     await page.getByRole('dialog', { name: 'History & results' }).waitFor();
+    await page.locator('.history-timeline-item').filter({ hasText: 'Prior diagnostic review' }).click();
+    for (const tone of ['success', 'pending', 'active']) assert.equal(await page.locator(`.history-timeline-item[data-status-tone="${tone}"]`).count(), 1);
+    const statusColors = await page.locator('.history-timeline-item').evaluateAll(cards => cards.map(card => getComputedStyle(card).backgroundColor));
+    assert.equal(new Set(statusColors).size, 3, 'process cards have distinct green, yellow, and orange backgrounds');
+    assert.equal(await page.locator('.history-consultation-status').getAttribute('data-status-tone'), 'success');
+    assert.equal(await page.locator('.history-vitals').getByText('120/80', { exact: true }).count(), 1);
+    assert.equal(await page.locator('.history-medicines').getByText('Example medicine', { exact: true }).count(), 1);
+    assert.equal((await page.locator('.history-detail').innerText()).includes('## Vitals'), false);
+    await page.getByText('OPD consultation started', { exact: true }).waitFor({ state: 'hidden', timeout: 10000 });
+    await page.locator('.history-drawer').screenshot({ path: path.join(artifacts, 'history-desktop.png') });
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 2), false);
+    assert.equal(await page.locator('.history-close').isVisible(), true);
+    await page.locator('.history-drawer').screenshot({ path: path.join(artifacts, 'history-mobile.png') });
+    await page.getByRole('button', { name: /Lab reports/ }).click();
+    await page.getByRole('heading', { name: 'Lab reports', exact: true }).waitFor();
+    assert.equal(await page.locator('.history-lab-report').count(), 1, 'only released reports belonging to this patient are shown');
+    assert.equal(await page.locator('.history-result-value').count(), 0, 'individual parameter cards are replaced by complete reports');
+    const downloadButton = page.getByRole('button', { name: 'Download PDF for report LAB-TEST-001', exact: true });
+    await downloadButton.click();
+    await page.getByText('Unable to download lab report', { exact: true }).waitFor();
+    await downloadButton.waitFor({ state: 'visible' });
+    const downloadPromise = page.waitForEvent('download');
+    await downloadButton.click();
+    const download = await downloadPromise;
+    assert.equal(download.suggestedFilename(), 'LAB-TEST-001-v2.pdf');
+    assert.equal(await download.failure(), null);
+    await page.getByText('Unable to download lab report', { exact: true }).waitFor({ state: 'hidden' });
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 2), false);
+    await page.locator('.history-drawer').screenshot({ path: path.join(artifacts, 'lab-reports-mobile.png') });
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.locator('.history-drawer').screenshot({ path: path.join(artifacts, 'lab-reports-desktop.png') });
+    await page.getByRole('button', { name: /Imaging/ }).click();
+    await page.getByRole('heading', { name: 'Example imaging report' }).waitFor();
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.locator('.history-close').focus();
+    await page.keyboard.press('Shift+Tab');
+    assert.equal(await page.evaluate(() => document.activeElement.textContent.trim()), 'Back to OPD', 'keyboard focus stays within the history dialog');
     await page.keyboard.press('Escape');
+    assert.equal(await page.evaluate(() => document.activeElement.textContent.trim()), 'History & results', 'closing history restores focus to the opener');
     assert.equal(await page.locator('input[name="complaint"]').inputValue(), 'Review of symptoms');
     await page.getByRole('button', { name: 'Review & Complete', exact: true }).click();
     await page.getByRole('dialog', { name: 'Review consultation' }).waitFor();
@@ -111,6 +167,6 @@ const server = http.createServer((req, res) => {
     await page.locator('.completion-banner').waitFor({ timeout: 15000 });
     assert.equal(consultation.statusCode, 'COMPLETED');
     assert.deepEqual(errors, []);
-    console.log(JSON.stringify({ passed: true, checks: ['start', 'draft-only autosave', 'history preserves input', 'review', 'conflict recovery', 'responsive widths', 'completion'], screenshots: artifacts }, null, 2));
+    console.log(JSON.stringify({ passed: true, checks: ['start', 'draft-only autosave', 'formatted history and visit selection', 'history results and imaging', 'history keyboard focus', 'history preserves input', 'review', 'conflict recovery', 'responsive widths', 'completion'], screenshots: artifacts }, null, 2));
   } finally { await browser.close(); server.close(); }
 })().catch(error => { console.error(error); server.close(); process.exitCode = 1; });

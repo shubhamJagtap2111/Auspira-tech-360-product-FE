@@ -1258,7 +1258,7 @@ interface IpdKpiCard {
 
     .kpi-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
     .kpi-card {
-      --tone: #2563EB;
+      --tone: var(--ac-primary);
       min-height: 66px;
       display: flex;
       gap: 10px;

@@ -594,7 +594,7 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
     .bars { height: 178px; width: 100%; display: flex; align-items: end; justify-content: center; gap: 4px; border-bottom: 1px solid var(--ac-border); }
     .bar { width: 12px; min-height: 4px; border-radius: 999px 999px 0 0; transition: opacity .16s ease, transform .16s ease; }
     .trend-day:hover .bar { transform: translateY(-2px); opacity: .86; }
-    .bar.primary { background: linear-gradient(180deg, #3B82F6, #2563EB); box-shadow: 0 7px 15px rgba(37,99,235,.22); }
+    .bar.primary { background: linear-gradient(180deg, #3B82F6, var(--ac-primary)); box-shadow: 0 7px 15px rgba(37,99,235,.22); }
     .bar.secondary { background: linear-gradient(180deg, #34D399, #10B981); box-shadow: 0 7px 15px rgba(16,185,129,.22); }
     .trend-day small { color: var(--ac-muted); font-size: 10.5px; white-space: nowrap; }
     .chart-legend { display: flex; align-items: center; gap: 14px; margin-top: 10px; color: var(--ac-muted); font-size: 11.5px; font-weight: 800; }

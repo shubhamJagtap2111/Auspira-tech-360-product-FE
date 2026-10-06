@@ -732,7 +732,7 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
       position: absolute;
       inset: 0 0 auto;
       height: 4px;
-      background: linear-gradient(90deg, var(--ac-primary), #14b8a6, #7c3aed);
+      background: linear-gradient(90deg, var(--ac-primary), #14b8a6, var(--ac-secondary));
     }
     .hero-main, .hero-status { position: relative; z-index: 1; }
     .patient-avatar {
@@ -1266,7 +1266,7 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
       align-content: start;
       gap: 14px;
       background:
-        linear-gradient(145deg, color-mix(in srgb, var(--ac-surface) 96%, white), color-mix(in srgb, #f8fafc 88%, var(--ac-surface))),
+        linear-gradient(145deg, color-mix(in srgb, var(--ac-surface) 96%, white), color-mix(in srgb, var(--ac-bg) 88%, var(--ac-surface))),
         var(--ac-surface);
     }
     .safety-overview {
@@ -1436,7 +1436,7 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
       position: absolute;
       inset: 0 0 auto;
       height: 4px;
-      background: linear-gradient(90deg, var(--ac-primary), #14b8a6, #7c3aed);
+      background: linear-gradient(90deg, var(--ac-primary), #14b8a6, var(--ac-secondary));
     }
     .patient-summary-card .hero-card {
       min-height: 0;
@@ -1542,7 +1542,7 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
     .patient-profile {
       --profile-accent: var(--ac-primary);
       --profile-accent-2: #14b8a6;
-      --profile-success: #7c3aed;
+      --profile-success: var(--ac-secondary);
     }
     .tab-bar {
       position: relative;
@@ -1566,7 +1566,7 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
       overflow-y: hidden;
       scroll-padding-inline: 8px;
       scrollbar-width: thin;
-      scrollbar-color: color-mix(in srgb, #64748b 42%, var(--ac-border)) transparent;
+      scrollbar-color: color-mix(in srgb, var(--ac-muted) 42%, var(--ac-border)) transparent;
     }
     .tab-bar::-webkit-scrollbar {
       display: block;
@@ -1578,11 +1578,11 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
     }
     .tab-bar::-webkit-scrollbar-thumb {
       border-radius: 999px;
-      background: color-mix(in srgb, #64748b 38%, var(--ac-border));
+      background: color-mix(in srgb, var(--ac-muted) 38%, var(--ac-border));
       border: 2px solid color-mix(in srgb, var(--ac-surface) 88%, transparent);
     }
     .tab-bar::-webkit-scrollbar-thumb:hover {
-      background: color-mix(in srgb, #475569 52%, var(--ac-border));
+      background: color-mix(in srgb, var(--ac-muted) 52%, var(--ac-border));
     }
     .tab-bar::-webkit-scrollbar-button {
       display: none;

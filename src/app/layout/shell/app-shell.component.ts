@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, HostListener, OnInit, computed, eff
 import { DatePipe } from '@angular/common';
 import { RouterLink, RouterLinkActive, RouterOutlet, Router, NavigationCancel, NavigationEnd, NavigationError } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { A11yModule } from '@angular/cdk/a11y';
 import { filter, map, startWith } from 'rxjs';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -60,34 +61,37 @@ const fallbackLanguages: Language[] = [
 @Component({
   selector: 'ac-root',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, FormsModule, DatePipe, ConfirmDialogComponent, AppLoaderComponent, AcDropdownComponent],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, FormsModule, A11yModule, DatePipe, ConfirmDialogComponent, AppLoaderComponent, AcDropdownComponent],
   template: `
     @if (isAuthPage()) {
       <router-outlet />
     } @else if (isAuthenticated()) {
-      <div class="shell" [class.collapsed]="sidebarCollapsed()">
+      <div class="shell" [class.collapsed]="sidebarCollapsed()" [class.mobile-menu-open]="mobileNavigationOpen()">
+        <a class="skip-to-workspace" href="#main-workspace">Skip to workspace</a>
+        @if (mobileNavigationOpen()) { <button type="button" class="mobile-navigation-backdrop" aria-label="Close navigation" (click)="closeMobileNavigation()" tabindex="-1"></button> }
 
         <!-- ════════ SIDEBAR ════════ -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="application-navigation" aria-label="Application navigation" [attr.role]="mobileNavigationOpen() ? 'dialog' : null" [attr.aria-modal]="mobileNavigationOpen() ? 'true' : null" [cdkTrapFocus]="mobileNavigationOpen()">
 
           <!-- Brand -->
           <div class="brand">
             <div class="brand-logo">
-              <span class="material-symbols-rounded msf" style="font-size:22px;color:#fff">favorite</span>
+              <img src="assets/brand/auspira-logo.webp" alt="Auspira Technologies" />
             </div>
-            @if (!sidebarCollapsed()) {
+            @if (!sidebarCollapsed() || mobileNavigationOpen()) {
               <div class="brand-text">
-                <strong>Care360</strong>
-                <span>Healthcare ERP</span>
+                <strong>Auspira Care360</strong>
+                <span>Connected healthcare</span>
               </div>
             }
           </div>
+          <button type="button" class="mobile-navigation-close" aria-label="Close navigation" (click)="closeMobileNavigation()"><span class="material-symbols-rounded" aria-hidden="true">close</span></button>
 
           <!-- Navigation -->
-          <nav class="nav">
+          <nav class="nav" aria-label="Modules">
             @for (group of filteredNavGroups(); track group.label) {
               <div class="nav-group">
-                @if (!sidebarCollapsed()) {
+                @if (!sidebarCollapsed() || mobileNavigationOpen()) {
                   <p class="nav-group-label">{{ group.label }}</p>
                 }
                 @for (item of group.items; track item.path + item.label) {
@@ -99,11 +103,11 @@ const fallbackLanguages: Language[] = [
                        [routerLinkActiveOptions]="{ exact: item.path === '/' }"
                        [title]="sidebarCollapsed() ? item.label : ''">
                       <span class="material-symbols-rounded nav-icon">{{ item.icon }}</span>
-                      @if (!sidebarCollapsed()) {
+                      @if (!sidebarCollapsed() || mobileNavigationOpen()) {
                         <span class="nav-label">{{ item.label }}</span>
                       }
                     </a>
-                    @if (!sidebarCollapsed()) {
+                    @if (!sidebarCollapsed() || mobileNavigationOpen()) {
                       <div class="nav-children">
                         @for (child of item.children; track child.path + child.label) {
                           <a class="nav-child"
@@ -124,7 +128,7 @@ const fallbackLanguages: Language[] = [
                        [routerLinkActiveOptions]="{ exact: item.path === '/' }"
                        [title]="sidebarCollapsed() ? item.label : ''">
                       <span class="material-symbols-rounded nav-icon">{{ item.icon }}</span>
-                      @if (!sidebarCollapsed()) {
+                      @if (!sidebarCollapsed() || mobileNavigationOpen()) {
                         <span class="nav-label">{{ item.label }}</span>
                       }
                     </a>
@@ -135,7 +139,7 @@ const fallbackLanguages: Language[] = [
           </nav>
 
           <!-- Toggle -->
-          <button class="sidebar-toggle" (click)="toggleSidebar()"
+          <button class="sidebar-toggle" (click)="toggleSidebar()" [attr.aria-label]="sidebarCollapsed() ? 'Expand navigation' : 'Collapse navigation'"
                   [title]="sidebarCollapsed() ? 'Expand' : 'Collapse'">
             <span class="material-symbols-rounded">
               {{ sidebarCollapsed() ? 'chevron_right' : 'chevron_left' }}
@@ -144,13 +148,14 @@ const fallbackLanguages: Language[] = [
         </aside>
 
         <!-- ════════ MAIN AREA ════════ -->
-        <div class="shell-main">
+        <div class="shell-main" [attr.inert]="mobileNavigationOpen() ? '' : null">
 
           <!-- ── HEADER ── -->
           <header class="header">
 
             <!-- Search -->
             <div class="header-left">
+              <button type="button" id="mobile-navigation-trigger" class="mobile-navigation-trigger" aria-label="Open navigation" aria-controls="application-navigation" [attr.aria-expanded]="mobileNavigationOpen()" (click)="openMobileNavigation()"><span class="material-symbols-rounded" aria-hidden="true">menu</span></button>
               <button aria-label="Search application" class="search-btn" (click)="commandOpen.set(true)">
                 <span class="material-symbols-rounded" style="font-size:18px;color:var(--ac-muted)">search</span>
                 <span class="search-placeholder">Search anything...</span>
@@ -192,8 +197,8 @@ const fallbackLanguages: Language[] = [
                 [title]="showAiAssistantBot() ? 'Hide AIRA' : 'Show AIRA'">
                 <span class="aira-message-icon" aria-hidden="true"></span>
               </button>
-              <button class="hdr-btn" (click)="toggleDark()" [title]="dark() ? 'Light mode' : 'Dark mode'">
-                <span class="material-symbols-rounded">{{ dark() ? 'light_mode' : 'dark_mode' }}</span>
+              <button class="hdr-btn" (click)="toggleDark()" [title]="dark() ? 'Light mode' : 'Dark mode'" [attr.aria-label]="dark() ? 'Light mode' : 'Dark mode'">
+                <span class="material-symbols-rounded" aria-hidden="true">{{ dark() ? 'light_mode' : 'dark_mode' }}</span>
               </button>
               <button class="hdr-btn lang-btn" title="Language" (click)="toggleLanguageMenu()">
                 <span class="material-symbols-rounded">language</span>
@@ -308,7 +313,7 @@ const fallbackLanguages: Language[] = [
           }
 
           <!-- Page Content -->
-          <main class="main-content">
+          <main class="main-content" id="main-workspace" tabindex="-1">
             <router-outlet />
           </main>
         </div>
@@ -1404,7 +1409,7 @@ const fallbackLanguages: Language[] = [
       animation: orbRing 6s ease-out infinite;
     }
     .ai-orb::after { animation-delay: 3s; }
-    .ai-orb i { width: 6px; height: 6px; border-radius: 50%; background: white; box-shadow: 0 0 18px white; }
+    .ai-orb i { width: 6px; height: 6px; border-radius: 50%; background: var(--ac-surface); box-shadow: 0 0 18px white; }
     .ai-orb.mini { width: 30px; flex-shrink: 0; }
     .ai-icon-btn {
       display: grid;
@@ -1844,6 +1849,75 @@ const fallbackLanguages: Language[] = [
       .ai-bot-launcher { right: 6px; transform: scale(.78); }
       .ai-chat-panel { bottom: 158px; max-height: calc(100dvh - 220px); }
     }
+
+    /* Auspira navigation and responsive workspace. */
+    .brand { padding: 22px 16px; min-height: 84px; }
+    .brand-logo { width: 44px; min-width: 44px; height: 38px; overflow: hidden; background: #fff; border-radius: 9px; box-shadow: none; justify-content: flex-start; }
+    .brand-logo img { width: 140px; height: 32px; max-width: none; object-fit: contain; flex-shrink: 0; }
+    .brand-text strong { font-size: 14px; }
+    .brand-text span { font-size: 10px; font-weight: 500; }
+    .nav { padding: 16px 12px; gap: 10px; }
+    .nav-group-label { color: var(--ac-muted); font-size: 9px; padding: 8px 12px; }
+    .nav-item { position: relative; height: 42px; padding: 0 12px; font-size: 13px; border-radius: 9px; }
+    .nav-item.active { color: var(--ac-item-active-text); background: var(--ac-item-active-bg); font-weight: 700; }
+    .nav-item.active::before { content: ''; position: absolute; left: 0; top: 11px; bottom: 11px; width: 3px; border-radius: 3px; background: var(--ac-secondary); }
+    .nav-child.active { color: var(--ac-item-active-text); background: var(--ac-item-active-bg); }
+    .header { border-bottom: 1px solid var(--ac-border); box-shadow: none; gap: 12px; padding-inline: 20px; }
+    .header-left { flex: 1 1 100px; min-width: 40px; }
+    .header-center { flex: 0 1 auto; }
+    .header-right { flex: 0 0 auto; }
+    .profile-meta { max-width: 150px; text-align: left; }
+    .profile-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .search-btn { width: min(100%, 280px); min-width: 0; border-radius: 10px; box-shadow: none; }
+    .search-placeholder { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tenant-chip { background: var(--ac-secondary-light); border-color: transparent; }
+    .main-content { padding: clamp(18px, 2vw, 32px); background: var(--ac-bg); scrollbar-gutter: stable; }
+    .mobile-navigation-trigger, .mobile-navigation-close, .mobile-navigation-backdrop { display: none; }
+    .skip-to-workspace { position: fixed; top: 8px; left: 12px; transform: translateY(-200%); z-index: 10000; padding: 10px 16px; background: var(--ac-surface); color: var(--ac-primary); border: 1px solid var(--ac-primary); border-radius: 8px; }
+    .skip-to-workspace:focus { transform: none; }
+    @media (min-width: 1920px) { .main-content > router-outlet + * { max-width: 1800px; margin-inline: auto; } }
+    @media (min-width: 1025px) and (max-width: 1500px) { .profile-meta { display: none; } .tenant-chip { max-width: 180px; } .branch-select ac-dropdown { max-width: 180px; } }
+    @media (max-width: 1024px) {
+      .shell-main { height: 100dvh; }
+      .main-content { height: auto; flex: 1; padding: 20px 18px; overflow-y: auto; overflow-x: hidden; }
+      .header { min-height: 68px; height: 68px; padding: 10px 16px; gap: 10px; }
+      .header-left { display: flex; flex: 0 0 auto; gap: 6px; align-items: center; }
+      .mobile-navigation-trigger { display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid var(--ac-border); background: var(--ac-surface); color: var(--ac-text); border-radius: 10px; }
+      .mobile-navigation-trigger .material-symbols-rounded { font-size: 23px; }
+      .header-center { flex: 1; min-width: 0; gap: 8px; }
+      .tenant-name { max-width: 160px; }
+      .branch-select { display: flex; min-width: 150px; }
+      .branch-select ac-dropdown { max-width: 180px; }
+      .sidebar, .shell.collapsed .sidebar { position: fixed; inset: 0 auto 0 0; width: min(304px, calc(100vw - 36px)); min-width: 0; height: 100dvh; border: 0; border-right: 1px solid var(--ac-border); z-index: 500; transform: translateX(-100%); visibility: hidden; pointer-events: none; transition: transform 180ms ease, visibility 180ms ease; box-shadow: var(--ac-sh-xl); }
+      .mobile-menu-open .sidebar { transform: none; visibility: visible; pointer-events: auto; }
+      .mobile-navigation-backdrop { display: block; position: fixed; inset: 0; z-index: 499; background: #17255466; backdrop-filter: blur(3px); }
+      .sidebar .brand { display: flex; padding: 20px 52px 20px 16px; min-height: 82px; gap: 10px; }
+      .mobile-navigation-close { display: grid; place-items: center; position: absolute; top: 20px; right: 10px; width: 38px; height: 38px; color: var(--ac-text); border-radius: 9px; background: var(--ac-surface-2); }
+      .sidebar .nav { height: auto; padding: 12px; flex-direction: column; align-items: stretch; gap: 10px; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; }
+      .sidebar .nav-group { display: block; }
+      .sidebar .nav-group-label, .sidebar .nav-label, .sidebar .nav-children { display: block; }
+      .sidebar .nav-item { width: auto; min-width: 0; height: 44px; padding: 0 12px; justify-content: flex-start; border-radius: 9px; }
+      .sidebar .nav-icon { font-size: 20px !important; min-width: 20px; }
+      .sidebar-toggle { display: none; }
+      .ai-bot-launcher { bottom: 18px; }
+      .ai-chat-panel { bottom: 118px; max-height: calc(100dvh - 190px); }
+      .notif-panel, .lang-drop, .profile-drop { top: 76px; max-height: calc(100dvh - 94px); }
+    }
+    @media (max-width: 640px) {
+      .header { min-height: 116px; height: 116px; padding: 10px 12px; align-content: center; gap: 8px; }
+      .header-left { flex: 0 0 auto; gap: 4px; }
+      .header-center { display: contents; }
+      .header-right { gap: 0; }
+      .header-right .aira-toggle { display: none; }
+      .tenant-chip { flex: 1; min-width: 0; padding: 6px 8px; }
+      .tenant-name { max-width: none; font-size: 12px; }
+      .branch-select { order: 4; flex: 1 0 100%; max-width: 100%; min-width: 0; }
+      .branch-select ac-dropdown { flex: 1; max-width: none; }
+      .main-content { padding: 16px 12px 24px; }
+      .notif-panel, .lang-drop, .profile-drop { top: 124px; }
+      .ai-bot-launcher { bottom: 12px; right: 8px; transform: scale(.72); }
+      .ai-chat-panel { bottom: 105px; max-height: calc(100dvh - 230px); }
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -1866,6 +1940,7 @@ export class AppShellComponent implements OnInit {
     localStorage.getItem('ac-dark') === 'true'
   );
   protected readonly commandOpen  = signal(false);
+  protected readonly mobileNavigationOpen = signal(false);
   protected readonly notifOpen    = signal(false);
   protected readonly profileOpen  = signal(false);
   protected readonly langOpen     = signal(false);
@@ -1939,6 +2014,7 @@ export class AppShellComponent implements OnInit {
       .subscribe(event => {
         this.appLoader.reset();
         if (event instanceof NavigationEnd) {
+          this.closeMobileNavigation();
           sessionStorage.removeItem(CHUNK_RECOVERY_STORAGE_KEY);
           return;
         }
@@ -2174,6 +2250,17 @@ export class AppShellComponent implements OnInit {
     });
   }
 
+  protected openMobileNavigation(): void {
+    this.mobileNavigationOpen.set(true);
+    requestAnimationFrame(() => requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('.mobile-navigation-close')?.focus()));
+  }
+
+  protected closeMobileNavigation(): void {
+    if (!this.mobileNavigationOpen()) return;
+    this.mobileNavigationOpen.set(false);
+    document.getElementById('mobile-navigation-trigger')?.focus();
+  }
+
   toggleDark(): void {
     this.dark.update(v => {
       const next = !v;
@@ -2344,6 +2431,7 @@ export class AppShellComponent implements OnInit {
       this.commandOpen.update(v => !v);
     }
     if (e.key === 'Escape') {
+      this.closeMobileNavigation();
       this.commandOpen.set(false);
       this.notifOpen.set(false);
       this.profileOpen.set(false);

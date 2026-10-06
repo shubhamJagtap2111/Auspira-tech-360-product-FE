@@ -81,7 +81,7 @@ import { AppLoaderService } from './app-loader.service';
     }
 
     :host-context(.dark) .loader-card span {
-      color: #cbd5e1;
+      color: var(--ac-border-2);
     }
 
     @keyframes heartbeatDash {

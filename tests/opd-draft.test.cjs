@@ -103,3 +103,25 @@ test('completion review includes examination, ordered tests, and all medicines',
   assert.equal(summary.sections.find(section => section.title === 'Examination').items.length, 1);
   assert.equal(summary.sections.find(section => section.title === 'Lab Orders').items[0], 'CBC | Routine');
 });
+
+test('history formats legacy notes without losing wrapped text or medicine details', () => {
+  const functions = ast.statements.filter(node => ts.isFunctionDeclaration(node) && ['buildHistorySections', 'isMeaningfulSummaryLine'].includes(node.name?.text)).map(node => node.getText(ast)).join('\n');
+  const context = vm.createContext({});
+  vm.runInContext(ts.transpileModule(functions, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, context);
+  const sections = context.buildHistorySections('## Vitals\n- Blood Pressure: 120/80\n- Pulse Rate: 0\n- Temperature: -\n\n## Clinical History\n- Present Illness: Symptoms described,\ncontinued on the next line\n- Family History: -\n\n## Prescription\n- Example medicine | 500 mg | Tablet | 1 tablet | Qty: 6 | Twice Daily | Oral | 3 days | After food');
+  assert.equal(sections[0].kind, 'metrics');
+  assert.equal(sections[0].rows.length, 2);
+  assert.equal(sections[0].rows[1].value, '0');
+  assert.equal(sections[1].rows[0].value, 'Symptoms described,\ncontinued on the next line');
+  assert.equal(sections[2].rows[0].details.length, 8);
+  assert.equal(sections[2].rows[0].value, 'Example medicine');
+});
+
+test('unstructured historical notes remain readable and every entry is retained', () => {
+  const functions = ast.statements.filter(node => ts.isFunctionDeclaration(node) && ['buildHistorySections', 'isMeaningfulSummaryLine'].includes(node.name?.text)).map(node => node.getText(ast)).join('\n');
+  const context = vm.createContext({});
+  vm.runInContext(ts.transpileModule(functions, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, context);
+  assert.equal(context.buildHistorySections('Legacy free text\nSecond narrative line')[0].rows[0].value, 'Legacy free text\nSecond narrative line');
+  assert.equal(context.buildHistorySections('## Prescription\n' + Array.from({ length: 9 }, (_, i) => `- Medicine ${i + 1}`).join('\n'))[0].rows.length, 9);
+  assert.equal(context.buildHistorySections('## Vitals\n- -').length, 0);
+});

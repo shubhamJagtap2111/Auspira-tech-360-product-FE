@@ -111,7 +111,7 @@ import { AppLoaderService } from '../../shared/ui/app-loader/app-loader.service'
   `,
   styles: `
     .auth-page { height: 100dvh; min-height: 0; display: grid; grid-template-columns: minmax(520px, 1.05fr) minmax(420px, .95fr); background: radial-gradient(circle at 84% 12%, rgba(37,99,235,.08), transparent 28%), var(--ac-bg); overflow: hidden; }
-    .auth-brand { position: relative; display: flex; align-items: center; justify-content: center; gap: 30px; padding: clamp(30px, 4vw, 48px); color: #fff; background: linear-gradient(145deg, #111827, #1d4ed8 56%, #0f766e); overflow: hidden; }
+    .auth-brand { position: relative; display: flex; align-items: center; justify-content: center; gap: 30px; padding: clamp(30px, 4vw, 48px); color: #fff; background: linear-gradient(145deg, var(--ac-text), var(--ac-primary-hover) 56%, #0f766e); overflow: hidden; }
     .auth-brand::before, .auth-brand::after { content: ''; position: absolute; border-radius: 50%; background: rgba(255,255,255,.09); }
     .auth-brand::before { width: 280px; height: 280px; top: -100px; right: -80px; }
     .auth-brand::after { width: 230px; height: 230px; bottom: -95px; left: -80px; }
@@ -130,7 +130,7 @@ import { AppLoaderService } from '../../shared/ui/app-loader/app-loader.service'
     .visual-title { display: flex; align-items: center; gap: 10px; color: rgba(255,255,255,.9); font-size: 13px; }
     .status-dot { width: 9px; height: 9px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 7px rgba(34,197,94,.14); }
     .shield-card { display: grid; grid-template-columns: 54px 1fr; align-items: center; gap: 12px; margin-top: 18px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,.12); }
-    .shield-card .material-symbols-rounded { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 15px; background: #fff; color: #2563eb; font-size: 30px; }
+    .shield-card .material-symbols-rounded { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 15px; background: var(--ac-surface); color: var(--ac-primary); font-size: 30px; }
     .shield-card strong, .shield-card small { display: block; }
     .shield-card small { color: rgba(255,255,255,.68); margin-top: 3px; }
     .signal-list { display: grid; gap: 10px; margin-top: 18px; }
@@ -150,7 +150,7 @@ import { AppLoaderService } from '../../shared/ui/app-loader/app-loader.service'
     .field-icon-button .material-symbols-rounded { font-size: 20px; }
     .check { display: flex; flex-direction: row; align-items: center; gap: 8px; color: var(--ac-text-3); font-size: 13px; font-weight: 700; }
     .check input { width: 16px; height: 16px; accent-color: var(--ac-primary); }
-    .primary { height: 48px; display: flex; align-items: center; justify-content: center; gap: 10px; border: 0; border-radius: 13px; background: linear-gradient(135deg,#2563eb,#3b82f6); color: #fff; font-weight: 900; cursor: pointer; box-shadow: 0 16px 32px rgba(37,99,235,.28); transition: transform .18s ease, box-shadow .18s ease, filter .18s ease; }
+    .primary { height: 48px; display: flex; align-items: center; justify-content: center; gap: 10px; border: 0; border-radius: 13px; background: linear-gradient(135deg,var(--ac-primary),#3b82f6); color: #fff; font-weight: 900; cursor: pointer; box-shadow: 0 16px 32px rgba(37,99,235,.28); transition: transform .18s ease, box-shadow .18s ease, filter .18s ease; }
     .primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 20px 40px rgba(37,99,235,.34); filter: saturate(1.05); }
     .primary:disabled { opacity: .82; cursor: not-allowed; }
     .button-pulse svg { width: 34px; height: 24px; display: block; }

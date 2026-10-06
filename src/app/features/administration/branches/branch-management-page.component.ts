@@ -359,7 +359,7 @@ const permissions = {
     .default-mark, .status { display: inline-flex; align-items: center; min-height: 22px; margin-top: 6px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; line-height: 1.2; }
     .default-mark { background: rgba(245,158,11,.12); color: #b45309; }
     .status { margin-top: 0; background: rgba(22,163,74,.1); color: #15803d; }
-    .status.inactive { background: rgba(100,116,139,.12); color: #475569; }
+    .status.inactive { background: rgba(100,116,139,.12); color: var(--ac-muted); }
     .row-actions { gap: 8px; align-items: center; }
     .row-actions .icon-btn { width: 30px; height: 30px; border-radius: 7px; }
     .icon-btn { width: 34px; height: 34px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-text-2); cursor: pointer; display: inline-grid; place-items: center; }

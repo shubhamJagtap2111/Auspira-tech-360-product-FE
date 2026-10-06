@@ -166,7 +166,7 @@ import { TenantContextService } from '../../core/tenant/tenant-context.service';
   `,
   styles: `
     .auth-page { height: 100dvh; min-height: 0; display: grid; grid-template-columns: minmax(500px, .95fr) minmax(620px, 1.05fr); background: radial-gradient(circle at 78% 12%, rgba(37,99,235,.09), transparent 30%), var(--ac-bg); overflow: hidden; }
-    .auth-brand { position: relative; display: flex; align-items: center; justify-content: center; gap: 32px; padding: clamp(30px, 4vw, 48px); color: #fff; background: linear-gradient(145deg, #102a63, #2563eb 48%, #0f766e); overflow: hidden; }
+    .auth-brand { position: relative; display: flex; align-items: center; justify-content: center; gap: 32px; padding: clamp(30px, 4vw, 48px); color: #fff; background: linear-gradient(145deg, #102a63, var(--ac-primary) 48%, #0f766e); overflow: hidden; }
     .auth-brand::before, .auth-brand::after { content: ''; position: absolute; border-radius: 50%; background: rgba(255,255,255,.1); }
     .auth-brand::before { width: 280px; height: 280px; top: -100px; right: -70px; }
     .auth-brand::after { width: 220px; height: 220px; bottom: -90px; left: -70px; }
@@ -186,7 +186,7 @@ import { TenantContextService } from '../../core/tenant/tenant-context.service';
     .visual-title { display: flex; align-items: center; gap: 10px; color: rgba(255,255,255,.9); font-size: 13px; }
     .status-dot { width: 9px; height: 9px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 7px rgba(34,197,94,.14); }
     .progress-card { display: grid; grid-template-columns: 50px 1fr; align-items: center; gap: 12px; margin-top: 18px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,.12); }
-    .progress-card .material-symbols-rounded { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 14px; background: #fff; color: #2563eb; }
+    .progress-card .material-symbols-rounded { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 14px; background: var(--ac-surface); color: var(--ac-primary); }
     .progress-card strong, .progress-card small { display: block; }
     .progress-card small { color: rgba(255,255,255,.68); margin-top: 3px; }
     .progress-lines { display: grid; gap: 10px; margin: 18px 0; }
@@ -222,13 +222,13 @@ import { TenantContextService } from '../../core/tenant/tenant-context.service';
     .form-check { display: flex; align-items: flex-start; gap: 9px; color: var(--ac-text-3); font-size: 13px; font-weight: 700; line-height: 1.45; }
     .form-check input { width: 16px; height: 16px; margin-top: 1px; accent-color: var(--ac-primary); }
     .primary, .google-button { height: 48px; display: flex; align-items: center; justify-content: center; gap: 10px; border-radius: 13px; font-weight: 900; cursor: pointer; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
-    .primary { border: 0; background: linear-gradient(135deg,#2563eb,#3b82f6); color: #fff; box-shadow: 0 16px 32px rgba(37,99,235,.28); }
+    .primary { border: 0; background: linear-gradient(135deg,var(--ac-primary),#3b82f6); color: #fff; box-shadow: 0 16px 32px rgba(37,99,235,.28); }
     .primary:hover:not(:disabled), .google-button:hover { transform: translateY(-2px); }
     .primary:disabled { opacity: .82; cursor: not-allowed; }
     .primary .material-symbols-rounded { font-size: 19px; }
-    .google-button { border: 1px solid var(--ac-border); background: #fff; color: #111827; box-shadow: 0 10px 24px rgba(15,23,42,.06); }
+    .google-button { border: 1px solid var(--ac-border); background: var(--ac-surface); color: var(--ac-text); box-shadow: 0 10px 24px rgba(15,23,42,.06); }
     .google-button:hover { border-color: rgba(37,99,235,.35); box-shadow: 0 16px 32px rgba(15,23,42,.1); }
-    .google-mark { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; border: 1px solid #e5e7eb; color: #ea4335; background: #fff; font-weight: 900; font-family: Arial, sans-serif; font-size: 16px; }
+    .google-mark { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--ac-border); color: #ea4335; background: var(--ac-surface); font-weight: 900; font-family: Arial, sans-serif; font-size: 16px; }
     .button-pulse svg { width: 34px; height: 24px; display: block; }
     .button-pulse polyline { fill: none; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
     .button-pulse .pulse-back { stroke: rgba(255,255,255,.28); }
@@ -242,7 +242,7 @@ import { TenantContextService } from '../../core/tenant/tenant-context.service';
     .form-message.success { background: rgba(22, 163, 74, .1); color: var(--ac-success); }
     :host-context(.dark) .auth-card { background: rgba(17,24,39,.94); border-color: rgba(148,163,184,.22); box-shadow: 0 30px 80px rgba(0,0,0,.38), 0 12px 30px rgba(59,130,246,.08); }
     :host-context(.dark) .input-wrap { background: rgba(15,23,42,.72); border-color: rgba(148,163,184,.22); }
-    :host-context(.dark) .google-button { background: rgba(255,255,255,.94); color: #111827; }
+    :host-context(.dark) .google-button { background: rgba(255,255,255,.94); color: var(--ac-text); }
     @keyframes dashPulse { 72.5% { opacity: 0; } to { stroke-dashoffset: 0; } }
     @media (max-width: 1220px) { .tenant-visual { display: none; } }
     @media (max-height: 820px) { .auth-card { gap: 12px; padding: 24px 28px; } .auth-form { gap: 10px; } .setup-list { gap: 8px; margin-top: 18px; } }

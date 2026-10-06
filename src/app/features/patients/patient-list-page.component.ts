@@ -26,7 +26,7 @@ type PatientDatePickerMode = 'calendar' | 'years';
         <div>
           <p class="ac-eyebrow">Clinical</p>
           <h1 class="ac-page-title">Patient Registry</h1>
-          <p class="page-desc">Tenant-isolated patient master with permanent MRN, demographics, emergency contact, and care context.</p>
+          <p class="page-desc">Find patients, register new arrivals, and access their contact details and care records.</p>
         </div>
         <div class="header-actions">
           <button class="ac-btn ac-btn-secondary" type="button" (click)="exportCsv()" [disabled]="patients().length === 0">
@@ -617,9 +617,9 @@ type PatientDatePickerMode = 'calendar' | 'years';
     .sb-scheduled { background: var(--ac-secondary-light); color: var(--ac-secondary); }
     .sb-registered { background: var(--ac-info-light); color: var(--ac-info); }
     .sb-active { background: var(--ac-success-light); color: var(--ac-success); }
-    .sb-opd { background: rgba(37,99,235,0.1); color: #1d4ed8; }
+    .sb-opd { background: rgba(37,99,235,0.1); color: var(--ac-primary-hover); }
     .sb-ipd { background: rgba(20,184,166,0.12); color: #0f766e; }
-    .sb-discharged { background: rgba(100,116,139,0.12); color: #475569; }
+    .sb-discharged { background: rgba(100,116,139,0.12); color: var(--ac-muted); }
     .sb-inactive { background: var(--ac-warning-light); color: var(--ac-warning); }
     .sb-archived { background: var(--ac-surface-2); color: var(--ac-muted); }
     .row-actions { display: flex; gap: 5px; }
@@ -830,7 +830,7 @@ type PatientDatePickerMode = 'calendar' | 'years';
     }
     .date-grid button:hover:not(:disabled) { background: var(--ac-subtle); }
     .date-grid button.muted { color: color-mix(in srgb, var(--ac-muted) 72%, transparent); }
-    .date-grid button.selected { background: #111827; color: #ffffff; font-weight: 950; box-shadow: 0 12px 24px rgba(15,23,42,.2); }
+    .date-grid button.selected { background: var(--ac-text); color: #ffffff; font-weight: 950; box-shadow: 0 12px 24px rgba(15,23,42,.2); }
     .date-grid button.today:not(.selected)::after {
       content: '';
       position: absolute;
@@ -867,8 +867,8 @@ type PatientDatePickerMode = 'calendar' | 'years';
     }
     .date-year-grid button.current { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ac-primary) 18%, transparent); }
     .date-year-grid button.selected {
-      border-color: #111827;
-      background: #111827;
+      border-color: var(--ac-text);
+      background: var(--ac-text);
       color: #ffffff;
     }
     .date-picker-actions { display: flex; justify-content: space-between; align-items: center; padding-top: 0; }

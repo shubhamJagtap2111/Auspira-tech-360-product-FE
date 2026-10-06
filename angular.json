@@ -27,11 +27,14 @@
               {
                 "glob": "**/*",
                 "input": "src/assets",
-                "output": "/assets"
+                "output": "/assets",
+                "ignore": ["fonts/*.woff2", "fonts/fonts.css"]
               }
             ],
             "styles": [
-              "src/styles.css"
+              "src/assets/fonts/fonts.css",
+              "src/styles.css",
+              "src/enterprise-theme.css"
             ]
           }
         },

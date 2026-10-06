@@ -273,10 +273,10 @@ interface PermissionGroupView {
       font-size: 11px;
       font-weight: 800;
     }
-    .parent-pill { background: rgba(100,116,139,.1); color: #475569; }
+    .parent-pill { background: rgba(100,116,139,.1); color: var(--ac-muted); }
     .count-pill.muted { background: rgba(37,99,235,.09); color: var(--ac-primary); }
     .status { display: inline-flex; align-items: center; min-height: 22px; padding: 2px 8px; border-radius: 999px; background: rgba(22,163,74,.1); color: #15803d; font-size: 11px; font-weight: 800; line-height: 1.2; }
-    .status.inactive { background: rgba(100,116,139,.12); color: #475569; }
+    .status.inactive { background: rgba(100,116,139,.12); color: var(--ac-muted); }
     .row-actions { gap: 8px; align-items: center; }
     .row-actions .icon-btn { width: 30px; height: 30px; border-radius: 7px; }
     .icon-btn { width: 34px; height: 34px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-text-2); cursor: pointer; display: inline-grid; place-items: center; }

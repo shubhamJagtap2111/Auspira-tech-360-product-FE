@@ -24,7 +24,7 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
         <div>
           <p class="ac-eyebrow">Clinical</p>
           <h1 class="ac-page-title">Doctor Registry</h1>
-          <p class="page-desc">Connected doctor master with departments, availability, schedules, appointment context, credentials, and performance.</p>
+          <p class="page-desc">Find doctors, review availability, and manage their specialties and consultation schedules.</p>
         </div>
         <div class="header-actions">
           <button class="ac-btn ac-btn-secondary" type="button" (click)="exportCsv()" [disabled]="doctors().length === 0">
@@ -308,7 +308,7 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
     .code-chip { background: color-mix(in srgb, var(--ac-primary) 10%, transparent); color: var(--ac-primary); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
     .status-badge { background: color-mix(in srgb, var(--ac-muted) 14%, transparent); color: var(--ac-muted); }
     .sb-active { background: #E6F8EF; color: #05854D; }
-    .sb-inactive { background: #EEF2F7; color: #475569; }
+    .sb-inactive { background: #EEF2F7; color: var(--ac-muted); }
     .sb-on-leave { background: #FFF7ED; color: #C2410C; }
     .sb-suspended, .sb-archived { background: #FEE2E2; color: #B91C1C; }
     :host-context(.dark) .sb-active { background: rgba(16,185,129,.16); color: #5EEAD4; }

@@ -520,8 +520,8 @@ import { AppointmentManagementService } from './appointment-management.service';
     .row-copy small { color: var(--ac-muted); overflow-wrap: anywhere; }
     .row-actions, .details-actions { display: flex; align-items: center; gap: 7px; }
     .status-badge { display: inline-flex; align-items: center; justify-content: center; min-height: 25px; border-radius: 999px; padding: 4px 10px; font-size: 11.5px; font-weight: 900; white-space: nowrap; background: var(--ac-subtle); color: var(--ac-muted); }
-    .status-scheduled { border-left-color: #2563eb; color: #1d4ed8; background: #eff6ff; }
-    .status-confirmed { border-left-color: #7c3aed; color: #6d28d9; background: #f5f3ff; }
+    .status-scheduled { border-left-color: var(--ac-primary); color: var(--ac-primary-hover); background: var(--ac-primary-light); }
+    .status-confirmed { border-left-color: var(--ac-secondary); color: #6d28d9; background: var(--ac-secondary-light); }
     .status-checked-in { border-left-color: #0891b2; color: #0e7490; background: #ecfeff; }
     .status-waiting { border-left-color: #f59e0b; color: #b45309; background: #fffbeb; }
     .status-in-consultation { border-left-color: #14b8a6; color: #0f766e; background: #f0fdfa; }

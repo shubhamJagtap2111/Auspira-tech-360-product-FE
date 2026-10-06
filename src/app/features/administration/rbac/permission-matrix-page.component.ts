@@ -260,7 +260,7 @@ interface PermissionModuleGroup {
     .permission-row strong { font-size: 13px; line-height: 1.2; }
     .permission-row p { margin: 3px 0 0; color: var(--ac-muted); font-size: 12px; }
     .status { display: inline-flex; align-items: center; min-height: 24px; padding: 3px 8px; border-radius: 999px; background: rgba(22,163,74,.1); color: #15803d; font-size: 11px; font-weight: 900; white-space: nowrap; }
-    .status.inactive { background: rgba(100,116,139,.12); color: #475569; }
+    .status.inactive { background: rgba(100,116,139,.12); color: var(--ac-muted); }
     .icon-btn { width: 36px; height: 36px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-text-2); cursor: pointer; display: inline-grid; place-items: center; }
     .icon-btn:hover { border-color: var(--ac-primary); color: var(--ac-primary); }
     .empty-state {

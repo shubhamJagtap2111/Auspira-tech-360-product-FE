@@ -300,7 +300,7 @@ const defaultResetPassword = 'Reset@123';
     .role-list { display: flex; gap: 4px; flex-wrap: wrap; }
     .role-list span { padding: 2px 7px; border-radius: 6px; background: rgba(15,118,110,.1); color: #0f766e; font-size: 10.5px; font-weight: 700; line-height: 1.35; }
     .status { display: inline-flex; align-items: center; min-height: 22px; padding: 2px 8px; border-radius: 999px; background: rgba(22,163,74,.1); color: #15803d; font-size: 11px; font-weight: 800; line-height: 1.2; }
-    .status.inactive { background: rgba(100,116,139,.12); color: #475569; }
+    .status.inactive { background: rgba(100,116,139,.12); color: var(--ac-muted); }
     .status.locked { background: rgba(220,38,38,.1); color: #b91c1c; }
     .row-actions { gap: 8px; align-items: center; }
     .row-actions .icon-btn { width: 30px; height: 30px; border-radius: 7px; }

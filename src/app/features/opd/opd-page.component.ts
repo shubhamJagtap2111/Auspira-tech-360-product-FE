@@ -19,7 +19,6 @@ import { PatientSummary } from '../patients/patient-management.models';
 import { PatientManagementService } from '../patients/patient-management.service';
 import {
   OpdClinicalForm,
-  OpdLabResultSummary,
   OpdComplaintForm,
   OpdConsultationRecord,
   OpdDiagnosisForm,
@@ -37,6 +36,8 @@ import {
   OpdVisitVm
 } from './opd-management.models';
 import { OpdManagementService } from './opd-management.service';
+import { LaboratoryService } from '../laboratory/laboratory.service';
+import { LabReport } from '../laboratory/laboratory.models';
 
 @Component({
   standalone: true,
@@ -670,18 +671,70 @@ import { OpdManagementService } from './opd-management.service';
 
 
       @if (historyVisit(); as visit) {
-        <div class="opd-overlay" (click)="historyVisit.set(null)">
+        <div class="opd-overlay history-overlay" (click)="historyVisit.set(null)">
           <aside class="history-drawer" role="dialog" aria-modal="true" aria-labelledby="opd-history-title" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()" (keydown.escape)="historyVisit.set(null)">
-            <header><div><h2 id="opd-history-title">History &amp; results</h2><p>{{ visit.patientName }} · {{ visit.patientMrn }}</p></div><button type="button" class="ac-btn ac-btn-secondary" cdkFocusInitial (click)="historyVisit.set(null)">Close</button></header>
-            @if (contextError()) { <p role="alert">{{ contextError() }}</p> }
-            <h3>Previous consultations</h3>
-            @if (historyByPatient()[visit.appointment.patientId]; as history) {
-              @for (record of history; track record.id) { <details class="history-visit"><summary>{{ record.createdAt | date:'mediumDate' }} · {{ record.statusCode }}</summary><p style="white-space: pre-wrap">{{ record.notes }}</p></details> } @empty { <p>No previous consultations recorded.</p> }
-            } @else { <p role="status">Loading patient history…</p> }
-            <h3>Verified laboratory results</h3>
-            @for (result of patientLabResults()[visit.appointment.patientId] || []; track result.id) { <article class="history-visit"><strong>{{ result.testName }} · {{ result.parameterName }}</strong><p>{{ result.value }} {{ result.unit }} · {{ result.flagCode }} {{ result.isCritical ? '— CRITICAL' : '' }}</p><small>Reference: {{ result.referenceRange || 'Not supplied' }} · {{ result.verifiedAt | date:'mediumDate' }}</small></article> } @empty { <p>{{ patientLabResults()[visit.appointment.patientId] ? 'No verified results recorded.' : 'Loading results…' }}</p> }
-            <h3>Radiology documents</h3>
-            @for (document of radiologyDocuments(visit); track document.documentGuid) { <p>{{ document.documentName }} · {{ document.uploadedDate | date:'mediumDate' }}</p> } @empty { <p>No radiology documents loaded.</p> }
+            <header class="history-header">
+              <div class="history-heading"><span class="history-heading-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 4H5v16h14V4h-3M9 3h6v4H9zM8 11h8M8 15h5" /></svg></span><div><p class="history-eyebrow">PATIENT RECORD</p><h2 id="opd-history-title">History &amp; results</h2></div></div>
+              <button type="button" class="history-close" aria-label="Close patient history" cdkFocusInitial (click)="historyVisit.set(null)"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
+            </header>
+            <div class="history-patient"><span class="history-avatar" aria-hidden="true">{{ visit.patientName.slice(0, 1) }}</span><div><strong>{{ visit.patientName }}</strong><p>{{ visit.patientMrn }} <span aria-hidden="true">·</span> {{ patientAgeGender(visit) }}</p></div><span class="history-readonly">Read only</span></div>
+            <nav class="history-navigation" aria-label="Patient history views">
+              <button type="button" [class.active]="historyView() === 'visits'" [attr.aria-pressed]="historyView() === 'visits'" (click)="historyView.set('visits')">Visits <span>{{ historyRecords().length }}</span></button>
+              <button type="button" [class.active]="historyView() === 'results'" [attr.aria-pressed]="historyView() === 'results'" (click)="historyView.set('results')">Lab reports <span>{{ patientLabReports()[visit.appointment.patientId]?.length || 0 }}</span></button>
+              <button type="button" [class.active]="historyView() === 'documents'" [attr.aria-pressed]="historyView() === 'documents'" (click)="historyView.set('documents')">Imaging <span>{{ radiologyDocuments(visit).length }}</span></button>
+            </nav>
+            @if (contextError()) { <div class="history-context-error" role="alert"><p>{{ contextError() }}</p><button type="button" class="ac-btn ac-btn-secondary" (click)="retryHistoryContext()">Retry</button></div> }
+            <div class="history-body">
+              @switch (historyView()) {
+                @case ('visits') {
+                  @if (historyByPatient()[visit.appointment.patientId]) {
+                    @if (historyRecords().length) {
+                      <div class="history-visits-layout">
+                        <nav class="history-timeline" aria-label="Consultation timeline"><p class="history-eyebrow">VISIT TIMELINE</p>
+                          @for (item of historyRecords(); track item.record.id) {
+                            <button type="button" class="history-timeline-item" [attr.data-status-tone]="item.tone" [class.selected]="selectedHistoryRecordId() === item.record.id" [attr.aria-pressed]="selectedHistoryRecordId() === item.record.id" (click)="selectHistoryRecord(item.record.id)">
+                              <span class="history-timeline-date">{{ item.record.createdAt | date:'dd MMM yyyy' }}</span><span class="history-status"><span class="history-status-dot" aria-hidden="true"></span>{{ item.status }}</span><strong>{{ item.preview }}</strong><small>{{ item.doctorName }}</small>
+                            </button>
+                          }
+                        </nav>
+                        @if (selectedHistoryRecord(); as item) {
+                          <article class="history-detail" aria-label="Selected consultation">
+                            <div class="history-detail-heading history-consultation-status" [attr.data-status-tone]="item.tone"><div><p class="history-eyebrow">CONSULTATION</p><h3>{{ item.record.createdAt | date:'EEEE, dd MMM yyyy' }}</h3><p>{{ item.doctorName }}</p></div><span class="history-status"><span class="history-status-dot" aria-hidden="true"></span>{{ item.status }}</span></div>
+                            @for (section of item.sections; track section.title) {
+                              <section class="history-clinical-section"><div class="history-section-heading"><h4>{{ section.title }}</h4>@if (section.kind === 'medicines') { <span>{{ section.rows.length }} medicines</span> }</div>
+                                @if (section.kind === 'metrics') {
+                                  <dl class="history-vitals">@for (row of section.rows; track $index) { <div><dt>{{ row.label }}</dt><dd>{{ row.value }}</dd></div> }</dl>
+                                } @else {
+                                  <div class="history-clinical-rows" [class.history-medicines]="section.kind === 'medicines'">@for (row of section.rows; track $index) { <div class="history-clinical-row">@if (row.label) { <span class="history-row-label">{{ row.label }}</span> }<p>{{ row.value }}</p>@if (row.details.length) { <div class="history-row-details">@for (detail of row.details; track $index) { <span>{{ detail }}</span> }</div> }</div> }</div>
+                                }
+                              </section>
+                            } @empty { <div class="history-empty"><h3>No clinical notes recorded</h3><p>This visit has no documented clinical details.</p></div> }
+                            @if (item.record.notes.trim()) { <details class="history-original"><summary>View original clinical note</summary><p>{{ item.record.notes }}</p></details> }
+                          </article>
+                        }
+                      </div>
+                    } @else { <div class="history-empty"><h3>No previous visits</h3><p>Earlier consultations will appear here when they are recorded.</p></div> }
+                  } @else { <div class="history-empty" role="status"><h3>Loading visit history…</h3><p>Retrieving this patient's consultation records.</p></div> }
+                }
+                @case ('results') {
+                  <div class="history-results"><div class="history-detail-heading"><div><p class="history-eyebrow">LABORATORY</p><h3>Lab reports</h3><p>Download complete, verified reports with all test results and reference ranges.</p></div></div>
+                    @if (labReportErrors()[visit.appointment.patientId]) {
+                      <div class="history-empty" role="alert"><h3>Unable to load lab reports</h3><p>Please retry to retrieve this patient's released reports.</p><button type="button" class="ac-btn ac-btn-secondary" (click)="loadLabReports(visit.appointment.patientId)">Retry</button></div>
+                    } @else {
+                      @for (report of patientLabReports()[visit.appointment.patientId] || []; track report.id) {
+                        <article class="history-document-card history-lab-report"><span class="history-document-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h8l4 4v14H6zM14 3v5h4M9 12h6M9 16h6" /></svg></span><div class="history-report-info"><span class="history-status" data-status-tone="success">Verified report · PDF</span><h4>{{ report.reportNumber }}</h4><p>Order {{ report.orderNumber }} · Version {{ report.currentVersion }}</p><small>Released {{ report.releasedAt | date:'dd MMM yyyy, h:mm a' }}</small></div><button type="button" class="ac-btn ac-btn-primary history-report-download" [disabled]="downloadingReports().includes(report.id)" [attr.aria-label]="'Download PDF for report ' + report.reportNumber" (click)="downloadLabReport(report)"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m-5-5 5 5 5-5M5 16v5h14v-5" /></svg>{{ downloadingReports().includes(report.id) ? 'Downloading…' : 'Download PDF' }}</button></article>
+                      } @empty { <div class="history-empty" role="status"><h3>{{ patientLabReports()[visit.appointment.patientId] ? 'No released reports yet' : 'Loading lab reports…' }}</h3><p>Downloadable reports appear after the laboratory verifies and releases the complete order.</p></div> }
+                    }
+                  </div>
+                }
+                @case ('documents') {
+                  <div class="history-results"><div class="history-detail-heading"><div><p class="history-eyebrow">IMAGING</p><h3>Radiology documents</h3><p>Documents recorded in this patient's profile.</p></div></div>
+                    @for (document of radiologyDocuments(visit); track document.documentGuid) { <article class="history-document-card"><span class="history-document-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h8l4 4v14H6zM14 3v5h4M9 12h6M9 16h6" /></svg></span><div><h4>{{ document.documentName }}</h4><p>{{ document.documentType }}</p><small>Uploaded {{ document.uploadedDate | date:'dd MMM yyyy' }}</small></div></article> } @empty { <div class="history-empty"><h3>No imaging documents</h3><p>Radiology documents will appear here after they are added to the patient record.</p></div> }
+                  </div>
+                }
+              }
+            </div>
+            <footer class="history-footer"><span>Historical records · {{ visit.patientMrn }}</span><button type="button" class="ac-btn ac-btn-secondary" (click)="historyVisit.set(null)">Back to OPD</button></footer>
           </aside>
         </div>
       }
@@ -1086,7 +1139,7 @@ import { OpdManagementService } from './opd-management.service';
     .flow-step .material-symbols-rounded { grid-row: span 2; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 8px; font-size: 18px; }
     .flow-step small { min-width: 0; color: var(--ac-muted); font-size: 11px; font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .flow-step strong { min-width: 0; color: var(--ac-text); font-size: 24px; line-height: 1; }
-    .flow-step.waiting .material-symbols-rounded { background: #eff6ff; color: #2563eb; }
+    .flow-step.waiting .material-symbols-rounded { background: var(--ac-primary-light); color: var(--ac-primary); }
     .flow-step.active .material-symbols-rounded { background: #f0fdfa; color: #0f766e; }
     .flow-step.completed .material-symbols-rounded { background: #ecfdf5; color: #047857; }
     .flow-step.danger .material-symbols-rounded { background: #fff1f2; color: #e11d48; }
@@ -1117,7 +1170,7 @@ import { OpdManagementService } from './opd-management.service';
     .patient-focus-panel { display: grid; gap: 16px; }
     .encounter-focus-panel { position: sticky; top: 10px; }
     .focus-head { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; }
-    .patient-avatar { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 8px; background: linear-gradient(135deg, #2563eb, #0f766e); color: white; font-size: 15px; font-weight: 950; }
+    .patient-avatar { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 8px; background: linear-gradient(135deg, var(--ac-primary), #0f766e); color: white; font-size: 15px; font-weight: 950; }
     .focus-head h2 { margin: 0; color: var(--ac-text); font-size: 21px; line-height: 1.15; overflow-wrap: anywhere; }
     .focus-head span:not(.status-badge) { color: var(--ac-muted); font-size: 12px; font-weight: 800; }
     .focus-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -1211,7 +1264,7 @@ import { OpdManagementService } from './opd-management.service';
     .command-score { flex: 0 0 auto; min-height: 28px; display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border: 1px solid color-mix(in srgb, var(--ac-primary) 20%, var(--ac-border)); border-radius: 999px; background: var(--ac-surface); color: var(--ac-primary); font-size: 16px; font-weight: 950; line-height: 1; box-shadow: 0 8px 16px rgba(15, 23, 42, .06); }
     .command-score::after { content: 'complete'; color: var(--ac-muted); font-size: 10px; font-weight: 900; letter-spacing: .03em; text-transform: uppercase; }
     .progress-track { grid-column: 1 / -1; height: 8px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--ac-primary) 12%, var(--ac-border)); }
-    .progress-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2563eb, #10b981); transition: width .24s ease; }
+    .progress-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--ac-primary), #10b981); transition: width .24s ease; }
     .panel, .encounter-card, .encounter-list, .queue-card { min-width: 0; border: 1px solid var(--ac-border); border-radius: 10px; background: var(--ac-surface); box-shadow: 0 10px 24px rgba(15, 23, 42, .04); }
     .panel { padding: 12px; }
     .panel-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
@@ -1267,7 +1320,7 @@ import { OpdManagementService } from './opd-management.service';
     .queue-lane:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(15, 23, 42, .06); }
     .queue-lane small { color: var(--ac-muted); font-size: 10.5px; font-weight: 950; letter-spacing: .05em; text-transform: uppercase; }
     .queue-lane strong { font-size: 24px; line-height: 1; }
-    .queue-lane.waiting { background: #eff6ff; border-color: #bfdbfe; }
+    .queue-lane.waiting { background: var(--ac-primary-light); border-color: #bfdbfe; }
     .queue-lane.active { background: #f0fdfa; border-color: #99f6e4; }
     .queue-lane.complete { background: #ecfdf5; border-color: #bbf7d0; }
     .dashboard-visit-list { max-height: 220px; overflow: auto; padding-right: 2px; }
@@ -1278,7 +1331,7 @@ import { OpdManagementService } from './opd-management.service';
     .visit-row strong, .encounter-list button strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .visit-row small { grid-column: 2; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; }
     .encounter-list button small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; }
-    .token-pill { width: fit-content; border-radius: 999px; padding: 3px 8px; background: #eff6ff; color: #1d4ed8; font-size: 10.5px; font-weight: 900; }
+    .token-pill { width: fit-content; border-radius: 999px; padding: 3px 8px; background: var(--ac-primary-light); color: var(--ac-primary-hover); font-size: 10.5px; font-weight: 900; }
     .token-pill.consultation { background: #f0fdfa; color: #0f766e; }
     .token-pill.done { background: #ecfdf5; color: #047857; }
     .visit-row small, .encounter-list small, .queue-copy p, .queue-copy span, .summary-strip small, .table-row small, .empty-copy { color: var(--ac-muted); }
@@ -1300,7 +1353,7 @@ import { OpdManagementService } from './opd-management.service';
     .tbl-btn.danger:hover { color: #dc2626; border-color: #fca5a5; }
     .tbl-btn:disabled { opacity: .45; cursor: not-allowed; }
     .queue-status { display: inline-flex; min-height: 26px; align-items: center; border-radius: 999px; padding: 4px 10px; background: var(--ac-subtle); color: var(--ac-muted); font-size: 11.5px; font-weight: 900; white-space: nowrap; }
-    .queue-status.waiting { background: #eff6ff; color: #1d4ed8; }
+    .queue-status.waiting { background: var(--ac-primary-light); color: var(--ac-primary-hover); }
     .queue-status.skipped { background: #fffbeb; color: #b45309; }
     .queue-status.active { background: #f0fdfa; color: #0f766e; }
     .visit-table {
@@ -1371,7 +1424,7 @@ import { OpdManagementService } from './opd-management.service';
       font-weight: 900;
       white-space: nowrap;
     }
-    .consultation-status.active { background: #eff6ff; color: #1d4ed8; }
+    .consultation-status.active { background: var(--ac-primary-light); color: var(--ac-primary-hover); }
     .consultation-status.draft { background: #fffbeb; color: #b45309; }
     .consultation-status.completed { background: #ecfdf5; color: #047857; }
     .consultation-status.cancelled { background: #fef2f2; color: #dc2626; }
@@ -2104,7 +2157,7 @@ import { OpdManagementService } from './opd-management.service';
       box-shadow: 0 0 0 4px rgba(16, 185, 129, .14);
     }
     .prescription-action-bar.finalized .status-dot {
-      background: #2563eb;
+      background: var(--ac-primary);
       box-shadow: 0 0 0 4px rgba(37, 99, 235, .14);
     }
     .prescription-action-grid {
@@ -2130,8 +2183,8 @@ import { OpdManagementService } from './opd-management.service';
       text-align: center;
     }
     .prescription-action-grid .complete-action {
-      background: linear-gradient(135deg, #2563eb, #0f766e);
-      border-color: color-mix(in srgb, #0f766e 34%, #2563eb);
+      background: linear-gradient(135deg, var(--ac-primary), #0f766e);
+      border-color: color-mix(in srgb, #0f766e 34%, var(--ac-primary));
     }
     .prescription-backdrop {
       position: fixed;
@@ -2456,20 +2509,20 @@ import { OpdManagementService } from './opd-management.service';
       .clinical-board { overflow: visible; }
     }
     .interaction-review-modal { width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow: auto; }
-    .interaction-review-modal header span { display: block; color: #64748b; margin-top: 4px; }
+    .interaction-review-modal header span { display: block; color: var(--ac-muted); margin-top: 4px; }
     .interaction-alert-list { display: grid; gap: 12px; padding: 18px 22px; }
-    .interaction-alert-list article { border: 1px solid #d8e2ec; border-left: 4px solid #e9a23b; border-radius: 12px; padding: 14px; background: #fff; }
+    .interaction-alert-list article { border: 1px solid #d8e2ec; border-left: 4px solid #e9a23b; border-radius: 12px; padding: 14px; background: var(--ac-surface); }
     .interaction-alert-list article.blocking { border-left-color: #d43d51; background: #fff7f8; }
     .interaction-alert-list article.override { border-left-color: #c67a15; background: #fffbf3; }
     .interaction-alert-head { display: flex; gap: 10px; align-items: flex-start; }
     .interaction-alert-head > span { color: #b15d14; }
     .interaction-alert-head div { display: grid; gap: 3px; }
-    .interaction-alert-head small { color: #64748b; font-weight: 700; }
-    .interaction-alert-list p { margin: 11px 0; color: #334155; }
+    .interaction-alert-head small { color: var(--ac-muted); font-weight: 700; }
+    .interaction-alert-list p { margin: 11px 0; color: var(--ac-text-3); }
     .clinical-recommendation { display: grid; gap: 3px; border-radius: 8px; padding: 10px; background: #eef6fa; color: #23425a; }
     .interaction-reason { margin: 0 22px 18px; }
     .interaction-reason textarea { width: 100%; resize: vertical; }
-    .interaction-reason small { display: block; color: #64748b; margin-top: 5px; }
+    .interaction-reason small { display: block; color: var(--ac-muted); margin-top: 5px; }
     .interaction-stop { display: flex; gap: 10px; margin: 0 22px 18px; padding: 13px; border-radius: 10px; background: #fdecef; color: #9f1f35; }
     .interaction-stop div { display: grid; gap: 3px; }
 
@@ -2553,7 +2606,7 @@ import { OpdManagementService } from './opd-management.service';
     .consultation-fields { min-width: 0; border: 0; padding: 0; margin: 0; display: grid; gap: 24px; }
     .consultation-group { scroll-margin-top: 140px; min-width: 0; padding: 24px; background: var(--ac-surface); border: 1px solid var(--ac-border); border-radius: 12px; display: grid; gap: 20px; }
     .group-heading { display: flex; align-items: flex-start; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--ac-border); }
-    .group-heading > span { display: grid; place-items: center; flex: 0 0 32px; height: 32px; border-radius: 8px; background: var(--ac-primary-soft, #eff6ff); color: var(--ac-primary); font-weight: 750; }
+    .group-heading > span { display: grid; place-items: center; flex: 0 0 32px; height: 32px; border-radius: 8px; background: var(--ac-primary-soft, var(--ac-primary-light)); color: var(--ac-primary); font-weight: 750; }
     .group-heading h2 { margin: 0 0 6px; font-size: 20px; }
     .group-heading p { margin: 0; color: var(--ac-text-muted); line-height: 1.5; }
     .consultation-group .clinical-section, .consultation-group .medicine-composer, .consultation-group .prescription-extra-card { background: var(--ac-surface); box-shadow: none; }
@@ -2582,11 +2635,115 @@ import { OpdManagementService } from './opd-management.service';
     @media (max-width: 1100px) { .encounter-workspace { grid-template-columns: 1fr; } .patient-snapshot { position: static; } }
     @media (max-width: 640px) { .opd-shell, .consultation-group { padding: 12px; } .consultation-footer { gap: 8px; } .draft-status { flex-basis: 100%; } .consultation-footer .ac-btn { flex: 1; } .opd-overlay { padding: 12px; } .history-drawer, .completion-review { padding: 16px; max-height: calc(100dvh - 24px); } .encounter-head { top: 0; } }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }
+    .history-overlay { padding: 16px; justify-content: flex-end; }
+    .history-drawer { display: flex; flex-direction: column; width: min(1040px, 100%); height: calc(100dvh - 32px); max-height: calc(100dvh - 32px); padding: 0; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 70px #0f172a40; }
+    .history-drawer .history-header { flex: 0 0 auto; padding: 22px 28px; border-bottom: 1px solid var(--ac-border); flex-wrap: nowrap; }
+    .history-heading { display: flex; gap: 12px; align-items: center; }
+    .history-heading-icon { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; background: var(--ac-primary-light); color: var(--ac-primary); border-radius: 12px; }
+    .history-heading-icon svg { width: 25px; height: 25px; }
+    .history-drawer .history-eyebrow { margin: 0 0 6px; font-size: 10px; font-weight: 750; letter-spacing: .1em; color: var(--ac-muted); }
+    .history-drawer h2 { font-size: 21px; letter-spacing: -.025em; }
+    .history-close { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid var(--ac-border); border-radius: 10px; background: var(--ac-surface); color: var(--ac-muted); flex-shrink: 0; cursor: pointer; }
+    .history-close svg { width: 20px; height: 20px; }
+    .history-close:hover { background: var(--ac-primary-light); color: var(--ac-primary); }
+    .history-patient { flex-shrink: 0; display: flex; align-items: center; gap: 12px; padding: 18px 28px; background: var(--ac-bg); }
+    .history-avatar { display: grid; place-items: center; height: 42px; width: 42px; flex-shrink: 0; border: 1px solid var(--ac-border); border-radius: 50%; font-weight: 700; color: var(--ac-primary); background: var(--ac-surface); }
+    .history-patient strong { font-size: 16px; }
+    .history-patient p { margin: 5px 0 0; color: var(--ac-muted); font-size: 13px; }
+    .history-patient p span { margin: 0 7px; }
+    .history-readonly { margin-left: auto; flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--ac-muted); border: 1px solid var(--ac-border); padding: 5px 9px; border-radius: 6px; background: var(--ac-surface); }
+    .history-navigation { flex-shrink: 0; display: flex; gap: 20px; padding: 0 28px; border-bottom: 1px solid var(--ac-border); }
+    .history-navigation button { display: flex; gap: 8px; align-items: center; padding: 15px 0; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--ac-muted); font: inherit; font-size: 13px; font-weight: 650; min-height: 48px; cursor: pointer; }
+    .history-navigation button.active { border-bottom-color: var(--ac-primary); color: var(--ac-primary); }
+    .history-navigation button > span { border-radius: 5px; padding: 2px 6px; font-size: 10px; color: var(--ac-muted); background: var(--ac-surface-2); }
+    .history-navigation button.active > span { color: var(--ac-primary); background: var(--ac-primary-light); }
+    .history-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; background: var(--ac-bg); }
+    .history-visits-layout { height: 100%; min-height: 0; display: grid; grid-template-columns: 225px minmax(0, 1fr); }
+    .history-timeline, .history-detail { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+    .history-timeline { padding: 24px 16px; border-right: 1px solid var(--ac-border); background: var(--ac-surface); }
+    .history-timeline > .history-eyebrow { padding: 0 10px; margin-bottom: 14px; }
+    .history-timeline-item { display: flex; flex-direction: column; align-items: flex-start; width: 100%; gap: 8px; padding: 14px; margin-bottom: 10px; border: 1px solid var(--ac-border); border-radius: 10px; background: var(--ac-surface); color: var(--ac-text); text-align: left; font: inherit; cursor: pointer; }
+    .history-timeline-item, .history-consultation-status { --history-status-accent: var(--ac-muted); --history-status-ink: var(--ac-muted); --history-status-fill: var(--ac-surface-2); }
+    .history-timeline-item[data-status-tone="success"], .history-consultation-status[data-status-tone="success"] { --history-status-accent: #16a34a; }
+    .history-timeline-item[data-status-tone="pending"], .history-consultation-status[data-status-tone="pending"] { --history-status-accent: #ca8a04; }
+    .history-timeline-item[data-status-tone="active"], .history-consultation-status[data-status-tone="active"] { --history-status-accent: #ea580c; }
+    .history-timeline-item[data-status-tone], .history-consultation-status[data-status-tone] { --history-status-ink: color-mix(in srgb, var(--history-status-accent) 55%, var(--ac-text)); --history-status-fill: color-mix(in srgb, var(--history-status-accent) 13%, var(--ac-surface)); }
+    .history-timeline-item[data-status-tone] { border-color: color-mix(in srgb, var(--history-status-accent) 35%, var(--ac-border)); border-left: 4px solid var(--history-status-accent); background: color-mix(in srgb, var(--history-status-accent) 7%, var(--ac-surface)); }
+    .history-timeline-item.selected { outline: 2px solid var(--ac-primary); outline-offset: 2px; box-shadow: 0 2px 8px #0f172a0a; }
+    .history-timeline-item:hover { background: color-mix(in srgb, var(--history-status-accent) 12%, var(--ac-surface)); }
+    .history-timeline-date { font-size: 13px; font-weight: 750; }
+    .history-timeline-item strong { font-size: 12px; font-weight: 600; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+    .history-timeline-item small { font-size: 11px; color: var(--ac-muted); }
+    .history-status { display: inline-flex; align-items: center; gap: 6px; width: fit-content; flex-shrink: 0; padding: 5px 8px; border-radius: 6px; background: var(--history-status-fill, var(--ac-surface-2)); color: var(--history-status-ink, var(--ac-muted)); font-size: 11px; font-weight: 700; }
+    .history-status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--history-status-accent, var(--ac-muted)); }
+    .history-consultation-status { padding: 16px; border: 1px solid color-mix(in srgb, var(--history-status-accent) 30%, var(--ac-border)); border-left: 4px solid var(--history-status-accent); border-radius: 10px; background: color-mix(in srgb, var(--history-status-accent) 6%, var(--ac-surface)); }
+    .history-detail { min-width: 0; padding: 24px; }
+    .history-detail-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; margin-bottom: 22px; }
+    .history-drawer .history-detail-heading h3 { margin: 0; font-size: 18px; letter-spacing: -.015em; line-height: 1.5; }
+    .history-detail-heading p:not(.history-eyebrow) { margin: 6px 0 0; font-size: 12px; color: var(--ac-muted); line-height: 1.5; }
+    .history-clinical-section { border: 1px solid var(--ac-border); border-radius: 10px; margin-bottom: 16px; background: var(--ac-surface); overflow: hidden; }
+    .history-section-heading { display: flex; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--ac-border); }
+    .history-section-heading h4 { margin: 0; font-size: 13px; font-weight: 750; }
+    .history-section-heading > span { font-size: 11px; color: var(--ac-muted); }
+    .history-vitals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin: 0; padding: 8px; }
+    .history-vitals > div { padding: 12px; }
+    .history-vitals dt { color: var(--ac-muted); font-size: 11px; line-height: 1.5; }
+    .history-vitals dd { margin: 5px 0 0; color: var(--ac-text); font-size: 18px; font-weight: 700; overflow-wrap: anywhere; }
+    .history-clinical-rows { padding: 0 18px; }
+    .history-clinical-row { padding: 13px 0; border-bottom: 1px solid var(--ac-border); }
+    .history-clinical-row:last-child { border-bottom: 0; }
+    .history-row-label { display: block; margin-bottom: 5px; color: var(--ac-muted); font-size: 11px; font-weight: 600; }
+    .history-clinical-row p { margin: 0; font-size: 13px; line-height: 1.7; white-space: pre-line; overflow-wrap: anywhere; }
+    .history-medicines .history-clinical-row > p { font-weight: 650; }
+    .history-row-details { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .history-row-details span { font-size: 11px; line-height: 1.5; color: var(--ac-muted); background: var(--ac-bg); padding: 4px 7px; border-radius: 5px; border: 1px solid var(--ac-border); overflow-wrap: anywhere; }
+    .history-original { padding: 12px 4px; color: var(--ac-muted); font-size: 12px; }
+    .history-original summary { cursor: pointer; padding: 8px 0; }
+    .history-original p { white-space: pre-wrap; line-height: 1.7; overflow-wrap: anywhere; }
+    .history-drawer .history-footer { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 28px; background: var(--ac-surface); border-top: 1px solid var(--ac-border); }
+    .history-footer > span { font-size: 11px; color: var(--ac-muted); }
+    .history-empty { padding: 56px 24px; text-align: center; color: var(--ac-muted); }
+    .history-drawer .history-empty h3 { margin: 0 0 10px; color: var(--ac-text); font-size: 17px; }
+    .history-empty p { margin: 0; font-size: 13px; line-height: 1.7; }
+    .history-results { max-width: 780px; margin: 0 auto; padding: 28px; }
+    .history-document-card h4 { margin: 4px 0 8px; font-size: 14px; overflow-wrap: anywhere; }
+    .history-document-card small { color: var(--ac-muted); font-size: 11px; }
+    .history-document-card { display: flex; gap: 14px; border: 1px solid var(--ac-border); border-radius: 10px; padding: 18px; margin-bottom: 12px; background: var(--ac-surface); }
+    .history-document-icon { display: grid; place-items: center; width: 40px; height: 44px; flex-shrink: 0; background: var(--ac-primary-light); color: var(--ac-primary); border-radius: 8px; }
+    .history-document-icon svg { width: 24px; height: 24px; }
+    .history-document-card p { margin: 0 0 8px; color: var(--ac-muted); font-size: 12px; }
+    .history-lab-report { align-items: center; flex-wrap: wrap; border-left: 4px solid #16a34a; }
+    .history-report-info { flex: 1; min-width: 150px; }
+    .history-report-info .history-status { color: #166534; background: #dcfce7; }
+    .history-report-info h4 { margin-top: 10px; }
+    .history-report-download { flex-shrink: 0; min-height: 44px; }
+    .history-report-download svg { width: 18px; height: 18px; }
+    .history-empty button { margin-top: 16px; }
+    @media (max-width: 700px) { .history-report-download { width: 100%; justify-content: center; } }
+    .history-context-error { flex-shrink: 0; padding: 10px 28px; background: #fffbeb; color: #78350f; display: flex; align-items: center; gap: 12px; }
+    .history-context-error p { margin: 0; font-size: 12px; line-height: 1.5; }
+    .history-drawer button:focus-visible, .history-drawer summary:focus-visible { outline: 3px solid var(--ac-primary); outline-offset: 3px; }
+    @media (max-width: 700px) { .history-visits-layout { height: auto; min-height: 100%; } .history-detail { overflow: visible; } .history-timeline { overflow-y: hidden; } }
+    @media (max-width: 700px) { .history-overlay { padding: 0; } .history-drawer { height: 100dvh; max-height: 100dvh; border-radius: 0; width: 100%; } .history-drawer .history-header, .history-patient { padding: 16px 18px; } .history-heading-icon { width: 38px; height: 38px; } .history-drawer h2 { font-size: 18px; } .history-navigation { padding: 0 18px; gap: 18px; } .history-visits-layout { grid-template-columns: minmax(0, 1fr); } .history-timeline { padding: 16px; border-right: 0; border-bottom: 1px solid var(--ac-border); display: flex; gap: 10px; overflow-x: auto; } .history-timeline > .history-eyebrow { display: none; } .history-timeline-item { flex: 0 0 180px; margin-bottom: 0; } .history-detail, .history-results { padding: 18px; } .history-drawer .history-detail-heading h3 { font-size: 16px; } .history-detail-heading { flex-wrap: wrap; } .history-drawer .history-footer { padding: 12px 18px; } .history-readonly { display: none; } .history-vitals { grid-template-columns: repeat(2, minmax(0, 1fr)); } .history-result-card { grid-template-columns: minmax(0, 1fr); } .history-result-value { align-items: flex-start; } .history-context-error { padding: 12px 18px; } }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OpdPageComponent implements OnInit {
   protected readonly historyVisit = signal<OpdVisitVm | null>(null);
+  protected readonly historyView = signal<'visits' | 'results' | 'documents'>('visits');
+  protected readonly historyRecordId = signal('');
+  protected readonly historyRecords = computed(() => {
+    const visit = this.historyVisit();
+    if (!visit) return [];
+    return [...(this.historyByPatient()[visit.appointment.patientId] || [])].sort((a, b) => safeTime(b.createdAt) - safeTime(a.createdAt)).map(record => {
+      const sections = buildHistorySections(record.notes || (record.clinicalData ? composeClinicalNotes(restoreClinicalForm(record), this.labTests()) : ''));
+      const diagnoses = sections.find(section => section.title === 'Diagnosis');
+      const complaints = sections.find(section => section.title === 'Chief complaints');
+      return { record, sections, status: humanizeCode(record.statusCode), tone: historyStatusTone(record.statusCode), doctorName: this.doctors().find(doctor => doctor.doctorGuid === record.doctorId)?.fullName || 'Doctor not recorded', preview: (diagnoses || complaints)?.rows.map(row => row.value).join(', ') || 'Consultation record' };
+    });
+  });
+  protected readonly selectedHistoryRecord = computed(() => this.historyRecords().find(item => item.record.id === this.historyRecordId()) || this.historyRecords()[0] || null);
+  protected readonly selectedHistoryRecordId = computed(() => { const item = this.selectedHistoryRecord(); return item ? item.record.id : ''; });
   protected readonly reviewOpen = signal(false);
   protected readonly draftSaveStatus = signal('Draft autosave ready');
   protected readonly draftConflict = signal(false);
@@ -2723,6 +2880,7 @@ export class OpdPageComponent implements OnInit {
   private readonly patientService = inject(PatientManagementService);
   private readonly doctorService = inject(DoctorManagementService);
   private readonly opdService = inject(OpdManagementService);
+  private readonly laboratoryService = inject(LaboratoryService);
   private readonly branchContext = inject(BranchContextService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
@@ -3336,7 +3494,9 @@ export class OpdPageComponent implements OnInit {
     return [visit.patient?.age ? `${visit.patient.age} yrs` : '-', visit.patient?.genderName || '-'].join(' / ');
   }
 
-  protected readonly patientLabResults = signal<Record<string, OpdLabResultSummary[]>>({});
+  protected readonly patientLabReports = signal<Record<string, LabReport[]>>({});
+  protected readonly labReportErrors = signal<Record<string, boolean>>({});
+  protected readonly downloadingReports = signal<string[]>([]);
   protected readonly patientContexts = signal<Record<string, PatientProfile>>({});
   protected readonly historyByPatient = signal<Record<string, OpdConsultationRecord[]>>({});
   protected readonly contextError = signal('');
@@ -3512,14 +3672,45 @@ export class OpdPageComponent implements OnInit {
 
   private async loadPatientContext(visit: OpdVisitVm): Promise<void> {
     const id = visit.appointment.patientId;
+    void this.loadLabReports(id);
     this.contextError.set('');
     try {
-      const [profile, history, labs] = await Promise.all([this.patientService.get(id), this.opdService.patientHistory(id), this.opdService.patientLabResults(id)]);
-      if (labs.success && labs.data) this.patientLabResults.update(all => ({ ...all, [id]: labs.data! }));
+      const [profile, history] = await Promise.all([this.patientService.get(id), this.opdService.patientHistory(id)]);
       if (profile.success && profile.data) this.patientContexts.update(all => ({ ...all, [id]: profile.data! }));
       if (history.success && history.data) this.historyByPatient.update(all => ({ ...all, [id]: history.data! }));
-      if (!profile.success || !history.success || !labs.success) this.contextError.set('Some patient context could not be loaded. Open the patient record or refresh to retry.');
+      if (!profile.success || !history.success) this.contextError.set('Some patient context could not be loaded. Open the patient record or refresh to retry.');
     } catch { this.contextError.set('Patient context unavailable. Refresh to retry.'); }
+  }
+
+  protected async loadLabReports(patientId: string): Promise<void> {
+    this.labReportErrors.update(all => ({ ...all, [patientId]: false }));
+    try {
+      const response = await this.laboratoryService.reports(patientId);
+      if (!response.success || !response.data) throw new Error('Reports unavailable');
+      this.patientLabReports.update(all => ({ ...all, [patientId]: response.data!.filter(report => report.patientId === patientId && report.statusCode === 'REPORT_RELEASED') }));
+    } catch {
+      this.labReportErrors.update(all => ({ ...all, [patientId]: true }));
+    }
+  }
+
+  protected async downloadLabReport(report: LabReport): Promise<void> {
+    if (this.downloadingReports().includes(report.id)) return;
+    this.downloadingReports.update(ids => [...ids, report.id]);
+    try {
+      const blob = await this.laboratoryService.reportPdf(report.id, report.currentVersion);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${report.reportNumber.replace(/[^a-zA-Z0-9_-]/g, '_')}-v${report.currentVersion}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      this.toast.error('Unable to download lab report', 'Please retry. Your session or report download permission may need to be checked.');
+    } finally {
+      this.downloadingReports.update(ids => ids.filter(id => id !== report.id));
+    }
   }
 
   protected previousVisitCount(visit: OpdVisitVm): string {
@@ -3558,7 +3749,9 @@ export class OpdPageComponent implements OnInit {
 
   protected patientNameFor(id: string): string { return this.patients().find(patient => patient.patientGuid === id)?.fullName ?? 'Patient'; }
   protected openPatientProfile(id: string): void { void this.router.navigate(['/patients', id]); }
-  protected showHistory(visit: OpdVisitVm): void { this.historyVisit.set(visit); void this.loadPatientContext(visit); }
+  protected showHistory(visit: OpdVisitVm): void { this.historyView.set('visits'); this.historyRecordId.set(''); this.historyVisit.set(visit); void this.loadPatientContext(visit); }
+  protected retryHistoryContext(): void { const visit = this.historyVisit(); if (visit) void this.loadPatientContext(visit); }
+  protected selectHistoryRecord(id: string): void { this.historyRecordId.set(id); document.querySelector('.history-detail')?.scrollTo({ top: 0 }); }
   private applyVisitStatus(visit: OpdVisitVm, statusCode: string): void {
     this.upsertAppointment({ ...visit.appointment, statusCode });
     if (visit.queue) this.upsertQueue({ ...visit.queue, statusCode });
@@ -5622,6 +5815,54 @@ function buildCompletionSummary(notes: string): ClinicalSummaryPreview {
     caption: 'Full consultation for review.',
     sections: titles.map(title => ({ title, icon: '', items: (parsed.get(title.toLowerCase()) || []).filter(item => item !== '-' && !/:\s*-$/.test(item)) })).filter(section => section.items.length > 0)
   };
+}
+
+interface HistoryClinicalSection {
+  title: string;
+  kind: 'metrics' | 'medicines' | 'list';
+  rows: Array<{ label: string; value: string; details: string[] }>;
+}
+
+function historyStatusTone(status: string): 'success' | 'pending' | 'active' | 'neutral' {
+  switch (normalizeCode(status)) {
+    case 'COMPLETED': return 'success';
+    case 'DRAFT': return 'pending';
+    case 'IN_PROGRESS':
+    case 'IN_CONSULTATION': return 'active';
+    default: return 'neutral';
+  }
+}
+
+function buildHistorySections(notes: string): HistoryClinicalSection[] {
+  const blocks: Array<{ title: string; lines: string[] }> = [];
+  let current = { title: 'Clinical notes', lines: [] as string[] };
+  for (const line of notes.split(/\r?\n/)) {
+    const heading = line.match(/^\s*##\s+(.+?)\s*$/);
+    if (heading) { if (current.lines.length) blocks.push(current); current = { title: heading[1], lines: [] }; continue; }
+    const text = line.replace(/^\s*-\s*/, '').trim();
+    if (!text) continue;
+    // Wrapped narrative lines belong to the preceding entry, rather than becoming separate fields.
+    if (!/^\s*-\s/.test(line) && current.lines.length) current.lines[current.lines.length - 1] += `\n${text}`;
+    else current.lines.push(text);
+  }
+  if (current.lines.length) blocks.push(current);
+  return blocks.map(block => {
+    const key = block.title.toLowerCase();
+    const kind: HistoryClinicalSection['kind'] = key === 'vitals' ? 'metrics' : key === 'prescription' ? 'medicines' : 'list';
+    const title = block.title.charAt(0).toUpperCase() + block.title.slice(1).toLowerCase();
+    const rows = block.lines.filter(isMeaningfulSummaryLine).map(line => {
+      if (['vitals', 'clinical history', 'examination', 'follow-up'].includes(key)) {
+        const colon = line.indexOf(':');
+        if (colon >= 0) return { label: line.slice(0, colon).trim(), value: line.slice(colon + 1).trim(), details: [] };
+      }
+      if (['chief complaints', 'prescription'].includes(key)) {
+        const parts = line.split('|').map(part => part.trim()).filter(Boolean);
+        return { label: '', value: parts[0], details: parts.slice(1) };
+      }
+      return { label: '', value: line, details: [] };
+    });
+    return { title, kind, rows };
+  }).filter(section => section.rows.length > 0);
 }
 
 function parseClinicalNoteSections(notes: string): Map<string, string[]> {

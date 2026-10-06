@@ -28,4 +28,4 @@ yarn-debug.log*
 yarn-error.log*
 
 # Local browser layout reports
-/artifacts/responsive/
+/artifacts/

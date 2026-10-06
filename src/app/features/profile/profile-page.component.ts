@@ -502,7 +502,7 @@ interface ProfilePreference {
     .toggle-knob {
       position: absolute; top: 3px; left: 3px;
       width: 18px; height: 18px; border-radius: 50%;
-      background: #fff; transition: transform 0.25s;
+      background: var(--ac-surface); transition: transform 0.25s;
       box-shadow: 0 1px 3px rgba(0,0,0,0.15);
     }
     .toggle.on .toggle-knob { transform: translateX(18px); }

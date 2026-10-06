@@ -401,7 +401,7 @@ interface TenantTabItem {
     .row-actions { align-items: center; min-width: 368px; }
     .row-actions .icon-btn { width: 32px; height: 32px; min-width: 32px; }
     .row-actions .material-symbols-rounded { font-size: 17px; }
-    .pill { display: inline-flex; align-items: center; min-height: 24px; padding: 4px 8px; border-radius: 999px; background: rgba(100,116,139,.12); color: #475569; font-size: 11px; font-weight: 900; white-space: nowrap; }
+    .pill { display: inline-flex; align-items: center; min-height: 24px; padding: 4px 8px; border-radius: 999px; background: rgba(100,116,139,.12); color: var(--ac-muted); font-size: 11px; font-weight: 900; white-space: nowrap; }
     .pill.active, .pill.live, .pill.healthy, .pill.valid { background: rgba(22,163,74,.12); color: #15803d; }
     .pill.trial, .pill.pending, .pill.warning { background: rgba(217,119,6,.12); color: #b45309; }
     .pill.suspended, .pill.expired, .pill.failed, .pill.archived { background: rgba(220,38,38,.1); color: #b91c1c; }

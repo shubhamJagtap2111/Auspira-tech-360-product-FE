@@ -501,7 +501,7 @@ type SubscriptionTab = 'subscriptions' | 'invoices' | 'payments' | 'renewals' | 
     code { background: var(--ac-bg); color: var(--ac-muted); border-radius: 6px; padding: 3px 6px; font-size: 12px; }
     .link-cell { border: 0; background: transparent; color: var(--ac-text); text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 3px; padding: 0; }
     .link-cell span { color: var(--ac-muted); font-size: 12px; }
-    .pill { display: inline-flex; align-items: center; min-height: 24px; padding: 4px 8px; border-radius: 999px; background: rgba(100,116,139,.12); color: #475569; font-size: 11px; font-weight: 900; white-space: nowrap; }
+    .pill { display: inline-flex; align-items: center; min-height: 24px; padding: 4px 8px; border-radius: 999px; background: rgba(100,116,139,.12); color: var(--ac-muted); font-size: 11px; font-weight: 900; white-space: nowrap; }
     .pill.active, .pill.paid, .pill.success, .pill.completed { background: rgba(22,163,74,.12); color: #15803d; }
     .pill.trial, .pill.grace, .pill.open { background: rgba(217,119,6,.12); color: #b45309; }
     .pill.expired, .pill.cancelled, .pill.pastdue, .pill.off { background: rgba(220,38,38,.1); color: #b91c1c; }

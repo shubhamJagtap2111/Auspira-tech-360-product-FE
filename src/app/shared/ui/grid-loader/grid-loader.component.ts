@@ -89,7 +89,7 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
     }
 
     :host-context(.dark) .loader-card span {
-      color: #cbd5e1;
+      color: var(--ac-border-2);
     }
 
     :host-context(.dark) .grid-loader {

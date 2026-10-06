@@ -292,7 +292,7 @@ type ConfigEditorMode = 'number-series' | 'fiscal-year' | 'template';
     .link-btn { border: 0; background: transparent; padding: 0; display: flex; flex-direction: column; gap: 3px; color: var(--ac-text); text-align: left; cursor: pointer; }
     .link-btn span { color: var(--ac-muted); font-size: 12px; }
     .status { padding: 4px 8px; border-radius: 999px; background: rgba(22,163,74,.1); color: #15803d; font-size: 11px; font-weight: 800; }
-    .status.inactive { background: rgba(100,116,139,.12); color: #475569; }
+    .status.inactive { background: rgba(100,116,139,.12); color: var(--ac-muted); }
     .icon-btn { width: 36px; height: 36px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-text-2); cursor: pointer; display: inline-grid; place-items: center; }
     .form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
     .template-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 420px); gap: 14px; align-items: start; }

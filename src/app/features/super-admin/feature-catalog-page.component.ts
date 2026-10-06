@@ -204,7 +204,7 @@ import { FeatureCatalogService } from './feature-catalog.service';
     .matrix-toggle.enabled { color: var(--ac-success-text); border-color: color-mix(in srgb, var(--ac-success) 36%, var(--ac-border)); background: var(--ac-success-light); }
     .matrix-toggle .material-symbols-rounded { font-size: 19px; }
     .pill { display: inline-flex; align-items: center; min-height: 24px; padding: 4px 8px; border-radius: 999px; background: rgba(22,163,74,.12); color: #15803d; font-size: 11px; font-weight: 900; }
-    .pill.off { background: rgba(100,116,139,.12); color: #475569; }
+    .pill.off { background: rgba(100,116,139,.12); color: var(--ac-muted); }
     .switch { flex-direction: row; align-items: center; min-height: 32px; }
     .switch input { width: 17px; height: 17px; }
     .editor-panel form { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }

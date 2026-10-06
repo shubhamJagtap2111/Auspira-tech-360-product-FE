@@ -304,7 +304,7 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
     .bars { height: 210px; display: grid; grid-template-columns: repeat(auto-fit, minmax(16px, 1fr)); gap: 5px; align-items: end; padding-top: 8px; border-top: 1px solid var(--ac-border); }
     .day { height: 100%; display: flex; align-items: end; justify-content: center; gap: 2px; position: relative; }
     .day span { width: 8px; min-height: 4px; border-radius: 999px 999px 0 0; }
-    .day .primary { background: #2563EB; }
+    .day .primary { background: var(--ac-primary); }
     .day .secondary { background: #10B981; }
     .day small { position: absolute; bottom: -18px; color: var(--ac-muted); font-size: 10px; }
     .mix-list { display: grid; gap: 10px; }

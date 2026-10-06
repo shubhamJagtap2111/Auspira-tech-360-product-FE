@@ -85,6 +85,7 @@ import { AppLoaderService } from '../../shared/ui/app-loader/app-loader.service'
       <section class="auth-panel">
         <form class="auth-card" (ngSubmit)="onLogin()">
           <header>
+            <img class="auth-wordmark" src="assets/brand/auspira-logo.webp" alt="Auspira Technologies" width="168" height="38" />
             <h2>Hospital login</h2>
             <p>Sign in with your registered email and password.</p>
           </header>
@@ -151,7 +152,7 @@ import { AppLoaderService } from '../../shared/ui/app-loader/app-loader.service'
   `,
   styles: `
     .auth-page { height: 100dvh; min-height: 0; display: grid; grid-template-columns: minmax(520px, 1.05fr) minmax(420px, .95fr); background: radial-gradient(circle at 84% 12%, rgba(37,99,235,.08), transparent 28%), var(--ac-bg); overflow: hidden; }
-    .auth-brand { position: relative; min-height: 0; display: flex; align-items: center; justify-content: center; padding: clamp(30px, 4vw, 48px); background: linear-gradient(145deg, #102a63, #2563eb 48%, #0f766e); color: #fff; overflow: hidden; }
+    .auth-brand { position: relative; min-height: 0; display: flex; align-items: center; justify-content: center; padding: clamp(30px, 4vw, 48px); background: linear-gradient(145deg, #102a63, var(--ac-primary) 48%, #0f766e); color: #fff; overflow: hidden; }
     .auth-brand::before, .auth-brand::after { content: ''; position: absolute; width: 260px; height: 260px; border-radius: 50%; background: rgba(255,255,255,.1); filter: blur(2px); animation: floatGlow 9s ease-in-out infinite; }
     .auth-brand::before { top: -90px; right: -70px; }
     .auth-brand::after { bottom: -110px; left: -80px; animation-delay: -3s; }
@@ -170,7 +171,7 @@ import { AppLoaderService } from '../../shared/ui/app-loader/app-loader.service'
     .status-dot { width: 9px; height: 9px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 7px rgba(34,197,94,.14); }
     .visual-header { align-items: center; justify-content: flex-start; }
     .hospital-building { display: grid; grid-template-columns: 78px 1fr; align-items: center; gap: 16px; margin: 18px 0 6px; }
-    .building-top { display: grid; place-items: center; width: 78px; height: 78px; border-radius: 20px; background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(219,234,254,.9)); color: #2563eb; box-shadow: 0 18px 45px rgba(0,0,0,.16); }
+    .building-top { display: grid; place-items: center; width: 78px; height: 78px; border-radius: 20px; background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(219,234,254,.9)); color: var(--ac-primary); box-shadow: 0 18px 45px rgba(0,0,0,.16); }
     .building-top .material-symbols-rounded { font-size: 42px; }
     .building-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
     .building-grid article { min-height: 48px; display: grid; grid-template-columns: 18px 1fr; grid-template-rows: auto auto; align-items: center; gap: 1px 5px; padding: 7px 8px; border-radius: 10px; background: rgba(255,255,255,.16); box-shadow: inset 0 0 0 1px rgba(255,255,255,.13); }
@@ -206,16 +207,16 @@ import { AppLoaderService } from '../../shared/ui/app-loader/app-loader.service'
     .form-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
     .check { display: flex; flex-direction: row; align-items: center; gap: 8px; font-weight: 600; color: var(--ac-text-3); font-size: 13px; }
     .check input { width: 16px; height: 16px; accent-color: var(--ac-primary); }
-    .primary { height: 48px; display: flex; align-items: center; justify-content: center; gap: 10px; border: 0; border-radius: 13px; background: linear-gradient(135deg,#2563eb,#3b82f6); color: #fff; font-weight: 800; cursor: pointer; box-shadow: 0 16px 32px rgba(37,99,235,.28); transition: transform .18s ease, box-shadow .18s ease, filter .18s ease; }
+    .primary { height: 48px; display: flex; align-items: center; justify-content: center; gap: 10px; border: 0; border-radius: 13px; background: linear-gradient(135deg,var(--ac-primary),#3b82f6); color: #fff; font-weight: 800; cursor: pointer; box-shadow: 0 16px 32px rgba(37,99,235,.28); transition: transform .18s ease, box-shadow .18s ease, filter .18s ease; }
     .primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 20px 40px rgba(37,99,235,.34); filter: saturate(1.05); }
     .primary:disabled { opacity: .82; cursor: not-allowed; box-shadow: 0 10px 24px rgba(37,99,235,.18); }
     .button-pulse svg { width: 34px; height: 24px; display: block; }
     .button-pulse polyline { fill: none; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
     .button-pulse .pulse-back { stroke: rgba(255,255,255,.28); }
     .button-pulse .pulse-front { stroke: #fff; stroke-dasharray: 48, 144; stroke-dashoffset: 192; animation: dashPulse 1.4s linear infinite; }
-    .google-button { height: 48px; display: flex; align-items: center; justify-content: center; gap: 12px; border: 1px solid var(--ac-border); border-radius: 13px; background: #fff; color: #111827; font-weight: 800; cursor: pointer; box-shadow: 0 10px 24px rgba(15,23,42,.06); transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+    .google-button { height: 48px; display: flex; align-items: center; justify-content: center; gap: 12px; border: 1px solid var(--ac-border); border-radius: 13px; background: var(--ac-surface); color: var(--ac-text); font-weight: 800; cursor: pointer; box-shadow: 0 10px 24px rgba(15,23,42,.06); transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
     .google-button:hover { transform: translateY(-1px); border-color: rgba(37,99,235,.35); box-shadow: 0 16px 32px rgba(15,23,42,.1); }
-    .google-mark { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; border: 1px solid #e5e7eb; color: #ea4335; background: #fff; font-weight: 900; font-family: Arial, sans-serif; font-size: 16px; }
+    .google-mark { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--ac-border); color: #ea4335; background: var(--ac-surface); font-weight: 900; font-family: Arial, sans-serif; font-size: 16px; }
     .auth-actions { display: flex; justify-content: center; align-items: center; gap: 16px; flex-wrap: wrap; }
     .register-button { text-align: center; }
     a { background: transparent; border: 0; color: var(--ac-primary); font-weight: 700; cursor: pointer; text-align: left; padding: 0; text-decoration: none; }
@@ -229,7 +230,7 @@ import { AppLoaderService } from '../../shared/ui/app-loader/app-loader.service'
     .error { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--ac-error-light); color: var(--ac-error); font-size: 13px; }
     :host-context(.dark) .auth-card { background: rgba(17,24,39,.94); border-color: rgba(148,163,184,.22); box-shadow: 0 30px 80px rgba(0,0,0,.38), 0 12px 30px rgba(59,130,246,.08); }
     :host-context(.dark) .input-shell { background: rgba(15,23,42,.72); border-color: rgba(148,163,184,.22); }
-    :host-context(.dark) .google-button { background: rgba(255,255,255,.94); color: #111827; }
+    :host-context(.dark) .google-button { background: rgba(255,255,255,.94); color: var(--ac-text); }
     @keyframes floatGlow { 0%, 100% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(-16px, 12px, 0) scale(1.08); } }
     @keyframes ecgMove { 0% { stroke-dashoffset: 260; opacity: .55; } 45%, 72% { opacity: 1; } 100% { stroke-dashoffset: 0; opacity: .62; } }
     @keyframes dashPulse { 72.5% { opacity: 0; } to { stroke-dashoffset: 0; } }

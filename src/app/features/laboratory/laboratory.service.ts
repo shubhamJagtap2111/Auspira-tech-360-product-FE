@@ -35,10 +35,10 @@ export class LaboratoryService {
   reviewResult(id: string) { return this.get<LabResultDetail>(`/laboratory/verification/${id}/review`); }
   verifyRelease(id: string) { return this.post(`/laboratory/verification/${id}/verify-release`, {}); }
   rejectResult(id: string, reason: string) { return this.post(`/laboratory/verification/${id}/reject`, { reason }); }
-  reports() { return this.get<LabReport[]>('/laboratory/reports'); }
+  reports(patientId?: string) { return this.get<LabReport[]>(`/laboratory/reports${patientId ? `?patientId=${encodeURIComponent(patientId)}` : ''}`); }
   critical() { return this.get<CriticalResult[]>('/laboratory/critical-results'); }
   acknowledge(id: string, reason: string) { return this.post(`/laboratory/critical-results/${id}/acknowledge`, { reason }); }
-  reportPdf(id: string) { return firstValueFrom(this.http.get(`${this.baseUrl}/laboratory/reports/${id}/pdf`, { responseType: 'blob', withCredentials: true })); }
+  reportPdf(id: string, version?: number) { return firstValueFrom(this.http.get(`${this.baseUrl}/laboratory/reports/${id}/pdf${version ? `?version=${version}` : ''}`, { responseType: 'blob', withCredentials: true })); }
   reportPdfUrl(id: string) { return `/api/v1/laboratory/reports/${id}/pdf`; }
   private get<T>(path: string): Promise<LabApiResponse<T>> { return firstValueFrom(this.api.get<LabApiResponse<T> | T>(path)).then(toLabResponse<T>); }
   private post<T = unknown>(path: string, body: unknown): Promise<LabApiResponse<T>> { return firstValueFrom(this.api.post<LabApiResponse<T> | T>(path, body)).then(toLabResponse<T>); }
