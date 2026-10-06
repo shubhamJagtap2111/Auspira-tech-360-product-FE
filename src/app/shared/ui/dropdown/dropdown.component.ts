@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, ElementRef, EventEmitter, HostListener, Input, Output, forwardRef, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, forwardRef, signal } from '@angular/core';
+import { AcDismissiblePopoverDirective } from '../dismissible-popover.directive';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 
 export interface DropdownOption<T = string> {
@@ -11,7 +12,7 @@ export interface DropdownOption<T = string> {
 @Component({
   selector: 'ac-dropdown',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, AcDismissiblePopoverDirective],
   providers: [
     {
       provide: NG_VALUE_ACCESSOR,
@@ -20,7 +21,7 @@ export interface DropdownOption<T = string> {
     }
   ],
   template: `
-    <div class="ac-dropdown" [class.open]="open()" [class.disabled]="disabled" [class.drop-up]="placement === 'top'">
+    <div class="ac-dropdown" [class.open]="open()" [class.disabled]="disabled" [class.drop-up]="placement === 'top'" [acDismissiblePopover]="open()" (dismissPopover)="closePopover()">
       <button
         class="ac-dropdown-trigger"
         type="button"
@@ -173,7 +174,6 @@ export class AcDropdownComponent<T = string> implements ControlValueAccessor {
   protected readonly open = signal(false);
   protected value: T | null = null;
 
-  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
   private onChange: (value: T | null) => void = () => undefined;
   private onTouched: () => void = () => undefined;
 
@@ -236,18 +236,12 @@ export class AcDropdownComponent<T = string> implements ControlValueAccessor {
 
   setDisabledState(isDisabled: boolean): void {
     this.disabled = isDisabled;
+    if (isDisabled) this.open.set(false);
   }
 
-  @HostListener('document:click', ['$event'])
-  protected closeFromOutside(event: MouseEvent): void {
-    if (!this.elementRef.nativeElement.contains(event.target as Node)) {
-      this.open.set(false);
-    }
-  }
-
-  @HostListener('keydown.escape')
-  protected closeWithEscape(): void {
+  protected closePopover(): void {
     this.open.set(false);
+    this.markTouched();
   }
 }
 

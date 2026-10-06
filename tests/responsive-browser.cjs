@@ -9,9 +9,10 @@ const workspace={fromDate:report.fromDate,toDate:report.toDate,branch:'',categor
 const dashboard={summary:{totalHospitals:1,totalUsers:4,activeUsers:4,activeSessions:2,branchCount:1,departmentCount:3,auditEventsToday:7,loginsToday:2,notificationTemplateCount:1,storedProfileImageCount:0,subscriptionStatusCode:'ACTIVE',licenseStatusCode:'ACTIVE',systemHealthStatusCode:'HEALTHY',generatedAt:report.generatedAt},operationalSummary:{totalPatients:24,patientsToday:3,todaysAppointments:9,todaysOpdVisits:5,currentIpdPatients:2,doctorsAvailable:4,totalDoctors:6,availableBeds:8,totalBeds:10,emergencyCasesToday:0,pendingBills:2,pendingBillAmount:1800,pharmacyOrdersToday:2,pendingLabTests:3},activityTrend:[{activityDate:report.generatedAt,loginAttempts:2,successfulSignIns:2,failedSignIns:0,recordUpdates:3,securityEvents:0}],auditSummary:[],recentLogins:[],notifications:[],systemHealth:[{componentCode:'Database',statusCode:'HEALTHY',messageKey:'Database ready'}]};
 const routes=(process.env.RESPONSIVE_ROUTES||'/,/reports?report=ipd-bed,/patients,/doctors,/appointments,/opd,/ipd,/emergency,/laboratory,/pharmacy,/billing,/inventory,/reports/mis,/quality,/administration,/administration/users,/administration/roles,/administration/permissions,/administration/departments,/administration/designations,/administration/branches,/administration/hospital,/administration/system-configuration,/profile/account-settings,/profile/security-settings,/profile/activity-logs,/profile/change-password,/support,/documentation').split(',');
 const widths=(process.env.RESPONSIVE_WIDTHS||'360,768,1024,1280,1366,1920').split(',').map(Number);
+let browser;
 (async()=>{
- const browser=await chromium.launch({headless:true, channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome'});
- const page=await browser.newPage();
+ browser=await chromium.launch({headless:true, channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome'});
+ const page=await browser.newPage({hasTouch:true});
  await page.addInitScript(session=>localStorage.setItem('care360.auth.session',JSON.stringify(session)),session);
  const fontCache = new Map();
  await page.route('**/*',async route=>{
@@ -38,11 +39,12 @@ const widths=(process.env.RESPONSIVE_WIDTHS||'360,768,1024,1280,1366,1920').spli
    return route.continue();
  });
  const results=[];
+ const tag=(process.env.RESPONSIVE_RESULT_TAG||'').replace(/[^a-z0-9_-]/gi,'');
+ const saveResults=()=>{fs.mkdirSync('artifacts/responsive',{recursive:true});fs.writeFileSync(`artifacts/responsive/results${tag?'-'+tag:''}.json`,JSON.stringify(results,null,2));};
  await page.setViewportSize({width:390,height:844});
  await page.goto(base+'/',{waitUntil:'domcontentloaded'});
  await page.getByRole('button',{name:'Open navigation',exact:true}).click();
- await page.waitForTimeout(250);
- if (!await page.locator('#application-navigation').evaluate(el=>el.contains(document.activeElement)))throw Error('Mobile navigation did not receive keyboard focus');
+ await page.waitForFunction(()=>document.querySelector('#application-navigation')?.contains(document.activeElement));
  if (!await page.locator('.shell-main').evaluate(el=>el.inert))throw Error('Mobile navigation background is not inert');
  await page.keyboard.press('Escape');
  await page.waitForFunction(()=>document.activeElement?.id==='mobile-navigation-trigger');
@@ -72,6 +74,27 @@ const widths=(process.env.RESPONSIVE_WIDTHS||'360,768,1024,1280,1366,1920').spli
        return {outside,url:location.pathname,overflow:main.scrollWidth-main.clientWidth,headerOverflow:document.querySelector('.header').scrollWidth-document.querySelector('.header').clientWidth,clips:[...new Set(clips)]};
      });
      results.push({width,route,...result});
+     if (process.env.RESPONSIVE_DROPDOWNS) {
+       const dropdowns = page.locator('ac-dropdown');
+       let checked = 0;
+       for (let i=0;i<await dropdowns.count();i++) {
+         const dropdown=dropdowns.nth(i), trigger=dropdown.locator('.ac-dropdown-trigger'), panel=dropdown.locator('.ac-dropdown-panel');
+         if (!await trigger.isVisible() || await trigger.isDisabled()) continue;
+         await trigger.click(); await panel.waitFor();
+         const outside=page.locator('.main-content h1').first();
+         if (width<=1024) await outside.tap(); else await outside.click();
+         await panel.waitFor({state:'hidden'});
+         await trigger.click(); await panel.waitFor();
+         await page.keyboard.press('Escape'); await panel.waitFor({state:'hidden'});
+         if (!await trigger.evaluate(el=>el===document.activeElement))throw Error('Dropdown Escape focus failed '+width+' '+route);
+         await trigger.click(); await panel.waitFor();
+         await page.getByRole('button',{name:'Search application',exact:true}).focus();
+         await panel.waitFor({state:'hidden'});
+         checked++;
+       }
+       results.at(-1).dropdownChecks=checked;
+       console.log(`Dropdown dismissal ${width} ${route}: ${checked} controls`);
+     }
      if(process.env.RESPONSIVE_PROGRESS)console.log(`Checked ${width} ${route}`);
      if(result.missing||result.overflow>1||result.headerOverflow>1||result.clips?.length)console.log(JSON.stringify(results.at(-1)));
      if (process.env.RESPONSIVE_SCREENSHOTS && [360,768,1366,1920].includes(width) && ['/', '/patients', '/laboratory', '/pharmacy', '/administration/users', '/reports?report=ipd-bed'].includes(route)) {
@@ -79,8 +102,51 @@ const widths=(process.env.RESPONSIVE_WIDTHS||'360,768,1024,1280,1366,1920').spli
        await page.screenshot({path:`artifacts/responsive/enterprise/${route.replace(/[^a-z0-9]/gi,'_')||'dashboard'}-${width}.png`});
      }
    }
+   saveResults();
+   if (process.env.RESPONSIVE_DROPDOWNS && process.env.RESPONSIVE_DROPDOWN_EDITORS !== '0') {
+     await page.goto(base+'/',{waitUntil:'domcontentloaded'});
+     for (const [label,selector] of [['Notifications','.notif-panel'],['Account menu','.profile-drop'],['Language','.lang-drop']]) {
+       const trigger=page.getByRole('button',{name:label,exact:true});
+       if (!await trigger.isVisible()) continue;
+       const popup=page.locator(selector);
+       await trigger.click(); await popup.waitFor();
+       await trigger.click(); await popup.waitFor({state:'hidden'});
+       await trigger.click(); await popup.waitFor();
+       // Header popups can cover the page heading on phones; tap exposed shell padding.
+       if(width<=1024)await page.locator('.shell').tap({position:{x:8,y:880}});else await page.locator('.shell').click({position:{x:8,y:880}});
+       await popup.waitFor({state:'hidden'});
+       await trigger.click(); await popup.waitFor();
+       await page.keyboard.press('Escape'); await popup.waitFor({state:'hidden'});
+     }
+     for (const [route,action] of [['/patients','Register Patient'],['/doctors','Add Doctor'],['/appointments','Create Appointment']]) {
+       await page.goto(base+route,{waitUntil:'domcontentloaded'});
+       await page.getByRole('button',{name:new RegExp(action+'$')}).first().click();
+       const drawer=page.locator('.ac-admin-drawer'); await drawer.waitFor();
+       const dropdowns=drawer.locator('ac-dropdown');
+       for(let i=0;i<await dropdowns.count();i++) {
+         const trigger=dropdowns.nth(i).locator('.ac-dropdown-trigger'), panel=dropdowns.nth(i).locator('.ac-dropdown-panel');
+         if(!await trigger.isVisible()||await trigger.isDisabled())continue;
+         await trigger.click();await panel.waitFor();
+         if(width<=1024)await drawer.locator('h2').tap();else await drawer.locator('h2').click();
+         await panel.waitFor({state:'hidden'});
+         await trigger.click();await panel.waitFor();await page.keyboard.press('Escape');await panel.waitFor({state:'hidden'});
+         if(!await drawer.isVisible())throw Error('Escape closed the editor instead of its dropdown');
+       }
+       if(route==='/patients') {
+         for(const [button,panel] of [['.country-trigger','.country-panel'],['.date-trigger','.modern-date-popover']]) {
+           const trigger=drawer.locator(button), popup=drawer.locator(panel);
+           await trigger.click();await popup.waitFor();
+           if(width<=1024)await drawer.locator('h2').tap();else await drawer.locator('h2').click();
+           await popup.waitFor({state:'hidden'});
+           await trigger.click();await popup.waitFor();await page.keyboard.press('Escape');await popup.waitFor({state:'hidden'});
+           if(!await drawer.isVisible())throw Error('Escape closed the patient editor instead of its popup');
+         }
+       }
+     }
+     console.log('Header menus and registration/editor popups passed at '+width);
+   }
  }
- fs.mkdirSync('artifacts/responsive',{recursive:true});fs.writeFileSync('artifacts/responsive/results.json',JSON.stringify(results,null,2));
+ saveResults();
  await page.setViewportSize({width:1366,height:900});await page.goto(base+'/reports?report=ipd-bed',{waitUntil:'domcontentloaded'});await page.waitForTimeout(600);await page.screenshot({path:'artifacts/responsive/reports-laptop.png'});
  await page.setViewportSize({width:768,height:1024});await page.screenshot({path:'artifacts/responsive/reports-tablet.png'});
  await page.goto(base+'/pharmacy',{waitUntil:'domcontentloaded'});await page.waitForTimeout(700);await page.screenshot({path:'artifacts/responsive/pharmacy-tablet.png'});
@@ -102,4 +168,4 @@ const widths=(process.env.RESPONSIVE_WIDTHS||'360,768,1024,1280,1366,1920').spli
  await browser.close();
  const failures=results.filter(r=>r.missing||r.overflow>1||r.headerOverflow>1||r.clips?.length);
  console.log(`${results.length-failures.length}/${results.length} viewport checks passed`);process.exitCode=failures.length?1:0;
-})();
+})().catch(async error=>{console.error(error);await browser?.close();process.exitCode=1;});

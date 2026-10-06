@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ApiClientService } from '../../core/http/api-client.service';
+import { isAsNeededPrescription, parsePrescriptionDuration, parsePrescriptionQuantity } from './prescription-validation';
 import { AppointmentQueueRecord } from '../appointments/appointment-management.models';
 import {
   OpdAdmissionRecord,
@@ -127,17 +128,17 @@ export class OpdManagementService {
       medicineName: item.medicine.trim(),
       dosage: item.dosage.trim(),
       frequency: item.frequency.trim(),
-      days: parseDurationDays(item.duration),
+      days: parsePrescriptionDuration(item.duration) ?? 0,
       strength: item.strength.trim() || null,
       dosageForm: item.dosageForm.trim() || null,
       dose: item.dosage.trim(),
       route: item.route.trim(),
-      durationValue: parseDurationDays(item.duration),
+      durationValue: parsePrescriptionDuration(item.duration),
       durationUnit: 'DAY',
-      quantity: parsePositiveNumber(item.quantity),
+      quantity: parsePrescriptionQuantity(item.quantity),
       quantityUnit: item.dosageForm.trim() || 'Unit',
       instructions: item.instructions.trim() || null,
-      isPrn: Boolean(item.isPrn),
+      isPrn: isAsNeededPrescription(item),
       prnReason: item.prnReason?.trim() || null
     };
     return firstValueFrom(item.id
@@ -259,14 +260,4 @@ function formatDiagnosisText(diagnosis: OpdDiagnosisForm): string {
     diagnosis.diagnosisName.trim(),
     diagnosis.notes.trim()
   ].filter(Boolean).join(' | ');
-}
-
-function parseDurationDays(value: string): number {
-  const match = value.match(/\d+/);
-  return match ? Math.max(Number(match[0]), 1) : 1;
-}
-
-function parsePositiveNumber(value: string): number | null {
-  const parsed = Number(String(value || '').replace(/[^0-9.]/g, ''));
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }

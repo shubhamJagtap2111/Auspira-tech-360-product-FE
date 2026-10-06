@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, HostListener, OnDestroy, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
+import { AcDismissiblePopoverDirective } from '../../shared/ui/dismissible-popover.directive';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AcAdminDrawerComponent } from '../../shared/ui/admin-drawer/admin-drawer.component';
@@ -19,7 +20,7 @@ type PatientDatePickerMode = 'calendar' | 'years';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent, AcPaginationComponent, AcAdminDrawerComponent],
+  imports: [CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent, AcPaginationComponent, AcAdminDrawerComponent, AcDismissiblePopoverDirective],
   template: `
     <section class="patients">
       <header class="page-header">
@@ -249,7 +250,7 @@ type PatientDatePickerMode = 'calendar' | 'years';
                     <label class="mobile-field" [class.invalid]="patientFieldInvalid(patientForm, 'mobileNumber')">
                       <span>Mobile *</span>
                       <div class="mobile-control">
-                        <div class="country-select-shell" [class.open]="countryDropdownOpen()" [class.disabled]="isViewMode()">
+                        <div class="country-select-shell" [class.open]="countryDropdownOpen()" [class.disabled]="isViewMode()" [acDismissiblePopover]="countryDropdownOpen()" (dismissPopover)="countryDropdownOpen.set(false)">
                           <button
                             class="country-trigger"
                             type="button"
@@ -309,7 +310,7 @@ type PatientDatePickerMode = 'calendar' | 'years';
                     </label>
                     <label [class.invalid]="patientFieldInvalid(patientForm, 'dateOfBirth')">
                       <span>Date of birth *</span>
-                      <div class="date-picker-shell" [class.open]="patientDobPickerOpen()">
+                      <div class="date-picker-shell" [class.open]="patientDobPickerOpen()" [acDismissiblePopover]="patientDobPickerOpen()" (dismissPopover)="patientDobPickerOpen.set(false)">
                         <button
                           class="date-trigger"
                           type="button"
@@ -1553,24 +1554,6 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
     URL.revokeObjectURL(url);
   }
 
-  @HostListener('document:click', ['$event'])
-  protected closeCountryDropdownFromOutside(event: MouseEvent): void {
-    const target = event.target as HTMLElement | null;
-
-    if (!target?.closest('.country-select-shell')) {
-      this.countryDropdownOpen.set(false);
-    }
-
-    if (!target?.closest('.date-picker-shell')) {
-      this.patientDobPickerOpen.set(false);
-    }
-  }
-
-  @HostListener('document:keydown.escape')
-  protected closeCountryDropdownWithEscape(): void {
-    this.countryDropdownOpen.set(false);
-    this.patientDobPickerOpen.set(false);
-  }
 }
 
 function createEmptyPatient(): PatientForm {

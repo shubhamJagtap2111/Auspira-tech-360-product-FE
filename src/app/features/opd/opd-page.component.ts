@@ -9,6 +9,7 @@ import { ApiResponse } from '../../core/auth/auth.models';
 import { BranchContextOption, BranchContextService } from '../../core/context/branch-context.service';
 import { getApiErrorMessage } from '../../core/http/api-error-message';
 import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dropdown.component';
+import { AcDismissiblePopoverDirective } from '../../shared/ui/dismissible-popover.directive';
 import { AcGridLoaderComponent } from '../../shared/ui/grid-loader/grid-loader.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { AppointmentCheckInForm, AppointmentForm, AppointmentQueueRecord, AppointmentRecord, appointmentPriorityOptions, appointmentTypeOptions } from '../appointments/appointment-management.models';
@@ -36,12 +37,13 @@ import {
   OpdVisitVm
 } from './opd-management.models';
 import { OpdManagementService } from './opd-management.service';
+import { isAsNeededPrescription, prescriptionItemIssues } from './prescription-validation';
 import { LaboratoryService } from '../laboratory/laboratory.service';
 import { LabReport } from '../laboratory/laboratory.models';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, A11yModule, AcDropdownComponent, AcGridLoaderComponent],
+  imports: [CommonModule, FormsModule, A11yModule, AcDropdownComponent, AcGridLoaderComponent, AcDismissiblePopoverDirective],
   template: `
     <ng-template #previousVisitPanel let-visit>
       <section class="history-visit"><h3>Previous visit</h3>
@@ -444,17 +446,29 @@ import { LabReport } from '../laboratory/laboratory.models';
                                   <p>Add each medicine as a separate row with strength, form, dosage, frequency, route, duration, quantity, and instructions.</p>
                                 </div>
                                 <div class="clinical-grid medicine-grid">
-                                  <div class="field medicine-search-field">
-                                    <span>Medicine Name *</span>
+                                  <div class="field medicine-search-field" [acDismissiblePopover]="medicineSuggestionsOpen()" (dismissPopover)="medicineSuggestionsOpen.set(false)">
+                                    <label for="opd-medicine-name">Medicine Name *</label>
                                     <input
+                                      id="opd-medicine-name"
                                       name="medicine"
                                       [ngModel]="clinicalForm().prescriptionDraft.medicine"
                                       (ngModelChange)="updateMedicineSearch($event)"
+                                      (focus)="medicineSuggestionsOpen.set(true)"
+                                      (click)="medicineSuggestionsOpen.set(true)"
+                                      [attr.aria-expanded]="medicineSuggestionsOpen() && medicineSearchResults().length > 0"
+                                      aria-controls="opd-medicine-suggestions"
                                       placeholder="Search Medicine..."
                                       autocomplete="off"
+                                      aria-describedby="opd-medicine-catalog-help"
                                     />
-                                    @if (medicineSearchResults().length > 0) {
-                                      <div class="medicine-suggestions">
+                                    <small id="opd-medicine-catalog-help" class="medicine-catalog-help">{{ clinicalForm().prescriptionDraft.medicineId ? 'Hospital catalog medicine selected.' : 'Choose a medicine from the hospital catalog suggestions.' }}</small>
+                                    @if (medicineCatalogError()) {
+                                      <small class="medicine-validation-error" role="alert">Medicine catalog could not be loaded. <button type="button" (click)="refreshMedicineCatalog()">Retry catalog</button></small>
+                                    } @else if (!clinicalForm().prescriptionDraft.medicineId && clinicalForm().prescriptionDraft.medicine.trim().length >= 2 && !medicineSearchResults().length) {
+                                      <small class="medicine-validation-error">No matching catalog medicine. Try another name or ask Pharmacy to update the catalog.</small>
+                                    }
+                                    @if (medicineSuggestionsOpen() && medicineSearchResults().length > 0) {
+                                      <div class="medicine-suggestions" id="opd-medicine-suggestions">
                                         @for (medicine of medicineSearchResults(); track medicine.key) {
                                           <button type="button" (click)="selectMedicineSuggestion(medicine)">
                                             <strong>{{ medicine.label }}</strong>
@@ -467,9 +481,9 @@ import { LabReport } from '../laboratory/laboratory.models';
                                   </div>
                                   <label class="field"><span>Strength</span><input name="medicineStrength" [(ngModel)]="clinicalForm().prescriptionDraft.strength" placeholder="500 mg" /></label>
                                   <label class="field"><span>Dosage Form</span><input name="dosageForm" [(ngModel)]="clinicalForm().prescriptionDraft.dosageForm" placeholder="Tablet" /></label>
-                                  <label class="field"><span>Dosage</span><input name="dosage" [(ngModel)]="clinicalForm().prescriptionDraft.dosage" placeholder="1 Tablet" /></label>
+                                  <label class="field"><span>Dosage *</span><input name="dosage" [(ngModel)]="clinicalForm().prescriptionDraft.dosage" placeholder="1 Tablet" /></label>
                                   <label class="field">
-                                    <span>Frequency</span>
+                                    <span>Frequency *</span>
                                     <ac-dropdown
                                       name="frequencyPreset"
                                       [ngModel]="frequencySelection()"
@@ -477,15 +491,15 @@ import { LabReport } from '../laboratory/laboratory.models';
                                       [options]="frequencyOptions"
                                     />
                                   </label>
-                                  <label class="field"><span>Route</span><input name="route" [(ngModel)]="clinicalForm().prescriptionDraft.route" placeholder="Oral" /></label>
-                                  <label class="field"><span>Duration</span><input name="duration" [(ngModel)]="clinicalForm().prescriptionDraft.duration" placeholder="5 Days" /></label>
-                                  <label class="field"><span>Quantity</span><input name="quantity" [(ngModel)]="clinicalForm().prescriptionDraft.quantity" placeholder="10" /></label>
+                                  <label class="field"><span>Route *</span><input name="route" [(ngModel)]="clinicalForm().prescriptionDraft.route" placeholder="Oral" /></label>
+                                  <label class="field"><span>Duration (days) *</span><input name="duration" [(ngModel)]="clinicalForm().prescriptionDraft.duration" placeholder="5 Days" /></label>
+                                  <label class="field"><span>Quantity *</span><input name="quantity" [(ngModel)]="clinicalForm().prescriptionDraft.quantity" placeholder="10" /></label>
                                   @if (customFrequencyMode()) {
                                     <label class="field"><span>Custom Frequency</span><input name="customFrequency" [(ngModel)]="clinicalForm().prescriptionDraft.frequency" placeholder="Enter custom frequency" /></label>
                                   }
                                   <label class="field wide"><span>Instructions</span><input name="instructions" [(ngModel)]="clinicalForm().prescriptionDraft.instructions" placeholder="After Food" /></label>
                                   <label class="field prescription-prn"><span>As needed (PRN)</span><input type="checkbox" name="isPrn" [(ngModel)]="clinicalForm().prescriptionDraft.isPrn" /></label>
-                                  @if (clinicalForm().prescriptionDraft.isPrn) { <label class="field wide"><span>PRN reason / indication</span><input name="prnReason" [(ngModel)]="clinicalForm().prescriptionDraft.prnReason" placeholder="Example: Fever above 38°C or pain" /></label> }
+                                  @if (clinicalForm().prescriptionDraft.isPrn) { <label class="field wide"><span>PRN reason / indication *</span><input name="prnReason" [(ngModel)]="clinicalForm().prescriptionDraft.prnReason" placeholder="Example: Fever above 38°C or pain" /></label> }
                                 </div>
                                 <button class="ac-btn ac-btn-secondary" type="button" (click)="addPrescriptionItem()"><span aria-hidden="true" class="material-symbols-rounded">add</span>Add Medicine</button>
                               </section>
@@ -504,7 +518,7 @@ import { LabReport } from '../laboratory/laboratory.models';
                                 @for (item of clinicalForm().prescriptions; track $index) {
                                   <div class="medicine-table-row">
                                     <span>{{ $index + 1 }}</span>
-                                    <span><strong>{{ item.medicine }}</strong><small>{{ item.dosage || item.quantity || '-' }}</small></span>
+                                    <span><strong>{{ item.medicine }}</strong><small>Dose: {{ item.dosage || '-' }} · Quantity: {{ item.quantity || '-' }}</small>@if (medicineValidationIssues(item).length) { <small class="medicine-validation-error">Required: {{ medicineValidationIssues(item).join(', ') }}. Use Edit to correct this medicine.</small> }</span>
                                     <span>{{ item.strength || '-' }}</span>
                                     <span>{{ item.dosageForm || '-' }}</span>
                                     <span>{{ item.frequency || '-' }}</span>
@@ -2083,6 +2097,9 @@ import { LabReport } from '../laboratory/laboratory.models';
     }
     .medicine-table-row strong, .medicine-table-row small { display: block; min-width: 0; overflow-wrap: anywhere; }
     .medicine-table-row small { margin-top: 2px; color: var(--ac-muted); font-size: 11px; }
+    .medicine-catalog-help { color: var(--ac-muted); font-size: 11px; line-height: 1.5; }
+    .medicine-validation-error, .medicine-table-row .medicine-validation-error { color: var(--ac-error-text); font-size: 11px; line-height: 1.5; }
+    .medicine-validation-error button { color: var(--ac-primary); text-decoration: underline; font: inherit; }
     .medicine-table-row button { border: 0; background: transparent; color: var(--ac-primary); font: inherit; font-size: 12px; font-weight: 900; cursor: pointer; }
     .check-field { min-height: 42px; grid-auto-flow: column; justify-content: start; align-items: center; padding: 10px 12px; border: 1px solid var(--ac-border); border-radius: 10px; background: var(--ac-subtle); color: var(--ac-text); }
     .chip-list, .record-list { display: grid; gap: 8px; margin-top: 10px; }
@@ -2767,6 +2784,8 @@ export class OpdPageComponent implements OnInit {
   protected readonly followUps = signal<OpdFollowUpRecord[]>([]);
   protected readonly labTests = signal<OpdLabTestRecord[]>([]);
   protected readonly medicines = signal<OpdMedicineRecord[]>([]);
+  protected readonly medicineSuggestionsOpen = signal(false);
+  protected readonly medicineCatalogError = signal(false);
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly activeTab = signal<OpdTab>('dashboard');
@@ -2918,6 +2937,7 @@ export class OpdPageComponent implements OnInit {
   ]);
 
   protected readonly medicineSearchResults = computed<MedicineSuggestion[]>(() => {
+    if (this.clinicalForm().prescriptionDraft.medicineId) return [];
     const query = this.clinicalForm().prescriptionDraft.medicine.trim();
     return findMedicineSuggestions(query, this.medicines());
   });
@@ -3151,7 +3171,7 @@ export class OpdPageComponent implements OnInit {
         this.loadAll(page => this.opdService.listConsultations(page, 100)),
         this.loadAll(page => this.opdService.listFollowUps(page, 100)),
         this.opdService.listLabTests(1, 100),
-        this.opdService.listMedicines(1, 100)
+        this.loadAll(page => this.opdService.listMedicines(page, 100)).catch(() => ({ success: false, data: null }))
       ]);
 
       if (appointments.success && appointments.data) {
@@ -3198,8 +3218,10 @@ export class OpdPageComponent implements OnInit {
 
       if (medicines.success && medicines.data) {
         this.medicines.set(medicines.data);
+        this.medicineCatalogError.set(false);
       } else {
         this.medicines.set([]);
+        this.medicineCatalogError.set(true);
       }
     } finally {
       const email = (this.auth.profile()?.email || this.auth.session()?.email || '').toLowerCase();
@@ -3662,12 +3684,32 @@ export class OpdPageComponent implements OnInit {
       this.jumpToConsultation('follow-up');
       return false;
     }
-    if (form.prescriptions.some(item => !item.medicineId || !item.dosage.trim() || !item.route.trim() || !item.frequency.trim() || parsePrescriptionDuration(item.duration) === null || parsePrescriptionQuantity(item.quantity) === null || (item.isPrn && !item.prnReason?.trim()))) {
-      this.toast.warning('Complete medicine details', 'Choose a catalog medicine and enter dose, route, frequency, duration, quantity, and an indication for as-needed medicines.');
-      this.jumpToConsultation('treatment');
-      return false;
+    return this.validatePrescriptionDetails();
+  }
+
+  protected medicineValidationIssues(item: OpdPrescriptionItemForm): string[] {
+    return prescriptionItemIssues(item);
+  }
+
+  private validatePrescriptionDetails(): boolean {
+    const items = this.clinicalForm().prescriptions;
+    const index = items.findIndex(item => prescriptionItemIssues(item).length > 0);
+    if (index < 0) return true;
+    this.toast.warning('Complete medicine details', `Medicine ${index + 1} (${items[index].medicine || 'unnamed'}): ${prescriptionItemIssues(items[index]).join(', ')}. Use Edit on this medicine to correct it.`);
+    this.jumpToConsultation('treatment');
+    return false;
+  }
+
+  protected async refreshMedicineCatalog(): Promise<void> {
+    try {
+      const response = await this.loadAll(page => this.opdService.listMedicines(page, 100));
+      if (!response.success || !response.data) throw new Error('Catalog unavailable');
+      this.medicines.set(response.data);
+      this.medicineCatalogError.set(false);
+    } catch {
+      this.medicineCatalogError.set(true);
+      this.toast.error('Medicine catalog unavailable', 'Retry or ask Pharmacy to check the hospital catalog. Your consultation is retained.');
     }
-    return true;
   }
 
   private async loadPatientContext(visit: OpdVisitVm): Promise<void> {
@@ -3893,12 +3935,13 @@ export class OpdPageComponent implements OnInit {
     if (!this.ensurePrescriptionEditable()) {
       return;
     }
+    this.medicineSuggestionsOpen.set(true);
     this.clinicalForm.update(form => ({
       ...form,
       prescriptionDraft: {
         ...form.prescriptionDraft,
         medicine: value,
-        medicineId: null
+        medicineId: value.trim().toLowerCase() === form.prescriptionDraft.medicine.trim().toLowerCase() ? form.prescriptionDraft.medicineId : null
       }
     }));
     this.markPrescriptionChanged();
@@ -3914,7 +3957,8 @@ export class OpdPageComponent implements OnInit {
       ...form,
       prescriptionDraft: {
         ...form.prescriptionDraft,
-        frequency: isCustom ? '' : value
+        frequency: isCustom ? '' : value,
+        isPrn: value === 'As Needed' || Boolean(form.prescriptionDraft.isPrn)
       }
     }));
     this.markPrescriptionChanged();
@@ -4052,6 +4096,11 @@ export class OpdPageComponent implements OnInit {
     if (!this.ensurePrescriptionEditable()) {
       return;
     }
+    if (!medicine.id) {
+      this.toast.warning('Catalog medicine required', 'Choose a medicine from the hospital catalog so allergy checks and Pharmacy can identify it.');
+      return;
+    }
+    this.medicineSuggestionsOpen.set(false);
     if (medicine.formularyStatus === 'RESTRICTED') {
       this.toast.warning(
         medicine.approvalRequired ? 'Restricted medicine — approval required' : 'Restricted formulary medicine',
@@ -4092,8 +4141,9 @@ export class OpdPageComponent implements OnInit {
       return;
     }
     const draft = this.clinicalForm().prescriptionDraft;
-    if (!draft.medicine.trim()) {
-      this.toast.warning('Medicine required', 'Enter medicine name before adding it.');
+    const issues = prescriptionItemIssues(draft);
+    if (issues.length) {
+      this.toast.warning('Complete medicine details', `${draft.medicine || 'This medicine'}: ${issues.join(', ')}.`);
       return;
     }
     this.clinicalForm.update(form => ({
@@ -4113,7 +4163,7 @@ export class OpdPageComponent implements OnInit {
     }
     const item = this.clinicalForm().prescriptions[index];
     if (!item) return;
-    this.clinicalForm.update(form => ({ ...form, prescriptionDraft: { ...item }, prescriptions: form.prescriptions.filter((_, itemIndex) => itemIndex !== index) }));
+    this.clinicalForm.update(form => ({ ...form, prescriptionDraft: { ...item, isPrn: isAsNeededPrescription(item) }, prescriptions: form.prescriptions.filter((_, itemIndex) => itemIndex !== index) }));
     this.jumpToConsultation('treatment');
     this.markPrescriptionChanged();
   }
@@ -4387,12 +4437,7 @@ export class OpdPageComponent implements OnInit {
       return;
     }
     this.commitPrescriptionDraft();
-    const invalid = this.clinicalForm().prescriptions.find(item => !item.medicineId || !item.dosage.trim() || !item.route.trim() || !item.frequency.trim() || parsePrescriptionDuration(item.duration) === null || parsePrescriptionQuantity(item.quantity) === null || (item.isPrn && !item.prnReason?.trim()));
-    if (invalid) {
-      this.toast.warning('Complete prescription details', 'Every medicine sent to Pharmacy requires a mapped drug, dose, route, frequency, duration, quantity, and PRN indication when applicable.');
-      this.activeEncounterSection.set('prescription');
-      return;
-    }
+    if (!this.validatePrescriptionDetails()) return;
     if (!await this.finalizePrescription(false)) {
       return;
     }
@@ -4823,6 +4868,8 @@ export class OpdPageComponent implements OnInit {
       this.activeEncounterSection.set('prescription');
       return false;
     }
+
+    if (!this.validatePrescriptionDetails()) return false;
 
     if (!await this.reviewDrugAllergies() || !await this.reviewDrugInteractions()) {
       return false;
@@ -5749,17 +5796,6 @@ function emptyPrescriptionItemForm(): OpdPrescriptionItemForm {
   return { medicine: '', strength: '', dosageForm: 'Tablet', dosage: '', route: 'Oral', frequency: '', duration: '', quantity: '', instructions: '', isPrn: false, prnReason: '' };
 }
 
-function parsePrescriptionDuration(value: string): number | null {
-  const match = String(value || '').match(/\d+/);
-  const parsed = match ? Number(match[0]) : 0;
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
-function parsePrescriptionQuantity(value: string): number | null {
-  const parsed = Number(String(value || '').replace(/[^0-9.]/g, ''));
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
 function emptyLabOrderForm() {
   return { testCategory: '', testId: '', priority: 'Routine', notes: '' };
 }
@@ -6504,15 +6540,6 @@ interface MedicineSuggestion {
   restrictionReason?: string | null;
 }
 
-const fallbackMedicineSuggestions: MedicineSuggestion[] = [
-  { key: 'fallback-paracetamol-500-tablet', id: null, label: 'Paracetamol 500mg Tablet', name: 'Paracetamol', strength: '500 mg', form: 'Tablet' },
-  { key: 'fallback-paracetamol-650-tablet', id: null, label: 'Paracetamol 650mg Tablet', name: 'Paracetamol', strength: '650 mg', form: 'Tablet' },
-  { key: 'fallback-paracetamol-syrup', id: null, label: 'Paracetamol Syrup', name: 'Paracetamol', strength: '', form: 'Syrup' },
-  { key: 'fallback-paracetamol-injection', id: null, label: 'Paracetamol Injection', name: 'Paracetamol', strength: '', form: 'Injection' },
-  { key: 'fallback-amoxicillin-500-capsule', id: null, label: 'Amoxicillin 500mg Capsule', name: 'Amoxicillin', strength: '500 mg', form: 'Capsule' },
-  { key: 'fallback-azithromycin-500-tablet', id: null, label: 'Azithromycin 500mg Tablet', name: 'Azithromycin', strength: '500 mg', form: 'Tablet' }
-];
-
 function findMedicineSuggestions(query: string, medicines: OpdMedicineRecord[]): MedicineSuggestion[] {
   const normalized = normalizeSearchText(query);
   if (normalized.length < 2) {
@@ -6520,7 +6547,7 @@ function findMedicineSuggestions(query: string, medicines: OpdMedicineRecord[]):
   }
 
   const catalog = medicines.map(toMedicineSuggestion);
-  const merged = dedupeMedicineSuggestions([...catalog, ...fallbackMedicineSuggestions]);
+  const merged = dedupeMedicineSuggestions(catalog.filter(item => item.id));
   return merged
     .filter(item => normalizeSearchText([item.label, item.name, item.strength, item.form].join(' ')).includes(normalized))
     .slice(0, 8);

@@ -19,6 +19,7 @@ import { Language } from '../../core/i18n/i18n.models';
 import { AppLoaderComponent } from '../../shared/ui/app-loader/app-loader.component';
 import { AppLoaderService } from '../../shared/ui/app-loader/app-loader.service';
 import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dropdown.component';
+import { AcDismissiblePopoverDirective } from '../../shared/ui/dismissible-popover.directive';
 
 interface NavItem {
   path: string;
@@ -61,7 +62,7 @@ const fallbackLanguages: Language[] = [
 @Component({
   selector: 'ac-root',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, FormsModule, A11yModule, DatePipe, ConfirmDialogComponent, AppLoaderComponent, AcDropdownComponent],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, FormsModule, A11yModule, DatePipe, ConfirmDialogComponent, AppLoaderComponent, AcDropdownComponent, AcDismissiblePopoverDirective],
   template: `
     @if (isAuthPage()) {
       <router-outlet />
@@ -182,7 +183,7 @@ const fallbackLanguages: Language[] = [
 
             <!-- Actions -->
             <div class="header-right">
-              <button class="hdr-btn notif-btn" (click)="toggleNotifications()" title="Notifications">
+              <button #notificationTrigger class="hdr-btn notif-btn" (click)="toggleNotifications()" title="Notifications" aria-label="Notifications" [attr.aria-expanded]="notifOpen()">
                 <span class="material-symbols-rounded">notifications</span>
                 <span class="notif-dot">3</span>
               </button>
@@ -200,12 +201,12 @@ const fallbackLanguages: Language[] = [
               <button class="hdr-btn" (click)="toggleDark()" [title]="dark() ? 'Light mode' : 'Dark mode'" [attr.aria-label]="dark() ? 'Light mode' : 'Dark mode'">
                 <span class="material-symbols-rounded" aria-hidden="true">{{ dark() ? 'light_mode' : 'dark_mode' }}</span>
               </button>
-              <button class="hdr-btn lang-btn" title="Language" (click)="toggleLanguageMenu()">
+              <button #languageTrigger class="hdr-btn lang-btn" title="Language" aria-label="Language" [attr.aria-expanded]="langOpen()" (click)="toggleLanguageMenu()">
                 <span class="material-symbols-rounded">language</span>
                 <span class="lang-code">{{ activeLang() }}</span>
               </button>
               <div class="hdr-sep"></div>
-              <button class="profile-btn" (click)="toggleProfileMenu()">
+              <button #profileTrigger class="profile-btn" aria-label="Account menu" [attr.aria-expanded]="profileOpen()" (click)="toggleProfileMenu()">
                 <div class="avatar">
                   @if (profileImageUrl()) {
                     <img class="avatar-image" [src]="profileImageUrl()" alt="Profile photo" (error)="handleProfileImageError()" />
@@ -224,7 +225,7 @@ const fallbackLanguages: Language[] = [
 
           <!-- Notifications Panel -->
           @if (notifOpen()) {
-            <div class="notif-panel">
+            <div class="notif-panel" [acDismissiblePopover]="true" [popoverAnchor]="notificationTrigger" (dismissPopover)="notifOpen.set(false)">
               <div class="np-head">
                 <span class="np-title">Notifications</span>
                 <button class="np-markall">Mark all as read</button>
@@ -249,7 +250,7 @@ const fallbackLanguages: Language[] = [
 
           <!-- Language Dropdown -->
           @if (langOpen()) {
-            <div class="lang-drop">
+            <div class="lang-drop" [acDismissiblePopover]="true" [popoverAnchor]="languageTrigger" (dismissPopover)="langOpen.set(false)">
               <div class="lang-head">
                 <span class="material-symbols-rounded">translate</span>
                 <div>
@@ -277,7 +278,7 @@ const fallbackLanguages: Language[] = [
 
           <!-- Profile Dropdown -->
           @if (profileOpen()) {
-            <div class="profile-drop">
+            <div class="profile-drop" [acDismissiblePopover]="true" [popoverAnchor]="profileTrigger" (dismissPopover)="profileOpen.set(false)">
               <div class="pd-user">
                 <div class="pd-avatar">
                   @if (profileImageUrl()) {
@@ -305,11 +306,6 @@ const fallbackLanguages: Language[] = [
                 <span style="color:var(--ac-error)">Sign Out</span>
               </button>
             </div>
-          }
-
-          <!-- Close dropdowns backdrop -->
-          @if (notifOpen() || profileOpen() || langOpen()) {
-            <div class="drop-backdrop" (click)="closeDropdowns()"></div>
           }
 
           <!-- Page Content -->

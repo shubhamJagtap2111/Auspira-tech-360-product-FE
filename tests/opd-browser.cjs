@@ -35,7 +35,7 @@ const server = http.createServer((req, res) => {
   const browser = await chromium.launch({ headless: true, channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome' });
   try {
     fs.mkdirSync(artifacts, { recursive: true });
-    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, hasTouch: true });
     const errors = [], writes = [];
     let consultation = null, conflictNextSave = false, failReportDownload = true;
     page.on('pageerror', error => errors.push(error.message));
@@ -55,6 +55,8 @@ const server = http.createServer((req, res) => {
       let data = [];
       if (method !== 'GET') writes.push({ path: p, body: request.postDataJSON() });
       if (p === '/auth/me') data = session;
+      else if (p === '/pharmacy/prescribing-catalog') data = [{ id: '60000000-0000-0000-0000-000000000001', name: 'Synthetic medicine 500mg Tablet', unit: 'Tablet', genericName: 'Synthetic medicine', salePrice: 0 }];
+      else if (p === '/pharmacy/allergies/check' || p === '/pharmacy/interactions/check') data = [];
       else if (p === '/administration/hospital') data = { hospitalName: 'OPD Test Hospital' };
       else if (p === '/patients') data = { patients: [patient], totalCount: 1, pageNumber: 1, pageSize: 100, stats: {} };
       else if (p === `/patients/${ids.patient}`) data = patient;
@@ -141,6 +143,65 @@ const server = http.createServer((req, res) => {
     await page.keyboard.press('Escape');
     assert.equal(await page.evaluate(() => document.activeElement.textContent.trim()), 'History & results', 'closing history restores focus to the opener');
     assert.equal(await page.locator('input[name="complaint"]').inputValue(), 'Review of symptoms');
+    const medicineInput = page.locator('input[name="medicine"]');
+    const outsideHeading = page.getByRole('heading', { name: 'Treatment plan', exact: true });
+    // Dialogs and rows can stop bubbling; dismissal must still see the original event.
+    await outsideHeading.evaluate(el => {
+      el.addEventListener('pointerdown', event => event.stopPropagation());
+      el.addEventListener('click', event => event.stopPropagation());
+    });
+    for (const width of [360,390,768,1024,1366,1920]) {
+      await page.setViewportSize({width,height:900});
+      await medicineInput.fill('Synthetic medicine');
+      await page.locator('.medicine-suggestions').waitFor();
+      if (width <= 1024) await outsideHeading.tap(); else await outsideHeading.click();
+      await page.locator('.medicine-suggestions').waitFor({state:'hidden'});
+      assert.equal(await medicineInput.inputValue(), 'Synthetic medicine', 'outside dismissal retains typed medicine');
+      await medicineInput.click();
+      await page.locator('.medicine-suggestions').waitFor();
+      await page.keyboard.press('Escape');
+      await page.locator('.medicine-suggestions').waitFor({state:'hidden'});
+      await medicineInput.click();
+      await page.locator('.medicine-suggestions').waitFor();
+      await page.locator('input[name="medicineStrength"]').focus();
+      await page.locator('.medicine-suggestions').waitFor({state:'hidden'});
+      await medicineInput.click();
+      await page.locator('.medicine-suggestions button').click();
+      await page.locator('.medicine-suggestions').waitFor({state:'hidden'});
+      assert.equal(await page.locator('#opd-medicine-catalog-help').innerText(), 'Hospital catalog medicine selected.');
+    }
+    await page.setViewportSize({width:1440,height:1000});
+    // Fully filled text still needs a real catalog selection. Failed Add keeps the editor.
+    await page.locator('input[name="medicine"]').fill('Unknown medicine');
+    assert.equal(await page.locator('.medicine-suggestions').count(), 0);
+    await page.locator('input[name="dosage"]').fill('1 tablet');
+    await page.locator('ac-dropdown[name="frequencyPreset"] .ac-dropdown-trigger').click();
+    await page.getByRole('button', { name: 'BD - Twice Daily', exact: true }).click();
+    await page.locator('input[name="duration"]').fill('5 Days');
+    await page.locator('input[name="quantity"]').fill('10');
+    await page.getByRole('button', { name: 'Add Medicine', exact: true }).click();
+    await page.getByText('Unknown medicine: Catalog medicine selection.', { exact: true }).waitFor();
+    assert.equal(await page.locator('.medicine-table-row').count(), 0);
+    assert.equal(await page.locator('input[name="medicine"]').inputValue(), 'Unknown medicine');
+    await page.locator('input[name="medicine"]').fill('Synthetic medicine');
+    await page.locator('.medicine-suggestions button').click();
+    await page.locator('input[name="quantity"]').fill('');
+    await page.getByRole('button', { name: 'Add Medicine', exact: true }).click();
+    await page.getByText(/Quantity \(greater than zero\)\.$/).waitFor();
+    assert.equal(await page.locator('.medicine-table-row').count(), 0);
+    await page.locator('input[name="quantity"]').fill('10');
+    await page.locator('ac-dropdown[name="frequencyPreset"] .ac-dropdown-trigger').click();
+    await page.getByRole('button', { name: 'SOS - As Needed', exact: true }).click();
+    await page.locator('input[name="prnReason"]').waitFor();
+    await page.getByRole('button', { name: 'Add Medicine', exact: true }).click();
+    await page.getByText(/As-needed indication\.$/).waitFor();
+    assert.equal(await page.locator('.medicine-table-row').count(), 0);
+    await page.locator('input[name="prnReason"]').fill('Synthetic recorded indication');
+    await page.getByRole('button', { name: 'Add Medicine', exact: true }).click();
+    assert.equal(await page.locator('.medicine-table-row').count(), 1);
+    assert.equal(await page.locator('.medicine-table-row .medicine-validation-error').count(), 0);
+    await page.locator('.medicine-composer').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: path.join(artifacts, 'medicine-validation-desktop.png') });
     await page.getByRole('button', { name: 'Review & Complete', exact: true }).click();
     await page.getByRole('dialog', { name: 'Review consultation' }).waitFor();
     assert.equal(await page.getByRole('dialog').getByText('Review of symptoms', { exact: false }).count() > 0, true);
@@ -166,7 +227,9 @@ const server = http.createServer((req, res) => {
     await page.getByRole('button', { name: 'Complete Consultation', exact: true }).click();
     await page.locator('.completion-banner').waitFor({ timeout: 15000 });
     assert.equal(consultation.statusCode, 'COMPLETED');
+    assert.equal(JSON.parse(consultation.clinicalData).prescriptions[0].medicineId, '60000000-0000-0000-0000-000000000001');
+    assert.equal(JSON.parse(consultation.clinicalData).prescriptions[0].isPrn, true);
     assert.deepEqual(errors, []);
-    console.log(JSON.stringify({ passed: true, checks: ['start', 'draft-only autosave', 'formatted history and visit selection', 'history results and imaging', 'history keyboard focus', 'history preserves input', 'review', 'conflict recovery', 'responsive widths', 'completion'], screenshots: artifacts }, null, 2));
+    console.log(JSON.stringify({ passed: true, checks: ['start', 'draft-only autosave', 'formatted history and visit selection', 'history results and imaging', 'history keyboard focus', 'history preserves input', 'medicine suggestion dismissal at six widths', 'catalog medicine validation and correction', 'review', 'conflict recovery', 'responsive widths', 'completion'], screenshots: artifacts }, null, 2));
   } finally { await browser.close(); server.close(); }
 })().catch(error => { console.error(error); server.close(); process.exitCode = 1; });
