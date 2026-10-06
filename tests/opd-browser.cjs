@@ -1,0 +1,116 @@
+// Production-bundle smoke test with synthetic patient data; no live hospital is modified.
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const http = require('node:http');
+const { chromium } = require('playwright');
+const root = path.resolve('dist/auspira-care360-web/browser');
+const artifacts = path.resolve('artifacts/responsive/opd');
+const permissions = [...fs.readFileSync('src/app/app.routes.ts', 'utf8').matchAll(/permission: '([^']+)'/g)].map(m => m[1]);
+const session = { userId: 'opd-fixture', email: 'doctor@example.test', fullName: 'Dr. Test', accessToken: 'fixture', refreshToken: 'fixture', accessTokenExpiresAt: '2099-01-01T00:00:00Z', permissions, roleCodes: ['HOSPITAL_ADMIN'], menuItems: [], hospitalName: 'OPD Test Hospital', tenantCode: 'test' };
+const now = new Date().toISOString();
+const ids = { patient: '10000000-0000-0000-0000-000000000001', doctor: '20000000-0000-0000-0000-000000000001', appointment: '30000000-0000-0000-0000-000000000001', consultation: '40000000-0000-0000-0000-000000000001' };
+const patient = { patientGuid: ids.patient, medicalRecordNo: 'TEST-001', fullName: 'Synthetic Patient', firstName: 'Synthetic', lastName: 'Patient', age: 35, genderName: 'Female', genderCode: 'FEMALE', mobileNo: '0000000000', knownConditions: 'Not recorded', allergies: [], prescriptions: [], documents: [], labOrders: [], visits: [], appointments: [], timeline: [], overview: {}, contacts: [], insurance: [], billingSummary: {} };
+const doctor = { doctorGuid: ids.doctor, fullName: 'Dr. Test', email: session.email, departmentName: 'General Medicine', branchName: 'Main Branch', primarySpecialization: 'General Medicine', consultationFee: 0, statusCode: 'ACTIVE' };
+const appointment = { id: ids.appointment, appointmentNo: 'APT-001', patientId: ids.patient, doctorId: ids.doctor, startsAt: now, appointmentType: 'NEW_CONSULTATION', branchName: 'Main Branch', departmentName: 'General Medicine', statusCode: 'CHECKED_IN', createdAt: now };
+const queue = { id: '50000000-0000-0000-0000-000000000001', appointmentId: ids.appointment, queueNo: 1, tokenNumber: 'T001', arrivedAt: now, priorityCode: 'NORMAL', statusCode: 'WAITING', createdAt: now };
+const server = http.createServer((req, res) => {
+  let file = path.resolve(root, '.' + decodeURIComponent(new URL(req.url, 'http://localhost').pathname));
+  if (!file.startsWith(root + path.sep) && file !== root) { res.writeHead(403); return res.end(); }
+  if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(root, 'index.html');
+  const ext = path.extname(file);
+  res.setHeader('Content-Type', ({ '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' })[ext] || 'application/octet-stream');
+  fs.createReadStream(file).pipe(res);
+});
+(async () => {
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const browser = await chromium.launch({ headless: true, channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome' });
+  try {
+    fs.mkdirSync(artifacts, { recursive: true });
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+    const errors = [], writes = [];
+    let consultation = null, conflictNextSave = false;
+    page.on('pageerror', error => errors.push(error.message));
+    await page.addInitScript(session => localStorage.setItem('care360.auth.session', JSON.stringify(session)), session);
+    await page.route('**/*', async route => {
+      const request = route.request(), url = new URL(request.url());
+      if (!url.pathname.includes('/api/')) {
+        if (url.origin !== base) return route.abort();
+        return route.continue();
+      }
+      const p = url.pathname.replace(/^.*\/api\/v1/, ''), method = request.method();
+      let data = [];
+      if (method !== 'GET') writes.push({ path: p, body: request.postDataJSON() });
+      if (p === '/auth/me') data = session;
+      else if (p === '/administration/hospital') data = { hospitalName: 'OPD Test Hospital' };
+      else if (p === '/patients') data = { patients: [patient], totalCount: 1, pageNumber: 1, pageSize: 100, stats: {} };
+      else if (p === `/patients/${ids.patient}`) data = patient;
+      else if (p === '/doctors') data = { doctors: [doctor], totalCount: 1, pageNumber: 1, pageSize: 100, stats: {} };
+      else if (p === '/appointments') data = [appointment];
+      else if (p === '/appointments/queue' || p === '/queue' || p === '/queues') data = [queue];
+      else if (p === '/opd/consultations' && method === 'GET') data = consultation ? [consultation] : [];
+      else if (p === '/opd/consultations' && method === 'POST') {
+        consultation = { ...request.postDataJSON(), id: ids.consultation, createdAt: now, startedAt: now, updatedAt: now };
+        data = consultation;
+      } else if (p === `/opd/consultations/${ids.consultation}/draft`) {
+        if (conflictNextSave) {
+          conflictNextSave = false;
+          return route.fulfill({ status: 409, json: { success: false, statusCode: 409, message: 'This consultation changed in another session.', errors: [], data: null } });
+        }
+        const body = request.postDataJSON();
+        assert.equal(body.expectedUpdatedAt, consultation.updatedAt);
+        consultation = { ...consultation, clinicalData: body.clinicalData, notes: body.notes, updatedAt: new Date().toISOString() };
+        data = consultation;
+      } else if (p === `/opd/consultations/${ids.consultation}`) data = consultation;
+      else if (p.endsWith('/workflow')) {
+        const body = request.postDataJSON();
+        assert.equal(body.expectedUpdatedAt, consultation.updatedAt);
+        consultation = { ...consultation, ...body.consultation, updatedAt: new Date().toISOString() };
+        data = consultation;
+      } else if (p.endsWith('/history')) data = consultation ? [consultation] : [];
+      else if (method !== 'GET') data = { ...request.postDataJSON(), id: crypto.randomUUID() };
+      return route.fulfill({ json: { success: true, statusCode: 200, data, message: '', errors: [] } });
+    });
+    await page.goto(base + '/opd');
+    await page.getByRole('button', { name: 'Start Consultation', exact: true }).waitFor({ timeout: 20000 });
+    await page.getByRole('button', { name: 'Start Consultation', exact: true }).click();
+    await page.locator('#opd-assessment').waitFor();
+    assert.equal(await page.locator('.encounter-workflow-stepper').count(), 0);
+    await page.locator('input[name="complaint"]').fill('Review of symptoms');
+    await page.locator('textarea[name="generalExamination"]').fill('Clinical examination documented.');
+    await page.waitForFunction(() => document.querySelector('.draft-status')?.textContent.includes('Saved to server'), { timeout: 10000 });
+    assert.equal(writes.some(write => /prescriptions|symptoms|diagnoses|laboratory\/orders/.test(write.path)), false, 'autosave must not create downstream records');
+    await page.getByRole('button', { name: 'History & results', exact: true }).click();
+    await page.getByRole('dialog', { name: 'History & results' }).waitFor();
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('input[name="complaint"]').inputValue(), 'Review of symptoms');
+    await page.getByRole('button', { name: 'Review & Complete', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Review consultation' }).waitFor();
+    assert.equal(await page.getByRole('dialog').getByText('Review of symptoms', { exact: false }).count() > 0, true);
+    await page.screenshot({ path: path.join(artifacts, 'review-desktop.png') });
+    await page.getByRole('button', { name: 'Back to editing', exact: true }).click();
+    // A conflicting save must preserve the editor and prevent finishing.
+    conflictNextSave = true;
+    await page.locator('textarea[name="generalExamination"]').fill('Local edit retained after conflict.');
+    await page.waitForFunction(() => document.querySelector('.draft-conflict') !== null, { timeout: 10000 });
+    assert.equal(await page.getByRole('button', { name: 'Review & Complete', exact: true }).isDisabled(), true);
+    assert.equal(await page.locator('textarea[name="generalExamination"]').inputValue(), 'Local edit retained after conflict.');
+    await page.getByRole('button', { name: 'Load latest saved version', exact: true }).click();
+    await page.waitForFunction(() => document.querySelector('.draft-conflict') === null);
+    for (const width of [1440, 768, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.locator('#opd-assessment').scrollIntoViewIfNeeded();
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 2);
+      assert.equal(overflow, false, `page overflow at ${width}px`);
+      await page.screenshot({ path: path.join(artifacts, `consultation-${width}.png`) });
+    }
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.getByRole('button', { name: 'Review & Complete', exact: true }).click();
+    await page.getByRole('button', { name: 'Complete Consultation', exact: true }).click();
+    await page.locator('.completion-banner').waitFor({ timeout: 15000 });
+    assert.equal(consultation.statusCode, 'COMPLETED');
+    assert.deepEqual(errors, []);
+    console.log(JSON.stringify({ passed: true, checks: ['start', 'draft-only autosave', 'history preserves input', 'review', 'conflict recovery', 'responsive widths', 'completion'], screenshots: artifacts }, null, 2));
+  } finally { await browser.close(); server.close(); }
+})().catch(error => { console.error(error); server.close(); process.exitCode = 1; });

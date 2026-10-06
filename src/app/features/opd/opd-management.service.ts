@@ -75,7 +75,23 @@ export class OpdManagementService {
   }
 
   updateConsultation(form: OpdEncounterForm): Promise<OpdApiResponse<OpdConsultationRecord>> {
-    return firstValueFrom(this.api.put<OpdApiResponse<OpdConsultationRecord>>(`/opd/consultations/${form.consultationId}`, createConsultationPayload(form)));
+    return firstValueFrom(this.api.put<OpdApiResponse<OpdConsultationRecord>>(`/opd/consultations/${form.consultationId}/workflow`, {
+      consultation: createConsultationPayload(form), expectedUpdatedAt: form.expectedUpdatedAt ?? null
+    }));
+  }
+
+  saveConsultationDraft(id: string, clinicalData: string, notes: string, expectedUpdatedAt: string | null): Promise<OpdApiResponse<OpdConsultationRecord>> {
+    return firstValueFrom(this.api.put<OpdApiResponse<OpdConsultationRecord>>(`/opd/consultations/${id}/draft`, {
+      clinicalData, notes, expectedUpdatedAt
+    }));
+  }
+
+  getConsultation(id: string): Promise<OpdApiResponse<OpdConsultationRecord>> {
+    return firstValueFrom(this.api.get<OpdApiResponse<OpdConsultationRecord>>(`/opd/consultations/${id}`));
+  }
+
+  saveConsultationFollowUp(id: string, followUpDate: string, notes: string): Promise<OpdApiResponse<OpdFollowUpRecord>> {
+    return firstValueFrom(this.api.post<OpdApiResponse<OpdFollowUpRecord>>(`/opd/consultations/${id}/follow-up`, { followUpDate, notes }));
   }
 
   createSymptom(consultationId: string, symptom: string): Promise<OpdApiResponse<OpdSymptomRecord>> {
@@ -105,7 +121,7 @@ export class OpdManagementService {
   }
 
   createPrescriptionItem(prescriptionId: string, item: OpdPrescriptionItemForm): Promise<OpdApiResponse<OpdPrescriptionItemRecord>> {
-    return firstValueFrom(this.api.post<OpdApiResponse<OpdPrescriptionItemRecord>>('/opd/prescription-items', {
+    const payload = {
       prescriptionId,
       medicineId: item.medicineId || null,
       medicineName: item.medicine.trim(),
@@ -123,14 +139,21 @@ export class OpdManagementService {
       instructions: item.instructions.trim() || null,
       isPrn: Boolean(item.isPrn),
       prnReason: item.prnReason?.trim() || null
-    }));
+    };
+    return firstValueFrom(item.id
+      ? this.api.put<OpdApiResponse<OpdPrescriptionItemRecord>>(`/opd/prescription-items/${item.id}`, payload)
+      : this.api.post<OpdApiResponse<OpdPrescriptionItemRecord>>('/opd/prescription-items', payload));
+  }
+
+  deletePrescriptionItem(id: string): Promise<OpdApiResponse<unknown>> {
+    return firstValueFrom(this.api.delete<OpdApiResponse<unknown>>(`/opd/prescription-items/${id}`));
   }
 
   sendPrescriptionToPharmacy(prescriptionId: string): Promise<OpdApiResponse<{ id: string; prescriptionNumber: string; statusCode: string; sentToPharmacyAt: string }>> {
     return firstValueFrom(this.api.post<OpdApiResponse<{ id: string; prescriptionNumber: string; statusCode: string; sentToPharmacyAt: string }>>(`/prescriptions/${prescriptionId}/send-to-pharmacy`, {}));
   }
 
-  createLabOrder(patientId: string, consultationId: string, tests: OpdLabTestRecord[], priority: string, clinicalNotes: string, doctorId: string): Promise<OpdApiResponse<OpdLabOrderRecord>> {
+  createLabOrder(patientId: string, consultationId: string, tests: OpdLabTestRecord[], priority: string, clinicalNotes: string, doctorId: string, idempotencyKey: string = crypto.randomUUID()): Promise<OpdApiResponse<OpdLabOrderRecord>> {
     return firstValueFrom(this.api.post<OpdApiResponse<OpdLabOrderRecord>>('/laboratory/orders', {
       patientId,
       consultationId,
@@ -142,7 +165,7 @@ export class OpdManagementService {
       clinicalNotes,
       testIds: tests.map(test => test.id),
       packageIds: [],
-      idempotencyKey: crypto.randomUUID()
+      idempotencyKey
     }));
   }
 

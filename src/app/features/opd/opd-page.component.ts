@@ -1,8 +1,9 @@
 import { AuthStore } from '../../core/auth/auth.store';
 import { PatientProfile } from '../patients/patient-management.models';
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { A11yModule } from '@angular/cdk/a11y';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiResponse } from '../../core/auth/auth.models';
 import { BranchContextOption, BranchContextService } from '../../core/context/branch-context.service';
@@ -39,7 +40,7 @@ import { OpdManagementService } from './opd-management.service';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent],
+  imports: [CommonModule, FormsModule, A11yModule, AcDropdownComponent, AcGridLoaderComponent],
   template: `
     <ng-template #previousVisitPanel let-visit>
       <section class="history-visit"><h3>Previous visit</h3>
@@ -60,11 +61,11 @@ import { OpdManagementService } from './opd-management.service';
         </div>
         <div class="header-actions">
           <button class="ac-btn ac-btn-secondary" type="button" (click)="reload()">
-            <span class="material-symbols-rounded">refresh</span>
+            <span aria-hidden="true" class="material-symbols-rounded">refresh</span>
             Refresh
           </button>
           <button class="ac-btn ac-btn-primary" type="button" (click)="goToAppointments()">
-            <span class="material-symbols-rounded">event_available</span>
+            <span aria-hidden="true" class="material-symbols-rounded">event_available</span>
             Appointments
           </button>
         </div>
@@ -87,7 +88,7 @@ import { OpdManagementService } from './opd-management.service';
         <div class="opd-tabs">
           @for (tab of tabs; track tab.id) {
             <button type="button" [class.active]="activeTab() === tab.id" [disabled]="saving()" (click)="setActiveTab(tab.id)">
-              <span class="material-symbols-rounded">{{ tab.icon }}</span>
+              <span aria-hidden="true" class="material-symbols-rounded">{{ tab.icon }}</span>
               <span class="tab-label">{{ tab.label }}</span>
               @if (tabCount(tab.id); as count) {
                 <span class="tab-count">{{ count }}</span>
@@ -98,12 +99,12 @@ import { OpdManagementService } from './opd-management.service';
 
         <div class="toolbar">
           <div class="search-field">
-            <span class="material-symbols-rounded">search</span>
-            <input type="text" name="opdSearch" [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" placeholder="Search token, patient, MRN, doctor..." />
+            <span aria-hidden="true" class="material-symbols-rounded">search</span>
+            <input type="text" name="opdSearch" [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" aria-label="Search OPD patients by token, name, MRN, or doctor" placeholder="Search token, patient, MRN..." />
           </div>
-          <ac-dropdown name="doctorFilter" [ngModel]="doctorFilter()" (ngModelChange)="doctorFilter.set($event)" [options]="doctorFilterOptions()" />
+          <ac-dropdown ariaLabel="doctor Filter" name="doctorFilter" [ngModel]="doctorFilter()" (ngModelChange)="doctorFilter.set($event)" [options]="doctorFilterOptions()" />
           <button class="icon-btn" type="button" title="Clear filters" (click)="clearFilters()">
-            <span class="material-symbols-rounded">filter_alt_off</span>
+            <span aria-hidden="true" class="material-symbols-rounded">filter_alt_off</span>
           </button>
         </div>
 
@@ -113,7 +114,7 @@ import { OpdManagementService } from './opd-management.service';
           @switch (activeTab()) {
             @case ('dashboard') {
               @if (completedPatientName()) {
-                <div class="completion-banner" role="status"><span class="material-symbols-rounded">task_alt</span> Consultation completed for {{ completedPatientName() }}. Your next patient is ready below.</div>
+                <div class="completion-banner" role="status"><span aria-hidden="true" class="material-symbols-rounded">task_alt</span><span>Consultation completed for {{ completedPatientName() }}. Your next patient is ready below.</span>@if (completedPrescription()) { <button type="button" class="ac-btn ac-btn-secondary" (click)="printCompletedPrescription()">Print prescription</button> }</div>
               }
               <section class="opd-today-grid">
                 <article class="panel today-queue-panel">
@@ -190,9 +191,9 @@ import { OpdManagementService } from './opd-management.service';
                       <strong>{{ visit.patientName }}</strong>
                       <small>{{ visit.tokenNumber }} · currently with {{ visit.doctorName }}</small>
                     </div>
-                    <ac-dropdown name="transferDoctor" [(ngModel)]="transferDoctorId" [options]="transferDoctorOptions()" />
+                    <ac-dropdown ariaLabel="transfer Doctor" name="transferDoctor" [(ngModel)]="transferDoctorId" [options]="transferDoctorOptions()" />
                     <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving() || !transferDoctorId" (click)="confirmTransferDoctor()">
-                      <span class="material-symbols-rounded">sync_alt</span>
+                      <span aria-hidden="true" class="material-symbols-rounded">sync_alt</span>
                       Transfer
                     </button>
                     <button class="ac-btn ac-btn-secondary" type="button" (click)="cancelTransferDoctor()">Cancel</button>
@@ -222,16 +223,16 @@ import { OpdManagementService } from './opd-management.service';
                       <span>
                         <div class="queue-row-actions">
                           <button class="tbl-btn primary" type="button" title="Start Consultation" [disabled]="!canUseQueueActions(visit)" (click)="startEncounter(visit)">
-                            <span class="material-symbols-rounded">play_arrow</span>
+                            <span aria-hidden="true" class="material-symbols-rounded">play_arrow</span>
                           </button>
                           <button class="tbl-btn" type="button" title="Skip" [disabled]="!canUseQueueActions(visit)" (click)="skipVisit(visit)">
-                            <span class="material-symbols-rounded">skip_next</span>
+                            <span aria-hidden="true" class="material-symbols-rounded">skip_next</span>
                           </button>
                           <button class="tbl-btn danger" type="button" title="Mark No Show" [disabled]="!canUseQueueActions(visit)" (click)="markNoShow(visit)">
-                            <span class="material-symbols-rounded">event_busy</span>
+                            <span aria-hidden="true" class="material-symbols-rounded">event_busy</span>
                           </button>
                           <button class="tbl-btn" type="button" title="Transfer Doctor" [disabled]="!canTransferDoctor(visit)" (click)="openTransferDoctor(visit)">
-                            <span class="material-symbols-rounded">sync_alt</span>
+                            <span aria-hidden="true" class="material-symbols-rounded">sync_alt</span>
                           </button>
                         </div>
                       </span>
@@ -260,7 +261,7 @@ import { OpdManagementService } from './opd-management.service';
                     <span>{{ visit.appointmentTime }}</span>
                     <span>
                       <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="quickCheckIn(visit)">
-                        <span class="material-symbols-rounded" [class.spin]="saving()">{{ saving() ? 'progress_activity' : 'how_to_reg' }}</span>
+                        <span aria-hidden="true" class="material-symbols-rounded" [class.spin]="saving()">{{ saving() ? 'progress_activity' : 'how_to_reg' }}</span>
                         {{ saving() ? 'Checking in...' : 'Check-In' }}
                       </button>
                     </span>
@@ -281,116 +282,43 @@ import { OpdManagementService } from './opd-management.service';
 
             @case ('encounter') {
               <section class="encounter-layout">
-                @if (encounterCandidates().length) {
-                  <aside class="encounter-list">
-                    <div class="encounter-list-head">
-                      <div>
-                        <p class="ac-eyebrow">Patient Switcher</p>
-                        <h2>OPD Encounters</h2>
-                      </div>
-                      <span>{{ encounterCandidates().length }} active</span>
-                    </div>
-                    <div class="encounter-switcher-grid">
-                      @for (visit of encounterCandidates(); track visit.appointment.id) {
-                        <button type="button" [class.active]="selectedVisit()?.appointment?.id === visit.appointment.id" (click)="visit.consultationStatus === 'COMPLETED' ? showHistory(visit) : selectVisit(visit, 'encounter')">
-                          <strong>{{ visit.patientName }}</strong>
-                          <small>{{ visit.tokenNumber }} · {{ visit.doctorName }}</small>
-                        </button>
-                      }
-                    </div>
-                  </aside>
-                }
-
                 <article class="encounter-card">
                   @if (selectedVisit(); as visit) {
                     <div class="encounter-head">
                       <div>
                         <p class="ac-eyebrow">OPD Encounter</p>
                         <h2>{{ visit.patientName }}</h2>
-                        <span>{{ visit.patientMrn }} · {{ visit.doctorName }} · {{ visit.tokenNumber }}</span>
+                        <span>{{ visit.patientMrn }} · {{ patientAgeGender(visit) }} · Token {{ visit.tokenNumber }}</span><p class="patient-allergy">Allergies: {{ allergySummary(visit) }}</p>
                       </div>
                       <span class="status-badge">{{ encounterStatusLabel(visit) }}</span>
                     </div>
 
-                    <div class="summary-strip">
-                      <span><small>Appointment</small><strong>{{ visit.appointmentNo }}</strong></span>
-                      <span><small>Clinical Record</small><strong>{{ encounterRecordNo(visit) }}</strong></span>
-                      <span><small>Queue</small><strong>#{{ visit.queueNo || '-' }}</strong></span>
-                      <span><small>Arrival</small><strong>{{ visit.arrivalTime || '-' }}</strong></span>
-                      <span><small>Priority</small><strong>{{ visit.priorityCode }}</strong></span>
-                    </div>
-
                     <div class="encounter-workspace">
+
                       <aside class="patient-snapshot">
-                        <div class="snapshot-head">
-                          <span class="material-symbols-rounded">badge</span>
-                          <div>
-                            <p class="ac-eyebrow">Always Visible</p>
-                            <h3>Patient Summary</h3>
-                          </div>
-                        </div>
-                        <div class="snapshot-grid">
-                          <span><small>MRN</small><strong>{{ visit.patientMrn }}</strong></span>
-                          <span><small>Name</small><strong>{{ visit.patientName }}</strong></span>
-                          <span><small>Age / Gender</small><strong>{{ patientAgeGender(visit) }}</strong></span>
-                          <span><small>Blood Group</small><strong>{{ visit.patient?.bloodGroupName || '-' }}</strong></span>
-                          <span><small>Allergies</small><strong>{{ allergySummary(visit) }}</strong></span>
-                          <span><small>Medical Conditions</small><strong>{{ visit.patient?.knownConditions || 'None recorded' }}</strong></span>
-                          <span><small>Previous Visits</small><strong>{{ previousVisitCount(visit) }}</strong></span>
-                          <span><small>Current Medications</small><strong>{{ recordedMedicationSummary(visit) }}</strong></span>
-                        </div>
+                        <h3>Patient context</h3>
+                        <p><strong>Medical history</strong><br />{{ visit.patient?.pastMedicalHistory || 'Not recorded' }}</p>
+                        <p><strong>Known conditions</strong><br />{{ visit.patient?.knownConditions || 'Not recorded' }}</p>
+                        <p><strong>Recorded medication history</strong><br />{{ recordedMedicationSummary(visit) }}</p>
+                        <small>Confirm which medicines the patient currently takes.</small>
                         <ng-container *ngTemplateOutlet="previousVisitPanel; context: { $implicit: visit }" />
-                        <p>Pending lab orders: {{ pendingLabCount(visit) }}</p>
-                        @for (lab of patientContexts()[visit.appointment.patientId]?.labOrders || []; track lab.recordGuid) { <p>{{ lab.title }} · {{ lab.statusCode }} · {{ lab.eventDate | date:'shortDate' }}</p> }
-                        <h4>Verified lab results</h4>
-                        @for (result of patientLabResults()[visit.appointment.patientId] || []; track result.id) {
-                          <div class="history-visit"><strong>{{ result.testName }} · {{ result.parameterName }}</strong><p>{{ result.value }} {{ result.unit }} · {{ result.flagCode }} {{ result.isCritical ? '— CRITICAL' : '' }}</p><small>Reference: {{ result.referenceRange || 'Not supplied' }} · {{ result.verifiedAt | date:'shortDate' }}</small></div>
-                        } @empty { <p>{{ patientLabResults()[visit.appointment.patientId] ? 'No verified lab results recorded.' : 'Lab results unavailable or loading.' }}</p> }
-                        <h4>Radiology documents</h4>
-                        @for (document of radiologyDocuments(visit); track document.documentGuid) { <p>{{ document.documentName }} · {{ document.uploadedDate | date:'shortDate' }}</p> } @empty { <p>No radiology documents loaded.</p> }
-                        <p>Medical history: {{ visit.patient?.pastMedicalHistory || 'Not recorded' }}</p>
-                        <button class="ac-btn ac-btn-secondary" (click)="showHistory(visit)">View complete history →</button>
+                        <p>{{ pendingLabCount(visit) }} lab orders pending</p>
+                        <button class="ac-btn ac-btn-secondary" type="button" (click)="showHistory(visit)">History &amp; results</button>
                       </aside>
 
-                      <section class="clinical-board">
-                        <nav class="encounter-workflow-stepper" aria-label="OPD encounter workflow">
-                          @for (section of encounterSections; track section.id) {
-                            <button
-                              type="button"
-                              [class.active]="activeEncounterSection() === section.id"
-                              [class.completed]="isEncounterStepComplete(section.id)"
-                              [disabled]="saving()"
-                              (click)="goToEncounterStep(section.id)"
-                            >
-                              <span class="step-number">{{ encounterStepNumber(section.id) }}</span>
-                              <span class="step-copy">
-                                <strong>{{ section.label }}</strong>
-                                <small>{{ encounterStepStatus(section.id) }}</small>
-                              </span>
-                            </button>
-                          }
-                        </nav>
 
-                        <div class="section-panel">
-                          @switch (activeEncounterSection()) {
-                            @case ('snapshot') {
-                              <div class="section-title">
-                                <h3>Patient Snapshot</h3>
-                                <p>Registry and care context for this OPD encounter.</p>
-                              </div>
-                              <div class="snapshot-detail-grid">
-                                <span><small>MRN</small><strong>{{ visit.patientMrn }}</strong></span>
-                                <span><small>Name</small><strong>{{ visit.patientName }}</strong></span>
-                                <span><small>Age</small><strong>{{ visit.patient?.age ?? '-' }}</strong></span>
-                                <span><small>Gender</small><strong>{{ visit.patient?.genderName || '-' }}</strong></span>
-                                <span><small>Blood Group</small><strong>{{ visit.patient?.bloodGroupName || '-' }}</strong></span>
-                                <span><small>Allergies</small><strong>{{ visit.patient?.knownAllergies || 'None recorded' }}</strong></span>
-                                <span><small>Medical Conditions</small><strong>{{ visit.patient?.knownConditions || 'None recorded' }}</strong></span>
-                                <span><small>Previous Visits</small><strong>{{ previousVisitCount(visit) }}</strong></span>
-                              </div>
-                            }
-                            @case ('vitals') {
-                              <div class="section-title">
+                      <section class="clinical-board">
+
+                        <nav class="consultation-jump-links" aria-label="Consultation sections">
+                          <button type="button" (click)="jumpToConsultation('assessment')">Assessment</button>
+                          <button type="button" (click)="jumpToConsultation('treatment')">Treatment</button>
+                          <button type="button" (click)="jumpToConsultation('follow-up')">Follow-up</button>
+                        </nav>
+                        <fieldset class="consultation-fields" [disabled]="reviewOpen() || (saving() && !draftSaving()) || finishing()">
+                          <legend class="sr-only">Consultation for {{ visit.patientName }}</legend>
+                          <section class="consultation-group" id="opd-assessment">
+                            <div class="group-heading"><span>1</span><div><h2>Clinical assessment</h2><p>Record today's findings once.</p></div></div>
+                            <details class="optional-section"><summary>Review / record vitals · BP {{ clinicalForm().vitals.bloodPressure || 'Not recorded' }} · Pulse {{ clinicalForm().vitals.pulseRate || 'Not recorded' }} · SpO₂ {{ clinicalForm().vitals.spo2 || 'Not recorded' }}</summary><div class="section-title">
                                 <h3>Vitals</h3>
                                 <p>BMI is calculated automatically from height and weight.</p>
                               </div>
@@ -403,10 +331,8 @@ import { OpdManagementService } from './opd-management.service';
                                 <label class="field"><span>Height</span><input name="height" [(ngModel)]="clinicalForm().vitals.height" placeholder="cm" /></label>
                                 <label class="field"><span>Weight</span><input name="weight" [(ngModel)]="clinicalForm().vitals.weight" placeholder="kg" /></label>
                                 <span class="metric-tile"><small>BMI</small><strong>{{ bmiValue() || '-' }}</strong></span>
-                              </div>
-                            }
-                            @case ('consultation') {
-                              <div class="consultation-stack">
+                              </div></details>
+                            <div class="consultation-stack">
                                 <section>
                                   <div class="section-title">
                                     <h3>Consultation</h3>
@@ -415,10 +341,10 @@ import { OpdManagementService } from './opd-management.service';
                                   <div class="clinical-grid">
                                     <label class="field"><span>Complaint</span><input name="complaint" [(ngModel)]="clinicalForm().complaintDraft.complaint" placeholder="Body pain" /></label>
                                     <label class="field"><span>Duration</span><input name="complaintDuration" [(ngModel)]="clinicalForm().complaintDraft.duration" placeholder="2 days" /></label>
-                                    <label class="field"><span>Severity</span><ac-dropdown name="complaintSeverity" [(ngModel)]="clinicalForm().complaintDraft.severity" [options]="complaintSeverityOptions" /></label>
+                                    <label class="field"><span>Severity</span><ac-dropdown ariaLabel="complaint Severity" name="complaintSeverity" [(ngModel)]="clinicalForm().complaintDraft.severity" [options]="complaintSeverityOptions" /></label>
                                     <label class="field wide"><span>Notes</span><input name="complaintNotes" [(ngModel)]="clinicalForm().complaintDraft.notes" placeholder="Associated symptoms or trigger" /></label>
                                   </div>
-                                  <button class="ac-btn ac-btn-secondary" type="button" (click)="addComplaint()"><span class="material-symbols-rounded">add</span>Add Complaint</button>
+                                  <button class="ac-btn ac-btn-secondary" type="button" (click)="addComplaint()"><span aria-hidden="true" class="material-symbols-rounded">add</span>Add Complaint</button>
                                   <div class="chip-list">
                                     @for (item of clinicalForm().complaints; track $index) {
                                       <span>{{ item.complaint }} · {{ item.severity }} <button type="button" (click)="removeComplaint($index)">Remove</button></span>
@@ -430,9 +356,11 @@ import { OpdManagementService } from './opd-management.service';
                                   <div class="section-title"><h3>Clinical History</h3><p>Present illness and relevant medical background.</p></div>
                                   <div class="clinical-grid single">
                                     <label class="field"><span>Present Illness</span><textarea rows="3" name="presentIllness" [(ngModel)]="clinicalForm().history.presentIllness"></textarea></label>
+                                    <details class="optional-section"><summary>Past, family, and surgical history</summary>
                                     <label class="field"><span>Past History</span><textarea rows="3" name="pastHistory" [(ngModel)]="clinicalForm().history.pastHistory"></textarea></label>
                                     <label class="field"><span>Family History</span><textarea rows="3" name="familyHistory" [(ngModel)]="clinicalForm().history.familyHistory"></textarea></label>
                                     <label class="field"><span>Surgical History</span><textarea rows="3" name="surgicalHistory" [(ngModel)]="clinicalForm().history.surgicalHistory"></textarea></label>
+                                    </details>
                                   </div>
                                 </section>
 
@@ -440,14 +368,14 @@ import { OpdManagementService } from './opd-management.service';
                                   <div class="section-title"><h3>Examination</h3><p>General, system, and observational findings.</p></div>
                                   <div class="clinical-grid single">
                                     <label class="field"><span>General Examination</span><textarea rows="3" name="generalExamination" [(ngModel)]="clinicalForm().examination.generalExamination"></textarea></label>
+                                    <details class="optional-section"><summary>System examination and additional observations</summary>
                                     <label class="field"><span>System Examination</span><textarea rows="3" name="systemExamination" [(ngModel)]="clinicalForm().examination.systemExamination"></textarea></label>
                                     <label class="field"><span>Observations</span><textarea rows="3" name="observations" [(ngModel)]="clinicalForm().examination.observations"></textarea></label>
+                                    </details>
                                   </div>
                                 </section>
                               </div>
-                            }
-                            @case ('diagnosis') {
-                              <div class="section-title"><h3>Diagnosis</h3><p>Primary and secondary diagnoses are supported.</p></div>
+                            <div class="section-title"><h3>Diagnosis</h3><p>Primary and secondary diagnoses are supported.</p></div>
                               <div class="clinical-grid">
                                 <label class="field"><span>ICD Code</span><input name="diagnosisCode" [(ngModel)]="clinicalForm().diagnosisDraft.diagnosisCode" placeholder="M25.512" /></label>
                                 <label class="field"><span>Diagnosis</span><input name="diagnosisName" [(ngModel)]="clinicalForm().diagnosisDraft.diagnosisName" placeholder="Shoulder Pain" /></label>
@@ -460,72 +388,31 @@ import { OpdManagementService } from './opd-management.service';
                                 </div>
                                 <label class="field wide"><span>Notes</span><input name="diagnosisNotes" [(ngModel)]="clinicalForm().diagnosisDraft.notes" /></label>
                               </div>
-                              <button class="ac-btn ac-btn-secondary" type="button" (click)="addDiagnosis()"><span class="material-symbols-rounded">add</span>Add Diagnosis</button>
+                              <button class="ac-btn ac-btn-secondary" type="button" (click)="addDiagnosis()"><span aria-hidden="true" class="material-symbols-rounded">add</span>Add Diagnosis</button>
                               <div class="record-list">
                                 @for (item of clinicalForm().diagnoses; track $index) {
                                   <span><strong>{{ item.diagnosisName }}</strong><small>{{ item.diagnosisCode || '-' }} · {{ item.diagnosisType }}</small><button type="button" (click)="removeDiagnosis($index)">Remove</button></span>
                                 }
                               </div>
-                            }
-                            @case ('prescription') {
-                              <div class="section-title"><h3>Prescription</h3><p>Medicine instructions are linked to this OPD encounter.</p></div>
-                              @if (prescriptionHeader(); as header) {
-                                <section class="prescription-header-card">
-                                  <div class="prescription-header-title">
-                                    <span class="material-symbols-rounded">receipt_long</span>
-                                    <div>
-                                      <p class="ac-eyebrow">Auto-populated Header</p>
-                                      <h3>{{ header.prescriptionNo }}</h3>
-                                    </div>
-                                  </div>
-
-                                  <div class="prescription-header-grid">
-                                    <article>
-                                      <h4>Patient Information</h4>
-                                      <span><small>Patient Name</small><strong>{{ header.patientName }}</strong></span>
-                                      <span><small>MRN</small><strong>{{ header.patientMrn }}</strong></span>
-                                      <span><small>Age</small><strong>{{ header.age }}</strong></span>
-                                      <span><small>Gender</small><strong>{{ header.gender }}</strong></span>
-                                      <span><small>Blood Group</small><strong>{{ header.bloodGroup }}</strong></span>
-                                      <span><small>Mobile Number</small><strong>{{ header.mobileNo }}</strong></span>
-                                      <span><small>Address</small><strong>{{ header.patientAddress }}</strong></span>
-                                    </article>
-
-                                    <article>
-                                      <h4>Doctor Information</h4>
-                                      <span><small>Doctor Name</small><strong>{{ header.doctorName }}</strong></span>
-                                      <span><small>Specialization</small><strong>{{ header.specialization }}</strong></span>
-                                      <span><small>Registration Number</small><strong>{{ header.registrationNo }}</strong></span>
-                                      <span><small>Department</small><strong>{{ header.departmentName }}</strong></span>
-                                      <span><small>Hospital Name</small><strong>{{ header.hospitalName }}</strong></span>
-                                      <span><small>Hospital Address</small><strong>{{ header.hospitalAddress }}</strong></span>
-                                      <span><small>Hospital Contact</small><strong>{{ header.hospitalContact }}</strong></span>
-                                    </article>
-
-                                    <article>
-                                      <h4>Encounter Information</h4>
-                                      <span><small>Prescription Number</small><strong>{{ header.prescriptionNo }}</strong></span>
-                                      <span><small>Prescription Date & Time</small><strong>{{ header.prescriptionDateTime }}</strong></span>
-                                      <span><small>Appointment ID</small><strong>{{ header.appointmentNo }}</strong></span>
-                                      <span><small>OPD Encounter ID</small><strong>{{ header.opdEncounterNo }}</strong></span>
-                                      <span><small>Visit Type</small><strong>{{ header.visitType }}</strong></span>
-                                    </article>
-                                  </div>
-                                </section>
-                              }
-                              @if (prescriptionLocked()) {
+                            <details class="optional-section"><summary>Additional clinical notes</summary><div class="section-title"><h3>Clinical Notes</h3><p>Free-form clinical summary for this encounter.</p></div>
+                              <label class="field"><span>Clinical Notes</span><textarea rows="9" name="clinicalNotes" [(ngModel)]="clinicalForm().clinicalNotes" placeholder="Capture summary, advice, counseling, and follow-up plan."></textarea></label></details>
+                          </section>
+                          <section class="consultation-group" id="opd-treatment">
+                            <div class="group-heading"><span>2</span><div><h2>Treatment plan</h2><p>Add medicines, tests, and advice as needed.</p></div></div>
+                            @if (prescriptionLocked()) {
                                 <div class="prescription-lock-banner">
-                                  <span class="material-symbols-rounded">verified</span>
+                                  <span aria-hidden="true" class="material-symbols-rounded">verified</span>
                                   <div>
                                     <strong>Prescription {{ prescriptionStatusLabel() }}</strong>
                                     <p>Create a revised prescription before changing issued medical instructions.</p>
+                                    <button type="button" class="ac-btn ac-btn-secondary" (click)="createRevisedPrescription()">Revise prescription</button>
                                   </div>
                                 </div>
                               }
-                              <section class="prescription-template-panel" [class.prescription-edit-locked]="prescriptionLocked()">
+                              <details class="treatment-templates"><summary>Use or save a treatment template</summary><section class="prescription-template-panel" [class.prescription-edit-locked]="prescriptionLocked()">
                                 <div class="template-panel-head">
                                   <div class="template-panel-title">
-                                    <span class="material-symbols-rounded">auto_awesome</span>
+                                    <span aria-hidden="true" class="material-symbols-rounded">auto_awesome</span>
                                     <div>
                                       <p class="ac-eyebrow">Prescription Templates</p>
                                       <h3>Apply common treatment set</h3>
@@ -539,106 +426,17 @@ import { OpdManagementService } from './opd-management.service';
                                       [options]="prescriptionTemplateOptions()"
                                     />
                                     <button class="ac-btn ac-btn-primary" type="button" [disabled]="!selectedPrescriptionTemplateId" (click)="applyPrescriptionTemplate()">
-                                      <span class="material-symbols-rounded">post_add</span>
+                                      <span aria-hidden="true" class="material-symbols-rounded">post_add</span>
                                       Apply Template
                                     </button>
                                     <button class="ac-btn ac-btn-secondary" type="button" [disabled]="!canSavePrescriptionTemplate()" (click)="openSavePrescriptionTemplate()">
-                                      <span class="material-symbols-rounded">bookmark_add</span>
+                                      <span aria-hidden="true" class="material-symbols-rounded">bookmark_add</span>
                                       Save Current
                                     </button>
                                   </div>
                                 </div>
-                                <div class="template-card-grid">
-                                  @for (template of prescriptionTemplates(); track template.id) {
-                                    <button
-                                      type="button"
-                                      class="template-card"
-                                      [class.active]="selectedPrescriptionTemplateId === template.id"
-                                      (click)="applyPrescriptionTemplate(template.id)"
-                                    >
-                                      <strong>{{ template.name }}</strong>
-                                      <small>{{ template.description }}</small>
-                                      <span>{{ template.medicines.length }} medicines · {{ template.advice.length }} advice · Follow-up {{ template.followUpAfterDays }} days</span>
-                                    </button>
-                                  }
-                                </div>
-                              </section>
-                              <section class="prescription-vitals-card" [class.prescription-edit-locked]="prescriptionLocked()">
-                                <div class="mini-section-title">
-                                  <div>
-                                    <h4>Vitals</h4>
-                                    <p>Include vitals only when the doctor wants them printed on this prescription.</p>
-                                  </div>
-                                  <label class="include-toggle">
-                                    <input type="checkbox" name="includeVitalsInPrescription" [(ngModel)]="clinicalForm().includeVitalsInPrescription" />
-                                    Include Vitals in Prescription
-                                  </label>
-                                </div>
-                                <div class="prescription-vitals-grid">
-                                  <span><small>Blood Pressure</small><strong>{{ clinicalForm().vitals.bloodPressure || '-' }}</strong></span>
-                                  <span><small>Pulse Rate</small><strong>{{ clinicalForm().vitals.pulseRate || '-' }}</strong></span>
-                                  <span><small>Temperature</small><strong>{{ clinicalForm().vitals.temperature || '-' }}</strong></span>
-                                  <span><small>SpO2</small><strong>{{ clinicalForm().vitals.spo2 || '-' }}</strong></span>
-                                  <span><small>Weight</small><strong>{{ clinicalForm().vitals.weight || '-' }}</strong></span>
-                                  <span><small>Height</small><strong>{{ clinicalForm().vitals.height || '-' }}</strong></span>
-                                  <span><small>BMI</small><strong>{{ bmiValue() || '-' }}</strong></span>
-                                </div>
-                              </section>
-                              <section class="clinical-info-card" [class.prescription-edit-locked]="prescriptionLocked()">
-                                <div class="section-title">
-                                  <h3>Clinical Information</h3>
-                                  <p>Symptoms, chief complaints, and diagnoses that should appear with this prescription.</p>
-                                </div>
 
-                                <div class="clinical-info-block">
-                                  <div class="mini-section-title">
-                                    <h4>Symptoms / Chief Complaints</h4>
-                                    <span>{{ clinicalForm().complaints.length }} added</span>
-                                  </div>
-                                  <div class="quick-complaints">
-                                    @for (complaint of complaintTemplates; track complaint) {
-                                      <button type="button" (click)="useComplaintTemplate(complaint)">{{ complaint }}</button>
-                                    }
-                                  </div>
-                                  <div class="clinical-grid">
-                                    <label class="field"><span>Complaint</span><input name="rxComplaint" [(ngModel)]="clinicalForm().complaintDraft.complaint" placeholder="Weakness" /></label>
-                                    <label class="field"><span>Duration</span><input name="rxComplaintDuration" [(ngModel)]="clinicalForm().complaintDraft.duration" placeholder="2 days" /></label>
-                                    <label class="field"><span>Severity</span><ac-dropdown name="rxComplaintSeverity" [(ngModel)]="clinicalForm().complaintDraft.severity" [options]="complaintSeverityOptions" /></label>
-                                    <label class="field wide"><span>Notes</span><input name="rxComplaintNotes" [(ngModel)]="clinicalForm().complaintDraft.notes" placeholder="Associated symptoms or trigger" /></label>
-                                  </div>
-                                  <button class="ac-btn ac-btn-secondary" type="button" (click)="addComplaint()"><span class="material-symbols-rounded">add</span>Add Complaint</button>
-                                  <div class="chip-list">
-                                    @for (item of clinicalForm().complaints; track $index) {
-                                      <span>{{ item.complaint }} · {{ item.severity }} <button type="button" (click)="removeComplaint($index)">Remove</button></span>
-                                    }
-                                  </div>
-                                </div>
-
-                                <div class="clinical-info-block">
-                                  <div class="mini-section-title">
-                                    <h4>Diagnosis</h4>
-                                    <span>Multiple diagnoses supported</span>
-                                  </div>
-                                  <div class="clinical-grid">
-                                    <label class="field"><span>Diagnosis</span><input name="rxDiagnosisName" [(ngModel)]="clinicalForm().diagnosisDraft.diagnosisName" placeholder="Shoulder Pain" /></label>
-                                    <label class="field"><span>ICD Code</span><input name="rxDiagnosisCode" [(ngModel)]="clinicalForm().diagnosisDraft.diagnosisCode" placeholder="M25.512" /></label>
-                                    <div class="field">
-                                      <span>Type</span>
-                                      <div class="radio-segment">
-                                        <label><input type="radio" name="rxDiagnosisType" [(ngModel)]="clinicalForm().diagnosisDraft.diagnosisType" value="PRIMARY" /> Primary</label>
-                                        <label><input type="radio" name="rxDiagnosisType" [(ngModel)]="clinicalForm().diagnosisDraft.diagnosisType" value="SECONDARY" /> Secondary</label>
-                                      </div>
-                                    </div>
-                                    <label class="field wide"><span>Notes</span><input name="rxDiagnosisNotes" [(ngModel)]="clinicalForm().diagnosisDraft.notes" /></label>
-                                  </div>
-                                  <button class="ac-btn ac-btn-secondary" type="button" (click)="addDiagnosis()"><span class="material-symbols-rounded">add</span>Add Diagnosis</button>
-                                  <div class="record-list">
-                                    @for (item of clinicalForm().diagnoses; track $index) {
-                                      <span><strong>{{ item.diagnosisName }}</strong><small>{{ item.diagnosisCode || '-' }} · {{ item.diagnosisType }}</small><button type="button" (click)="removeDiagnosis($index)">Remove</button></span>
-                                    }
-                                  </div>
-                                </div>
-                              </section>
+                              </section></details>
                               <section class="medicine-composer" [class.prescription-edit-locked]="prescriptionLocked()">
                                 <div class="section-title">
                                   <h3>Medicine / Prescription</h3>
@@ -688,7 +486,7 @@ import { OpdManagementService } from './opd-management.service';
                                   <label class="field prescription-prn"><span>As needed (PRN)</span><input type="checkbox" name="isPrn" [(ngModel)]="clinicalForm().prescriptionDraft.isPrn" /></label>
                                   @if (clinicalForm().prescriptionDraft.isPrn) { <label class="field wide"><span>PRN reason / indication</span><input name="prnReason" [(ngModel)]="clinicalForm().prescriptionDraft.prnReason" placeholder="Example: Fever above 38°C or pain" /></label> }
                                 </div>
-                                <button class="ac-btn ac-btn-secondary" type="button" (click)="addPrescriptionItem()"><span class="material-symbols-rounded">add</span>Add Medicine</button>
+                                <button class="ac-btn ac-btn-secondary" type="button" (click)="addPrescriptionItem()"><span aria-hidden="true" class="material-symbols-rounded">add</span>Add Medicine</button>
                               </section>
                               <div class="medicine-table" [class.prescription-edit-locked]="prescriptionLocked()">
                                 <div class="medicine-table-head">
@@ -712,7 +510,7 @@ import { OpdManagementService } from './opd-management.service';
                                     <span>{{ item.route || '-' }}</span>
                                     <span>{{ item.duration || '-' }}</span>
                                     <span>{{ item.instructions || '-' }}</span>
-                                    <span><button type="button" (click)="removePrescriptionItem($index)">Remove</button></span>
+                                    <span><button type="button" (click)="editPrescriptionItem($index)">Edit</button><button type="button" (click)="removePrescriptionItem($index)">Remove</button></span>
                                   </div>
                                 } @empty {
                                   <div class="empty-state compact">No medicines added yet.</div>
@@ -721,8 +519,8 @@ import { OpdManagementService } from './opd-management.service';
                               <section class="prescription-extra-card" [class.prescription-edit-locked]="prescriptionLocked()">
                                 <div class="mini-section-title">
                                   <div>
-                                    <h4>Investigations</h4>
-                                    <p>Tests and imaging to show on the printed prescription.</p>
+                                    <h4>Other investigations / imaging advice</h4>
+                                    <p>Printed advice only. Submit laboratory tests using the lab order section below.</p>
                                   </div>
                                   <label class="include-toggle"><input type="checkbox" name="includeInvestigations" [(ngModel)]="clinicalForm().includeInvestigationsInPrescription" /> Include in Prescription</label>
                                 </div>
@@ -734,38 +532,14 @@ import { OpdManagementService } from './opd-management.service';
                                 <div class="clinical-grid single">
                                   <label class="field"><span>Investigation</span><input name="investigationDraft" [(ngModel)]="clinicalForm().investigationDraft" placeholder="CBC, Blood Sugar, X-Ray..." /></label>
                                 </div>
-                                <button class="ac-btn ac-btn-secondary" type="button" (click)="addInvestigation()"><span class="material-symbols-rounded">add</span>Add Investigation</button>
+                                <button class="ac-btn ac-btn-secondary" type="button" (click)="addInvestigation()"><span aria-hidden="true" class="material-symbols-rounded">add</span>Add Investigation</button>
                                 <div class="chip-list">
                                   @for (item of clinicalForm().prescriptionInvestigations; track $index) {
                                     <span>{{ item }} <button type="button" (click)="removeInvestigation($index)">Remove</button></span>
                                   }
                                 </div>
                               </section>
-                              <section class="prescription-extra-card" [class.prescription-edit-locked]="prescriptionLocked()">
-                                <div class="mini-section-title">
-                                  <div>
-                                    <h4>Procedures</h4>
-                                    <p>Procedures advised or performed during this visit.</p>
-                                  </div>
-                                  <span>{{ clinicalForm().procedures.length }} added</span>
-                                </div>
-                                <div class="quick-complaints">
-                                  @for (procedure of procedureTemplates; track procedure) {
-                                    <button type="button" (click)="useProcedureTemplate(procedure)">{{ procedure }}</button>
-                                  }
-                                </div>
-                                <div class="clinical-grid">
-                                  <label class="field"><span>Procedure</span><input name="rxProcedure" [(ngModel)]="clinicalForm().procedureDraft.procedure" placeholder="Physiotherapy" /></label>
-                                  <label class="field"><span>Charge</span><input name="rxProcedureCharge" [(ngModel)]="clinicalForm().procedureDraft.charge" placeholder="500" /></label>
-                                  <label class="field wide"><span>Notes</span><input name="rxProcedureNotes" [(ngModel)]="clinicalForm().procedureDraft.notes" /></label>
-                                </div>
-                                <button class="ac-btn ac-btn-secondary" type="button" (click)="addProcedure()"><span class="material-symbols-rounded">add</span>Add Procedure</button>
-                                <div class="record-list">
-                                  @for (item of clinicalForm().procedures; track $index) {
-                                    <span><strong>{{ item.procedure }}</strong><small>{{ item.charge ? currency(toAmount(item.charge)) : 'No charge' }} · {{ item.notes || '-' }}</small><button type="button" (click)="removeProcedure($index)">Remove</button></span>
-                                  }
-                                </div>
-                              </section>
+
                               <section class="prescription-extra-card" [class.prescription-edit-locked]="prescriptionLocked()">
                                 <div class="mini-section-title">
                                   <div>
@@ -782,7 +556,7 @@ import { OpdManagementService } from './opd-management.service';
                                 <div class="clinical-grid single">
                                   <label class="field"><span>Advice</span><input name="adviceDraft" [(ngModel)]="clinicalForm().adviceDraft" placeholder="Take adequate rest." /></label>
                                 </div>
-                                <button class="ac-btn ac-btn-secondary" type="button" (click)="addAdvice()"><span class="material-symbols-rounded">add</span>Add Advice</button>
+                                <button class="ac-btn ac-btn-secondary" type="button" (click)="addAdvice()"><span aria-hidden="true" class="material-symbols-rounded">add</span>Add Advice</button>
                                 <div class="chip-list">
                                   @for (item of clinicalForm().adviceList; track $index) {
                                     <span>{{ item }} <button type="button" (click)="removeAdvice($index)">Remove</button></span>
@@ -800,104 +574,24 @@ import { OpdManagementService } from './opd-management.service';
                                 <div class="clinical-grid">
                                   <label class="field">
                                     <span>Diet Advice</span>
-                                    <ac-dropdown name="dietAdvice" [ngModel]="dietAdviceSelection()" (ngModelChange)="updateDietAdviceSelection($event)" [options]="dietAdviceOptions" />
+                                    <ac-dropdown ariaLabel="diet Advice" name="dietAdvice" [ngModel]="dietAdviceSelection()" (ngModelChange)="updateDietAdviceSelection($event)" [options]="dietAdviceOptions" />
                                   </label>
                                   @if (customDietAdviceMode()) {
                                     <label class="field wide"><span>Custom Advice</span><input name="customDietAdvice" [(ngModel)]="clinicalForm().dietAdviceDraft" placeholder="Enter diet advice" /></label>
                                   }
                                 </div>
-                                <button class="ac-btn ac-btn-secondary" type="button" (click)="addDietAdvice()"><span class="material-symbols-rounded">add</span>Add Diet Advice</button>
+                                <button class="ac-btn ac-btn-secondary" type="button" (click)="addDietAdvice()"><span aria-hidden="true" class="material-symbols-rounded">add</span>Add Diet Advice</button>
                                 <div class="chip-list">
                                   @for (item of clinicalForm().dietAdviceList; track $index) {
                                     <span>{{ item }} <button type="button" (click)="removeDietAdvice($index)">Remove</button></span>
                                   }
                                 </div>
                               </section>
-                              <section class="prescription-extra-card" [class.prescription-edit-locked]="prescriptionLocked()">
-                                <div class="mini-section-title">
-                                  <div>
-                                    <h4>Follow-up</h4>
-                                    <p>Calculate next visit date and capture the reason.</p>
-                                  </div>
-                                  <span>{{ clinicalForm().followUp.followUpDate || 'No date' }}</span>
-                                </div>
-                                <div class="clinical-grid">
-                                  <label class="field"><span>Follow-up After</span><input name="rxFollowUpAfter" [ngModel]="clinicalForm().followUp.followUpAfterDays" (ngModelChange)="updateFollowUpAfterDays($event)" placeholder="7" /></label>
-                                  <label class="field"><span>Next Visit Date</span><input type="date" name="rxFollowUpDate" [(ngModel)]="clinicalForm().followUp.followUpDate" /></label>
-                                  <label class="field"><span>Reason</span><ac-dropdown name="rxFollowUpReason" [(ngModel)]="clinicalForm().followUp.reason" [options]="followUpReasonOptions" /></label>
-                                  <label class="field wide"><span>Notes</span><input name="rxFollowUpNotes" [(ngModel)]="clinicalForm().followUp.notes" placeholder="Review / Test Results / Follow-up" /></label>
-                                </div>
-                              </section>
-                              @if (visit.consultation) {
-                                <section class="prescription-action-bar" [class.generated]="prescriptionIssued()" [class.finalized]="prescriptionLocked()">
-                                  <div class="prescription-action-status">
-                                    <div>
-                                      <p class="ac-eyebrow">Prescription Actions</p>
-                                      <strong><span class="status-dot"></span>{{ prescriptionStatusLabel() }}</strong>
-                                    </div>
-                                    <div class="prescription-action-meta">
-                                      <span>{{ prescriptionPreview()?.prescriptionNo || 'RX pending' }}</span>
-                                      <span>Revision {{ prescriptionRevisionNo() }}</span>
-                                      <span>{{ clinicalForm().prescriptions.length }} {{ clinicalForm().prescriptions.length === 1 ? 'medicine' : 'medicines' }} added</span>
-                                    </div>
-                                  </div>
 
-                                  <div class="prescription-action-grid prescription-workflow-actions">
-                                    <button class="ac-btn ac-btn-secondary" type="button" [disabled]="saving() || prescriptionLocked()" (click)="savePrescriptionDraft()">
-                                      <span class="material-symbols-rounded">save</span>
-                                      Save Draft
-                                    </button>
-                                    <button class="ac-btn ac-btn-secondary" type="button" [disabled]="saving()" (click)="previewPrescription()">
-                                      <span class="material-symbols-rounded">preview</span>
-                                      Preview
-                                    </button>
-                                    <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving() || prescriptionLocked()" (click)="generatePrescription()">
-                                      <span class="material-symbols-rounded">receipt_long</span>
-                                      Generate Prescription
-                                    </button>
-                                    <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving() || prescriptionLocked()" (click)="finalizePrescription()">
-                                      <span class="material-symbols-rounded">verified</span>
-                                      Finalize
-                                    </button>
-                                    <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving() || prescriptionSentToPharmacy()" (click)="sendPrescriptionToPharmacy()">
-                                      <span class="material-symbols-rounded">local_pharmacy</span>
-                                      {{ prescriptionSentToPharmacy() ? 'Sent to Pharmacy' : 'Send to Pharmacy' }}
-                                    </button>
-                                    <button class="ac-btn ac-btn-primary complete-action" type="button" [disabled]="saving()" (click)="completeVisit()">
-                                      <span class="material-symbols-rounded">task_alt</span>
-                                      Complete Consultation
-                                    </button>
-                                  </div>
 
-                                  <div class="prescription-action-grid prescription-output-actions">
-                                    @if (prescriptionLocked()) {
-                                      <button class="ac-btn ac-btn-secondary" type="button" [disabled]="saving()" (click)="createRevisedPrescription()">
-                                        <span class="material-symbols-rounded">edit_note</span>
-                                        Create Revised Prescription
-                                      </button>
-                                    }
-                                    <button class="ac-btn ac-btn-secondary" type="button" [disabled]="saving()" (click)="printPrescription()">
-                                      <span class="material-symbols-rounded">print</span>
-                                      Print Prescription
-                                    </button>
-                                    <button class="ac-btn ac-btn-secondary" type="button" [disabled]="saving()" (click)="downloadPrescription()">
-                                      <span class="material-symbols-rounded">download</span>
-                                      Download PDF
-                                    </button>
-                                    <button class="ac-btn ac-btn-secondary" type="button" [disabled]="saving()" (click)="sharePrescription()">
-                                      <span class="material-symbols-rounded">ios_share</span>
-                                      Share to Patient
-                                    </button>
-                                  </div>
-                                </section>
-                              } @else {
-                                <div class="empty-state compact">Start the OPD consultation before generating a prescription.</div>
-                              }
-                            }
-                            @case ('lab-orders') {
-                              <div class="lab-order-composer">
+                            <details class="optional-section" [open]="clinicalForm().labOrders.length > 0"><summary>Laboratory tests · {{ clinicalForm().labOrders.length }} selected</summary><div class="lab-order-composer">
                                 <div class="section-title lab-order-title">
-                                  <span class="material-symbols-rounded">biotech</span>
+                                  <span aria-hidden="true" class="material-symbols-rounded">biotech</span>
                                   <div>
                                     <h3>Lab Orders</h3>
                                     <p>Submitted tests create a laboratory queue order.</p>
@@ -905,81 +599,61 @@ import { OpdManagementService } from './opd-management.service';
                                 </div>
                                 <div class="clinical-grid lab-order-grid">
                                   <label class="field"><span>Test Category</span><input name="testCategory" [(ngModel)]="clinicalForm().labOrderDraft.testCategory" placeholder="Hematology" /></label>
-                                  <label class="field"><span>Test</span><ac-dropdown name="labTest" [(ngModel)]="clinicalForm().labOrderDraft.testId" [options]="labTestOptions()" /></label>
-                                  <label class="field"><span>Priority</span><ac-dropdown name="labPriority" [(ngModel)]="clinicalForm().labOrderDraft.priority" [options]="labPriorityOptions" /></label>
+                                  <label class="field"><span>Test</span><ac-dropdown ariaLabel="lab Test" name="labTest" [(ngModel)]="clinicalForm().labOrderDraft.testId" [options]="labTestOptions()" /></label>
+                                  <label class="field"><span>Priority</span><ac-dropdown ariaLabel="lab Priority" name="labPriority" [(ngModel)]="clinicalForm().labOrderDraft.priority" [options]="labPriorityOptions" /></label>
                                   <label class="field wide"><span>Notes</span><input name="labNotes" [(ngModel)]="clinicalForm().labOrderDraft.notes" placeholder="Special instructions for laboratory team" /></label>
                                 </div>
                                 <div class="lab-order-actions">
-                                  <button class="ac-btn ac-btn-secondary" type="button" (click)="addLabOrderDraft()"><span class="material-symbols-rounded">add</span>Add Test</button>
-                                  <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="createLabOrder(visit)"><span class="material-symbols-rounded">biotech</span>Create Lab Order</button>
+                                  <button class="ac-btn ac-btn-secondary" type="button" (click)="addLabOrderDraft()"><span aria-hidden="true" class="material-symbols-rounded">add</span>Add Test</button>
+                                  <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="createLabOrder(visit)"><span aria-hidden="true" class="material-symbols-rounded">biotech</span>Create Lab Order</button>
                                 </div>
                               </div>
                               <div class="record-list">
                                 @for (item of clinicalForm().labOrders; track $index) {
                                   <span><strong>{{ labTestName(item.testId) }}</strong><small>{{ item.testCategory || '-' }} · {{ item.priority }}</small><button type="button" (click)="removeLabOrder($index)">Remove</button></span>
                                 }
-                              </div>
-                            }
-                            @case ('procedures') {
-                              <div class="section-title"><h3>Procedures</h3><p>Procedures are added to notes and billing services.</p></div>
+                              </div></details>
+                            <details class="optional-section" [open]="clinicalForm().procedures.length > 0"><summary>Procedures · {{ clinicalForm().procedures.length }} added</summary><div class="section-title"><h3>Procedures</h3><p>Procedures are added to notes and billing services.</p></div>
                               <div class="clinical-grid">
                                 <label class="field"><span>Procedure</span><input name="procedure" [(ngModel)]="clinicalForm().procedureDraft.procedure" placeholder="Dressing" /></label>
                                 <label class="field"><span>Charge</span><input name="procedureCharge" [(ngModel)]="clinicalForm().procedureDraft.charge" placeholder="500" /></label>
                                 <label class="field wide"><span>Notes</span><input name="procedureNotes" [(ngModel)]="clinicalForm().procedureDraft.notes" /></label>
                               </div>
-                              <button class="ac-btn ac-btn-secondary" type="button" (click)="addProcedure()"><span class="material-symbols-rounded">add</span>Add Procedure</button>
+                              <button class="ac-btn ac-btn-secondary" type="button" (click)="addProcedure()"><span aria-hidden="true" class="material-symbols-rounded">add</span>Add Procedure</button>
                               <div class="record-list">
                                 @for (item of clinicalForm().procedures; track $index) {
                                   <span><strong>{{ item.procedure }}</strong><small>{{ currency(toAmount(item.charge)) }} · {{ item.notes || '-' }}</small><button type="button" (click)="removeProcedure($index)">Remove</button></span>
                                 }
-                              </div>
-                            }
-                            @case ('notes') {
-                              <div class="section-title"><h3>Clinical Notes</h3><p>Free-form clinical summary for this encounter.</p></div>
-                              <label class="field"><span>Clinical Notes</span><textarea rows="9" name="clinicalNotes" [(ngModel)]="clinicalForm().clinicalNotes" placeholder="Capture summary, advice, counseling, and follow-up plan."></textarea></label>
-                            }
-                            @case ('follow-up') {
-                              <div class="section-title"><h3>Follow-up</h3><p>Create a follow-up task or appointment automatically.</p></div>
+                              </div></details>
+                          </section>
+                          <section class="consultation-group" id="opd-follow-up">
+                            <div class="group-heading"><span>3</span><div><h2>Follow-up and next steps</h2><p>Record the review plan or refer for admission.</p></div></div>
+                            <div class="section-title"><h3>Follow-up</h3><p>Create a follow-up task or appointment automatically.</p></div>
                               <div class="clinical-grid">
                                 <label class="check-field"><input type="checkbox" name="followUpRequired" [(ngModel)]="clinicalForm().followUp.followUpRequired" /> Follow-up Required</label>
-                                <label class="field"><span>Follow-up Date</span><input type="date" name="followUpDate" [(ngModel)]="clinicalForm().followUp.followUpDate" /></label>
-                                <label class="field"><span>Preferred Doctor</span><ac-dropdown name="preferredDoctor" [(ngModel)]="clinicalForm().followUp.preferredDoctorId" [options]="preferredDoctorOptions()" /></label>
+                                <label class="field"><span>Review after (days)</span><input name="followUpAfter" [ngModel]="clinicalForm().followUp.followUpAfterDays" (ngModelChange)="updateFollowUpAfterDays($event)" inputmode="numeric" /></label><label class="field"><span>Follow-up Date</span><input type="date" name="followUpDate" [(ngModel)]="clinicalForm().followUp.followUpDate" /></label>
+                                <label class="field"><span>Preferred Doctor</span><ac-dropdown ariaLabel="preferred Doctor" name="preferredDoctor" [(ngModel)]="clinicalForm().followUp.preferredDoctorId" [options]="preferredDoctorOptions()" /></label>
                                 <label class="check-field"><input type="checkbox" name="createFollowUpAppointment" [(ngModel)]="clinicalForm().followUp.createAppointment" /> Create Follow-Up Appointment Automatically</label>
+                                @if (clinicalForm().followUp.createAppointment) { <label class="field"><span>Follow-up appointment time</span><input type="time" name="followUpAppointmentTime" [(ngModel)]="clinicalForm().followUp.appointmentTime" /></label> }
                                 <label class="field wide"><span>Notes</span><input name="followUpNotes" [(ngModel)]="clinicalForm().followUp.notes" /></label>
                               </div>
-                              <button class="ac-btn ac-btn-secondary" type="button" [disabled]="saving()" (click)="createFollowUp(visit)"><span class="material-symbols-rounded">event_repeat</span>Create Follow-Up</button>
-                            }
-                          }
-                        </div>
-
-                        <footer class="encounter-workflow-footer">
-                          <button class="ac-btn ac-btn-secondary" type="button" [disabled]="saving() || isFirstEncounterStep()" (click)="goToPreviousEncounterStep()">
-                            <span class="material-symbols-rounded">chevron_left</span>
-                            Back
-                          </button>
-                          <button class="ac-btn ac-btn-secondary" type="button" [disabled]="saving()" (click)="saveEncounterDraft()">
-                            <span class="material-symbols-rounded" [class.spin]="saving()">{{ saving() ? 'progress_activity' : 'save' }}</span>
-                            Save Draft
-                          </button>
-                          @if (isLastEncounterStep()) {
-                            <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="completeVisit()">
-                              <span class="material-symbols-rounded">task_alt</span>
-                              Complete Consultation
-                            </button>
-                          } @else {
-                            <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="saveDraftAndNextEncounterStep()">
-                              <span class="material-symbols-rounded" [class.spin]="saving()">{{ saving() ? 'progress_activity' : 'arrow_forward' }}</span>
-                              Save & Next
-                            </button>
-                          }
+                              <p class="page-desc">The follow-up task will be saved when you complete this consultation.</p>
+                            <details class="optional-section"><summary>Admission referral</summary><p>Open the IPD admission workspace to arrange admission.</p><button type="button" class="ac-btn ac-btn-secondary" (click)="openAdmissionWorkspace(visit)">Open IPD admission</button></details>
+                          </section>
+                        </fieldset>
+                        <footer class="consultation-footer">
+                          <span class="draft-status" role="status" aria-live="polite">{{ draftSaveStatus() }}</span>
+                          <button class="ac-btn ac-btn-secondary" type="button" [disabled]="saving() || draftConflict()" (click)="saveEncounterDraft()">Save Draft</button>
+                          <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving() || draftConflict()" (click)="openCompletionReview()">Review &amp; Complete</button>
                         </footer>
+                        @if (draftConflict()) { <div class="draft-conflict" role="alert"><p>This visit changed in another session. Your local draft is retained. Open patient history to compare records before loading the latest version.</p><button type="button" class="ac-btn ac-btn-secondary" [disabled]="saving()" (click)="loadLatestDraft()">Load latest saved version</button><button type="button" class="ac-btn ac-btn-secondary" (click)="downloadLocalDraft()">Download my local notes</button></div> }
                       </section>
                     </div>
 
                     <div class="encounter-actions">
                       @if (!visit.consultation) {
                         <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="startEncounter(visit)">
-                          <span class="material-symbols-rounded">stethoscope</span>
+                          <span aria-hidden="true" class="material-symbols-rounded">stethoscope</span>
                           Start OPD Consultation
                         </button>
                       }
@@ -994,6 +668,35 @@ import { OpdManagementService } from './opd-management.service';
         }
       </section>
 
+
+      @if (historyVisit(); as visit) {
+        <div class="opd-overlay" (click)="historyVisit.set(null)">
+          <aside class="history-drawer" role="dialog" aria-modal="true" aria-labelledby="opd-history-title" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (click)="$event.stopPropagation()" (keydown.escape)="historyVisit.set(null)">
+            <header><div><h2 id="opd-history-title">History &amp; results</h2><p>{{ visit.patientName }} · {{ visit.patientMrn }}</p></div><button type="button" class="ac-btn ac-btn-secondary" cdkFocusInitial (click)="historyVisit.set(null)">Close</button></header>
+            @if (contextError()) { <p role="alert">{{ contextError() }}</p> }
+            <h3>Previous consultations</h3>
+            @if (historyByPatient()[visit.appointment.patientId]; as history) {
+              @for (record of history; track record.id) { <details class="history-visit"><summary>{{ record.createdAt | date:'mediumDate' }} · {{ record.statusCode }}</summary><p style="white-space: pre-wrap">{{ record.notes }}</p></details> } @empty { <p>No previous consultations recorded.</p> }
+            } @else { <p role="status">Loading patient history…</p> }
+            <h3>Verified laboratory results</h3>
+            @for (result of patientLabResults()[visit.appointment.patientId] || []; track result.id) { <article class="history-visit"><strong>{{ result.testName }} · {{ result.parameterName }}</strong><p>{{ result.value }} {{ result.unit }} · {{ result.flagCode }} {{ result.isCritical ? '— CRITICAL' : '' }}</p><small>Reference: {{ result.referenceRange || 'Not supplied' }} · {{ result.verifiedAt | date:'mediumDate' }}</small></article> } @empty { <p>{{ patientLabResults()[visit.appointment.patientId] ? 'No verified results recorded.' : 'Loading results…' }}</p> }
+            <h3>Radiology documents</h3>
+            @for (document of radiologyDocuments(visit); track document.documentGuid) { <p>{{ document.documentName }} · {{ document.uploadedDate | date:'mediumDate' }}</p> } @empty { <p>No radiology documents loaded.</p> }
+          </aside>
+        </div>
+      }
+      @if (reviewOpen() && selectedVisit(); as visit) {
+        <div class="opd-overlay">
+          <section class="completion-review" role="dialog" aria-modal="true" aria-labelledby="opd-review-title" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (keydown.escape)="!saving() && reviewOpen.set(false)">
+            <header><div><h2 id="opd-review-title">Review consultation</h2><p>{{ visit.patientName }} · {{ visit.patientMrn }}</p></div><button type="button" class="ac-btn ac-btn-secondary" cdkFocusInitial [disabled]="saving()" (click)="reviewOpen.set(false)">Back to editing</button></header>
+            @for (section of completionSummary().sections; track section.title) { <section class="summary-section"><h3>{{ section.title }}</h3>@for (item of section.items; track item) { <p>{{ item }}</p> }</section> }
+            @if (pendingCompletionLabs()) { <div class="draft-conflict" role="alert"><p>{{ pendingCompletionLabs() }} laboratory tests have not been submitted.</p><button type="button" class="ac-btn ac-btn-secondary" [disabled]="saving()" (click)="createLabOrder(visit)">Submit selected tests</button></div> }
+            <p>Completing closes this clinical record, saves the follow-up plan, and prepares billing. Selected laboratory tests must be submitted before completion.</p>
+            @if (clinicalForm().prescriptions.length) { <label class="check-field"><input type="checkbox" [ngModel]="sendToPharmacyOnComplete()" (ngModelChange)="sendToPharmacyOnComplete.set($event)" [disabled]="saving()" /> Send prescription to pharmacy before completing</label> }
+            <footer><button type="button" class="ac-btn ac-btn-secondary" [disabled]="saving()" (click)="reviewOpen.set(false)">Continue editing</button><button type="button" class="ac-btn ac-btn-primary" [disabled]="saving() || pendingCompletionLabs() > 0" (click)="completeVisit()">{{ saving() ? 'Saving…' : 'Complete Consultation' }}</button></footer>
+          </section>
+        </div>
+      }
       @if (prescriptionPreviewOpen()) {
         @if (prescriptionPreview(); as prescription) {
           <div class="prescription-backdrop" (click)="closePrescriptionPreview()">
@@ -1005,14 +708,14 @@ import { OpdManagementService } from './opd-management.service';
                   <span>{{ prescription.patientMrn }} · {{ prescription.ageGender }} · {{ prescription.generatedAt }}</span>
                 </div>
                 <button class="modal-close" type="button" aria-label="Close prescription preview" (click)="closePrescriptionPreview()">
-                  <span class="material-symbols-rounded">close</span>
+                  <span aria-hidden="true" class="material-symbols-rounded">close</span>
                 </button>
               </header>
 
               <div class="prescription-paper rx-sheet">
                 <header class="rx-sheet-head">
                   <div class="rx-logo-mark">
-                    <span class="material-symbols-rounded">ecg_heart</span>
+                    <span aria-hidden="true" class="material-symbols-rounded">ecg_heart</span>
                   </div>
                   <div>
                     <p class="rx-label">Hospital Logo</p>
@@ -1120,15 +823,15 @@ import { OpdManagementService } from './opd-management.service';
 
               <footer class="prescription-modal-actions">
                 <button class="ac-btn ac-btn-secondary" type="button" (click)="sharePrescription()">
-                  <span class="material-symbols-rounded">ios_share</span>
+                  <span aria-hidden="true" class="material-symbols-rounded">ios_share</span>
                   Share to Patient
                 </button>
                 <button class="ac-btn ac-btn-secondary" type="button" (click)="downloadPrescription()">
-                  <span class="material-symbols-rounded">download</span>
+                  <span aria-hidden="true" class="material-symbols-rounded">download</span>
                   Download PDF
                 </button>
                 <button class="ac-btn ac-btn-primary" type="button" (click)="printPrescription(false)">
-                  <span class="material-symbols-rounded">print</span>
+                  <span aria-hidden="true" class="material-symbols-rounded">print</span>
                   Print Prescription
                 </button>
               </footer>
@@ -1140,19 +843,19 @@ import { OpdManagementService } from './opd-management.service';
       @if (allergyReviewOpen()) {
         <div class="prescription-backdrop" (click)="cancelAllergyReview()">
           <section class="print-options-modal interaction-review-modal" (click)="$event.stopPropagation()" aria-label="Allergy alert review">
-            <header><div><p class="ac-eyebrow">Allergy Alert</p><h2>Patient Allergy Match</h2><span>The prescribed medication matches an active Patient Profile allergy.</span></div><button class="modal-close" type="button" aria-label="Close allergy review" (click)="cancelAllergyReview()"><span class="material-symbols-rounded">close</span></button></header>
+            <header><div><p class="ac-eyebrow">Allergy Alert</p><h2>Patient Allergy Match</h2><span>The prescribed medication matches an active Patient Profile allergy.</span></div><button class="modal-close" type="button" aria-label="Close allergy review" (click)="cancelAllergyReview()"><span aria-hidden="true" class="material-symbols-rounded">close</span></button></header>
             <div class="interaction-alert-list">
               @for (alert of allergyAlerts(); track alert.mappingId + alert.patientAllergyId + alert.medicineId) {
                 <article class="allergy-alert" [class.blocking]="alert.behaviorCode==='BLOCK'">
-                  <div class="interaction-alert-head"><span class="material-symbols-rounded">emergency_home</span><div><strong>{{ alert.allergenName }} allergy → {{ alert.medicineName }} {{ alert.medicineStrength }}</strong><small>{{ alert.allergySeverity || 'Severity not recorded' }}{{ alert.isCritical ? ' · Critical' : '' }} · {{ interactionLabel(alert.behaviorCode) }}</small></div></div>
+                  <div class="interaction-alert-head"><span aria-hidden="true" class="material-symbols-rounded">emergency_home</span><div><strong>{{ alert.allergenName }} allergy → {{ alert.medicineName }} {{ alert.medicineStrength }}</strong><small>{{ alert.allergySeverity || 'Severity not recorded' }}{{ alert.isCritical ? ' · Critical' : '' }} · {{ interactionLabel(alert.behaviorCode) }}</small></div></div>
                   @if (alert.reaction) { <p><strong>Recorded reaction:</strong> {{ alert.reaction }}</p> }
                   <div class="clinical-recommendation"><strong>Clinical recommendation</strong><span>{{ alert.clinicalRecommendation }}</span></div>
                 </article>
               }
             </div>
             @if (!hasBlockingAllergy()) { <label class="field interaction-reason"><span>Clinical override reason *</span><textarea rows="3" [(ngModel)]="allergyOverrideReason" placeholder="Document why the medication is still required and the monitoring or mitigation plan..."></textarea><small>Your identity, patient, medicine, allergy, encounter, and reason will be audited.</small></label> }
-            @if (hasBlockingAllergy()) { <div class="interaction-stop"><span class="material-symbols-rounded">gpp_bad</span><div><strong>This allergy rule cannot be overridden</strong><small>Cancel and replace the medication before issuing the prescription.</small></div></div> }
-            <footer><button class="ac-btn ac-btn-secondary" type="button" (click)="cancelAllergyReview()">Cancel</button><button class="ac-btn ac-btn-primary" type="button" [disabled]="hasBlockingAllergy() || saving() || allergyOverrideReason.trim().length < 5" (click)="continueAfterAllergyReview()"><span class="material-symbols-rounded">approval</span>{{ saving() ? 'Recording...' : 'Override with Reason' }}</button></footer>
+            @if (hasBlockingAllergy()) { <div class="interaction-stop"><span aria-hidden="true" class="material-symbols-rounded">gpp_bad</span><div><strong>This allergy rule cannot be overridden</strong><small>Cancel and replace the medication before issuing the prescription.</small></div></div> }
+            <footer><button class="ac-btn ac-btn-secondary" type="button" (click)="cancelAllergyReview()">Cancel</button><button class="ac-btn ac-btn-primary" type="button" [disabled]="hasBlockingAllergy() || saving() || allergyOverrideReason.trim().length < 5" (click)="continueAfterAllergyReview()"><span aria-hidden="true" class="material-symbols-rounded">approval</span>{{ saving() ? 'Recording...' : 'Override with Reason' }}</button></footer>
           </section>
         </div>
       }
@@ -1162,12 +865,12 @@ import { OpdManagementService } from './opd-management.service';
           <section class="print-options-modal interaction-review-modal" (click)="$event.stopPropagation()" aria-label="Drug interaction review">
             <header>
               <div><p class="ac-eyebrow">Medication Safety</p><h2>Potential Drug Interactions</h2><span>{{ interactionAlerts().length }} clinical {{ interactionAlerts().length === 1 ? 'rule' : 'rules' }} matched this prescription</span></div>
-              <button class="modal-close" type="button" aria-label="Close interaction review" (click)="cancelInteractionReview()"><span class="material-symbols-rounded">close</span></button>
+              <button class="modal-close" type="button" aria-label="Close interaction review" (click)="cancelInteractionReview()"><span aria-hidden="true" class="material-symbols-rounded">close</span></button>
             </header>
             <div class="interaction-alert-list">
               @for (alert of interactionAlerts(); track alert.interactionId + alert.medicineAId + alert.medicineBId) {
                 <article [class.blocking]="alert.behaviorCode==='BLOCK'" [class.override]="alert.behaviorCode==='REQUIRE_OVERRIDE'">
-                  <div class="interaction-alert-head"><span class="material-symbols-rounded">{{ alert.behaviorCode==='BLOCK' ? 'block' : alert.behaviorCode==='REQUIRE_OVERRIDE' ? 'approval' : 'warning' }}</span><div><strong>{{ alert.medicineAName }} {{ alert.medicineAStrength }} + {{ alert.medicineBName }} {{ alert.medicineBStrength }}</strong><small>{{ interactionLabel(alert.severity) }} · {{ interactionLabel(alert.behaviorCode) }}</small></div></div>
+                  <div class="interaction-alert-head"><span aria-hidden="true" class="material-symbols-rounded">{{ alert.behaviorCode==='BLOCK' ? 'block' : alert.behaviorCode==='REQUIRE_OVERRIDE' ? 'approval' : 'warning' }}</span><div><strong>{{ alert.medicineAName }} {{ alert.medicineAStrength }} + {{ alert.medicineBName }} {{ alert.medicineBStrength }}</strong><small>{{ interactionLabel(alert.severity) }} · {{ interactionLabel(alert.behaviorCode) }}</small></div></div>
                   <p>{{ alert.description }}</p><div class="clinical-recommendation"><strong>Clinical recommendation</strong><span>{{ alert.clinicalRecommendation }}</span></div>
                 </article>
               }
@@ -1175,8 +878,8 @@ import { OpdManagementService } from './opd-management.service';
             @if (requiresInteractionOverride() && !hasBlockingInteraction()) {
               <label class="field interaction-reason"><span>Clinical override reason *</span><textarea rows="3" [(ngModel)]="interactionOverrideReason" placeholder="Document why the expected benefit outweighs the interaction risk..."></textarea><small>This reason and your identity will be stored in the medication-safety audit trail.</small></label>
             }
-            @if (hasBlockingInteraction()) { <div class="interaction-stop"><span class="material-symbols-rounded">gpp_bad</span><div><strong>Prescription cannot be issued</strong><small>Remove or replace the blocked medicine combination, then run the safety check again.</small></div></div> }
-            <footer><button class="ac-btn ac-btn-secondary" type="button" (click)="cancelInteractionReview()">Return to prescription</button><button class="ac-btn ac-btn-primary" type="button" [disabled]="hasBlockingInteraction() || saving() || (requiresInteractionOverride() && interactionOverrideReason.trim().length < 5)" (click)="continueAfterInteractionReview()"><span class="material-symbols-rounded">{{ requiresInteractionOverride() ? 'approval' : 'check_circle' }}</span>{{ saving() ? 'Recording...' : requiresInteractionOverride() ? 'Override & Continue' : 'Acknowledge & Continue' }}</button></footer>
+            @if (hasBlockingInteraction()) { <div class="interaction-stop"><span aria-hidden="true" class="material-symbols-rounded">gpp_bad</span><div><strong>Prescription cannot be issued</strong><small>Remove or replace the blocked medicine combination, then run the safety check again.</small></div></div> }
+            <footer><button class="ac-btn ac-btn-secondary" type="button" (click)="cancelInteractionReview()">Return to prescription</button><button class="ac-btn ac-btn-primary" type="button" [disabled]="hasBlockingInteraction() || saving() || (requiresInteractionOverride() && interactionOverrideReason.trim().length < 5)" (click)="continueAfterInteractionReview()"><span aria-hidden="true" class="material-symbols-rounded">{{ requiresInteractionOverride() ? 'approval' : 'check_circle' }}</span>{{ saving() ? 'Recording...' : requiresInteractionOverride() ? 'Override & Continue' : 'Acknowledge & Continue' }}</button></footer>
           </section>
         </div>
       }
@@ -1190,7 +893,7 @@ import { OpdManagementService } from './opd-management.service';
                 <h2>Save Current Prescription</h2>
               </div>
               <button class="modal-close" type="button" aria-label="Close save template" (click)="closeSavePrescriptionTemplate()">
-                <span class="material-symbols-rounded">close</span>
+                <span aria-hidden="true" class="material-symbols-rounded">close</span>
               </button>
             </header>
 
@@ -1208,7 +911,7 @@ import { OpdManagementService } from './opd-management.service';
             <footer>
               <button class="ac-btn ac-btn-secondary" type="button" (click)="closeSavePrescriptionTemplate()">Cancel</button>
               <button class="ac-btn ac-btn-primary" type="button" (click)="saveCurrentPrescriptionTemplate()">
-                <span class="material-symbols-rounded">save</span>
+                <span aria-hidden="true" class="material-symbols-rounded">save</span>
                 Save Template
               </button>
             </footer>
@@ -1225,7 +928,7 @@ import { OpdManagementService } from './opd-management.service';
                 <h2>Prescription Format</h2>
               </div>
               <button class="modal-close" type="button" aria-label="Close print options" (click)="closePrintOptions()">
-                <span class="material-symbols-rounded">close</span>
+                <span aria-hidden="true" class="material-symbols-rounded">close</span>
               </button>
             </header>
 
@@ -1248,7 +951,7 @@ import { OpdManagementService } from './opd-management.service';
             <footer>
               <button class="ac-btn ac-btn-secondary" type="button" (click)="closePrintOptions()">Cancel</button>
               <button class="ac-btn ac-btn-primary" type="button" (click)="confirmPrintPrescription()">
-                <span class="material-symbols-rounded">print</span>
+                <span aria-hidden="true" class="material-symbols-rounded">print</span>
                 Print
               </button>
             </footer>
@@ -1273,7 +976,7 @@ import { OpdManagementService } from './opd-management.service';
               <span><span class="consultation-status" [ngClass]="consultationStatusClass(visit)">{{ consultationStatusLabel(visit) }}</span></span>
               <span>
                 <button class="ac-btn ac-btn-secondary" type="button" (click)="selectVisit(visit, 'encounter')">
-                  <span class="material-symbols-rounded">clinical_notes</span>
+                  <span aria-hidden="true" class="material-symbols-rounded">clinical_notes</span>
                   {{ action }}
                 </button>
               </span>
@@ -2835,10 +2538,70 @@ import { OpdManagementService } from './opd-management.service';
       .print-options-modal footer { flex-direction: column-reverse; }
       .print-options-modal .ac-btn { width: 100%; }
     }
+    /* Doctor consultation workspace: one page, clear hierarchy, accessible controls. */
+    .opd-page { font-size: 15px; }
+    .opd-shell { overflow: visible; padding: 16px; }
+    .encounter-card, .clinical-board { overflow: visible; }
+    .encounter-head { position: sticky; top: 0; z-index: 12; background: var(--ac-surface); padding: 16px; border-bottom: 1px solid var(--ac-border); box-shadow: 0 2px 8px #0f172a0a; }
+    .encounter-head h2 { font-size: 22px; }
+    .patient-allergy { margin: 8px 0 0; font-weight: 650; color: var(--ac-text); }
+    .patient-snapshot { background: var(--ac-surface); top: 120px; padding: 18px; border-color: var(--ac-border); }
+    .patient-snapshot p { margin: 0; line-height: 1.65; overflow-wrap: anywhere; }
+    .patient-snapshot small { line-height: 1.5; }
+    .consultation-jump-links { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 0; }
+    .consultation-jump-links button { padding: 10px 18px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-text); font: inherit; font-weight: 650; cursor: pointer; min-height: 44px; }
+    .consultation-fields { min-width: 0; border: 0; padding: 0; margin: 0; display: grid; gap: 24px; }
+    .consultation-group { scroll-margin-top: 140px; min-width: 0; padding: 24px; background: var(--ac-surface); border: 1px solid var(--ac-border); border-radius: 12px; display: grid; gap: 20px; }
+    .group-heading { display: flex; align-items: flex-start; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--ac-border); }
+    .group-heading > span { display: grid; place-items: center; flex: 0 0 32px; height: 32px; border-radius: 8px; background: var(--ac-primary-soft, #eff6ff); color: var(--ac-primary); font-weight: 750; }
+    .group-heading h2 { margin: 0 0 6px; font-size: 20px; }
+    .group-heading p { margin: 0; color: var(--ac-text-muted); line-height: 1.5; }
+    .consultation-group .clinical-section, .consultation-group .medicine-composer, .consultation-group .prescription-extra-card { background: var(--ac-surface); box-shadow: none; }
+    .consultation-group .clinical-grid { gap: 14px; }
+    .consultation-group .field > span, .consultation-group .check-field { color: var(--ac-text); font-size: 14px; }
+    .consultation-group input, .consultation-group textarea { font-size: 15px; min-height: 44px; }
+    .consultation-group input[type="checkbox"], .consultation-group input[type="radio"] { min-height: auto; }
+    .optional-section, .treatment-templates { border: 1px solid var(--ac-border); border-radius: 8px; padding: 12px 16px; min-width: 0; }
+    .optional-section > summary, .treatment-templates > summary { cursor: pointer; min-height: 32px; font-weight: 650; line-height: 1.6; }
+    .optional-section[open] > summary, .treatment-templates[open] > summary { margin-bottom: 18px; }
+    .consultation-footer { position: sticky; bottom: 0; z-index: 15; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 10px; box-shadow: 0 -3px 14px #0f172a0c; }
+    .draft-status { margin-right: auto; font-size: 14px; color: var(--ac-text); }
+    .draft-conflict { padding: 16px; border: 1px solid #b45309; border-radius: 8px; color: #78350f; background: #fffbeb; line-height: 1.6; }
+    .draft-conflict .ac-btn { margin: 6px 8px 0 0; }
+    .opd-overlay { position: fixed; inset: 0; z-index: 1000; display: flex; justify-content: center; align-items: center; padding: 24px; background: #0f172a80; }
+    .history-drawer, .completion-review { background: var(--ac-surface); color: var(--ac-text); padding: 24px; border-radius: 12px; width: min(760px, 100%); max-height: calc(100dvh - 48px); overflow-y: auto; overscroll-behavior: contain; }
+    .history-drawer { width: min(540px, 100%); margin-left: auto; height: 100%; }
+    .opd-overlay header, .completion-review footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+    .completion-review footer { position: sticky; bottom: -24px; background: var(--ac-surface); padding: 16px 0; border-top: 1px solid var(--ac-border); }
+    .opd-overlay h2 { margin: 0; font-size: 22px; }
+    .opd-overlay h3 { font-size: 16px; margin-top: 24px; }
+    .completion-banner { flex-wrap: wrap; }
+    .opd-page button:focus-visible, .opd-page input:focus-visible, .opd-page textarea:focus-visible, summary:focus-visible, .opd-overlay button:focus-visible { outline: 3px solid var(--ac-primary); outline-offset: 3px; }
+    .opd-page .ac-btn, .opd-overlay .ac-btn { min-height: 44px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+    @media (max-width: 1100px) { .encounter-workspace { grid-template-columns: 1fr; } .patient-snapshot { position: static; } }
+    @media (max-width: 640px) { .opd-shell, .consultation-group { padding: 12px; } .consultation-footer { gap: 8px; } .draft-status { flex-basis: 100%; } .consultation-footer .ac-btn { flex: 1; } .opd-overlay { padding: 12px; } .history-drawer, .completion-review { padding: 16px; max-height: calc(100dvh - 24px); } .encounter-head { top: 0; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OpdPageComponent implements OnInit {
+  protected readonly historyVisit = signal<OpdVisitVm | null>(null);
+  protected readonly reviewOpen = signal(false);
+  protected readonly draftSaveStatus = signal('Draft autosave ready');
+  protected readonly draftConflict = signal(false);
+  protected readonly sendToPharmacyOnComplete = signal(false);
+  protected readonly finishing = signal(false);
+  protected readonly completedPrescription = signal<PrescriptionPreview | null>(null);
+  protected readonly completionSummary = computed(() => buildCompletionSummary(composeClinicalNotes(this.clinicalForm(), this.labTests())));
+  protected readonly draftSaving = signal(false);
+  protected readonly pendingCompletionLabs = computed(() => this.clinicalForm().labOrders.filter(item => !item.labOrderId).length);
+  private readonly destroyRef = inject(DestroyRef);
+  private draftTimer: ReturnType<typeof setTimeout> | undefined;
+  private lastObservedDraft = '';
+  private lastSavedDraft = '';
+  private draftSession = 0;
+  private destroyed = false;
   protected readonly appointments = signal<AppointmentRecord[]>([]);
   protected readonly queues = signal<AppointmentQueueRecord[]>([]);
   protected readonly patients = signal<PatientSummary[]>([]);
@@ -2941,7 +2704,7 @@ export class OpdPageComponent implements OnInit {
     { id: 'encounter', label: 'Active Consultation', icon: 'stethoscope' },
     { id: 'completed', label: "Today's Visits", icon: 'task_alt' },
     { id: 'follow-ups', label: 'Follow-ups', icon: 'event_repeat' },
-    { id: 'history', label: 'History', icon: 'history' }
+
   ];
 
   protected readonly encounterSections: Array<{ id: OpdEncounterSection; label: string; icon: string }> = [
@@ -3315,8 +3078,9 @@ export class OpdPageComponent implements OnInit {
   }
 
   protected selectVisit(visit: OpdVisitVm, tab: OpdTab = 'encounter'): void {
+    if (isCompletedVisit(visit) || normalizeCode(visit.consultation?.statusCode) === 'CANCELLED') { this.showHistory(visit); return; }
     const draftState = readEncounterDraftState(visit);
-    if (this.saving()) return;
+    if (this.saving() || this.finishing()) return;
     if (this.selectedVisit()?.appointment.id === visit.appointment.id) { this.setActiveTab(tab); return; }
     const previous = this.selectedVisit();
     if (previous && !isCompletedVisit(previous)) persistEncounterDraftState(previous, this.activeEncounterSection(), this.clinicalForm());
@@ -3324,6 +3088,14 @@ export class OpdPageComponent implements OnInit {
     void this.loadPatientContext(visit);
     this.encounterForm.set(toEncounterForm(visit, 'IN_PROGRESS'));
     this.clinicalForm.set(draftState?.form ?? restoreClinicalForm(visit.consultation));
+    clearTimeout(this.draftTimer);
+    this.draftSession++;
+    this.lastObservedDraft = '';
+    this.lastSavedDraft = JSON.stringify(restoreClinicalForm(visit.consultation));
+    this.draftConflict.set(Boolean(draftState?.baseUpdatedAt && draftState.baseUpdatedAt !== visit.consultation?.updatedAt));
+    if (this.draftConflict() && visit.consultation) this.selectedVisit.set({ ...visit, consultation: { ...visit.consultation, updatedAt: draftState!.baseUpdatedAt ?? null } });
+    this.draftSaveStatus.set(this.draftConflict() ? 'Another session changed this visit' : draftState ? 'Recovered local draft' : 'Saved to server');
+    this.reviewOpen.set(false);
     this.prescriptionStatus.set('DRAFT');
     this.prescriptionSentToPharmacy.set(false);
     this.prescriptionRevisionNo.set(1);
@@ -3576,6 +3348,23 @@ export class OpdPageComponent implements OnInit {
   private readonly auth = inject(AuthStore);
   private focusPatientId = '';
   constructor() {
+    const poll = setInterval(() => this.observeDraftChanges(), 1000);
+    const retainDraft = () => {
+      const visit = this.selectedVisit();
+      if (visit && !isCompletedVisit(visit)) persistEncounterDraftState(visit, 'consultation', this.clinicalForm());
+    };
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      retainDraft();
+      if (this.selectedVisit() && JSON.stringify(this.clinicalForm()) !== this.lastSavedDraft) { event.preventDefault(); event.returnValue = ''; }
+    };
+    window.addEventListener('beforeunload', beforeUnload);
+    this.destroyRef.onDestroy(() => {
+      retainDraft();
+      this.destroyed = true;
+      clearInterval(poll);
+      clearTimeout(this.draftTimer);
+      window.removeEventListener('beforeunload', beforeUnload);
+    });
     effect(() => {
       const focus = this.dashboardFocusVisit();
       if (focus && this.focusPatientId !== focus.appointment.patientId) {
@@ -3583,6 +3372,142 @@ export class OpdPageComponent implements OnInit {
         void this.loadPatientContext(focus);
       }
     });
+  }
+
+  private observeDraftChanges(): void {
+    const visit = this.selectedVisit();
+    if (!visit?.consultation || isCompletedVisit(visit) || this.saving() || this.finishing() || this.reviewOpen() || this.draftConflict()) return;
+    const serialized = JSON.stringify(this.clinicalForm());
+    if (serialized === this.lastSavedDraft || serialized === this.lastObservedDraft) return;
+    this.lastObservedDraft = serialized;
+    this.clinicalForm.update(form => ({ ...form }));
+    this.draftSaveStatus.set('Unsaved changes');
+    persistEncounterDraftState(visit, 'consultation', this.clinicalForm());
+    clearTimeout(this.draftTimer);
+    this.draftTimer = setTimeout(() => { void this.saveClinicalDraft(false); }, 1200);
+  }
+
+  private async saveClinicalDraft(showToast: boolean): Promise<boolean> {
+    const visit = this.selectedVisit();
+    if (!visit?.consultation || isCompletedVisit(visit) || this.saving() || this.destroyed || this.draftConflict()) return false;
+    clearTimeout(this.draftTimer);
+    const session = this.draftSession;
+    const serialized = JSON.stringify(this.clinicalForm());
+    this.saving.set(true);
+    this.draftSaving.set(true);
+    this.draftSaveStatus.set('Saving…');
+    try {
+      const response = await this.opdService.saveConsultationDraft(visit.consultation.id, serialized,
+        composeClinicalNotes(this.clinicalForm(), this.labTests()), visit.consultation.updatedAt);
+      if (!response.success || !response.data) throw response;
+      if (this.destroyed || session !== this.draftSession) return false;
+      this.upsertConsultation(response.data);
+      const updatedVisit = { ...visit, consultation: response.data };
+      this.selectedVisit.set(updatedVisit);
+      this.lastSavedDraft = serialized;
+      this.draftSaveStatus.set(JSON.stringify(this.clinicalForm()) === serialized ? 'Saved to server' : 'Unsaved changes');
+      persistEncounterDraftState(updatedVisit, 'consultation', this.clinicalForm());
+      if (showToast) this.toast.success('Draft saved');
+      return true;
+    } catch (error) {
+      if (isDraftConflict(error)) this.draftConflict.set(true);
+      this.draftSaveStatus.set(this.draftConflict() ? 'Another session changed this visit' : 'Couldn’t save · use Save Draft to retry');
+      persistEncounterDraftState(visit, 'consultation', this.clinicalForm());
+      if (showToast) this.toast.error('Draft not saved', getApiErrorMessage(error as ApiResponse<unknown>, 'Your local draft is retained. Retry saving.'));
+      return false;
+    } finally { this.draftSaving.set(false); this.saving.set(false); }
+  }
+
+  protected jumpToConsultation(section: string): void {
+    const element = document.getElementById(`opd-${section}`);
+    element?.scrollIntoView({ block: 'start' });
+    const heading = element?.querySelector('h2');
+    heading?.setAttribute('tabindex', '-1');
+    heading?.focus({ preventScroll: true });
+  }
+
+  protected async loadLatestDraft(): Promise<void> {
+    const visit = this.selectedVisit();
+    if (!visit?.consultation || this.saving()) return;
+    this.saving.set(true);
+    try {
+      const response = await this.opdService.getConsultation(visit.consultation.id);
+      if (!response.success || !response.data) throw response;
+      // Retain the conflicted draft separately before replacing the editor with the server version.
+      localStorage.setItem(`${encounterDraftStorageKey(visit)}.recovery`, JSON.stringify(this.clinicalForm()));
+      clearEncounterDraftState(visit);
+      this.upsertConsultation(response.data);
+      this.selectedVisit.set(null);
+      this.saving.set(false);
+      if (normalizeCode(response.data.statusCode) === 'COMPLETED' || normalizeCode(response.data.statusCode) === 'CANCELLED') {
+        this.setActiveTab('dashboard');
+        this.showHistory({ ...visit, consultation: response.data });
+      } else {
+        this.selectVisit({ ...visit, consultation: response.data });
+      }
+      this.toast.info('Latest version loaded', 'Your previous local draft is retained in browser recovery storage.');
+    } catch (error) { this.toast.error('Unable to reload visit', getApiErrorMessage(error as ApiResponse<unknown>, 'Your local draft is retained.')); }
+    finally { this.saving.set(false); }
+  }
+
+  protected downloadLocalDraft(): void {
+    const blob = new Blob([composeClinicalNotes(this.clinicalForm(), this.labTests())], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'opd-local-clinical-notes.txt';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  protected openAdmissionWorkspace(visit: OpdVisitVm): void {
+    persistEncounterDraftState(visit, 'consultation', this.clinicalForm());
+    void this.router.navigate(['/ipd'], { queryParams: { patientGuid: visit.appointment.patientId, action: 'admit', consultationId: visit.consultation?.id } });
+  }
+
+  protected async openCompletionReview(): Promise<void> {
+    if (this.saving() || this.draftConflict()) return;
+    clearTimeout(this.draftTimer);
+    this.commitAllConsultationDrafts();
+    this.clinicalForm.update(form => ({ ...form }));
+    if (!this.validateCompletion()) return;
+    if (!await this.saveClinicalDraft(false)) return;
+    this.sendToPharmacyOnComplete.set(false);
+    this.reviewOpen.set(true);
+  }
+
+  private commitAllConsultationDrafts(): void {
+    const originalSection = this.activeEncounterSection();
+    for (const section of ['consultation', 'diagnosis', 'lab-orders', 'procedures', 'prescription'] as OpdEncounterSection[]) {
+      this.activeEncounterSection.set(section);
+      this.commitActiveEncounterStepDraft();
+    }
+    this.activeEncounterSection.set(originalSection);
+  }
+
+  private validateCompletion(): boolean {
+    const form = this.clinicalForm();
+    if (!form.complaints.length && !form.clinicalNotes.trim() && !form.history.presentIllness.trim()) {
+      this.toast.warning('Clinical assessment required', 'Record a complaint, present illness, or clinical note before completing.');
+      this.jumpToConsultation('assessment');
+      return false;
+    }
+    if (form.followUp.followUpRequired && !form.followUp.followUpDate) {
+      this.toast.warning('Follow-up date required', 'Choose a review date or turn off follow-up.');
+      this.jumpToConsultation('follow-up');
+      return false;
+    }
+    if (form.followUp.followUpRequired && form.followUp.createAppointment && !form.followUp.appointmentTime) {
+      this.toast.warning('Appointment time required', 'Select a follow-up appointment time or leave booking to reception.');
+      this.jumpToConsultation('follow-up');
+      return false;
+    }
+    if (form.prescriptions.some(item => !item.medicineId || !item.dosage.trim() || !item.route.trim() || !item.frequency.trim() || parsePrescriptionDuration(item.duration) === null || parsePrescriptionQuantity(item.quantity) === null || (item.isPrn && !item.prnReason?.trim()))) {
+      this.toast.warning('Complete medicine details', 'Choose a catalog medicine and enter dose, route, frequency, duration, quantity, and an indication for as-needed medicines.');
+      this.jumpToConsultation('treatment');
+      return false;
+    }
+    return true;
   }
 
   private async loadPatientContext(visit: OpdVisitVm): Promise<void> {
@@ -3633,7 +3558,7 @@ export class OpdPageComponent implements OnInit {
 
   protected patientNameFor(id: string): string { return this.patients().find(patient => patient.patientGuid === id)?.fullName ?? 'Patient'; }
   protected openPatientProfile(id: string): void { void this.router.navigate(['/patients', id]); }
-  protected showHistory(visit: OpdVisitVm): void { this.selectVisit(visit, 'history'); void this.loadPatientContext(visit); }
+  protected showHistory(visit: OpdVisitVm): void { this.historyVisit.set(visit); void this.loadPatientContext(visit); }
   private applyVisitStatus(visit: OpdVisitVm, statusCode: string): void {
     this.upsertAppointment({ ...visit.appointment, statusCode });
     if (visit.queue) this.upsertQueue({ ...visit.queue, statusCode });
@@ -3741,15 +3666,7 @@ export class OpdPageComponent implements OnInit {
   }
 
   protected async saveEncounterDraft(showToast = true): Promise<boolean> {
-    this.commitActiveEncounterStepDraft();
-    const consultation = await this.saveEncounter('IN_PROGRESS', showToast);
-    const visit = this.selectedVisit();
-    if (!consultation || !visit) {
-      return false;
-    }
-
-    persistEncounterDraftState({ ...visit, consultation }, this.activeEncounterSection(), this.clinicalForm());
-    return true;
+    return this.saveClinicalDraft(showToast);
   }
 
   protected addComplaint(): void {
@@ -3995,11 +3912,25 @@ export class OpdPageComponent implements OnInit {
     this.markPrescriptionChanged();
   }
 
+  protected editPrescriptionItem(index: number): void {
+    if (!this.ensurePrescriptionEditable()) return;
+    if (this.clinicalForm().prescriptionDraft.medicine.trim()) {
+      this.toast.warning('Medicine entry in progress', 'Add or clear the medicine you are entering before editing another row.');
+      return;
+    }
+    const item = this.clinicalForm().prescriptions[index];
+    if (!item) return;
+    this.clinicalForm.update(form => ({ ...form, prescriptionDraft: { ...item }, prescriptions: form.prescriptions.filter((_, itemIndex) => itemIndex !== index) }));
+    this.jumpToConsultation('treatment');
+    this.markPrescriptionChanged();
+  }
+
   protected removePrescriptionItem(index: number): void {
     if (!this.ensurePrescriptionEditable()) {
       return;
     }
-    this.clinicalForm.update(form => ({ ...form, prescriptions: form.prescriptions.filter((_, itemIndex) => itemIndex !== index) }));
+    const removed = this.clinicalForm().prescriptions[index];
+    this.clinicalForm.update(form => ({ ...form, prescriptions: form.prescriptions.filter((_, itemIndex) => itemIndex !== index), removedPrescriptionItemIds: removed?.id ? [...(form.removedPrescriptionItemIds || []), removed.id] : form.removedPrescriptionItemIds }));
     this.markPrescriptionChanged();
   }
 
@@ -4468,9 +4399,16 @@ export class OpdPageComponent implements OnInit {
     this.saving.set(true);
     try {
       const selectedTests = pendingOrders.map(item => this.labTests().find(test => test.id === item.testId)).filter((test): test is OpdLabTestRecord => Boolean(test));
+      if (selectedTests.length !== pendingOrders.length) {
+        this.toast.error('Test catalog changed', 'Remove unavailable tests and select them again before submitting.');
+        return;
+      }
+      const batchId = this.clinicalForm().pendingLabBatchId || crypto.randomUUID();
+      this.clinicalForm.update(form => ({ ...form, pendingLabBatchId: batchId }));
+      persistEncounterDraftState(visit, 'consultation', this.clinicalForm());
       const orderPriority = pendingOrders.some(item => item.priority === 'STAT') ? 'STAT' : pendingOrders.some(item => item.priority === 'Urgent' || item.priority === 'URGENT') ? 'URGENT' : 'ROUTINE';
       const clinicalNotes = pendingOrders.map(item => item.notes).filter(Boolean).join(' · ');
-      const orderResponse = await this.opdService.createLabOrder(visit.appointment.patientId, consultation.id, selectedTests, orderPriority, clinicalNotes, visit.appointment.doctorId);
+      const orderResponse = await this.opdService.createLabOrder(visit.appointment.patientId, consultation.id, selectedTests, orderPriority, clinicalNotes, visit.appointment.doctorId, batchId);
       if (!orderResponse.success || !orderResponse.data) {
         this.toast.error('Unable to create lab order', getApiErrorMessage(orderResponse, 'Laboratory API failed'));
         return;
@@ -4478,12 +4416,14 @@ export class OpdPageComponent implements OnInit {
 
       this.clinicalForm.update(form => ({
         ...form,
+        pendingLabBatchId: undefined,
         labOrders: form.labOrders.map(item => item.labOrderId ? item : { ...item, labOrderId: orderResponse.data?.id })
       }));
       this.toast.success('Lab order created', 'Selected tests were sent to the laboratory queue.');
     } finally {
       this.saving.set(false);
     }
+    await this.saveClinicalDraft(false);
   }
 
   protected async createFollowUp(visit: OpdVisitVm): Promise<void> {
@@ -4495,14 +4435,17 @@ export class OpdPageComponent implements OnInit {
 
     this.saving.set(true);
     try {
-      const response = await this.opdService.createFollowUp(visit.appointment.patientId, visit.appointment.id, form.followUpDate, form.notes);
-      if (!response.success || !response.data) {
-        this.toast.error('Unable to create follow-up', getApiErrorMessage(response, 'Follow-up API failed'));
-        return;
+      if (!form.recordId) {
+        const response = await this.opdService.saveConsultationFollowUp(visit.consultation!.id, form.followUpDate, form.notes);
+        if (!response.success || !response.data) {
+          this.toast.error('Unable to create follow-up', getApiErrorMessage(response, 'Follow-up API failed'));
+          return;
+        }
+        this.followUps.update(items => [response.data!, ...items]);
+        this.clinicalForm.update(current => ({ ...current, followUp: { ...current.followUp, recordId: response.data!.id } }));
       }
-      this.followUps.update(items => [response.data!, ...items]);
 
-      if (form.createAppointment) {
+      if (form.createAppointment && !form.appointmentId) {
         const doctorId = form.preferredDoctorId || visit.appointment.doctorId;
         const doctor = this.doctors().find(item => item.doctorGuid === doctorId);
         const appointmentResponse = await this.appointmentService.create({
@@ -4513,7 +4456,7 @@ export class OpdPageComponent implements OnInit {
           departmentName: doctor?.departmentName || visit.departmentName,
           doctorId,
           appointmentDate: form.followUpDate,
-          appointmentTime: '09:00',
+          appointmentTime: form.appointmentTime || '',
           appointmentType: 'FOLLOW_UP',
           statusCode: 'SCHEDULED',
           reason: 'Follow-up OPD visit',
@@ -4522,6 +4465,10 @@ export class OpdPageComponent implements OnInit {
 
         if (appointmentResponse.success && appointmentResponse.data) {
           this.upsertAppointment(appointmentResponse.data);
+          this.clinicalForm.update(current => ({ ...current, followUp: { ...current.followUp, appointmentId: appointmentResponse.data!.id } }));
+        } else {
+          this.toast.error('Follow-up appointment not booked', getApiErrorMessage(appointmentResponse, 'Please retry scheduling.'));
+          return;
         }
       }
 
@@ -4563,6 +4510,7 @@ export class OpdPageComponent implements OnInit {
         ...this.encounterForm(),
         notes,
         clinicalData: JSON.stringify(this.clinicalForm()),
+        expectedUpdatedAt: visit.consultation?.updatedAt ?? null,
         statusCode: statusCode === 'COMPLETED' ? 'COMPLETED' : 'IN_PROGRESS'
       } satisfies OpdEncounterForm;
       const response = form.consultationId
@@ -4570,15 +4518,18 @@ export class OpdPageComponent implements OnInit {
         : await this.opdService.createConsultation(form);
 
       if (!response.success || !response.data) {
+        if (isDraftConflict(response)) this.draftConflict.set(true);
         this.toast.error('Unable to save encounter', getApiErrorMessage(response, 'OPD API failed'));
         return null;
       }
 
       this.upsertConsultation(response.data);
       this.encounterForm.update(current => ({ ...current, consultationId: response.data!.id }));
+      this.selectedVisit.set({ ...visit, consultation: response.data });
       if (statusCode !== 'COMPLETED') {
         await this.createClinicalChildRecords(response.data, visit);
-        const persisted = await this.opdService.updateConsultation({ ...form, consultationId: response.data.id, clinicalData: JSON.stringify(this.clinicalForm()) });
+        const persisted = await this.opdService.updateConsultation({ ...form, consultationId: response.data.id, expectedUpdatedAt: response.data.updatedAt, clinicalData: JSON.stringify(this.clinicalForm()) });
+        if (isDraftConflict(persisted)) this.draftConflict.set(true);
         if (!persisted.success || !persisted.data) throw new Error('Unable to persist clinical draft. Please retry saving.');
         response.data = persisted.data;
       }
@@ -4586,6 +4537,9 @@ export class OpdPageComponent implements OnInit {
       const updatedVisit = { ...visit, consultation: response.data };
       this.selectedVisit.set(updatedVisit);
       this.encounterForm.set(toEncounterForm(updatedVisit, response.data.statusCode === 'COMPLETED' ? 'COMPLETED' : 'IN_PROGRESS'));
+      this.lastSavedDraft = JSON.stringify(this.clinicalForm());
+      this.lastObservedDraft = this.lastSavedDraft;
+      this.draftSaveStatus.set('Saved to server');
       if (statusCode === 'COMPLETED') {
         clearEncounterDraftState(updatedVisit);
       } else {
@@ -4610,9 +4564,24 @@ export class OpdPageComponent implements OnInit {
 
   protected async completeVisit(): Promise<void> {
     const visit = this.selectedVisit();
-    if (!visit || this.saving() || isCompletedVisit(visit)) return;
+    if (!visit || this.saving() || this.finishing() || this.draftConflict() || isCompletedVisit(visit) || !this.validateCompletion() || this.pendingCompletionLabs() > 0) return;
+    clearTimeout(this.draftTimer);
+    this.finishing.set(true);
+    this.reviewOpen.set(false);
+    try {
+    if (!await this.reviewDrugAllergies() || !await this.reviewDrugInteractions()) return;
     const draft = await this.saveEncounter('IN_PROGRESS', false);
     if (!draft) return;
+    if (this.clinicalForm().followUp.followUpRequired) {
+      await this.createFollowUp(visit);
+      const followUp = this.clinicalForm().followUp;
+      if (!followUp.recordId || (followUp.createAppointment && !followUp.appointmentId)) return;
+      if (!await this.saveClinicalDraft(false)) return;
+    }
+    if (this.sendToPharmacyOnComplete() && this.clinicalForm().prescriptions.length) {
+      await this.sendPrescriptionToPharmacy();
+      if (!this.prescriptionSentToPharmacy()) return;
+    }
     const consultation = await this.saveEncounter('COMPLETED');
     if (!consultation) {
       return;
@@ -4622,10 +4591,17 @@ export class OpdPageComponent implements OnInit {
 
     this.applyVisitStatus(visit, 'COMPLETED');
     this.completedPatientName.set(visit.patientName);
+    this.completedPrescription.set(hasPrescriptionContent(this.clinicalForm(), this.labTests()) ? this.prescriptionPreview() : null);
     this.selectedVisit.set(null);
     const next = this.dashboardFocusVisit();
     if (next) void this.loadPatientContext(next);
     this.setActiveTab('dashboard');
+    } finally { this.finishing.set(false); }
+  }
+
+  protected printCompletedPrescription(): void {
+    const prescription = this.completedPrescription();
+    if (prescription && !openPrescriptionDocument(prescription, true, this.printOptions)) this.toast.error('Unable to print', 'Allow pop-ups for this site and try again.');
   }
 
   private async ensureEncounterForAction(visit: OpdVisitVm): Promise<OpdConsultationRecord | null> {
@@ -4888,6 +4864,11 @@ export class OpdPageComponent implements OnInit {
 
   private async createClinicalChildRecords(consultation: OpdConsultationRecord, visit: OpdVisitVm): Promise<void> {
     const form = this.clinicalForm();
+    for (const id of form.removedPrescriptionItemIds || []) {
+      const response = await this.opdService.deletePrescriptionItem(id);
+      if (!response.success && response.statusCode !== 404) throw new Error('Unable to remove prescription item.');
+      this.clinicalForm.update(current => ({ ...current, removedPrescriptionItemIds: (current.removedPrescriptionItemIds || []).filter(item => item !== id) }));
+    }
     const complaints = [...form.complaints];
     for (const complaint of complaints.filter(item => !item.id)) {
       const response = await this.opdService.createSymptom(consultation.id, formatComplaint(complaint));
@@ -4925,7 +4906,7 @@ export class OpdPageComponent implements OnInit {
 
     const prescriptions = [...form.prescriptions];
     if (prescriptionId) {
-      for (const item of prescriptions.filter(prescription => !prescription.id)) {
+      for (const item of prescriptions) {
         const response = await this.opdService.createPrescriptionItem(prescriptionId, item);
         if (response.success && response.data) {
           item.id = response.data.id;
@@ -5206,6 +5187,13 @@ interface EncounterDraftState {
   section: OpdEncounterSection;
   form: OpdClinicalForm;
   updatedAt: string;
+  baseUpdatedAt?: string | null;
+}
+
+function isDraftConflict(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const response = error as { status?: number; statusCode?: number; problem?: { status?: number }; error?: { problem?: { status?: number }; message?: string }; message?: string };
+  return response.status === 409 || response.statusCode === 409 || response.problem?.status === 409 || response.error?.problem?.status === 409 || /another session|changed in another session/i.test(response.message || response.error?.message || '');
 }
 
 const PRESCRIPTION_TEMPLATE_STORAGE_KEY = 'care360.opd.prescriptionTemplates';
@@ -5388,7 +5376,8 @@ function persistEncounterDraftState(visit: OpdVisitVm, section: OpdEncounterSect
     localStorage.setItem(encounterDraftStorageKey(visit), JSON.stringify({
       section,
       form,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      baseUpdatedAt: visit.consultation?.updatedAt ?? null
     } satisfies EncounterDraftState));
   } catch {
     // Local resume support should never block saving the server-side OPD draft.
@@ -5622,6 +5611,16 @@ function buildClinicalSummaryPreview(notes: string | null | undefined): Clinical
       icon: 'clinical_notes',
       items: compactSummaryItems(trimmedNotes.split(/\n+/), 3)
     }]
+  };
+}
+
+// Completion must show every entered item, including examination and ordered tests.
+function buildCompletionSummary(notes: string): ClinicalSummaryPreview {
+  const titles = ['Vitals', 'Chief Complaints', 'Clinical History', 'Examination', 'Diagnosis', 'Prescription', 'Prescription Investigations', 'Lab Orders', 'Procedures', 'Advice', 'Diet Advice', 'Follow-up', 'Clinical Notes'];
+  const parsed = parseClinicalNoteSections(notes);
+  return {
+    caption: 'Full consultation for review.',
+    sections: titles.map(title => ({ title, icon: '', items: (parsed.get(title.toLowerCase()) || []).filter(item => item !== '-' && !/:\s*-$/.test(item)) })).filter(section => section.items.length > 0)
   };
 }
 

@@ -23,6 +23,7 @@ export interface OpdConsultationRecord {
 }
 
 export interface OpdEncounterForm {
+  expectedUpdatedAt?: string | null;
   clinicalData?: string;
   consultationId: string;
   patientId: string;
@@ -284,6 +285,9 @@ export interface OpdProcedureForm {
 }
 
 export interface OpdFollowUpForm {
+  recordId?: string;
+  appointmentId?: string;
+  appointmentTime?: string;
   followUpRequired: boolean;
   followUpAfterDays: string;
   followUpDate: string;
@@ -294,6 +298,8 @@ export interface OpdFollowUpForm {
 }
 
 export interface OpdClinicalForm {
+  removedPrescriptionItemIds?: string[];
+  pendingLabBatchId?: string;
   vitals: OpdVitalsForm;
   includeVitalsInPrescription: boolean;
   complaints: OpdComplaintForm[];
