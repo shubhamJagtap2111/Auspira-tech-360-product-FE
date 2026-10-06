@@ -2258,7 +2258,8 @@ export class AppShellComponent implements OnInit {
   protected closeMobileNavigation(): void {
     if (!this.mobileNavigationOpen()) return;
     this.mobileNavigationOpen.set(false);
-    document.getElementById('mobile-navigation-trigger')?.focus();
+    // Wait for Angular to remove background inertness before restoring focus.
+    requestAnimationFrame(() => requestAnimationFrame(() => document.getElementById('mobile-navigation-trigger')?.focus()));
   }
 
   toggleDark(): void {
