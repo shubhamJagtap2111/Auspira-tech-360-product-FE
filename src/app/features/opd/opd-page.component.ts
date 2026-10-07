@@ -55,7 +55,7 @@ import { LabReport } from '../laboratory/laboratory.models';
         } @else { <p>{{ historyByPatient()[visit.appointment.patientId] ? 'No previous completed visit recorded.' : (contextError() || 'Loading history…') }}</p> }
       </section>
     </ng-template>
-    <section class="opd-page" [class.consulting]="activeTab() === 'encounter'">
+    <section class="opd-page" [class.consulting]="activeTab() === 'encounter'" [attr.inert]="finishing() ? '' : null">
       <header class="page-header">
         <div>
           <p class="ac-eyebrow">Clinical workspace</p>
@@ -675,7 +675,7 @@ import { LabReport } from '../laboratory/laboratory.models';
                           <span class="draft-status" role="status" aria-live="polite">{{ draftSaveStatus() }}</span>
                           @if (consultationStage() !== 'assessment') { <button class="ac-btn ac-btn-secondary stage-back" type="button" (click)="moveConsultationStage(-1)"><span aria-hidden="true" class="material-symbols-rounded">arrow_back</span>Back</button> }
                           <button class="ac-btn ac-btn-secondary" type="button" [disabled]="saving() || draftConflict()" (click)="saveEncounterDraft()">Save Draft</button>
-                          @if (consultationStage() !== 'follow-up') { <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving() && !draftSaving()" (click)="moveConsultationStage(1)">Next: {{ consultationStage() === 'assessment' ? 'Treatment' : 'Follow-up' }}<span aria-hidden="true" class="material-symbols-rounded">arrow_forward</span></button> } @else { <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving() || draftConflict()" (click)="openCompletionReview()">Review &amp; Complete</button> }
+                          @if (consultationStage() !== 'follow-up') { <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving() && !draftSaving()" (click)="moveConsultationStage(1)">Next: {{ consultationStage() === 'assessment' ? 'Treatment' : 'Follow-up' }}<span aria-hidden="true" class="material-symbols-rounded">arrow_forward</span></button> } @else { <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving() || draftConflict() || preparingReview()" [attr.aria-busy]="preparingReview()" (click)="openCompletionReview()">@if (preparingReview()) { <span class="button-spinner" aria-hidden="true"></span>Preparing review… } @else { Review &amp; Complete }</button> }
                         </footer>
                         @if (draftConflict()) { <div class="draft-conflict" role="alert"><p>This visit changed in another session. Your local draft is retained. Open patient history to compare records before loading the latest version.</p><button type="button" class="ac-btn ac-btn-secondary" [disabled]="saving()" (click)="loadLatestDraft()">Load latest saved version</button><button type="button" class="ac-btn ac-btn-secondary" (click)="downloadLocalDraft()">Download my local notes</button></div> }
                       </section>
@@ -699,6 +699,16 @@ import { LabReport } from '../laboratory/laboratory.models';
         }
       </section>
 
+
+      @if (finishing() && !allergyReviewOpen() && !interactionReviewOpen()) {
+        <div class="completion-progress-overlay">
+          <section class="completion-progress-card" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" tabindex="-1" cdkFocusInitial aria-busy="true" aria-label="Completing consultation">
+            <div class="completion-spinner" aria-hidden="true"></div>
+            <div role="status" aria-live="polite" aria-atomic="true"><h2>Completing consultation</h2><p class="completion-progress-step">{{ completionProgress() }}</p></div>
+            <p class="completion-progress-help">Please wait while we finish this visit. This may take a few seconds.</p>
+          </section>
+        </div>
+      }
 
       @if (historyVisit(); as visit) {
         <div class="opd-overlay history-overlay" (click)="historyVisit.set(null)">
@@ -2784,6 +2794,15 @@ import { LabReport } from '../laboratory/laboratory.models';
     .quick-choice-row.compact button { font-size: 11px; padding: 5px 8px; min-height: 32px; }
     .complaint-picker { position: relative; }
     .complaint-picker .medicine-suggestions { top: 100%; max-height: 280px; }
+    .completion-progress-overlay { position: fixed; inset: 0; z-index: 2200; display: grid; place-items: center; padding: 20px; background: #0f172a66; backdrop-filter: blur(3px); }
+    .completion-progress-card { width: min(420px, 100%); padding: 32px 24px; border-radius: 16px; background: var(--ac-surface); color: var(--ac-text); border: 1px solid var(--ac-border); box-shadow: 0 24px 80px #0f172a30; text-align: center; }
+    .completion-progress-card h2 { margin: 18px 0 8px; font-size: 21px; }
+    .completion-progress-step { margin: 0; font-size: 14px; color: var(--ac-primary); }
+    .completion-progress-help { margin: 18px 0 0; line-height: 1.6; color: var(--ac-muted); font-size: 12px; }
+    .button-spinner { display: inline-block; width: 15px; height: 15px; border: 2px solid #ffffff66; border-top-color: #fff; border-radius: 50%; animation: completion-spin 900ms linear infinite; }
+    .completion-spinner { width: 44px; height: 44px; margin: 0 auto; border-radius: 50%; border: 4px solid var(--ac-primary-light); border-top-color: var(--ac-primary); border-right-color: var(--ac-secondary, #7c3aed); animation: completion-spin 900ms linear infinite; }
+    @keyframes completion-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .completion-spinner, .button-spinner { animation: none; } }
     /* Structured final review: fixed dialog chrome, one scrollable summary. */
     .review-overlay .completion-review { width: min(1040px, 100%); height: min(920px, calc(100dvh - 48px)); max-height: calc(100dvh - 48px); padding: 0; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--ac-border); border-radius: 18px; box-shadow: 0 24px 80px #0f172a35; }
     .review-header { flex: 0 0 auto; padding: 20px 24px; border-bottom: 1px solid var(--ac-border); background: linear-gradient(110deg, var(--ac-primary-light), var(--ac-surface) 70%); }
@@ -3036,10 +3055,12 @@ export class OpdPageComponent implements OnInit {
   protected readonly selectedHistoryRecord = computed(() => this.historyRecords().find(item => item.record.id === this.historyRecordId()) || this.historyRecords()[0] || null);
   protected readonly selectedHistoryRecordId = computed(() => { const item = this.selectedHistoryRecord(); return item ? item.record.id : ''; });
   protected readonly reviewOpen = signal(false);
+  protected readonly preparingReview = signal(false);
   protected readonly draftSaveStatus = signal('Draft autosave ready');
   protected readonly draftConflict = signal(false);
   protected readonly sendToPharmacyOnComplete = signal(false);
   protected readonly finishing = signal(false);
+  protected readonly completionProgress = signal('');
   protected readonly completedPrescription = signal<PrescriptionPreview | null>(null);
   protected readonly completionSummary = computed(() => buildCompletionSummary(composeClinicalNotes(this.clinicalForm(), this.labTests())));
   protected readonly draftSaving = signal(false);
@@ -4092,14 +4113,17 @@ export class OpdPageComponent implements OnInit {
   }
 
   protected async openCompletionReview(): Promise<void> {
-    if (this.saving() || this.draftConflict()) return;
-    clearTimeout(this.draftTimer);
-    this.commitAllConsultationDrafts();
-    this.clinicalForm.update(form => ({ ...form }));
-    if (!this.validateCompletion()) return;
-    if (!await this.saveClinicalDraft(false)) return;
-    this.sendToPharmacyOnComplete.set(false);
-    this.reviewOpen.set(true);
+    if (this.saving() || this.finishing() || this.preparingReview() || this.draftConflict()) return;
+    this.preparingReview.set(true);
+    try {
+      clearTimeout(this.draftTimer);
+      this.commitAllConsultationDrafts();
+      this.clinicalForm.update(form => ({ ...form }));
+      if (!this.validateCompletion()) return;
+      if (!await this.saveClinicalDraft(false)) return;
+      this.sendToPharmacyOnComplete.set(false);
+      this.reviewOpen.set(true);
+    } finally { this.preparingReview.set(false); }
   }
 
   private commitAllConsultationDrafts(): void {
@@ -5273,27 +5297,33 @@ export class OpdPageComponent implements OnInit {
     const visit = this.selectedVisit();
     if (!visit || this.saving() || this.finishing() || this.draftConflict() || isCompletedVisit(visit) || !this.validateCompletion() || this.pendingCompletionLabs() > 0) return;
     clearTimeout(this.draftTimer);
+    this.completionProgress.set('Reviewing prescribing checks…');
     this.finishing.set(true);
     this.reviewOpen.set(false);
     try {
     if (!await this.reviewDrugAllergies() || !await this.reviewDrugInteractions()) return;
+    this.completionProgress.set('Saving consultation findings…');
     const draft = await this.saveEncounter('IN_PROGRESS', false);
     if (!draft) return;
     if (this.clinicalForm().followUp.followUpRequired) {
+      this.completionProgress.set('Saving the follow-up plan…');
       await this.createFollowUp(visit);
       const followUp = this.clinicalForm().followUp;
       if (!followUp.recordId || (followUp.createAppointment && !followUp.appointmentId)) return;
       if (!await this.saveClinicalDraft(false)) return;
     }
     if (this.pharmacyIntegrationEnabled() && this.sendToPharmacyOnComplete() && this.clinicalForm().prescriptions.length) {
+      this.completionProgress.set('Sending the prescription to pharmacy…');
       await this.sendPrescriptionToPharmacy();
       if (!this.prescriptionSentToPharmacy()) return;
     }
+    this.completionProgress.set('Closing the consultation…');
     const consultation = await this.saveEncounter('COMPLETED');
     if (!consultation) {
       return;
     }
 
+    this.completionProgress.set('Preparing billing…');
     try { await this.generateEncounterBill(visit); } catch { this.toast.warning('Consultation completed', 'Billing could not be generated. Please retry from billing.'); }
 
     this.applyVisitStatus(visit, 'COMPLETED');
@@ -5303,7 +5333,9 @@ export class OpdPageComponent implements OnInit {
     const next = this.dashboardFocusVisit();
     if (next) void this.loadPatientContext(next);
     this.setActiveTab('dashboard');
-    } finally { this.finishing.set(false); }
+    } catch (error) {
+      this.toast.error('Unable to complete consultation', getApiErrorMessage(error as ApiResponse<unknown>, 'Your consultation details are retained. Please retry.'));
+    } finally { this.finishing.set(false); this.completionProgress.set(''); }
   }
 
   protected printCompletedPrescription(): void {

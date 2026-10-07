@@ -21,7 +21,7 @@ function setup() {
   vm.runInContext(ts.transpileModule(`${conflict}\nclass Harness { ${methods.join('\n')} }\nglobalThis.Harness = Harness;`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, context);
   const h = new context.Harness();
   const visit = { appointment: { id: 'a', patientId: 'p' }, consultation: { id: 'c', statusCode: 'IN_PROGRESS', updatedAt: '2026-10-05T10:00:00Z' } };
-  Object.assign(h, { selectedVisit: signal(visit), clinicalForm: signal({ notes: 'assessment', prescriptions: [], followUp: {} }), saving: signal(false), draftSaving: signal(false), finishing: signal(false), reviewOpen: signal(false), draftConflict: signal(false), draftSaveStatus: signal(''), labTests: signal([]), draftSession: 1, lastSavedDraft: '', lastObservedDraft: '', destroyed: false,
+  Object.assign(h, { selectedVisit: signal(visit), clinicalForm: signal({ notes: 'assessment', prescriptions: [], followUp: {} }), saving: signal(false), draftSaving: signal(false), finishing: signal(false), completionProgress: signal(''), reviewOpen: signal(false), draftConflict: signal(false), draftSaveStatus: signal(''), labTests: signal([]), draftSession: 1, lastSavedDraft: '', lastObservedDraft: '', destroyed: false,
     upsertConsultation: record => calls.push(['upsert', record]), toast: { success: () => {}, error: () => {}, warning: () => {} },
     opdService: { saveConsultationDraft: async (...args) => { calls.push(['draft', ...args]); return { success: true, data: { ...visit.consultation, updatedAt: '2026-10-05T10:01:00Z' } }; } },
     validateCompletion: () => true, pendingCompletionLabs: () => 0, activeEncounterSection: signal('consultation'),
@@ -124,4 +124,37 @@ test('unstructured historical notes remain readable and every entry is retained'
   assert.equal(context.buildHistorySections('Legacy free text\nSecond narrative line')[0].rows[0].value, 'Legacy free text\nSecond narrative line');
   assert.equal(context.buildHistorySections('## Prescription\n' + Array.from({ length: 9 }, (_, i) => `- Medicine ${i + 1}`).join('\n'))[0].rows.length, 9);
   assert.equal(context.buildHistorySections('## Vitals\n- -').length, 0);
+});
+
+
+test('completion shows progress during a slow request and ignores repeated completion clicks', async () => {
+  const { h } = setup();
+  let release, entered;
+  const started = new Promise(resolve => { entered = resolve; });
+  let saves = 0;
+  h.saveEncounter = () => { saves++; entered(); return new Promise(resolve => { release = resolve; }); };
+  const completion = h.completeVisit();
+  await started;
+  assert.equal(h.finishing(), true);
+  assert.match(h.completionProgress(), /Saving consultation findings/);
+  await h.completeVisit();
+  assert.equal(saves, 1);
+  release(null);
+  await completion;
+  assert.equal(h.finishing(), false);
+  assert.equal(h.completionProgress(), '');
+});
+
+test('an unexpected follow-up failure clears progress and retains the active consultation', async () => {
+  const { h } = setup();
+  const errors = [];
+  h.toast.error = (...args) => errors.push(args);
+  h.clinicalForm.update(form => ({ ...form, followUp: { followUpRequired: true } }));
+  h.saveEncounter = async () => h.selectedVisit().consultation;
+  h.createFollowUp = async () => { throw new Error('Follow-up unavailable'); };
+  await h.completeVisit();
+  assert.equal(h.finishing(), false);
+  assert.equal(h.completionProgress(), '');
+  assert.equal(h.selectedVisit().consultation.statusCode, 'IN_PROGRESS');
+  assert.equal(errors[0][0], 'Unable to complete consultation');
 });

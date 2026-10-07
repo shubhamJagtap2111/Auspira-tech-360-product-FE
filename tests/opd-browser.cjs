@@ -39,7 +39,7 @@ const server = http.createServer((req, res) => {
     fs.mkdirSync(artifacts, { recursive: true });
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, hasTouch: true });
     const errors = [], writes = [], pharmacyRequests = [];
-    let consultation = null, conflictNextSave = false, failReportDownload = true, configuredIntegration = !pharmacyEnabled;
+    let consultation = null, conflictNextSave = false, failReportDownload = true, failFollowUpOnce = true, configuredIntegration = !pharmacyEnabled;
     const integrationSetting = () => ({ settingKey: 'OPD.PharmacyIntegration.Enabled', settingCategoryCode: 'APPLICATION', settingValue: String(configuredIntegration), dataType: 'Boolean', displayNameKey: 'Integrate OPD with Pharmacy', descriptionKey: 'Select hospital catalogue medicines when enabled. Enter medicine names independently when disabled.', isEncrypted: false, sortOrder: 10, isActive: true, rowVersion: '' });
     page.on('pageerror', error => errors.push(error.message));
     await page.addInitScript(session => localStorage.setItem('care360.auth.session', JSON.stringify(session)), session);
@@ -96,6 +96,13 @@ const server = http.createServer((req, res) => {
         assert.equal(body.expectedUpdatedAt, consultation.updatedAt);
         consultation = { ...consultation, ...body.consultation, updatedAt: new Date().toISOString() };
         data = consultation;
+      } else if (p.endsWith('/follow-up') && method === 'POST') {
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        if (failFollowUpOnce) {
+          failFollowUpOnce = false;
+          return route.fulfill({ status: 500, json: { success: false, statusCode: 500, data: null, message: 'Follow-up temporarily unavailable', errors: [] } });
+        }
+        data = { ...request.postDataJSON(), id: crypto.randomUUID(), patientId: ids.patient, appointmentId: ids.appointment };
       } else if (p.endsWith('/history')) data = [...(consultation ? [consultation] : []), ...previousVisits];
       else if (p.endsWith('/lab-results')) data = [labResult];
       else if (p === '/laboratory/reports') {
@@ -386,7 +393,19 @@ const server = http.createServer((req, res) => {
     await page.locator('.consultation-jump-links button').filter({ hasText: 'Follow-up' }).click();
     await page.getByRole('button', { name: 'Review & Complete', exact: true }).click();
     await page.getByRole('button', { name: 'Complete Consultation', exact: true }).click();
+    await page.locator('.completion-progress-step').filter({ hasText: 'Saving the follow-up plan' }).waitFor();
+    assert.equal(await page.locator('.opd-page').getAttribute('inert'), '', 'completion disables the consultation while requests run');
+    await page.screenshot({ path: path.join(artifacts, 'completion-loading.png') });
+    await page.getByText('Unable to create follow-up', { exact: true }).waitFor();
+    await page.locator('.completion-progress-overlay').waitFor({ state: 'detached' });
+    assert.notEqual(consultation.statusCode, 'COMPLETED', 'failed follow-up cannot close the consultation');
+    assert.equal(await page.locator('.opd-page').getAttribute('inert'), null, 'failure restores the editor');
+    assert.equal(await page.locator('.medicine-table-row').count(), 1, 'failure retains medicines');
+    await page.getByRole('button', { name: 'Review & Complete', exact: true }).click();
+    await page.getByRole('button', { name: 'Complete Consultation', exact: true }).click();
+    await page.locator('.completion-progress-overlay').waitFor();
     await page.locator('.completion-banner').waitFor({ timeout: 15000 });
+    assert.equal(await page.locator('.completion-progress-overlay').count(), 0, 'completion clears the loader');
     assert.equal(consultation.statusCode, 'COMPLETED');
     assert.equal(JSON.parse(consultation.clinicalData).prescriptions[0].medicineId, pharmacyEnabled ? '60000000-0000-0000-0000-000000000001' : null);
     if (!pharmacyEnabled) {
