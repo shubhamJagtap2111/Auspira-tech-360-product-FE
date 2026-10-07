@@ -64,6 +64,7 @@ const fallbackLanguages: Language[] = [
 @Component({
   selector: 'ac-root',
   standalone: true,
+  host: { '[class.auth-layout]': 'isAuthPage()' },
   imports: [RouterLink, RouterLinkActive, RouterOutlet, FormsModule, A11yModule, DatePipe, ConfirmDialogComponent, AppLoaderComponent, AcDropdownComponent, AcDismissiblePopoverDirective],
   template: `
     @if (isAuthPage()) {
@@ -484,6 +485,7 @@ const fallbackLanguages: Language[] = [
   styles: `
     /* ── Shell Layout ── */
     :host { display: block; height: 100%; }
+    :host.auth-layout { height: auto; min-height: 100dvh; overflow: visible; }
 
     .shell {
       display: flex;

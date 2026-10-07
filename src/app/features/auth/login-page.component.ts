@@ -10,260 +10,169 @@ import { AppLoaderService } from '../../shared/ui/app-loader/app-loader.service'
   standalone: true,
   imports: [RouterLink, FormsModule],
   template: `
-    <div class="auth-page">
-      <section class="auth-brand">
-        <div class="brand-content">
-          <div class="brand-mark">
-            <span class="material-symbols-rounded">favorite</span>
-          </div>
-          <p class="eyebrow">Modern Hospital Management Platform</p>
-          <h1>One Platform. Every Hospital. Every Department.</h1>
-          <p class="brand-copy">Manage patients, billing, pharmacy, laboratory, appointments, and staff from one secure cloud platform.</p>
-
-          <div class="feature-grid" aria-label="Care360 platform capabilities">
-            @for (feature of featureHighlights; track feature.label) {
-              <article>
-                <span class="material-symbols-rounded">{{ feature.icon }}</span>
-                <strong>{{ feature.label }}</strong>
-              </article>
-            }
-          </div>
+    <main class="login-shell">
+      <section class="welcome-panel" aria-labelledby="welcome-title">
+        <div class="brand-lockup">
+          <img src="assets/brand/auspira-logo.webp" alt="Auspira Technologies" width="168" height="48" />
+          <span class="product-name">Care360 <span>Hospital management</span></span>
         </div>
-
-        <div class="hospital-visual" aria-hidden="true">
-          <div class="visual-header">
-            <span class="status-dot"></span>
-            <span>Live care operations</span>
-          </div>
-          <div class="hospital-building">
-            <div class="building-top">
-              <span class="material-symbols-rounded">local_hospital</span>
+        <div class="welcome-content">
+          <p class="eyebrow"><span></span> Connected care. Simplified.</p>
+          <h1 id="welcome-title">More time for care.<br /><span>Less time on paperwork.</span></h1>
+          <p class="welcome-copy">A calmer way to manage your hospital. Bring patients, clinical teams, and everyday operations into one workspace.</p>
+          <div class="care-preview" aria-label="Connected hospital workflow">
+            <div class="preview-heading"><span class="preview-icon material-symbols-rounded" aria-hidden="true">local_hospital</span><div><strong>Your hospital, connected</strong><span>From the first visit to follow-up care</span></div><span class="material-symbols-rounded preview-spark" aria-hidden="true">hub</span></div>
+            <div class="care-journey">
+              <div><span class="journey-icon material-symbols-rounded" aria-hidden="true">how_to_reg</span><strong>Check in</strong><small>Patient & appointment</small></div>
+              <span class="journey-arrow material-symbols-rounded" aria-hidden="true">arrow_forward</span>
+              <div><span class="journey-icon purple material-symbols-rounded" aria-hidden="true">stethoscope</span><strong>Consult</strong><small>Assessment & treatment</small></div>
+              <span class="journey-arrow material-symbols-rounded" aria-hidden="true">arrow_forward</span>
+              <div><span class="journey-icon teal material-symbols-rounded" aria-hidden="true">assignment_turned_in</span><strong>Coordinate</strong><small>Reports & follow-up</small></div>
             </div>
-            <div class="building-grid">
-              <article>
-                <span class="material-symbols-rounded">event_available</span>
-                <strong>42</strong>
-                <small>Appts</small>
-              </article>
-              <article>
-                <span class="material-symbols-rounded">groups</span>
-                <strong>18</strong>
-                <small>OPD</small>
-              </article>
-              <article>
-                <span class="material-symbols-rounded">biotech</span>
-                <strong>16</strong>
-                <small>Labs</small>
-              </article>
-              <article>
-                <span class="material-symbols-rounded">medication</span>
-                <strong>94%</strong>
-                <small>Stock</small>
-              </article>
-              <article>
-                <span class="material-symbols-rounded">receipt_long</span>
-                <strong>8</strong>
-                <small>Bills</small>
-              </article>
-              <article>
-                <span class="material-symbols-rounded">badge</span>
-                <strong>31</strong>
-                <small>Staff</small>
-              </article>
-            </div>
+            <div class="preview-footer"><span class="material-symbols-rounded" aria-hidden="true">account_tree</span> One organisation. Every branch. Connected.</div>
           </div>
-          <svg class="ecg-line" viewBox="0 0 240 70" role="img">
-            <polyline points="4 40 44 40 58 24 76 58 105 12 128 40 166 40 180 30 194 46 236 46"></polyline>
-          </svg>
-          <div class="visual-stats">
-            <span><strong>98%</strong> uptime</span>
-            <span><strong>24/7</strong> access</span>
-          </div>
+          <div class="capability-list" aria-label="Platform capabilities"><span><span class="material-symbols-rounded" aria-hidden="true">groups</span>Patients & OPD</span><span><span class="material-symbols-rounded" aria-hidden="true">medication</span>Pharmacy & labs</span><span><span class="material-symbols-rounded" aria-hidden="true">payments</span>Billing & operations</span></div>
         </div>
+        <p class="welcome-note"><span class="material-symbols-rounded" aria-hidden="true">favorite</span> Designed around the people who deliver care.</p>
       </section>
 
-      <section class="auth-panel">
-        <form class="auth-card" (ngSubmit)="onLogin()">
-          <header>
-            <img class="auth-wordmark" src="assets/brand/auspira-logo.webp" alt="Auspira Technologies" width="168" height="38" />
-            <h2>Hospital login</h2>
-            <p>Sign in with your registered email and password.</p>
+      <section class="signin-panel" aria-labelledby="signin-title">
+        <form class="signin-card" (ngSubmit)="onLogin()" [attr.aria-busy]="loading()">
+          <header class="signin-heading">
+            <span class="signin-symbol material-symbols-rounded" aria-hidden="true">login</span>
+            <p class="form-eyebrow">YOUR HOSPITAL WORKSPACE</p>
+            <h2 id="signin-title">Welcome back</h2>
+            <p>Sign in to Auspira Care360 to start your day.</p>
           </header>
-
           @if (errorKey()) {
-            <p class="error">{{ t(errorKey()!) }}</p>
+            <p class="login-error" id="login-error" role="alert"><span class="material-symbols-rounded" aria-hidden="true">error</span>{{ t(errorKey()!) }}</p>
           }
-
-          <label class="field">
-            <span class="field-label">{{ t('Auth.Login.Email.Label') }}</span>
-            <span class="input-shell">
-              <span class="material-symbols-rounded">mail</span>
-              <input type="email" name="email" [(ngModel)]="email" [placeholder]="t('Auth.Login.Email.Placeholder')" required />
-            </span>
-          </label>
-
-          <label class="field">
-            <span class="field-label">{{ t('Auth.Login.Password.Label') }}</span>
-            <span class="input-shell">
-              <span class="material-symbols-rounded">lock</span>
-              <input [type]="showPassword() ? 'text' : 'password'" name="password" [(ngModel)]="password" [placeholder]="t('Auth.Login.Password.Placeholder')" required />
-              <button type="button" class="field-icon-button" (click)="togglePasswordVisibility()" [attr.aria-label]="t(showPassword() ? 'Auth.Login.HidePassword' : 'Auth.Login.ShowPassword')">
-                <span class="material-symbols-rounded">{{ showPassword() ? 'visibility_off' : 'visibility' }}</span>
+          <div class="login-fields">
+            <label class="login-field" for="login-email">{{ t('Auth.Login.Email.Label') }}</label>
+            <div class="input-wrap">
+              <span class="material-symbols-rounded" aria-hidden="true">mail</span>
+              <input id="login-email" type="email" name="email" [(ngModel)]="email" [placeholder]="t('Auth.Login.Email.Placeholder')" autocomplete="username" inputmode="email" autocapitalize="none" [spellcheck]="false" [attr.aria-describedby]="errorKey() ? 'login-error' : null" [disabled]="loading()" required />
+            </div>
+            <label class="login-field password-label" for="login-password">{{ t('Auth.Login.Password.Label') }}</label>
+            <div class="input-wrap">
+              <span class="material-symbols-rounded" aria-hidden="true">lock</span>
+              <input id="login-password" [type]="showPassword() ? 'text' : 'password'" name="password" [(ngModel)]="password" [placeholder]="t('Auth.Login.Password.Placeholder')" autocomplete="current-password" [attr.aria-describedby]="errorKey() ? 'login-error' : null" [disabled]="loading()" required />
+              <button type="button" class="password-toggle" (click)="togglePasswordVisibility()" [attr.aria-label]="t(showPassword() ? 'Auth.Login.HidePassword' : 'Auth.Login.ShowPassword')" [attr.aria-pressed]="showPassword()">
+                <span class="material-symbols-rounded" aria-hidden="true">{{ showPassword() ? 'visibility_off' : 'visibility' }}</span>
               </button>
-            </span>
-          </label>
-
-          <div class="form-row">
-            <label class="check">
-              <input type="checkbox" name="rememberMe" [(ngModel)]="rememberMe" />
-              <span>{{ t('Auth.Login.RememberMe.Label') }}</span>
-            </label>
+            </div>
+          </div>
+          <div class="signin-options">
+            <label class="remember"><input type="checkbox" name="rememberMe" [(ngModel)]="rememberMe" [disabled]="loading()" /><span>{{ t('Auth.Login.RememberMe.Label') }}</span></label>
             <a routerLink="/auth/forgot-password">{{ t('Auth.ForgotPassword.Link') }}</a>
           </div>
-
-          <button class="primary" type="submit" [disabled]="loading()">
-            @if (loading()) {
-              <span class="button-pulse" aria-hidden="true">
-                <svg viewBox="0 0 64 48">
-                  <polyline class="pulse-back" points="0.157 23.954, 14 23.954, 21.843 48, 43 0, 50 24, 64 24"></polyline>
-                  <polyline class="pulse-front" points="0.157 23.954, 14 23.954, 21.843 48, 43 0, 50 24, 64 24"></polyline>
-                </svg>
-              </span>
-            }
+          <button class="signin-button" type="submit" [disabled]="loading()">
+            @if (loading()) { <span class="login-spinner" aria-hidden="true"></span> }
             {{ t(loading() ? 'Auth.Login.SigningIn' : 'Auth.Login.Submit') }}
+            @if (!loading()) { <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span> }
           </button>
-
-          <button class="google-button" type="button" (click)="onGoogleLogin()">
-            <span class="google-mark">G</span>
-            Continue with Google
-          </button>
-
-          <footer class="auth-footer">
-            <div class="footer-links">
-              <a href="https://auspiratech.com/privacy-policy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
-              <a href="https://auspiratech.com/terms-of-service" target="_blank" rel="noopener noreferrer">Terms</a>
-              <span>Version 0.1.0</span>
-            </div>
-            <small>© 2026 Auspira Technologies. All rights reserved.</small>
+          <div class="signin-divider"><span>or</span></div>
+          <button class="google-signin" type="button" (click)="onGoogleLogin()" [disabled]="loading()"><span class="google-letter" aria-hidden="true">G</span>Continue with Google</button>
+          <p class="access-help"><span class="material-symbols-rounded" aria-hidden="true">help_outline</span>Need access? Contact your hospital administrator.</p>
+          <footer class="signin-footer">
+            <div><a href="https://auspiratech.com/privacy-policy" target="_blank" rel="noopener noreferrer">Privacy Policy</a><span aria-hidden="true">·</span><a href="https://auspiratech.com/terms-of-service" target="_blank" rel="noopener noreferrer">Terms of Service</a></div>
+            <small>© {{ currentYear }} Auspira Technologies</small>
           </footer>
         </form>
       </section>
-    </div>
+    </main>
   `,
   styles: `
-    .auth-page { height: 100dvh; min-height: 0; display: grid; grid-template-columns: minmax(520px, 1.05fr) minmax(420px, .95fr); background: radial-gradient(circle at 84% 12%, rgba(37,99,235,.08), transparent 28%), var(--ac-bg); overflow: hidden; }
-    .auth-brand { position: relative; min-height: 0; display: flex; align-items: center; justify-content: center; padding: clamp(30px, 4vw, 48px); background: linear-gradient(145deg, #102a63, var(--ac-primary) 48%, #0f766e); color: #fff; overflow: hidden; }
-    .auth-brand::before, .auth-brand::after { content: ''; position: absolute; width: 260px; height: 260px; border-radius: 50%; background: rgba(255,255,255,.1); filter: blur(2px); animation: floatGlow 9s ease-in-out infinite; }
-    .auth-brand::before { top: -90px; right: -70px; }
-    .auth-brand::after { bottom: -110px; left: -80px; animation-delay: -3s; }
-    .brand-content { position: relative; z-index: 1; max-width: 560px; }
-    .brand-mark { display: grid; place-items: center; width: 58px; height: 58px; border-radius: 17px; background: rgba(255,255,255,.16); box-shadow: 0 20px 45px rgba(0,0,0,.24); margin-bottom: 18px; backdrop-filter: blur(12px); }
-    .brand-mark .material-symbols-rounded { font-size: 30px; color: #fff; }
-    .eyebrow { margin: 0 0 12px; color: #9ef4d3; font-size: 12px; font-weight: 900; letter-spacing: 0; text-transform: uppercase; }
-    h1 { font-size: clamp(32px, 3.7vw, 52px); line-height: .99; margin: 0 0 14px; max-width: 560px; }
-    .brand-copy { max-width: 500px; margin: 0; color: rgba(255,255,255,.86); font-size: 16px; line-height: 1.5; }
-    .feature-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 22px; }
-    .feature-grid article { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 9px 12px; border: 1px solid rgba(255,255,255,.18); border-radius: 12px; background: rgba(255,255,255,.11); backdrop-filter: blur(14px); box-shadow: 0 18px 40px rgba(0,0,0,.12); }
-    .feature-grid .material-symbols-rounded { font-size: 20px; color: #bbf7d0; }
-    .feature-grid strong { font-size: 13.5px; color: rgba(255,255,255,.94); }
-    .hospital-visual { position: relative; z-index: 1; width: min(370px, 40vw); padding: 18px; margin-left: 24px; border: 1px solid rgba(255,255,255,.2); border-radius: 22px; background: rgba(10,30,68,.36); box-shadow: 0 30px 80px rgba(0,0,0,.24); backdrop-filter: blur(18px); }
-    .visual-header, .visual-stats { display: flex; justify-content: space-between; gap: 12px; color: rgba(255,255,255,.78); font-size: 12px; font-weight: 800; }
-    .status-dot { width: 9px; height: 9px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 7px rgba(34,197,94,.14); }
-    .visual-header { align-items: center; justify-content: flex-start; }
-    .hospital-building { display: grid; grid-template-columns: 78px 1fr; align-items: center; gap: 16px; margin: 18px 0 6px; }
-    .building-top { display: grid; place-items: center; width: 78px; height: 78px; border-radius: 20px; background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(219,234,254,.9)); color: var(--ac-primary); box-shadow: 0 18px 45px rgba(0,0,0,.16); }
-    .building-top .material-symbols-rounded { font-size: 42px; }
-    .building-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-    .building-grid article { min-height: 48px; display: grid; grid-template-columns: 18px 1fr; grid-template-rows: auto auto; align-items: center; gap: 1px 5px; padding: 7px 8px; border-radius: 10px; background: rgba(255,255,255,.16); box-shadow: inset 0 0 0 1px rgba(255,255,255,.13); }
-    .building-grid .material-symbols-rounded { grid-row: 1 / span 2; color: #bbf7d0; font-size: 17px; }
-    .building-grid strong { color: #fff; font-size: 13px; line-height: 1; }
-    .building-grid small { color: rgba(255,255,255,.7); font-size: 9px; font-weight: 900; line-height: 1; text-transform: uppercase; }
-    .ecg-line { width: 100%; height: 74px; margin: 4px 0 10px; }
-    .ecg-line polyline { fill: none; stroke: #a7f3d0; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 8px rgba(167,243,208,.45)); stroke-dasharray: 260; animation: ecgMove 2.4s ease-in-out infinite; }
-    .visual-stats span { display: grid; gap: 2px; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.1); }
-    .visual-stats strong { color: #fff; font-size: 18px; }
-    .auth-panel { min-height: 0; display: flex; align-items: center; justify-content: center; padding: clamp(24px, 3vw, 36px); overflow: hidden; }
-    .auth-card { position: relative; width: 100%; max-width: 454px; display: flex; flex-direction: column; gap: 16px; background: color-mix(in srgb, var(--ac-surface) 96%, white); border: 1px solid color-mix(in srgb, var(--ac-border) 72%, white); border-radius: 20px; padding: clamp(28px, 3vw, 34px); box-shadow: 0 30px 80px rgba(15,23,42,.12), 0 12px 30px rgba(37,99,235,.08); }
-    .admin-login-shortcut { position: absolute; top: 18px; right: 18px; display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid color-mix(in srgb, var(--ac-border) 72%, white); border-radius: 12px; background: var(--ac-surface); color: var(--ac-muted); box-shadow: 0 10px 24px rgba(15,23,42,.08); transition: transform .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease; }
-    .admin-login-shortcut:hover, .admin-login-shortcut:focus-visible { color: var(--ac-primary); border-color: rgba(37,99,235,.35); box-shadow: 0 16px 30px rgba(37,99,235,.14); transform: translateY(-1px); outline: none; }
-    .admin-login-shortcut .material-symbols-rounded { font-size: 23px; }
-    header { padding-right: 54px; }
-    header h2 { margin: 0; font-size: 25px; color: var(--ac-text); }
-    header p { margin: 7px 0 0; color: var(--ac-muted); font-size: 14px; line-height: 1.5; }
-    .field { display: flex; flex-direction: column; gap: 7px; color: var(--ac-text-2); font-size: 13px; font-weight: 700; }
-    .field-label { color: var(--ac-text-2); }
-    .input-shell { position: relative; display: flex; align-items: center; min-height: 48px; border: 1px solid var(--ac-border); border-radius: 13px; background: var(--ac-surface); transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
-    .input-shell:focus-within { border-color: var(--ac-primary); box-shadow: 0 0 0 4px rgba(37,99,235,.12); transform: translateY(-1px); }
-    .input-shell > .material-symbols-rounded { width: 44px; color: var(--ac-muted); font-size: 20px; text-align: center; }
-    input { width: 100%; height: 46px; min-width: 0; border: 0; border-radius: 13px; padding: 0 12px 0 0; background: transparent; color: var(--ac-text); font: inherit; font-weight: 600; }
-    input:focus { outline: none; }
-    .dropdown-shell { padding-right: 4px; }
-    .dropdown-shell ac-dropdown { flex: 1; min-width: 0; }
-    .dropdown-shell ::ng-deep .ac-dropdown-trigger { min-height: 46px; border: 0; background: transparent; padding-left: 0; border-radius: 13px; box-shadow: none; }
-    .dropdown-shell ::ng-deep .open .ac-dropdown-trigger { box-shadow: none; }
-    .field-icon-button { display: grid; place-items: center; width: 42px; height: 42px; margin-right: 3px; border: 0; border-radius: 10px; background: transparent; color: var(--ac-muted); cursor: pointer; }
-    .field-icon-button:hover { background: var(--ac-surface-2); color: var(--ac-primary); }
-    .field-icon-button .material-symbols-rounded { font-size: 20px; }
-    .form-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-    .check { display: flex; flex-direction: row; align-items: center; gap: 8px; font-weight: 600; color: var(--ac-text-3); font-size: 13px; }
-    .check input { width: 16px; height: 16px; accent-color: var(--ac-primary); }
-    .primary { height: 48px; display: flex; align-items: center; justify-content: center; gap: 10px; border: 0; border-radius: 13px; background: linear-gradient(135deg,var(--ac-primary),#3b82f6); color: #fff; font-weight: 800; cursor: pointer; box-shadow: 0 16px 32px rgba(37,99,235,.28); transition: transform .18s ease, box-shadow .18s ease, filter .18s ease; }
-    .primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 20px 40px rgba(37,99,235,.34); filter: saturate(1.05); }
-    .primary:disabled { opacity: .82; cursor: not-allowed; box-shadow: 0 10px 24px rgba(37,99,235,.18); }
-    .button-pulse svg { width: 34px; height: 24px; display: block; }
-    .button-pulse polyline { fill: none; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
-    .button-pulse .pulse-back { stroke: rgba(255,255,255,.28); }
-    .button-pulse .pulse-front { stroke: #fff; stroke-dasharray: 48, 144; stroke-dashoffset: 192; animation: dashPulse 1.4s linear infinite; }
-    .google-button { height: 48px; display: flex; align-items: center; justify-content: center; gap: 12px; border: 1px solid var(--ac-border); border-radius: 13px; background: var(--ac-surface); color: var(--ac-text); font-weight: 800; cursor: pointer; box-shadow: 0 10px 24px rgba(15,23,42,.06); transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
-    .google-button:hover { transform: translateY(-1px); border-color: rgba(37,99,235,.35); box-shadow: 0 16px 32px rgba(15,23,42,.1); }
-    .google-mark { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--ac-border); color: #ea4335; background: var(--ac-surface); font-weight: 900; font-family: Arial, sans-serif; font-size: 16px; }
-    .auth-actions { display: flex; justify-content: center; align-items: center; gap: 16px; flex-wrap: wrap; }
-    .register-button { text-align: center; }
-    a { background: transparent; border: 0; color: var(--ac-primary); font-weight: 700; cursor: pointer; text-align: left; padding: 0; text-decoration: none; }
-    a:hover { text-decoration: none; }
-    .auth-footer { display: grid; gap: 12px; padding-top: 16px; border-top: 1px solid var(--ac-border); text-align: center; }
-    .footer-links { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; color: var(--ac-muted); font-size: 12px; font-weight: 700; }
-    .footer-links a { color: var(--ac-muted); }
-    .footer-links > * + * { position: relative; }
-    .footer-links > * + *::before { content: ''; position: absolute; left: -8px; top: 50%; width: 3px; height: 3px; border-radius: 50%; background: var(--ac-border-strong); }
-    .auth-footer small { color: var(--ac-muted); font-size: 12px; font-weight: 700; }
-    .error { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--ac-error-light); color: var(--ac-error); font-size: 13px; }
-    :host-context(.dark) .auth-card { background: rgba(17,24,39,.94); border-color: rgba(148,163,184,.22); box-shadow: 0 30px 80px rgba(0,0,0,.38), 0 12px 30px rgba(59,130,246,.08); }
-    :host-context(.dark) .input-shell { background: rgba(15,23,42,.72); border-color: rgba(148,163,184,.22); }
-    :host-context(.dark) .google-button { background: rgba(255,255,255,.94); color: var(--ac-text); }
-    @keyframes floatGlow { 0%, 100% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(-16px, 12px, 0) scale(1.08); } }
-    @keyframes ecgMove { 0% { stroke-dashoffset: 260; opacity: .55; } 45%, 72% { opacity: 1; } 100% { stroke-dashoffset: 0; opacity: .62; } }
-    @keyframes dashPulse { 72.5% { opacity: 0; } to { stroke-dashoffset: 0; } }
-    @media (max-width: 1280px) { .hospital-visual { display: none; } }
-    @media (max-height: 820px) { .hospital-visual { transform: scale(.9); transform-origin: left center; } .auth-card { gap: 13px; } .auth-footer { padding-top: 12px; } }
-    @media (max-width: 900px) {
-      .auth-page { min-height: 100dvh; height: auto; grid-template-columns: 1fr; overflow: auto; }
-      .auth-brand { display: none; }
-      .auth-panel { min-height: 100dvh; padding: 24px; overflow: visible; }
-      .auth-card { padding: 28px; }
-    }
-    @media (max-width: 520px) {
-      .auth-page { background: var(--ac-bg); }
-      .auth-panel { align-items: flex-start; padding: 16px; }
-      .auth-card { max-width: none; gap: 14px; border-radius: 16px; padding: 22px 18px; box-shadow: 0 16px 40px rgba(15,23,42,.1); }
-      .admin-login-shortcut { top: 14px; right: 14px; width: 38px; height: 38px; border-radius: 10px; }
-      header { padding-right: 46px; }
-      header h2 { font-size: 22px; line-height: 1.2; }
-      header p { font-size: 13px; }
-      .input-shell { min-height: 46px; border-radius: 11px; }
-      input { height: 44px; font-size: 16px; }
-      .primary, .google-button { width: 100%; height: 46px; border-radius: 11px; }
-      .form-row { align-items: flex-start; flex-direction: column; gap: 10px; }
-      .check { align-items: flex-start; line-height: 1.35; }
-      .footer-links { gap: 10px 14px; }
-      .footer-links > * + *::before { display: none; }
-    }
-    @media (max-width: 360px) {
-      .auth-panel { padding: 12px; }
-      .auth-card { padding: 20px 14px; }
-      .input-shell > .material-symbols-rounded { width: 38px; }
-      .field-icon-button { width: 38px; min-width: 38px; }
-    }
+    :host { display: block; }
+    *, *::before, *::after { box-sizing: border-box; }
+    .login-shell { min-height: 100dvh; display: grid; grid-template-columns: minmax(0,1.12fr) minmax(0,1fr); padding: 24px; gap: 24px; background: var(--ac-bg); color: var(--ac-text); }
+    .welcome-panel { position: relative; display: flex; flex-direction: column; justify-content: space-between; gap: 40px; padding: clamp(32px,4vw,64px); border-radius: 28px; overflow: hidden; background: radial-gradient(ellipse at 100% 100%,#7048d8 0%,transparent 58%),radial-gradient(ellipse at 0% 0%,#234fb5 0%,transparent 66%),#172d65; color: #fff; }
+    .welcome-panel::after { content: ''; pointer-events: none; position: absolute; width: 520px; height: 520px; right: -320px; top: -280px; border: 1px solid #ffffff18; border-radius: 50%; box-shadow: 0 0 0 70px #ffffff05,0 0 0 140px #ffffff04; }
+    .brand-lockup { position: relative; z-index: 1; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+    .brand-lockup img { width: 168px; height: auto; background: white; border-radius: 10px; padding: 9px 10px; }
+    .product-name { font-size: 20px; font-weight: 650; letter-spacing: -.4px; }
+    .product-name span { display: block; font-size: 11px; color: #d0dbf4; font-weight: 400; letter-spacing: .15px; margin-top: 3px; }
+    .welcome-content { position: relative; z-index: 1; width: 100%; max-width: 600px; margin-block: auto; }
+    .eyebrow { display: flex; align-items: center; gap: 8px; margin: 0 0 18px; font-size: 12px; font-weight: 500; letter-spacing: .3px; color: #d9e3ff; }
+    .eyebrow > span { width: 7px; height: 7px; border-radius: 50%; background: #a6bfff; box-shadow: 0 0 0 4px #b9cfff14; }
+    h1 { font-size: clamp(32px,3.5vw,52px); letter-spacing: -1.7px; font-weight: 650; line-height: 1.12; margin: 0 0 20px; text-wrap: balance; }
+    h1 > span { color: #cfdbff; }
+    .welcome-copy { margin: 0; max-width: 46ch; color: #d4dff6; font-size: 15px; line-height: 1.75; }
+    .care-preview { margin-top: 32px; padding: 22px; border: 1px solid #ffffff30; background: #ffffff0f; border-radius: 20px; box-shadow: 0 16px 44px #0f164e18; }
+    .preview-heading { display: flex; align-items: center; gap: 12px; }
+    .preview-icon { display: grid; place-items: center; width: 40px; height: 40px; flex: 0 0 40px; border-radius: 12px; color: #fff; background: #ffffff16; font-size: 23px; }
+    .preview-heading strong { display: block; font-weight: 600; font-size: 14px; }
+    .preview-heading div > span { display: block; color: #cbd8f5; font-size: 11px; margin-top: 4px; line-height: 1.5; }
+    .preview-spark { margin-left: auto; color: #b4c9ff; font-size: 26px; }
+    .care-journey { display: grid; grid-template-columns: minmax(0,1fr) 16px minmax(0,1fr) 16px minmax(0,1fr); gap: 5px; align-items: center; margin-top: 24px; }
+    .care-journey > div { display: flex; align-items: center; flex-direction: column; text-align: center; gap: 7px; min-width: 0; }
+    .journey-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; background: #e9efff; color: #2554bd; font-size: 23px; }
+    .journey-icon.purple { background: #efe8ff; color: #7241c6; }
+    .journey-icon.teal { background: #dcf5ef; color: #147868; }
+    .care-journey strong { font-size: 12px; font-weight: 600; }
+    .care-journey small { font-size: 10px; color: #d0daf2; line-height: 1.5; }
+    .journey-arrow { font-size: 16px; color: #b4c6f0; margin-top: -30px; }
+    .preview-footer { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 22px; padding-top: 16px; border-top: 1px solid #ffffff1c; font-size: 11px; color: #dbe4ff; line-height: 1.5; text-align: center; }
+    .preview-footer .material-symbols-rounded { font-size: 16px; }
+    .capability-list { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 22px; }
+    .capability-list > span { display: flex; align-items: center; gap: 6px; color: #dee6ff; font-size: 11px; }
+    .capability-list .material-symbols-rounded { font-size: 16px; color: #b6caff; }
+    .welcome-note { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; margin: 0; color: #d1ddf7; font-size: 11px; line-height: 1.5; }
+    .welcome-note .material-symbols-rounded { font-size: 15px; }
+    .signin-panel { display: flex; align-items: center; justify-content: center; min-width: 0; padding: 24px; }
+    .signin-card { width: 100%; max-width: 420px; display: flex; flex-direction: column; padding: 0; }
+    .signin-heading { margin-bottom: 30px; }
+    .signin-symbol { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: var(--ac-secondary-light); color: var(--ac-secondary); border: 1px solid var(--ac-border); font-size: 25px; margin-bottom: 22px; }
+    .form-eyebrow { font-size: 10px; color: var(--ac-secondary); letter-spacing: 1.2px; font-weight: 650; margin: 0 0 10px; }
+    h2 { margin: 0; font-size: 32px; line-height: 1.25; font-weight: 650; letter-spacing: -.8px; }
+    .signin-heading > p:last-child { margin: 10px 0 0; color: var(--ac-muted); font-size: 14px; line-height: 1.6; }
+    .login-fields { display: flex; flex-direction: column; }
+    .login-field { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+    .password-label { margin-top: 20px; }
+    .input-wrap { display: flex; align-items: center; min-height: 52px; border: 1px solid var(--ac-border-2); border-radius: 10px; background: var(--ac-surface); transition: border-color .15s,box-shadow .15s; }
+    .input-wrap:focus-within { border-color: #6366df; box-shadow: 0 0 0 2px #6366df15; }
+    .input-wrap > .material-symbols-rounded { flex: 0 0 44px; text-align: center; color: var(--ac-muted); font-size: 19px; }
+    .input-wrap input { width: 100%; min-width: 0; height: 50px; border: 0; outline: 0; box-shadow: none; background: transparent; color: var(--ac-text); font-family: inherit; font-size: 16px; font-weight: 400; padding: 0 12px 0 0; }
+    .input-wrap input::placeholder { color: var(--ac-muted-2); font-size: 14px; }
+    :host-context(.dark) .input-wrap input { border: 0 !important; background: transparent !important; }
+    .password-toggle { display: grid; place-items: center; flex: 0 0 44px; height: 44px; margin-right: 3px; border-radius: 8px; border: 0; background: transparent; color: var(--ac-muted); cursor: pointer; }
+    .password-toggle:hover { background: var(--ac-surface-2); }
+    .password-toggle .material-symbols-rounded { font-size: 20px; }
+    .signin-options { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-block: 12px 18px; font-size: 12px; }
+    .remember { display: flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; color: var(--ac-text-3); }
+    .remember input { width: 17px; height: 17px; margin: 0; accent-color: #6142d5; }
+    a { color: var(--ac-primary); text-decoration: none; font-weight: 500; }
+    a:hover { text-decoration: underline; }
+    .signin-options a { display: flex; align-items: center; min-height: 44px; }
+    .signin-button,.google-signin { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 52px; border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: box-shadow .15s,background .15s; }
+    .signin-button { border: 0; color: #fff; background: linear-gradient(105deg,#345dd9,#7040d5); box-shadow: 0 6px 18px #5e45ce24; }
+    .signin-button:hover:not(:disabled) { box-shadow: 0 8px 22px #5e45ce38; background: linear-gradient(105deg,#2b50c1,#6135bd); }
+    .signin-button .material-symbols-rounded { font-size: 19px; }
+    button:disabled { opacity: .65; cursor: wait; }
+    button:focus-visible,a:focus-visible,.remember input:focus-visible { outline: 2px solid var(--ac-secondary); outline-offset: 3px; }
+    .signin-divider { display: flex; align-items: center; gap: 14px; margin: 22px 0; color: var(--ac-muted-2); font-size: 12px; }
+    .signin-divider::before,.signin-divider::after { content: ''; flex: 1; height: 1px; background: var(--ac-border); }
+    .google-signin { border: 1px solid var(--ac-border-2); background: var(--ac-surface); color: var(--ac-text-2); }
+    .google-signin:hover:not(:disabled) { background: var(--ac-surface-2); }
+    .google-letter { font: 700 21px Arial,sans-serif; background: conic-gradient(#4285f4 0deg 90deg,#34a853 90deg 180deg,#fbbc05 180deg 225deg,#ea4335 225deg 280deg,#4285f4 280deg); background-clip: text; color: transparent; }
+    .access-help { display: flex; justify-content: center; align-items: center; gap: 7px; text-align: center; color: var(--ac-muted); font-size: 11px; line-height: 1.6; margin: 22px 0 0; }
+    .access-help .material-symbols-rounded { font-size: 16px; flex: 0 0 16px; }
+    .signin-footer { margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--ac-border); display: grid; gap: 10px; text-align: center; }
+    .signin-footer > div { display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 11px; }
+    .signin-footer a { color: var(--ac-muted); padding: 6px 0; }
+    .signin-footer span { color: var(--ac-muted-2); }
+    .signin-footer small { color: var(--ac-muted-2); font-size: 10px; }
+    .login-error { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 20px; padding: 12px; border: 1px solid var(--ac-error); border-radius: 10px; background: var(--ac-error-light); color: var(--ac-error-text); font-size: 13px; line-height: 1.6; }
+    .login-error .material-symbols-rounded { font-size: 19px; flex: 0 0 19px; margin-top: 1px; }
+    .login-spinner { width: 18px; height: 18px; border: 2px solid #ffffff55; border-top-color: white; border-radius: 50%; animation: loginSpin .8s linear infinite; }
+    @keyframes loginSpin { to { transform: rotate(360deg); } }
+    @media (min-width: 1600px) { .login-shell { padding: 40px; gap: 40px; } .welcome-content { max-width: 640px; } h1 { font-size: 58px; } .signin-card { max-width: 440px; } }
+    @media (min-width: 961px) and (max-height: 800px) { .welcome-panel { gap: 24px; padding: 32px; } h1 { font-size: 38px; } .care-preview { margin-top: 24px; padding: 18px; } .signin-heading { margin-bottom: 24px; } .signin-symbol { margin-bottom: 16px; } .signin-footer { margin-top: 22px; padding-top: 16px; } }
+    @media (max-width: 1100px) and (min-width: 961px) { .login-shell { padding: 16px; gap: 8px; } .welcome-panel { padding: 28px; } .signin-panel { padding: 24px; } h1 { font-size: 36px; } .capability-list { gap: 12px; } }
+    @media (max-width: 960px) { .login-shell { grid-template-columns: minmax(0,1fr); padding: 20px; gap: 0; } .welcome-panel { padding: 28px 32px; gap: 24px; border-radius: 24px; } .brand-lockup img { width: 140px; } .product-name { font-size: 18px; } .welcome-content { max-width: none; } .eyebrow { margin-bottom: 12px; } h1 { font-size: 34px; letter-spacing: -1px; margin-bottom: 0; } .welcome-copy,.care-preview,.welcome-note { display: none; } .capability-list { margin-top: 18px; } .signin-panel { padding: 36px 24px 24px; } .signin-symbol { display: none; } .signin-card { max-width: 440px; } .signin-heading { margin-bottom: 26px; } }
+    @media (max-width: 520px) { .login-shell { padding: 0; background: var(--ac-surface); } .welcome-panel { padding: 24px; border-radius: 0 0 24px 24px; gap: 24px; } .brand-lockup { gap: 14px; } .brand-lockup img { width: 132px; } .product-name { font-size: 17px; } .product-name span { font-size: 10px; } h1 { font-size: 28px; letter-spacing: -.8px; line-height: 1.18; } .eyebrow { font-size: 11px; } .capability-list { gap: 10px 16px; margin-top: 16px; } .capability-list > span { font-size: 10px; } .capability-list > span:last-child { display: none; } .signin-panel { padding: 30px 24px 24px; } h2 { font-size: 28px; } .signin-heading > p:last-child { font-size: 13px; } .signin-footer { margin-top: 24px; } }
+    @media (max-width: 360px) { .welcome-panel { padding: 22px 18px; } .signin-panel { padding: 28px 18px 22px; } h1 { font-size: 26px; } .brand-lockup { gap: 12px; } .product-name span { max-width: 110px; } .signin-options { font-size: 11px; gap: 8px; } }
+    @media (prefers-reduced-motion: reduce) { *,*::before,*::after { transition: none !important; animation: none !important; } }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -274,14 +183,7 @@ export class LoginPageComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly appLoader = inject(AppLoaderService);
 
-  protected readonly featureHighlights = [
-    { icon: 'groups', label: 'Patient Management' },
-    { icon: 'payments', label: 'Billing & Insurance' },
-    { icon: 'medication', label: 'Pharmacy' },
-    { icon: 'biotech', label: 'Laboratory' },
-    { icon: 'event_available', label: 'Appointment Scheduling' },
-    { icon: 'domain', label: 'Isolated Hospital Workspace' }
-  ];
+  protected readonly currentYear = new Date().getFullYear();
 
   protected email = '';
   protected password = '';
@@ -299,6 +201,7 @@ export class LoginPageComponent implements OnInit {
   }
 
   protected async onLogin(): Promise<void> {
+    if (this.loading()) return;
     this.loading.set(true);
     this.errorKey.set(null);
     this.appLoader.showImmediate();

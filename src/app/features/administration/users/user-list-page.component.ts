@@ -152,8 +152,8 @@ const defaultResetPassword = 'Reset@123';
                         </button>
                       }
                       @if (can(permissions.delete)) {
-                        <button class="icon-btn danger" type="button" (click)="deleteUser(user)" [attr.title]="t('Administration.UserManagement.Actions.Delete')">
-                          <span class="material-symbols-rounded">delete</span>
+                        <button class="icon-btn danger" type="button" (click)="deleteUser(user)" [disabled]="!!deletingUserGuid()" [attr.title]="t('Administration.UserManagement.Actions.Delete')">
+                          <span class="material-symbols-rounded">{{ deletingUserGuid() === user.userGuid ? 'hourglass_top' : 'delete' }}</span>
                         </button>
                       }
                     </div>
@@ -367,6 +367,8 @@ export class UserListPageComponent implements OnInit {
   protected readonly initialLoading = signal(true);
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
+  protected readonly deletingUserGuid = signal<string | null>(null);
+  private userLoadRevision = 0;
   protected readonly errorKey = signal<string | null>(null);
   protected readonly editorOpen = signal(false);
 
@@ -456,6 +458,7 @@ export class UserListPageComponent implements OnInit {
   }
 
   protected async loadUsers(pageNumber = this.pageNumber()): Promise<void> {
+    const revision = ++this.userLoadRevision;
     this.loading.set(true);
     try {
       const response = await this.service.searchUsers({
@@ -472,6 +475,7 @@ export class UserListPageComponent implements OnInit {
         pageSize: this.pageSize()
       });
 
+      if (revision !== this.userLoadRevision) return;
       if (response.success && response.data) {
         this.users.set(response.data.items);
         this.totalCount.set(response.data.totalCount);
@@ -482,7 +486,7 @@ export class UserListPageComponent implements OnInit {
 
       this.errorKey.set(response.message);
     } finally {
-      this.loading.set(false);
+      if (revision === this.userLoadRevision) this.loading.set(false);
     }
   }
 
@@ -657,29 +661,42 @@ export class UserListPageComponent implements OnInit {
   }
 
   protected async deleteUser(user: ManagedUser): Promise<void> {
-    const confirmed = await this.dialog.confirm({
-      title: this.t('Administration.UserManagement.Actions.Delete'),
-      message: this.t('Administration.UserManagement.Confirm.Delete'),
-      details: user.fullName,
-      confirmText: this.t('Administration.UserManagement.Actions.Delete'),
-      cancelText: this.t('Administration.UserManagement.Actions.Cancel'),
-      intent: 'danger',
-      icon: 'delete'
-    });
+    if (this.deletingUserGuid()) return;
+    this.deletingUserGuid.set(user.userGuid);
+    try {
+      const confirmed = await this.dialog.confirm({
+        title: this.t('Administration.UserManagement.Actions.Delete'),
+        message: this.t('Administration.UserManagement.Confirm.Delete'),
+        details: user.fullName,
+        confirmText: this.t('Administration.UserManagement.Actions.Delete'),
+        cancelText: this.t('Administration.UserManagement.Actions.Cancel'),
+        intent: 'danger',
+        icon: 'delete'
+      });
 
-    if (!confirmed) {
-      return;
+      if (!confirmed) {
+        return;
+      }
+
+      ++this.userLoadRevision;
+      this.loading.set(false);
+      const response = await this.service.deleteUser(user.userGuid);
+      if (!response.success || !response.data?.succeeded) {
+        this.toast.error(this.t(response.success ? 'Common.Errors.UnhandledException' : response.message));
+        return;
+      }
+
+      this.toast.success(this.t('Administration.UserManagement.Messages.Deleted'));
+      this.users.update(rows => rows.filter(row => row.userGuid !== user.userGuid));
+      this.totalCount.update(count => Math.max(0, count - 1));
+      if (this.editingUserGuid() === user.userGuid || this.selectedUser()?.userGuid === user.userGuid) this.clearForm();
+      const lastPage = Math.max(1, Math.ceil(this.totalCount() / this.pageSize()));
+      await this.loadUsers(Math.min(this.pageNumber(), lastPage));
+    } catch {
+      this.toast.error(this.t('Common.Errors.UnhandledException'));
+    } finally {
+      this.deletingUserGuid.set(null);
     }
-
-    const response = await this.service.deleteUser(user.userGuid);
-    if (!response.success) {
-      this.toast.error(this.t(response.message));
-      return;
-    }
-
-    this.toast.success(this.t('Administration.UserManagement.Messages.Deleted'));
-    await this.loadUsers();
-    this.clearForm();
   }
 
   hasUnsavedChanges(): boolean {

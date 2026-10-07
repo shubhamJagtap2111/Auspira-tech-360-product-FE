@@ -178,7 +178,12 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/billing/billing-page.component').then(m => m.BillingPageComponent)
   },
-  moduleRoute('inventory', 'Inventory', ['Assets', 'Medical Equipment', 'Consumables', 'Purchase Orders', 'Vendor Management']),
+  {
+    path: 'inventory',
+    canActivate: [authGuard, permissionGuard],
+    data: { permission: 'Inventory.View' },
+    loadComponent: () => import('./features/inventory/inventory-page.component').then(m => m.InventoryPageComponent)
+  },
   {
     path: 'reports/mis',
     canActivate: [authGuard, permissionGuard],

@@ -99,7 +99,7 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
 
         <section class="layout">
           <div class="main-form">
-            <section class="panel">
+            <section class="panel" id="hospital-profile" tabindex="-1" aria-label="Hospital profile">
               <div class="section-title">
                 <span class="material-symbols-rounded">badge</span>
                 <div>
@@ -120,7 +120,7 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
               </div>
             </section>
 
-            <section class="panel">
+            <section class="panel" id="hospital-address" tabindex="-1" aria-label="Hospital address">
               <div class="section-title">
                 <span class="material-symbols-rounded">location_on</span>
                 <div>
@@ -138,7 +138,7 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
               </div>
             </section>
 
-            <section class="panel">
+            <section class="panel" id="hospital-contact" tabindex="-1" aria-label="Hospital contact">
               <div class="section-title">
                 <span class="material-symbols-rounded">call</span>
                 <div>
@@ -155,7 +155,7 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
               </div>
             </section>
 
-            <section class="panel">
+            <section class="panel" id="hospital-license" tabindex="-1" aria-label="Hospital license">
               <div class="section-title">
                 <span class="material-symbols-rounded">verified_user</span>
                 <div>
@@ -172,7 +172,7 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
               </div>
             </section>
 
-            <section class="panel">
+            <section class="panel" id="hospital-gst" tabindex="-1" aria-label="Hospital gst">
               <div class="section-title">
                 <span class="material-symbols-rounded">receipt_long</span>
                 <div>
@@ -189,72 +189,54 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
             </section>
           </div>
 
-          <aside class="profile-rail">
-            @if (can(permissions.edit)) {
-              <section class="panel save-card">
-                <div>
-                  <strong>{{ hasUnsavedChanges() ? 'Unsaved changes' : 'All changes saved' }}</strong>
-                  <p>{{ hasUnsavedChanges() ? 'Save each edited section to keep your changes. New edits made during a save remain unsaved.' : 'The saved hospital profile is reflected in the header.' }}</p>
-                </div>
-                <button class="ac-btn ac-btn-primary" type="button" (click)="saveProfile()" [disabled]="saving()">
-                  <span class="material-symbols-rounded">save</span>
-                  {{ t('Administration.Hospital.Actions.SaveProfile') }}
-                </button>
-              </section>
-            }
-
-            <section class="panel rail-card">
-              <div class="rail-head">
-                <span class="material-symbols-rounded">task_alt</span>
-                <div>
-                  <h2>Profile readiness</h2>
-                  <p>Quick check before saving changes.</p>
-                </div>
+          <aside class="profile-rail" aria-label="Hospital profile overview">
+            <section class="profile-summary">
+              <header class="summary-heading">
+                <span class="summary-symbol material-symbols-rounded" aria-hidden="true">domain</span>
+                <div><h2>Profile overview</h2><p>Hospital details at a glance</p></div>
+              </header>
+              <div class="summary-group">
+                <h3>Hospital details</h3>
+                <nav class="profile-sections" aria-label="Jump to hospital form section">
+                  <button type="button" (click)="goToSection('profile')">
+                    <span class="material-symbols-rounded" aria-hidden="true">badge</span>
+                    <span class="section-copy"><strong>Identity</strong><small>{{ form.hospitalName && form.hospitalCode ? form.hospitalCode : 'Add hospital name and code' }}</small></span>
+                    <span class="section-state" [class.is-added]="form.hospitalName && form.hospitalCode">{{ form.hospitalName && form.hospitalCode ? 'Added' : 'Missing' }}</span>
+                    <span class="section-arrow material-symbols-rounded" aria-hidden="true">chevron_right</span>
+                  </button>
+                  <button type="button" (click)="goToSection('address')">
+                    <span class="material-symbols-rounded" aria-hidden="true">location_on</span>
+                    <span class="section-copy"><strong>Address</strong><small>{{ form.address.cityName || form.address.addressLine1 || 'Add hospital location' }}</small></span>
+                    <span class="section-state" [class.is-added]="form.address.addressLine1 && form.address.cityName">{{ form.address.addressLine1 && form.address.cityName ? 'Added' : 'Missing' }}</span>
+                    <span class="section-arrow material-symbols-rounded" aria-hidden="true">chevron_right</span>
+                  </button>
+                  <button type="button" (click)="goToSection('contact')">
+                    <span class="material-symbols-rounded" aria-hidden="true">call</span>
+                    <span class="section-copy"><strong>Contact</strong><small>{{ form.contact.primaryPhone || form.contact.email || 'Add phone or email' }}</small></span>
+                    <span class="section-state" [class.is-added]="form.contact.primaryPhone || form.contact.email">{{ form.contact.primaryPhone || form.contact.email ? 'Added' : 'Missing' }}</span>
+                    <span class="section-arrow material-symbols-rounded" aria-hidden="true">chevron_right</span>
+                  </button>
+                </nav>
               </div>
-              <div class="readiness-list">
-                <div>
-                  <span class="material-symbols-rounded">domain</span>
-                  <p><strong>Identity</strong>{{ form.hospitalName && form.hospitalCode ? 'Complete' : 'Needs hospital name and code' }}</p>
-                </div>
-                <div>
-                  <span class="material-symbols-rounded">location_on</span>
-                  <p><strong>Location</strong>{{ form.address.addressLine1 || form.address.cityName || form.address.stateName ? 'Address details added' : 'Address pending' }}</p>
-                </div>
-                <div>
-                  <span class="material-symbols-rounded">alternate_email</span>
-                  <p><strong>Contact</strong>{{ form.contact.email || form.contact.primaryPhone || 'Contact pending' }}</p>
-                </div>
-                <div>
-                  <span class="material-symbols-rounded">workspace_premium</span>
-                  <p><strong>Subscription</strong>{{ form.subscription.planCode }} · {{ form.subscription.statusCode }}</p>
-                </div>
+              <div class="summary-group">
+                <h3>Registration & tax</h3>
+                <nav class="registration-list" aria-label="Jump to registration details">
+                  <button type="button" (click)="goToSection('license')"><span>Hospital licence</span><strong [class.not-recorded]="!form.license.licenseNumber" [attr.title]="form.license.licenseNumber">{{ form.license.licenseNumber || 'Not added' }}</strong><span class="material-symbols-rounded" aria-hidden="true">chevron_right</span></button>
+                  <button type="button" (click)="goToSection('gst')"><span>GSTIN</span><strong [class.not-recorded]="!form.gst.gstin" [attr.title]="form.gst.gstin">{{ form.gst.gstin || 'Not added' }}</strong><span class="material-symbols-rounded" aria-hidden="true">chevron_right</span></button>
+                </nav>
               </div>
-            </section>
-
-            <section class="panel rail-card">
-              <div class="rail-head">
-                <span class="material-symbols-rounded">fact_check</span>
-                <div>
-                  <h2>Compliance status</h2>
-                  <p>Registration and tax details at a glance.</p>
-                </div>
-              </div>
-              <div class="status-list">
-                <div>
-                  <span>License</span>
-                  <strong>{{ form.license.licenseNumber ? 'Available' : 'Pending' }}</strong>
-                </div>
-                <div>
-                  <span>GST</span>
-                  <strong>{{ form.gst.gstin ? 'Registered' : 'Pending' }}</strong>
-                </div>
-                <div>
-                  <span>Last updated</span>
-                  <strong>{{ form.modifiedDate ? (form.modifiedDate | date: 'mediumDate') : 'Not yet saved' }}</strong>
-                </div>
-              </div>
+              <div class="subscription-row"><span class="material-symbols-rounded" aria-hidden="true">workspace_premium</span><div><small>Subscription</small><strong>{{ form.subscription.planNameKey ? t(form.subscription.planNameKey) : form.subscription.planCode || 'Not configured' }}</strong></div><span class="subscription-state" [class.is-active]="form.subscription.statusCode === 'ACTIVE'">{{ form.subscription.statusCode || 'Not set' }}</span></div>
+              <div class="summary-updated"><span>Last saved</span><span>{{ form.modifiedDate ? (form.modifiedDate | date: 'd MMM yyyy, h:mm a') : 'Not recorded' }}</span></div>
+              @if (can(permissions.edit)) {
+                <footer class="summary-save" aria-live="polite">
+                  <div class="save-status" [class.has-changes]="hasUnsavedChanges()"><span class="material-symbols-rounded" aria-hidden="true">{{ saving() ? 'sync' : hasUnsavedChanges() ? 'edit_note' : 'check_circle' }}</span><strong>{{ saving() ? 'Saving profile…' : hasUnsavedChanges() ? 'Unsaved changes' : 'Profile saved' }}</strong></div>
+                  <p>{{ hasUnsavedChanges() ? 'Save to update hospital details across Care360.' : 'Your hospital details are up to date.' }}</p>
+                  <button class="ac-btn ac-btn-primary" type="button" (click)="saveProfile()" [disabled]="saving() || !hasUnsavedChanges()"><span class="material-symbols-rounded" aria-hidden="true">save</span>{{ saving() ? 'Saving…' : t('Administration.Hospital.Actions.SaveProfile') }}</button>
+                </footer>
+              }
             </section>
           </aside>
+
 
           @if (profileDrawer(); as drawer) {
             <ac-admin-drawer
@@ -372,9 +354,50 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
     }
     .overview-chips i { width: 8px; height: 8px; border-radius: 999px; background: #16a34a; box-shadow: 0 0 0 4px rgba(22,163,74,.12); }
     .overview-actions { flex-wrap: wrap; justify-content: flex-end; align-items: center; }
-    .layout { align-items: flex-start; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
     .main-form { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; gap: 12px; }
-    .profile-rail { width: min(360px, 32vw); flex: 0 0 min(360px, 32vw); display: grid; gap: 12px; position: sticky; top: 84px; }
+    .profile-rail { min-width: 0; width: 100%; position: static; }
+    .main-form > .panel { scroll-margin-top: 20px; }
+    .profile-summary { border: 1px solid var(--ac-border); border-radius: 14px; background: var(--ac-surface); overflow: hidden; }
+    .summary-heading { display: flex; align-items: center; gap: 10px; padding: 20px; border-bottom: 1px solid var(--ac-border); background: linear-gradient(120deg,var(--ac-secondary-light),var(--ac-surface)); }
+    .summary-symbol { display: grid; place-items: center; flex: 0 0 36px; width: 36px; height: 36px; border-radius: 10px; background: var(--ac-surface); color: var(--ac-secondary); font-size: 21px; }
+    .summary-heading h2 { font-size: 15px; font-weight: 650; margin: 0; }
+    .summary-heading p { font-size: 11px; color: var(--ac-muted); margin: 4px 0 0; line-height: 1.5; }
+    .summary-group { padding: 18px 20px 0; }
+    .summary-group h3 { margin: 0 0 8px; color: var(--ac-muted); font-size: 10px; letter-spacing: .8px; text-transform: uppercase; font-weight: 600; }
+    .profile-sections { display: grid; }
+    .profile-sections button { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 66px; padding: 10px 0; border: 0; border-bottom: 1px solid var(--ac-border); background: transparent; color: var(--ac-text); text-align: left; }
+    .profile-sections button > .material-symbols-rounded:first-child { flex: 0 0 19px; font-size: 19px; color: var(--ac-primary); }
+    .section-copy { flex: 1; min-width: 0; }
+    .section-copy strong { display: block; font-size: 12px; font-weight: 600; }
+    .section-copy small { display: block; margin-top: 4px; font-size: 11px; color: var(--ac-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .section-state { font-size: 10px; color: var(--ac-warning-text); background: var(--ac-warning-light); padding: 4px 6px; border-radius: 5px; flex: 0 0 auto; }
+    .section-state.is-added { color: var(--ac-success-text); background: var(--ac-success-light); }
+    .section-arrow { color: var(--ac-muted-2); font-size: 16px; flex: 0 0 16px; }
+    .profile-sections button:hover .section-copy strong,.registration-list button:hover > span:first-child { color: var(--ac-primary); }
+    .profile-summary button:focus-visible { outline: 2px solid var(--ac-primary); outline-offset: -2px; border-radius: 5px; }
+    .registration-list { display: grid; }
+    .registration-list button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; background: transparent; border: 0; text-align: left; font-size: 11px; color: var(--ac-text-3); }
+    .registration-list button > span:first-child { flex: 0 0 auto; }
+    .registration-list strong { flex: 1; min-width: 0; text-align: right; font-size: 11px; font-weight: 500; color: var(--ac-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .registration-list strong.not-recorded { color: var(--ac-muted-2); }
+    .registration-list .material-symbols-rounded { color: var(--ac-muted-2); flex: 0 0 16px; font-size: 16px; }
+    .subscription-row { display: flex; align-items: center; gap: 10px; margin: 16px 20px 0; padding: 14px 0; border-block: 1px solid var(--ac-border); }
+    .subscription-row > .material-symbols-rounded { flex: 0 0 21px; font-size: 21px; color: var(--ac-secondary); }
+    .subscription-row > div { flex: 1; min-width: 0; }
+    .subscription-row small { display: block; font-size: 10px; color: var(--ac-muted); }
+    .subscription-row strong { display: block; font-size: 12px; font-weight: 600; margin-top: 4px; overflow-wrap: anywhere; }
+    .subscription-state { border: 1px solid var(--ac-border); color: var(--ac-muted); border-radius: 5px; padding: 4px 6px; font-size: 9px; text-transform: capitalize; }
+    .subscription-state.is-active { color: var(--ac-success-text); background: var(--ac-success-light); border-color: transparent; }
+    .summary-updated { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 16px 20px; color: var(--ac-muted); font-size: 10px; line-height: 1.5; }
+    .summary-updated > span:last-child { text-align: right; }
+    .summary-save { padding: 18px 20px 20px; border-top: 1px solid var(--ac-border); background: var(--ac-surface-2); }
+    .save-status { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ac-text-2); }
+    .save-status .material-symbols-rounded { font-size: 17px; color: var(--ac-success-text); }
+    .save-status.has-changes .material-symbols-rounded { color: var(--ac-primary); }
+    .save-status strong { font-weight: 600; }
+    .summary-save p { font-size: 11px; line-height: 1.6; color: var(--ac-muted); margin: 7px 0 14px; }
+    .summary-save .ac-btn { width: 100%; justify-content: center; min-height: 44px; }
     .panel {
       min-width: 0;
       border: 1px solid var(--ac-border);
@@ -425,48 +448,18 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
     input[type="color"] { padding: 4px; }
     .color-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
     .icon-btn { width: 36px; height: 36px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-text-2); cursor: pointer; display: inline-grid; place-items: center; }
-    .readiness-list, .status-list { display: grid; gap: 9px; }
-    .readiness-list div {
-      min-height: 52px;
-      display: grid;
-      grid-template-columns: 32px minmax(0, 1fr);
-      align-items: center;
-      gap: 9px;
-      padding: 9px;
-      border: 1px solid var(--ac-border);
-      border-radius: 8px;
-      background: var(--ac-surface-2);
-    }
-    .readiness-list .material-symbols-rounded { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; color: var(--ac-primary); background: rgba(37,99,235,.1); font-size: 19px; }
-    .readiness-list p { margin: 0; color: var(--ac-muted); font-size: 12px; line-height: 1.35; }
-    .readiness-list strong { display: block; margin-bottom: 2px; color: var(--ac-text); font-size: 13px; }
-    .status-list div {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--ac-border);
-      color: var(--ac-muted);
-      font-size: 12px;
-      font-weight: 800;
-    }
-    .status-list div:last-child { border-bottom: 0; }
-    .status-list strong { color: var(--ac-text); text-align: right; }
-    .save-card { display: grid; gap: 12px; background: linear-gradient(135deg, rgba(37,99,235,.07), rgba(20,184,166,.05)); }
-    .save-card strong { display: block; color: var(--ac-text); }
-    .save-card p { margin: 4px 0 0; color: var(--ac-muted); font-size: 12px; line-height: 1.4; }
-    .save-card .ac-btn { width: 100%; justify-content: center; }
     dl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin: 0; font-size: 13px; }
     dt { color: var(--ac-muted); font-weight: 700; }
     dd { margin: 0; color: var(--ac-text); text-align: right; }
     .subscription-summary { border: 1px solid var(--ac-border); border-radius: 8px; padding: 12px; background: var(--ac-surface-2); }
     .setting-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
     .setting-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+    @media (min-width: 1181px) and (min-height: 900px) { .profile-rail { position: sticky; top: 16px; } }
     @media (max-width: 1180px) {
-      .layout, .overview-panel { flex-direction: column; align-items: stretch; }
+      .layout { grid-template-columns: minmax(0,1fr); }
+      .overview-panel { flex-direction: column; align-items: stretch; }
       .overview-actions { justify-content: flex-start; }
-      .profile-rail { width: 100%; flex-basis: auto; position: static; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .profile-rail { width: 100%; position: static; }
     }
     @media (max-width: 900px) {
       .profile-rail, .form-grid { grid-template-columns: 1fr; }
@@ -496,6 +489,12 @@ export class HospitalManagementPageComponent implements OnInit {
   protected readonly profile = signal<HospitalProfile | null>(null);
   private readonly savedProfile = signal<HospitalProfile | null>(null);
   protected hasUnsavedChanges(): boolean { return hasHospitalDraft(this.profile(), this.savedProfile()); }
+
+  protected goToSection(section: 'profile' | 'address' | 'contact' | 'license' | 'gst'): void {
+    const target = document.getElementById(`hospital-${section}`);
+    target?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    target?.focus({ preventScroll: true });
+  }
   protected readonly profileDrawer = signal<HospitalProfileDrawer | null>(null);
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
