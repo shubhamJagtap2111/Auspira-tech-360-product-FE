@@ -28,13 +28,19 @@
                 "glob": "**/*",
                 "input": "src/assets",
                 "output": "/assets",
-                "ignore": ["fonts/*.woff2", "fonts/fonts.css"]
+                "ignore": [
+                  "fonts/*.woff2",
+                  "fonts/fonts.css"
+                ]
               }
             ],
             "styles": [
               "src/assets/fonts/fonts.css",
               "src/styles.css",
               "src/enterprise-theme.css"
+            ],
+            "allowedCommonJsDependencies": [
+              "qrcode"
             ]
           }
         },

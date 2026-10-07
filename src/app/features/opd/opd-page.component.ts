@@ -1,3 +1,4 @@
+import { PrescriptionAccessService, PrescriptionAccessLink, PrescriptionHospitalHeader } from './prescription-access.service';
 import { AuthStore } from '../../core/auth/auth.store';
 import { PatientProfile } from '../patients/patient-management.models';
 import { CommonModule } from '@angular/common';
@@ -55,6 +56,11 @@ import { LabReport } from '../laboratory/laboratory.models';
         } @else { <p>{{ historyByPatient()[visit.appointment.patientId] ? 'No previous completed visit recorded.' : (contextError() || 'Loading history…') }}</p> }
       </section>
     </ng-template>
+    @if (patientAccessDetails(); as access) {
+      <div class="prescription-backdrop"><section class="patient-access-dialog" role="dialog" aria-modal="true" aria-label="Patient access code" cdkTrapFocus [cdkTrapFocusAutoCapture]="true">
+        <h2>Patient access code</h2><p>Share this code privately with the patient. Keep it separate from the QR prescription.</p><strong class="access-code">{{ access.accessCode }}</strong><p>Expires {{ access.expiresAt | date:'dd MMM yyyy' }}. Previous completed visits are available after the consultation is completed.</p><button type="button" class="ac-btn ac-btn-primary" (click)="patientAccessDetails.set(null)">Done</button>
+      </section></div>
+    }
     <section class="opd-page" [class.consulting]="activeTab() === 'encounter'" [attr.inert]="finishing() ? '' : null">
       <header class="page-header">
         <div>
@@ -117,7 +123,7 @@ import { LabReport } from '../laboratory/laboratory.models';
           @switch (activeTab()) {
             @case ('dashboard') {
               @if (completedPatientName()) {
-                <div class="completion-banner" role="status"><span aria-hidden="true" class="material-symbols-rounded">task_alt</span><span>Consultation completed for {{ completedPatientName() }}. Your next patient is ready below.</span>@if (completedPrescription()) { <button type="button" class="ac-btn ac-btn-secondary" (click)="printCompletedPrescription()">Print prescription</button> }</div>
+                <div class="completion-banner" role="status"><span aria-hidden="true" class="material-symbols-rounded">task_alt</span><span>Consultation completed for {{ completedPatientName() }}. Your next patient is ready below.</span>@if (completedPrescription()) { <button type="button" class="ac-btn ac-btn-secondary" (click)="printCompletedPrescription()">Print prescription</button><button type="button" class="ac-btn ac-btn-secondary" (click)="showPatientAccessCode()">Patient access code</button> }</div>
               }
               <section class="opd-today-grid">
                 <article class="panel today-queue-panel">
@@ -827,9 +833,9 @@ import { LabReport } from '../laboratory/laboratory.models';
                     <span aria-hidden="true" class="material-symbols-rounded">ecg_heart</span>
                   </div>
                   <div>
-                    <p class="rx-label">Hospital Logo</p>
+                    <p class="rx-label">Outpatient prescription</p>
                     <h2>{{ prescription.hospitalName }}</h2>
-                    <span>{{ prescription.branchName }}</span>
+                    <span>{{ prescription.branchName }}</span><p class="rx-contact">{{ prescription.hospitalAddress }}</p><p class="rx-contact">{{ prescription.hospitalContact }}</p>
                   </div>
                   <aside>
                     <strong>{{ prescription.prescriptionNo }}</strong>
@@ -849,22 +855,20 @@ import { LabReport } from '../laboratory/laboratory.models';
                   <div><small>Age / Gender</small><strong>{{ prescription.ageGender }}</strong></div>
                   <div><small>MRN</small><strong>{{ prescription.patientMrn }}</strong></div>
                   <p><strong>Vitals:</strong> {{ prescription.vitalSummary }}</p>
-                  <p><strong>Symptoms:</strong> {{ prescription.symptomSummary }}</p>
+                  <p><strong>Allergies:</strong> {{ prescription.allergySummary || 'Not recorded — verify with patient' }}</p><p><strong>Symptoms:</strong> {{ prescription.symptomSummary }}</p>
                   <p><strong>Diagnosis:</strong> {{ prescription.diagnosisSummary }}</p>
                 </section>
 
                 <section class="rx-medicine-block">
                   <h3>Rx</h3>
-                  <ol>
+                  <div class="rx-medicine-cards">
                     @for (medicine of prescription.medicines; track $index) {
-                      <li>
-                        <strong>{{ prescriptionMedicineName(medicine) }}</strong>
-                        <span>{{ prescriptionMedicineInstruction(medicine) }}</span>
-                      </li>
-                    } @empty {
-                      <li><strong>No medicines captured.</strong></li>
-                    }
-                  </ol>
+                      <article><h4>{{ $index + 1 }}. {{ prescriptionMedicineName(medicine) }} <small>{{ medicine.dosageForm }}</small></h4>
+                        <dl><div><dt>Dose</dt><dd>{{ medicine.dosage }}</dd></div><div><dt>Frequency</dt><dd>{{ medicine.frequency }}</dd></div><div><dt>Route</dt><dd>{{ medicine.route }}</dd></div><div><dt>Duration</dt><dd>{{ medicine.duration }}</dd></div><div><dt>Quantity</dt><dd>{{ medicine.quantity }}</dd></div></dl>
+                        @if (medicine.instructions) { <p>{{ medicine.instructions }}</p> } @if (medicine.isPrn) { <p>As needed: {{ medicine.prnReason }}</p> }
+                      </article>
+                    } @empty { <p>No medicines recorded.</p> }
+                  </div>
                 </section>
 
                 <section class="rx-advice-grid">
@@ -891,7 +895,7 @@ import { LabReport } from '../laboratory/laboratory.models';
                   <article>
                     <h3>Advice</h3>
                     <ul>
-                      @for (item of prescription.advice.length ? prescription.advice : [prescription.notes || 'Follow medical advice and return if symptoms worsen.']; track $index) {
+                      @for (item of prescription.advice; track $index) {
                         <li>{{ item }}</li>
                       }
                     </ul>
@@ -915,12 +919,10 @@ import { LabReport } from '../laboratory/laboratory.models';
                 </section>
 
                 <footer class="rx-sheet-foot">
-                  <div class="rx-qr">
-                    <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-                  </div>
+                  <div class="rx-qr">@if (prescription.qrImage) { <img [src]="prescription.qrImage" alt="Secure prescription QR code" /> }</div>
                   <div>
-                    <strong>Scan to access digital prescription</strong>
-                    <small>{{ prescription.opdEncounterNo }} · {{ prescription.appointmentNo }}</small>
+                    <strong>Scan for prescription & visit history</strong>
+                    <small>Patient access code or hospital login required.</small><small>Link valid until {{ prescription.accessExpiresAt | date:'dd MMM yyyy' }}</small>
                   </div>
                   <div class="rx-signature">
                     <strong>Doctor Signature</strong>
@@ -930,7 +932,7 @@ import { LabReport } from '../laboratory/laboratory.models';
                 <p class="rx-disclaimer">Disclaimer: This prescription is generated from the Care360 OPD encounter and should be used only under the advice of the issuing doctor.</p>
               </div>
 
-              <footer class="prescription-modal-actions">
+              <div class="rx-access-handover"><span>Give the patient their access code separately from the prescription.</span><button type="button" class="ac-btn ac-btn-secondary" (click)="showPatientAccessCode()">Patient access code</button></div><footer class="prescription-modal-actions">
                 <button class="ac-btn ac-btn-secondary" type="button" (click)="sharePrescription()">
                   <span aria-hidden="true" class="material-symbols-rounded">ios_share</span>
                   Share to Patient
@@ -2333,6 +2335,20 @@ import { LabReport } from '../laboratory/laboratory.models';
       letter-spacing: .12em;
     }
     .rx-sheet-head h2 { margin: 0; color: var(--ac-text); font-size: 25px; }
+    .patient-access-dialog { width: min(440px, calc(100vw - 32px)); margin: auto; background: white; padding: 28px; border-radius: 18px; color: #172554; }
+    .patient-access-dialog p { line-height: 1.6; color: #5c6d88; }
+    .access-code { display: block; font-size: 32px; letter-spacing: .18em; background: #f4f0ff; padding: 18px; border-radius: 10px; margin: 18px 0; }
+    .rx-contact { font-size: 12px; margin: 4px 0; color: var(--ac-muted); }
+    .rx-access-handover { padding: 16px 24px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; font-size: 13px; background: #f5f2ff; }
+    .rx-medicine-cards article { border: 1px solid var(--ac-border); padding: 16px; border-radius: 10px; margin: 10px 0; }
+    .rx-medicine-cards h4 { margin: 0; font-size: 16px; }
+    .rx-medicine-cards h4 small { display: block; margin-top: 5px; color: var(--ac-muted); font-size: 12px; }
+    .rx-medicine-cards dl { display: flex; flex-wrap: wrap; gap: 16px 24px; margin: 16px 0 0; }
+    .rx-medicine-cards dt { font-size: 11px; color: var(--ac-muted); }
+    .rx-medicine-cards dd { margin: 6px 0 0; font-size: 13px; font-weight: 700; }
+    .rx-medicine-cards p { font-size: 13px; margin: 12px 0 0; }
+    .rx-sheet { border-top: 4px solid #653ad1; }
+    .rx-doctor-block { background: #f7f5fd; }
     .rx-sheet-head span { color: var(--ac-muted); font-weight: 800; }
     .rx-sheet-head aside {
       display: grid;
@@ -2443,7 +2459,10 @@ import { LabReport } from '../laboratory/laboratory.models';
       border: 1px solid var(--ac-border);
       background: var(--ac-surface);
     }
-    .rx-qr span { background: color-mix(in srgb, var(--ac-text) 78%, transparent); }
+    .rx-qr img { width: 120px; height: 120px; max-width: 100%; }
+    .rx-qr { display: block; width: 120px; height: 120px; padding: 0; border: 0; }
+    .rx-qr img { display: block; width: 120px; height: 120px; }
+
     .rx-sheet-foot strong { display: block; color: var(--ac-text); font-weight: 950; }
     .rx-sheet-foot small { color: var(--ac-muted); font-weight: 850; }
     .rx-signature {
@@ -3273,6 +3292,11 @@ export class OpdPageComponent implements OnInit {
   private readonly appointmentService = inject(AppointmentManagementService);
   private readonly patientService = inject(PatientManagementService);
   private readonly doctorService = inject(DoctorManagementService);
+  private readonly accessService = inject(PrescriptionAccessService);
+  protected readonly accessLinks = signal<Record<string, PrescriptionAccessLink>>({});
+  protected readonly patientAccessDetails = signal<PrescriptionAccessLink | null>(null);
+  private readonly hospitalHeader = signal<PrescriptionHospitalHeader | null>(null);
+  private readonly accessRequests = new Map<string, Promise<boolean>>();
   private readonly opdService = inject(OpdManagementService);
   private readonly laboratoryService = inject(LaboratoryService);
   private readonly branchContext = inject(BranchContextService);
@@ -3325,7 +3349,8 @@ export class OpdPageComponent implements OnInit {
 
   protected readonly prescriptionPreview = computed<PrescriptionPreview | null>(() => {
     const visit = this.selectedVisit();
-    return visit ? buildPrescriptionPreview(visit, this.clinicalForm(), this.labTests(), this.prescriptionStatusLabel(), this.prescriptionRevisionNo()) : null;
+    if (!visit) return null;
+    return this.enrichPrescription({ ...buildPrescriptionPreview(visit, this.clinicalForm(), this.labTests(), this.prescriptionStatusLabel(), this.prescriptionRevisionNo()), hospitalName: this.branchContext.hospitalName(), allergySummary: this.allergySummary(visit) });
   });
 
   protected readonly prescriptionHeader = computed<PrescriptionHeaderVm | null>(() => {
@@ -4887,6 +4912,7 @@ export class OpdPageComponent implements OnInit {
       return;
     }
 
+    if (!await this.prepareDigitalAccess(this.selectedVisit()?.consultation?.id || '')) return;
     this.prescriptionPreviewOpen.set(true);
   }
 
@@ -4968,7 +4994,8 @@ export class OpdPageComponent implements OnInit {
     this.printOptionsOpen.set(false);
   }
 
-  protected confirmPrintPrescription(): void {
+  protected async confirmPrintPrescription(): Promise<void> {
+    if (this.printOptions.includeQrCode && !await this.prepareDigitalAccess(this.selectedVisit()?.consultation?.id || '')) return;
     const preview = this.prescriptionPreview();
     if (!preview) {
       this.toast.warning('Prescription unavailable', 'Select an OPD encounter before printing.');
@@ -4988,6 +5015,8 @@ export class OpdPageComponent implements OnInit {
       return;
     }
 
+    if (!await this.prepareDigitalAccess(this.selectedVisit()?.consultation?.id || '')) return;
+
     const preview = this.prescriptionPreview();
     if (!preview) {
       this.toast.warning('Prescription unavailable', 'Select an OPD encounter before printing.');
@@ -5005,6 +5034,8 @@ export class OpdPageComponent implements OnInit {
     if (!await this.ensureFinalPrescription()) {
       return;
     }
+
+    if (!await this.prepareDigitalAccess(this.selectedVisit()?.consultation?.id || '')) return;
 
     const preview = this.prescriptionPreview();
     if (!preview) {
@@ -5338,9 +5369,43 @@ export class OpdPageComponent implements OnInit {
     } finally { this.finishing.set(false); this.completionProgress.set(''); }
   }
 
-  protected printCompletedPrescription(): void {
-    const prescription = this.completedPrescription();
-    if (prescription && !openPrescriptionDocument(prescription, true, this.printOptions)) this.toast.error('Unable to print', 'Allow pop-ups for this site and try again.');
+  private enrichPrescription(prescription: PrescriptionPreview): PrescriptionPreview {
+    const header = this.hospitalHeader();
+    const access = this.accessLinks()[prescription.opdEncounterId];
+    const address = header?.address;
+    return { ...prescription, hospitalName: header?.hospitalName || prescription.hospitalName,
+      hospitalAddress: address ? [address.addressLine1, address.addressLine2, address.cityName, address.stateName, address.postalCode].filter(Boolean).join(', ') : '',
+      hospitalContact: header?.contact ? [header.contact.primaryPhone, header.contact.email].filter(Boolean).join(' · ') : '',
+      qrImage: access?.qrImage, accessUrl: access?.url, accessExpiresAt: access?.expiresAt };
+  }
+
+  private async prepareDigitalAccess(id: string): Promise<boolean> {
+    if (!id) return false;
+    if (this.accessLinks()[id]) return true;
+    if (this.accessRequests.has(id)) return this.accessRequests.get(id)!;
+    const task = (async () => {
+      try {
+        const [access, header] = await Promise.all([this.accessService.issue(id), this.accessService.header()]);
+        this.hospitalHeader.set(header);
+        this.accessLinks.update(links => ({ ...links, [id]: access }));
+        return true;
+      } catch { this.toast.error('Digital prescription unavailable', 'Unable to prepare the QR link. Please retry. Your prescription is retained.'); return false; }
+      finally { this.accessRequests.delete(id); }
+    })();
+    this.accessRequests.set(id, task);
+    return task;
+  }
+
+  protected async showPatientAccessCode(): Promise<void> {
+    const id = this.selectedVisit()?.consultation?.id || this.completedPrescription()?.opdEncounterId;
+    if (id && await this.prepareDigitalAccess(id)) this.patientAccessDetails.set(this.accessLinks()[id]);
+  }
+
+  protected async printCompletedPrescription(): Promise<void> {
+    const saved = this.completedPrescription();
+    if (!saved || !await this.prepareDigitalAccess(saved.opdEncounterId)) return;
+    const prescription = this.enrichPrescription(saved);
+    if (!openPrescriptionDocument(prescription, true, this.printOptions)) this.toast.error('Unable to print', 'Allow pop-ups for this site and try again.');
   }
 
   private async ensureEncounterForAction(visit: OpdVisitVm): Promise<OpdConsultationRecord | null> {
@@ -5796,6 +5861,12 @@ export class OpdPageComponent implements OnInit {
 }
 
 interface PrescriptionPreview {
+  hospitalAddress?: string;
+  hospitalContact?: string;
+  allergySummary?: string;
+  qrImage?: string;
+  accessUrl?: string;
+  accessExpiresAt?: string;
   hospitalName: string;
   patientId: string;
   patientName: string;
@@ -6879,12 +6950,11 @@ function openPrescriptionDocument(prescription: PrescriptionPreview, autoPrint: 
 }
 
 function printablePrescriptionHtml(prescription: PrescriptionPreview, autoPrint: boolean, options: PrescriptionPrintOptions): string {
-  const medicineRows = prescription.medicines.map(item => `
-    <li>
-      <strong>${escapeHtml(formatPrescriptionMedicineName(item))}</strong>
-      <span>${escapeHtml(formatPrescriptionMedicineInstruction(item))}</span>
-    </li>
-  `).join('') || '<li><strong>No medicines captured.</strong></li>';
+  const medicineRows = prescription.medicines.map((item, index) => `
+    <tr><td>${index + 1}</td><td><strong>${escapeHtml(formatPrescriptionMedicineName(item))}</strong><small>${escapeHtml(item.dosageForm)}</small></td>
+      <td>${escapeHtml(item.dosage)}</td><td>${escapeHtml(item.frequency)}</td><td>${escapeHtml(item.route)}</td><td>${escapeHtml(item.duration)}</td><td>${escapeHtml(item.quantity)}</td></tr>
+    ${item.instructions || item.isPrn ? `<tr class="instructions"><td></td><td colspan="6">${escapeHtml([item.instructions, item.isPrn ? 'As needed: ' + (item.prnReason || '') : ''].filter(Boolean).join(' · '))}</td></tr>` : ''}
+  `).join('') || '<tr><td colspan="7">No medicines recorded.</td></tr>';
   const investigationRows = prescription.investigations.length ? printableList(prescription.investigations) : '';
   const procedureRows = prescription.procedures.length ? printableList(prescription.procedures) : '';
   const adviceRows = printableList(prescription.advice.length ? prescription.advice : [prescription.notes || 'Follow medical advice and return if symptoms worsen.']);
@@ -6893,7 +6963,7 @@ function printablePrescriptionHtml(prescription: PrescriptionPreview, autoPrint:
   const formatClass = `format-${options.format.toLowerCase()}`;
   const showHeader = options.includeHospitalHeader;
   const showSignature = options.includeDoctorSignature;
-  const showQr = options.includeQrCode;
+  const showQr = options.includeQrCode && Boolean(prescription.qrImage);
   const showVitals = options.includeVitals && prescription.includeVitals;
   const showDiagnosis = options.includeDiagnosis;
   const showAdvice = options.includeAdvice;
@@ -6981,7 +7051,33 @@ function printablePrescriptionHtml(prescription: PrescriptionPreview, autoPrint:
     .paper.format-thermal .extras section { border-right: 0; }
     .paper.format-thermal .signature { justify-items: start; text-align: left; }
     .paper.format-thermal .signature::before { width: 140px; }
-    @media print { body { padding: 0; background: white; } .paper { border-radius: 0; border-color: #94a3b8; } }
+    .paper { border-top: 5px solid #6037c9; border-radius: 12px; }
+    .sheet-head { grid-template-columns: 62px minmax(0, 1fr) 140px; padding: 22px 26px; }
+    .logo { border-color: #ddd5f7; background: #f5f0ff; color: #6135be; }
+    .sheet-head h1 { font-size: 26px; color: #233052; }
+    .hospital-contact { font-size: 11px; color: #61718a; margin-top: 5px; line-height: 1.5; }
+    .doctor { background: #f8f6fc; padding: 14px 26px; }
+    .patient { font-size: 13px; padding: 18px 26px; gap: 10px 26px; }
+    .patient p { font-weight: 400; font-size: 12px; }
+    .rx { min-height: 160px; padding: 18px 26px; }
+    .rx-caption { font: 600 14px Arial, sans-serif; padding-left: 10px; }
+    .medicine-table { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; font-size: 12px; }
+    th { background: #f5f2fb; color: #513b79; text-align: left; font-size: 10px; padding: 10px 8px; }
+    td { padding: 13px 8px; border-bottom: 1px solid #e6e9f1; vertical-align: top; overflow-wrap: anywhere; }
+    td small { display: block; margin-top: 4px; color: #65728a; font-size: 10px; }
+    .instructions td { padding-top: 0; color: #5b6980; font-size: 11px; }
+    tr { break-inside: avoid; } .extras section, .foot, .doctor { break-inside: avoid; }
+    .extras section { padding: 18px 26px; font-size: 12px; } .extras li { font-weight: 400; line-height: 1.6; }
+    .extras h3 { color: #4c337d; font-size: 14px; }
+    .foot { grid-template-columns: 128px 1fr 170px; padding: 18px 26px; font-size: 12px; }
+    .foot small { display: block; font-size: 10px; margin-top: 6px; line-height: 1.5; }
+    .qr { display: block; width: 128px; height: 128px; border: 0; padding: 0; background: white; }
+    .signature::before { width: 160px; margin-top: 28px; } .signature { font-size: 11px; }
+    .paper.format-thermal table { font-size: 9px; } .paper.format-thermal th, .paper.format-thermal td { padding: 7px 3px; }
+    @media(max-width:650px) { body { padding: 12px; }.sheet-head { grid-template-columns: 1fr; }.sheet-head aside { justify-items: center; text-align:center; }.logo { display:none; }.patient,.extras,.foot { grid-template-columns:1fr; }.signature { justify-items:start; text-align:left; } }
+    @media print { body { padding: 0; background: white; } .paper { border-radius: 0; border: 0; }.sheet-head { grid-template-columns: 62px minmax(0,1fr) 140px; }.sheet-head aside { justify-items:end; text-align:right; }.logo { display:grid; }.patient,.extras { grid-template-columns:1fr 1fr; }.foot { grid-template-columns:128px 1fr 170px; }.medicine-table { overflow: visible; } @page { size: ${options.format === 'A5' ? 'A5' : options.format === 'THERMAL' ? 'auto' : 'A4'}; margin: 12mm; } }
+
   </style>
 </head>
 <body>
@@ -6989,9 +7085,9 @@ function printablePrescriptionHtml(prescription: PrescriptionPreview, autoPrint:
     ${showHeader ? `<header class="sheet-head">
       <div class="logo">+</div>
       <div>
-        <p class="label">Hospital Logo</p>
+        <p class="label">Outpatient prescription</p>
         <h1>${escapeHtml(prescription.hospitalName)}</h1>
-        <span>${escapeHtml(prescription.branchName)}</span>
+        <span>${escapeHtml(prescription.branchName)}</span><p class="hospital-contact">${escapeHtml(prescription.hospitalAddress || '')}</p><p class="hospital-contact">${escapeHtml(prescription.hospitalContact || '')}</p>
       </div>
       <aside>
         <strong>${escapeHtml(prescription.prescriptionNo)}</strong>
@@ -7009,25 +7105,25 @@ function printablePrescriptionHtml(prescription: PrescriptionPreview, autoPrint:
       <div><small>Age / Gender</small><strong>${escapeHtml(prescription.ageGender)}</strong></div>
       <div><small>MRN</small><strong>${escapeHtml(prescription.patientMrn)}</strong></div>
       ${showVitals ? `<p><strong>Vitals:</strong> ${escapeHtml(prescription.vitalSummary)}</p>` : ''}
-      <p><strong>Symptoms:</strong> ${escapeHtml(prescription.symptomSummary)}</p>
+      <p><strong>Allergies:</strong> ${escapeHtml(prescription.allergySummary || 'Not recorded — verify with patient')}</p><p><strong>Symptoms:</strong> ${escapeHtml(prescription.symptomSummary)}</p>
       ${showDiagnosis ? `<p><strong>Diagnosis:</strong> ${escapeHtml(prescription.diagnosisSummary)}</p>` : ''}
     </section>
     <section class="rx">
-      <h3>Rx</h3>
-      <ol>${medicineRows}</ol>
+      <h3>Rx <span class="rx-caption">Medicines prescribed</span></h3>
+      <div class="medicine-table"><table><thead><tr><th>#</th><th>Medicine / Strength</th><th>Dose</th><th>Frequency</th><th>Route</th><th>Duration</th><th>Qty</th></tr></thead><tbody>${medicineRows}</tbody></table></div>
     </section>
     <div class="extras">
       ${investigationRows ? `<section><h3>Investigations</h3><ul>${investigationRows}</ul></section>` : ''}
       ${procedureRows ? `<section><h3>Procedures</h3><ul>${procedureRows}</ul></section>` : ''}
-      ${showAdvice ? `<section><h3>Advice</h3><ul>${adviceRows}</ul></section>` : ''}
+      ${showAdvice && adviceRows ? `<section><h3>Advice</h3><ul>${adviceRows}</ul></section>` : ''}
       ${dietAdviceRows ? `<section><h3>Diet Advice</h3><ul>${dietAdviceRows}</ul></section>` : ''}
       ${showFollowUp && followUpRows ? `<section class="wide"><h3>Follow-up</h3>${followUpRows}</section>` : ''}
     </div>
     ${(showQr || showSignature) ? `<footer class="foot ${!showQr ? 'no-qr' : ''} ${!showSignature ? 'no-signature' : ''}">
-      ${showQr ? `<div class="qr"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      ${showQr ? `<img class="qr" src="${escapeHtml(prescription.qrImage || '')}" alt="Scan to view prescription and visit history" />
       <div>
         <strong>Scan to access digital prescription</strong>
-        <small class="muted">${escapeHtml(prescription.opdEncounterNo)} · ${escapeHtml(prescription.appointmentNo)}</small>
+        <small class="muted">Patient access code or hospital login required.</small><small class="muted">Link expires ${escapeHtml(prescription.accessExpiresAt ? new Date(prescription.accessExpiresAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '')}</small>
       </div>` : ''}
       ${showSignature ? `<div class="signature">
         <strong>Doctor Signature</strong>

@@ -317,7 +317,8 @@ export class LoginPageComponent implements OnInit {
       this.authStore.setSession(response.data);
       await this.i18n.loadCatalog();
 
-      await this.router.navigateByUrl('/');
+      const returnUrl = this.router.parseUrl(location.pathname + location.search).queryParams['returnUrl'];
+      await this.router.navigateByUrl(typeof returnUrl === 'string' && returnUrl.startsWith('/prescription-access#') ? returnUrl : '/');
     } catch {
       this.errorKey.set('Auth.Errors.InvalidCredentials');
     } finally {

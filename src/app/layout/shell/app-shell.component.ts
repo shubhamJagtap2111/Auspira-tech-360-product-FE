@@ -1966,7 +1966,7 @@ export class AppShellComponent implements OnInit {
     { initialValue: window.location.pathname + window.location.search }
   );
   protected readonly isAuthPage = computed(() =>
-    this.currentUrl().startsWith('/auth')
+    this.currentUrl().startsWith('/auth') || this.currentUrl().startsWith('/prescription-access')
   );
   protected readonly isAuthenticated = computed(() => this.authStore.isAuthenticated());
   private aiConversationHydrated = false;
