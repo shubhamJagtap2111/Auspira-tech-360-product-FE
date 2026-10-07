@@ -344,9 +344,10 @@ import { LabReport } from '../laboratory/laboratory.models';
                                     <h3>Chief complaints</h3>
                                     <p>What brings the patient in today?</p>
                                   </div>
+                                  <div class="quick-entry" aria-label="Common complaints"><small>Common complaints</small><div class="quick-choice-row">@for (complaint of complaintTemplates.slice(0, 8); track complaint) { <button type="button" [class.selected]="clinicalForm().complaintDraft.complaint === complaint" [attr.aria-pressed]="clinicalForm().complaintDraft.complaint === complaint" (click)="useComplaintTemplate(complaint)">{{ complaint }}</button> }</div></div>
                                   <div class="clinical-grid">
-                                    <label class="field"><span>Complaint</span><input name="complaint" [(ngModel)]="clinicalForm().complaintDraft.complaint" placeholder="Body pain" /></label>
-                                    <label class="field"><span>Duration</span><input name="complaintDuration" [(ngModel)]="clinicalForm().complaintDraft.duration" placeholder="2 days" /></label>
+                                    <div class="field complaint-picker" [acDismissiblePopover]="complaintSuggestionsOpen()" (dismissPopover)="complaintSuggestionsOpen.set(false)"><label for="opd-complaint">Complaint</label><input id="opd-complaint" name="complaint" [(ngModel)]="clinicalForm().complaintDraft.complaint" (ngModelChange)="complaintSuggestionsOpen.set(true)" (focus)="complaintSuggestionsOpen.set(true)" placeholder="Search complaints or enter your own" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="opd-complaint-options" [attr.aria-expanded]="complaintSuggestionsOpen() && complaintSuggestions().length > 0" />@if (complaintSuggestionsOpen() && complaintSuggestions().length) { <div class="medicine-suggestions" id="opd-complaint-options" role="listbox" aria-label="Common complaints">@for (complaint of complaintSuggestions(); track complaint) { <button type="button" role="option" [attr.aria-selected]="clinicalForm().complaintDraft.complaint === complaint" (click)="useComplaintTemplate(complaint)">{{ complaint }}</button> }</div> }</div>
+                                    <div class="field"><label for="opd-complaint-duration">Duration</label><input id="opd-complaint-duration" name="complaintDuration" [(ngModel)]="clinicalForm().complaintDraft.duration" placeholder="Select or enter duration" /><div class="quick-choice-row compact" aria-label="Complaint duration">@for (duration of complaintDurations; track duration) { <button type="button" [class.selected]="clinicalForm().complaintDraft.duration === duration" (click)="setComplaintDuration(duration)">{{ duration }}</button> }</div></div>
                                     <label class="field"><span>Severity</span><ac-dropdown ariaLabel="complaint Severity" name="complaintSeverity" [(ngModel)]="clinicalForm().complaintDraft.severity" [options]="complaintSeverityOptions" /></label>
                                     <label class="field wide"><span>Notes</span><input name="complaintNotes" [(ngModel)]="clinicalForm().complaintDraft.notes" placeholder="Associated symptoms or trigger" /></label>
                                   </div>
@@ -400,7 +401,8 @@ import { LabReport } from '../laboratory/laboratory.models';
                                   </div>
                                 </section>
                               </div>
-                            <div class="section-title"><h3>Diagnosis</h3><p>Primary and secondary diagnoses are supported.</p></div>
+                            <div class="section-title"><h3>Diagnosis</h3><p>Select a recorded diagnosis or enter a new one.</p></div>
+                            @if (recordedDiagnosisChoices().length) { <div class="quick-entry"><small>Recorded diagnoses · select only if relevant today</small><div class="quick-choice-row">@for (diagnosis of recordedDiagnosisChoices().slice(0, 5); track diagnosis.diagnosisCode + diagnosis.diagnosisName) { <button type="button" (click)="selectDiagnosisSuggestion(diagnosis)">{{ diagnosis.diagnosisName }}</button> }</div></div> }
                               <div class="clinical-grid">
                                 <label class="field"><span>ICD Code</span><input name="diagnosisCode" [(ngModel)]="clinicalForm().diagnosisDraft.diagnosisCode" placeholder="M25.512" /></label>
                                 <div class="field diagnosis-search-field" [acDismissiblePopover]="diagnosisSuggestionsOpen()" (dismissPopover)="diagnosisSuggestionsOpen.set(false)"><label for="opd-diagnosis-name">Diagnosis</label><input id="opd-diagnosis-name" name="diagnosisName" [(ngModel)]="clinicalForm().diagnosisDraft.diagnosisName" (ngModelChange)="diagnosisSuggestionsOpen.set(true)" (focus)="diagnosisSuggestionsOpen.set(true)" placeholder="Search a recorded diagnosis or enter one…" autocomplete="off" />@if (diagnosisSuggestionsOpen() && diagnosisSuggestions().length) { <div class="medicine-suggestions diagnosis-suggestions">@for (diagnosis of diagnosisSuggestions(); track diagnosis.diagnosisCode + diagnosis.diagnosisName) { <button type="button" (click)="selectDiagnosisSuggestion(diagnosis)"><strong>{{ diagnosis.diagnosisName }}</strong><small>{{ diagnosis.diagnosisCode || 'No code recorded' }} · Recorded diagnosis</small></button> }</div> }</div>
@@ -434,6 +436,7 @@ import { LabReport } from '../laboratory/laboratory.models';
                                   </div>
                                 </div>
                               }
+                              @if (prescriptionTemplates().length) { <div class="quick-entry"><small>Saved treatment sets · review medicines after applying</small><div class="quick-choice-row">@for (template of prescriptionTemplates().slice(0, 5); track template.id) { <button type="button" (click)="applyPrescriptionTemplate(template.id)">{{ template.name }}</button> }</div></div> }
                               <details class="treatment-templates"><summary>Use or save a treatment template</summary><section class="prescription-template-panel" [class.prescription-edit-locked]="prescriptionLocked()">
                                 <div class="template-panel-head">
                                   <div class="template-panel-title">
@@ -508,7 +511,7 @@ import { LabReport } from '../laboratory/laboratory.models';
                                     }
                                   </div>
                                   <label class="field"><span>Strength</span><input name="medicineStrength" [(ngModel)]="clinicalForm().prescriptionDraft.strength" placeholder="500 mg" /></label>
-                                  <label class="field"><span>Dosage Form</span><input name="dosageForm" [(ngModel)]="clinicalForm().prescriptionDraft.dosageForm" placeholder="Tablet" /></label>
+                                  <label class="field"><span>Dosage Form</span><input name="dosageForm" [(ngModel)]="clinicalForm().prescriptionDraft.dosageForm" placeholder="Tablet" list="opd-dosage-forms" /><datalist id="opd-dosage-forms"><option value="Tablet"></option><option value="Capsule"></option><option value="Syrup"></option><option value="Injection"></option><option value="Cream"></option><option value="Drops"></option><option value="Inhaler"></option></datalist></label>
                                   <label class="field"><span>Dosage *</span><input name="dosage" [(ngModel)]="clinicalForm().prescriptionDraft.dosage" placeholder="1 Tablet" /></label>
                                   <label class="field">
                                     <span>Frequency *</span>
@@ -519,13 +522,13 @@ import { LabReport } from '../laboratory/laboratory.models';
                                       [options]="frequencyOptions"
                                     />
                                   </label>
-                                  <label class="field"><span>Route *</span><input name="route" [(ngModel)]="clinicalForm().prescriptionDraft.route" placeholder="Oral" /></label>
-                                  <label class="field"><span>Duration (days) *</span><input name="duration" [(ngModel)]="clinicalForm().prescriptionDraft.duration" placeholder="5 Days" /></label>
+                                  <label class="field"><span>Route *</span><input name="route" [(ngModel)]="clinicalForm().prescriptionDraft.route" placeholder="Oral" list="opd-routes" /><datalist id="opd-routes"><option value="Oral"></option><option value="Topical"></option><option value="Inhalation"></option><option value="Intravenous"></option><option value="Intramuscular"></option><option value="Subcutaneous"></option></datalist></label>
+                                  <div class="field"><label for="opd-medicine-duration">Duration (days) *</label><input id="opd-medicine-duration" name="duration" [(ngModel)]="clinicalForm().prescriptionDraft.duration" placeholder="Select or enter days" /><div class="quick-choice-row compact" aria-label="Medicine duration">@for (days of prescriptionDurations; track days) { <button type="button" (click)="setMedicineQuickValue('duration', days)">{{ days }}d</button> }</div></div>
                                   <label class="field"><span>Quantity *</span><input name="quantity" [(ngModel)]="clinicalForm().prescriptionDraft.quantity" placeholder="10" /></label>
                                   @if (customFrequencyMode()) {
                                     <label class="field"><span>Custom Frequency</span><input name="customFrequency" [(ngModel)]="clinicalForm().prescriptionDraft.frequency" placeholder="Enter custom frequency" /></label>
                                   }
-                                  <label class="field wide"><span>Instructions</span><input name="instructions" [(ngModel)]="clinicalForm().prescriptionDraft.instructions" placeholder="After Food" /></label>
+                                  <div class="field wide"><label for="opd-medicine-instructions">Instructions</label><input id="opd-medicine-instructions" name="instructions" [(ngModel)]="clinicalForm().prescriptionDraft.instructions" placeholder="Select or enter instructions" /><div class="quick-choice-row compact" aria-label="Medicine instructions">@for (instruction of medicineInstructionChoices; track instruction) { <button type="button" (click)="setMedicineQuickValue('instructions', instruction)">{{ instruction }}</button> }</div></div>
                                   <label class="field prescription-prn"><span>As needed (PRN)</span><input type="checkbox" name="isPrn" [(ngModel)]="clinicalForm().prescriptionDraft.isPrn" /></label>
                                   @if (clinicalForm().prescriptionDraft.isPrn) { <label class="field wide"><span>PRN reason / indication *</span><input name="prnReason" [(ngModel)]="clinicalForm().prescriptionDraft.prnReason" placeholder="Example: Fever above 38°C or pain" /></label> }
                                 </div>
@@ -565,7 +568,7 @@ import { LabReport } from '../laboratory/laboratory.models';
                                 </div>
                               </section></details>
 
-                              <details class="optional-section" [open]="clinicalForm().adviceList.length > 0"><summary>Patient advice <span>{{ clinicalForm().adviceList.length }} added</span></summary><section class="prescription-extra-card" [class.prescription-edit-locked]="prescriptionLocked()">
+                              <details class="optional-section" open><summary>Patient advice <span>{{ clinicalForm().adviceList.length }} added</span></summary><section class="prescription-extra-card" [class.prescription-edit-locked]="prescriptionLocked()">
                                 <div class="mini-section-title">
                                   <div>
                                     <h4>Advice</h4>
@@ -656,9 +659,10 @@ import { LabReport } from '../laboratory/laboratory.models';
                             <div class="section-title"><h3>Follow-up</h3><p>Create a follow-up task or appointment automatically.</p></div>
                               <div class="clinical-grid">
                                 <label class="check-field"><input type="checkbox" name="followUpRequired" [(ngModel)]="clinicalForm().followUp.followUpRequired" /> Follow-up Required</label>
-                                <label class="field"><span>Review after (days)</span><input name="followUpAfter" [ngModel]="clinicalForm().followUp.followUpAfterDays" (ngModelChange)="updateFollowUpAfterDays($event)" inputmode="numeric" /></label><label class="field"><span>Follow-up Date</span><input type="date" name="followUpDate" [(ngModel)]="clinicalForm().followUp.followUpDate" /></label>
+                                <div class="field"><label for="opd-follow-up-after">Review after (days)</label><input id="opd-follow-up-after" name="followUpAfter" [ngModel]="clinicalForm().followUp.followUpAfterDays" (ngModelChange)="updateFollowUpAfterDays($event)" inputmode="numeric" /><div class="quick-choice-row compact" aria-label="Follow-up interval">@for (days of followUpIntervals; track days) { <button type="button" (click)="updateFollowUpAfterDays('' + days)">{{ days }}d</button> }</div></div><label class="field"><span>Follow-up Date</span><input type="date" name="followUpDate" [(ngModel)]="clinicalForm().followUp.followUpDate" /></label>
                                 <label class="field"><span>Preferred Doctor</span><ac-dropdown ariaLabel="preferred Doctor" name="preferredDoctor" [(ngModel)]="clinicalForm().followUp.preferredDoctorId" [options]="preferredDoctorOptions()" /></label>
-                                <label class="field"><span>Follow-up reason</span><input name="followUpReason" [(ngModel)]="clinicalForm().followUp.reason" list="opd-follow-up-reasons" placeholder="Select or enter a reason" /><datalist id="opd-follow-up-reasons"><option value="Review symptoms"></option><option value="Review investigations"></option><option value="Medication review"></option><option value="Post-procedure review"></option><option value="Chronic disease follow-up"></option></datalist></label>
+                                <label class="field wide"><span>Follow-up reason</span><input name="followUpReason" [(ngModel)]="clinicalForm().followUp.reason" list="opd-follow-up-reasons" placeholder="Select or enter a reason" /><datalist id="opd-follow-up-reasons"><option value="Review symptoms"></option><option value="Review investigations"></option><option value="Medication review"></option><option value="Post-procedure review"></option><option value="Chronic disease follow-up"></option></datalist></label>
+                                <div class="field wide"><div class="quick-choice-row" aria-label="Follow-up reason">@for (reason of followUpReasons; track reason) { <button type="button" (click)="setFollowUpReason(reason)">{{ reason }}</button> }</div></div>
                                 <label class="check-field"><input type="checkbox" name="createFollowUpAppointment" [(ngModel)]="clinicalForm().followUp.createAppointment" /> Create Follow-Up Appointment Automatically</label>
                                 @if (clinicalForm().followUp.createAppointment) { <label class="field"><span>Follow-up appointment time</span><input type="time" name="followUpAppointmentTime" [(ngModel)]="clinicalForm().followUp.appointmentTime" /></label> }
                                 <label class="field wide"><span>Notes</span><input name="followUpNotes" [(ngModel)]="clinicalForm().followUp.notes" /></label>
@@ -2754,6 +2758,16 @@ import { LabReport } from '../laboratory/laboratory.models';
     .history-drawer button:focus-visible, .history-drawer summary:focus-visible { outline: 3px solid var(--ac-primary); outline-offset: 3px; }
     @media (max-width: 700px) { .history-visits-layout { height: auto; min-height: 100%; } .history-detail { overflow: visible; } .history-timeline { overflow-y: hidden; } }
     @media (max-width: 700px) { .history-overlay { padding: 0; } .history-drawer { height: 100dvh; max-height: 100dvh; border-radius: 0; width: 100%; } .history-drawer .history-header, .history-patient { padding: 16px 18px; } .history-heading-icon { width: 38px; height: 38px; } .history-drawer h2 { font-size: 18px; } .history-navigation { padding: 0 18px; gap: 18px; } .history-visits-layout { grid-template-columns: minmax(0, 1fr); } .history-timeline { padding: 16px; border-right: 0; border-bottom: 1px solid var(--ac-border); display: flex; gap: 10px; overflow-x: auto; } .history-timeline > .history-eyebrow { display: none; } .history-timeline-item { flex: 0 0 180px; margin-bottom: 0; } .history-detail, .history-results { padding: 18px; } .history-drawer .history-detail-heading h3 { font-size: 16px; } .history-detail-heading { flex-wrap: wrap; } .history-drawer .history-footer { padding: 12px 18px; } .history-readonly { display: none; } .history-vitals { grid-template-columns: repeat(2, minmax(0, 1fr)); } .history-result-card { grid-template-columns: minmax(0, 1fr); } .history-result-value { align-items: flex-start; } .history-context-error { padding: 12px 18px; } }
+    .consultation-group .clinical-grid > .field { display: flex; flex-direction: column; align-items: stretch; align-self: start; gap: 8px; }
+    .quick-entry { min-width: 0; margin-bottom: 14px; }
+    .quick-entry > small { display: block; margin-bottom: 8px; color: var(--ac-muted); font-size: 11px; font-weight: 600; }
+    .quick-choice-row { display: flex; flex-wrap: wrap; gap: 7px; }
+    .quick-choice-row button { min-height: 36px; padding: 7px 11px; border: 1px solid var(--ac-border); border-radius: 18px; background: var(--ac-surface); color: var(--ac-text); font: inherit; font-size: 12px; cursor: pointer; text-align: left; }
+    .quick-choice-row button:hover, .quick-choice-row button.selected { border-color: var(--ac-primary); background: var(--ac-primary-light); color: var(--ac-primary); }
+    .quick-choice-row.compact { gap: 5px; margin-top: 3px; }
+    .quick-choice-row.compact button { font-size: 11px; padding: 5px 8px; min-height: 32px; }
+    .complaint-picker { position: relative; }
+    .complaint-picker .medicine-suggestions { top: 100%; max-height: 280px; }
     /* Focused consultation: one stage at a time, with patient context always close. */
     .opd-page.consulting { overflow: visible; }
     .consulting > .page-header .page-desc, .consulting > .stats-row { display: none; }
@@ -2962,20 +2976,23 @@ export class OpdPageComponent implements OnInit {
     const specialty = this.selectedVisit()?.doctor?.primarySpecialization || this.selectedVisit()?.departmentName || '';
     return examinationSystemsForSpecialty(specialty);
   });
-  protected readonly diagnosisSuggestions = computed(() => {
+  protected readonly recordedDiagnosisChoices = computed(() => {
     const visit = this.selectedVisit();
-    const query = this.clinicalForm().diagnosisDraft.diagnosisName.trim().toLowerCase();
-    if (!visit || query.length < 2) return [];
+    if (!visit) return [];
     const records = [...this.consultations(), ...(this.historyByPatient()[visit.appointment.patientId] || [])];
     const seen = new Set<string>();
     return records.filter(record => record.doctorId === visit.appointment.doctorId || record.patientId === visit.appointment.patientId)
       .flatMap(record => restoreClinicalForm(record).diagnoses)
       .filter(diagnosis => {
         const key = `${diagnosis.diagnosisCode}|${diagnosis.diagnosisName}`.toLowerCase();
-        if (seen.has(key) || !key.includes(query)) return false;
+        if (seen.has(key)) return false;
         seen.add(key);
         return true;
-      }).slice(0, 8);
+      });
+  });
+  protected readonly diagnosisSuggestions = computed(() => {
+    const query = this.clinicalForm().diagnosisDraft.diagnosisName.trim().toLowerCase();
+    return query.length < 2 ? [] : this.recordedDiagnosisChoices().filter(diagnosis => (diagnosis.diagnosisName + ' ' + diagnosis.diagnosisCode).toLowerCase().includes(query)).slice(0, 8);
   });
   protected readonly selectedVisit = signal<OpdVisitVm | null>(null);
   protected readonly transferVisit = signal<OpdVisitVm | null>(null);
@@ -3012,7 +3029,17 @@ export class OpdPageComponent implements OnInit {
     { label: 'High', value: 'High' },
     { label: 'Critical', value: 'Critical' }
   ];
-  protected readonly complaintTemplates = ['Weakness', 'Shoulder pain', 'Fever', 'Headache'];
+  protected readonly complaintSuggestionsOpen = signal(false);
+  protected readonly complaintTemplates = ['Fever', 'Cough', 'Headache', 'Body pain', 'Abdominal pain', 'Weakness', 'Dizziness', 'Back pain', 'Sore throat', 'Cold / runny nose', 'Nausea', 'Vomiting', 'Diarrhoea', 'Joint pain', 'Shoulder pain', 'Breathlessness', 'Chest pain', 'Painful urination', 'Skin rash'];
+  protected readonly complaintDurations = ['Today', '2 days', '3 days', '1 week'];
+  protected readonly prescriptionDurations = ['3', '5', '7', '10', '14'];
+  protected readonly followUpIntervals = [3, 7, 14, 30];
+  protected readonly followUpReasons = ['Review symptoms', 'Review investigations', 'Medication review', 'Post-procedure review', 'Chronic disease follow-up'];
+  protected readonly medicineInstructionChoices = ['After food', 'Before food', 'With food'];
+  protected readonly complaintSuggestions = computed(() => {
+    const query = this.clinicalForm().complaintDraft.complaint.trim().toLowerCase();
+    return this.complaintTemplates.filter(complaint => complaint.toLowerCase().includes(query));
+  });
   protected readonly investigationTemplates = ['CBC', 'Blood Sugar', 'Lipid Profile', 'X-Ray', 'MRI', 'ECG'];
   protected readonly investigationCategories = [
     { label: 'Laboratory', items: ['CBC', 'Blood Sugar', 'Lipid Profile'] },
@@ -4193,7 +4220,22 @@ export class OpdPageComponent implements OnInit {
     this.clinicalForm.update(form => ({ ...form, complaints: form.complaints.filter((_, itemIndex) => itemIndex !== index) }));
   }
 
+  protected setComplaintDuration(duration: string): void {
+    this.clinicalForm.update(form => ({ ...form, complaintDraft: { ...form.complaintDraft, duration } }));
+  }
+
+  protected setMedicineQuickValue(field: 'duration' | 'instructions', value: string): void {
+    if (!this.ensurePrescriptionEditable()) return;
+    this.clinicalForm.update(form => ({ ...form, prescriptionDraft: { ...form.prescriptionDraft, [field]: value } }));
+    this.markPrescriptionChanged();
+  }
+
+  protected setFollowUpReason(reason: string): void {
+    this.clinicalForm.update(form => ({ ...form, followUp: { ...form.followUp, reason } }));
+  }
+
   protected useComplaintTemplate(complaint: string): void {
+    this.complaintSuggestionsOpen.set(false);
     this.clinicalForm.update(form => ({
       ...form,
       complaintDraft: {

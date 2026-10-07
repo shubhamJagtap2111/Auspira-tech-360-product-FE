@@ -31,3 +31,49 @@ test('specialty changes order of examination headings without documenting findin
   assert.equal(new Set(context.examinationSystemsForSpecialty('General Medicine')).size, 5);
   assert.doesNotMatch(context.examinationSystemsForSpecialty('General Medicine').join(' '), /normal|negative|absent/i);
 });
+
+const component = ast.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'OpdPageComponent');
+const shortcutNames = ['useComplaintTemplate', 'setComplaintDuration', 'setMedicineQuickValue', 'setFollowUpReason'];
+const shortcutMethods = component.members.filter(node => ts.isMethodDeclaration(node) && shortcutNames.includes(node.name.getText(ast))).map(node => node.getText(ast));
+vm.runInContext(ts.transpileModule('class QuickEntryHarness {' + shortcutMethods.join('\n') + '} globalThis.QuickEntryHarness = QuickEntryHarness;', { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, context);
+function quickEntrySetup() {
+  let form = { complaintDraft: { complaint: 'Custom symptom', duration: '4 days', severity: 'High', notes: 'Patient-specific note' }, prescriptionDraft: { duration: '2', dosage: 'Doctor-entered dose', quantity: '12', instructions: 'Existing instructions' }, followUp: { reason: '', followUpDate: '2026-10-20', notes: 'Patient-specific review' } };
+  const h = new context.QuickEntryHarness();
+  h.clinicalForm = () => form;
+  h.clinicalForm.update = fn => { form = fn(form); };
+  h.complaintSuggestionsOpen = { set: value => { h.suggestionsOpen = value; } };
+  h.ensurePrescriptionEditable = () => true;
+  h.markPrescriptionChanged = () => { h.changed = true; };
+  return h;
+}
+test('complaint shortcuts preserve patient-specific duration, severity and notes', () => {
+  const h = quickEntrySetup();
+  h.useComplaintTemplate('Fever');
+  assert.equal(h.clinicalForm().complaintDraft.complaint, 'Fever');
+  assert.equal(h.clinicalForm().complaintDraft.duration, '4 days');
+  assert.equal(h.clinicalForm().complaintDraft.severity, 'High');
+  assert.equal(h.clinicalForm().complaintDraft.notes, 'Patient-specific note');
+  assert.equal(h.suggestionsOpen, false);
+  h.setComplaintDuration('1 week');
+  assert.equal(h.clinicalForm().complaintDraft.complaint, 'Fever');
+  assert.equal(h.clinicalForm().complaintDraft.duration, '1 week');
+});
+test('medicine shortcuts change only the selected field and respect issued prescription locks', () => {
+  const h = quickEntrySetup();
+  h.setMedicineQuickValue('duration', '7');
+  assert.equal(h.clinicalForm().prescriptionDraft.duration, '7');
+  assert.equal(h.clinicalForm().prescriptionDraft.dosage, 'Doctor-entered dose');
+  assert.equal(h.clinicalForm().prescriptionDraft.quantity, '12');
+  assert.equal(h.clinicalForm().prescriptionDraft.instructions, 'Existing instructions');
+  assert.equal(h.changed, true);
+  h.ensurePrescriptionEditable = () => false;
+  h.setMedicineQuickValue('instructions', 'After food');
+  assert.equal(h.clinicalForm().prescriptionDraft.instructions, 'Existing instructions');
+});
+test('review reason shortcuts preserve the date and patient-specific notes', () => {
+  const h = quickEntrySetup();
+  h.setFollowUpReason('Review investigations');
+  assert.equal(h.clinicalForm().followUp.reason, 'Review investigations');
+  assert.equal(h.clinicalForm().followUp.followUpDate, '2026-10-20');
+  assert.equal(h.clinicalForm().followUp.notes, 'Patient-specific review');
+});
