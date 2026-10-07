@@ -1,7 +1,7 @@
 import { AuthStore } from '../../core/auth/auth.store';
 import { PatientProfile } from '../patients/patient-management.models';
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, HostListener, Injector, OnInit, afterNextRender, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, HostListener, Injector, OnInit, afterNextRender, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { A11yModule } from '@angular/cdk/a11y';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -285,9 +285,9 @@ import { LabReport } from '../laboratory/laboratory.models';
 
             @case ('encounter') {
               <section class="encounter-layout">
-                <article class="encounter-card" [style.--opd-header-height]="consultationHeaderHeight() + 'px'">
+                <article class="encounter-card">
                   @if (selectedVisit(); as visit) {
-                    <div #consultationHeader class="encounter-head">
+                    <div class="encounter-head">
                       <div>
                         <p class="ac-eyebrow">Consultation workspace · {{ visit.doctorName }}</p>
                         <h2>{{ visit.patientName }}</h2>
@@ -2620,7 +2620,7 @@ import { LabReport } from '../laboratory/laboratory.models';
     .opd-page { font-size: 15px; }
     .opd-shell { overflow: visible; padding: 16px; }
     .encounter-card, .clinical-board { overflow: visible; }
-    .encounter-head { position: sticky; top: 0; z-index: 12; background: var(--ac-surface); padding: 16px; border-bottom: 1px solid var(--ac-border); box-shadow: 0 2px 8px #0f172a0a; }
+    .encounter-head { position: static; z-index: 12; background: var(--ac-surface); padding: 16px; border-bottom: 1px solid var(--ac-border); box-shadow: 0 2px 8px #0f172a0a; }
     .encounter-head h2 { font-size: 22px; }
     .patient-allergy { margin: 8px 0 0; font-weight: 650; color: var(--ac-text); }
     .patient-snapshot { background: var(--ac-surface); top: 120px; padding: 18px; border-color: var(--ac-border); }
@@ -2775,7 +2775,7 @@ import { LabReport } from '../laboratory/laboratory.models';
     .patient-vitals-strip button .material-symbols-rounded { font-size: 16px; color: inherit; }
     .encounter-workspace { grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; }
     .clinical-board { order: 1; min-width: 0; }
-    .doctor-summary { order: 2; position: sticky; top: calc(var(--opd-header-height, 180px) + 20px); padding: 0; border-radius: 14px; box-shadow: 0 4px 18px #33415506; max-height: calc(100dvh - var(--opd-header-height, 180px) - 110px); overflow-y: auto; overscroll-behavior: contain; }
+    .doctor-summary { order: 2; position: static; padding: 0; border-radius: 14px; box-shadow: 0 4px 18px #33415506; max-height: none; overflow: visible; }
     .doctor-summary-details > summary { display: flex; align-items: center; gap: 8px; list-style: none; cursor: pointer; padding: 16px; font-weight: 750; background: linear-gradient(115deg, var(--ac-primary-light), color-mix(in srgb, var(--ac-secondary, #7c3aed) 5%, var(--ac-surface))); border-bottom: 1px solid var(--ac-border); }
     .doctor-summary-details > summary::-webkit-details-marker { display: none; }
     .doctor-summary-details > summary > .material-symbols-rounded { font-size: 20px; color: var(--ac-primary); }
@@ -2794,7 +2794,7 @@ import { LabReport } from '../laboratory/laboratory.models';
     .summary-results .material-symbols-rounded:last-child { margin-left: auto; }
     .summary-previous { font-size: 12px; }
     .shortcut-hint { margin-top: 15px; line-height: 1.9 !important; }
-    .consultation-jump-links { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 0; margin-bottom: 16px; position: sticky; top: calc(var(--opd-header-height, 180px) + 10px); z-index: 24; background: var(--ac-bg); }
+    .consultation-jump-links { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 0; margin-bottom: 16px; position: sticky; top: 0; z-index: 24; background: var(--ac-bg); }
     .consultation-jump-links button { display: flex; gap: 9px; align-items: center; text-align: left; min-width: 0; padding: 14px 12px; background: var(--ac-surface); border-radius: 12px; transition: border-color 150ms; }
     .consultation-jump-links button.active { border-color: var(--ac-primary); background: linear-gradient(120deg, var(--ac-primary-light), color-mix(in srgb, var(--ac-secondary, #7c3aed) 5%, var(--ac-surface))); box-shadow: 0 3px 12px #2563eb0b; }
     .consultation-jump-links .stage-number { display: grid; place-items: center; flex: 0 0 28px; height: 28px; background: var(--ac-bg); color: var(--ac-muted); border-radius: 8px; font-size: 12px; }
@@ -2802,7 +2802,7 @@ import { LabReport } from '../laboratory/laboratory.models';
     .consultation-jump-links strong { font-size: 13px; display: block; }
     .consultation-jump-links small { display: block; margin-top: 4px; font-size: 10px; font-weight: 500; color: var(--ac-muted); line-height: 1.4; }
     .consultation-jump-links .material-symbols-rounded { font-size: 18px; color: var(--ac-primary); margin-left: auto; }
-    .consultation-group { padding: 22px; border-radius: 14px; gap: 18px; scroll-margin-top: calc(var(--opd-header-height, 180px) + 105px); box-shadow: 0 4px 18px #33415505; }
+    .consultation-group { padding: 22px; border-radius: 14px; gap: 18px; scroll-margin-top: 95px; box-shadow: 0 4px 18px #33415505; }
     .consultation-group[hidden] { display: none !important; }
     .group-heading h2 { font-size: 19px; }
     .group-heading p { font-size: 12px; color: var(--ac-muted); }
@@ -2867,7 +2867,7 @@ import { LabReport } from '../laboratory/laboratory.models';
       .consultation-jump-links strong { font-size: 11px; }
       .consultation-jump-links small, .consultation-jump-links .material-symbols-rounded { display: none; }
       .consultation-jump-links .stage-number { flex-basis: 22px; height: 22px; font-size: 10px; }
-      .consultation-group { padding: 14px; scroll-margin-top: calc(var(--opd-header-height, 180px) + 65px); }
+      .consultation-group { padding: 14px; scroll-margin-top: 65px; }
       .group-heading { gap: 8px; }
       .group-heading h2 { font-size: 17px; }
       .vitals-section .clinical-grid, .medicine-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -2933,8 +2933,6 @@ export class OpdPageComponent implements OnInit {
   protected readonly activeTab = signal<OpdTab>('dashboard');
   protected readonly activeEncounterSection = signal<OpdEncounterSection>('snapshot');
   private readonly consultationInjector = inject(Injector);
-  private readonly consultationHeader = viewChild<ElementRef<HTMLElement>>('consultationHeader');
-  protected readonly consultationHeaderHeight = signal(180);
   protected readonly wideConsultation = signal(window.innerWidth > 1250);
   protected readonly diagnosisSuggestionsOpen = signal(false);
   protected readonly consultationStages = [
@@ -3725,13 +3723,6 @@ export class OpdPageComponent implements OnInit {
   private readonly auth = inject(AuthStore);
   private focusPatientId = '';
   constructor() {
-    effect(onCleanup => {
-      const header = this.consultationHeader()?.nativeElement;
-      if (!header) return;
-      const observer = new ResizeObserver(() => this.consultationHeaderHeight.set(Math.ceil(header.getBoundingClientRect().height)));
-      observer.observe(header);
-      onCleanup(() => observer.disconnect());
-    });
     const poll = setInterval(() => this.observeDraftChanges(), 1000);
     const retainDraft = () => {
       const visit = this.selectedVisit();

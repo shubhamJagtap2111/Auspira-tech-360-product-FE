@@ -144,12 +144,26 @@ const server = http.createServer((req, res) => {
     await page.getByRole('button', { name: 'Add to HPI', exact: true }).click();
     assert.match(await page.locator('textarea[name="presentIllness"]').inputValue(), /Location: Left shoulder/);
     await page.waitForFunction(() => document.querySelector('.draft-status')?.textContent.includes('Saved to server'), { timeout: 10000 });
-    const assertPatientHeader = async () => {
-      const header = await page.locator('.encounter-head').boundingBox();
-      const appHeader = await page.locator('.header').boundingBox();
-      assert.ok(header.y >= appHeader.y + appHeader.height - 2 && header.y < appHeader.y + appHeader.height + 40, 'patient header stays visible while editing');
+    const assertNaturalConsultationScroll = async () => {
+      const scroll = await page.evaluate(async () => {
+        const scroller = document.querySelector('.main-content');
+        const header = document.querySelector('.encounter-head');
+        const previous = scroller.scrollTop;
+        scroller.scrollTop = 0;
+        await new Promise(requestAnimationFrame);
+        const before = header.getBoundingClientRect().top;
+        scroller.scrollTop = 150;
+        await new Promise(requestAnimationFrame);
+        const after = header.getBoundingClientRect().top;
+        const distance = scroller.scrollTop;
+        scroller.scrollTop = previous;
+        return { before, after, distance, summaryOverflow: getComputedStyle(document.querySelector('.doctor-summary')).overflowY };
+      });
+      assert.ok(scroll.distance > 100, 'consultation uses the application scroll container');
+      assert.ok(Math.abs(scroll.before - scroll.after - scroll.distance) < 2, 'patient header scrolls naturally with the consultation');
+      assert.equal(scroll.summaryOverflow, 'visible', 'doctor summary has no separate scroll frame');
     };
-    await assertPatientHeader();
+    await assertNaturalConsultationScroll();
     assert.equal(writes.some(write => /prescriptions|symptoms|diagnoses|laboratory\/orders/.test(write.path)), false, 'autosave must not create downstream records');
     await page.getByRole('button', { name: 'History & results', exact: true }).click();
     await page.getByRole('dialog', { name: 'History & results' }).waitFor();
@@ -273,7 +287,7 @@ const server = http.createServer((req, res) => {
     assert.equal(await page.locator('.medicine-table-row .medicine-validation-error').count(), 0);
     await page.locator('.medicine-composer').scrollIntoViewIfNeeded();
     await page.screenshot({ path: path.join(artifacts, 'medicine-validation-desktop.png') });
-    await assertPatientHeader();
+    await assertNaturalConsultationScroll();
     await page.getByRole('button', { name: /Next: Follow-up/ }).click();
     assert.equal(await page.locator('.consultation-group:visible').count(), 1);
     await page.locator('input[name="followUpReason"]').fill('Medication review');
@@ -295,7 +309,7 @@ const server = http.createServer((req, res) => {
       await page.setViewportSize({ width, height: 900 });
       await page.locator('#opd-assessment').scrollIntoViewIfNeeded();
       await page.locator('input[name="diagnosisName"]').scrollIntoViewIfNeeded();
-      await assertPatientHeader();
+      await assertNaturalConsultationScroll();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 2);
       assert.equal(overflow, false, `page overflow at ${width}px`);
       await page.screenshot({ path: path.join(artifacts, `consultation-${width}.png`) });
