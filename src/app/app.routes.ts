@@ -105,10 +105,8 @@ export const routes: Routes = [
   },
   {
     path: 'administration/permissions',
-    canActivate: [authGuard, permissionGuard],
-    data: { permission: 'Administration.Permissions.View' },
-    loadComponent: () =>
-      import('./features/administration/rbac/permission-matrix-page.component').then(m => m.PermissionMatrixPageComponent)
+    redirectTo: 'administration/roles',
+    pathMatch: 'full'
   },
   {
     path: 'administration/hospital',

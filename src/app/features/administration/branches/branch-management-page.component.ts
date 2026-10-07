@@ -185,6 +185,7 @@ const permissions = {
           @if (form(); as branchForm) {
             <ac-admin-drawer
               [open]="drawerOpen()"
+              [busy]="saving()"
               icon="account_tree"
               [eyebrow]="branchForm.branchGuid ? t('Administration.UserManagement.Actions.Edit') : t('Administration.Branch.Actions.NewBranch')"
               [title]="branchForm.branchName || t('Administration.Branch.Section.Profile')"
@@ -205,15 +206,17 @@ const permissions = {
               }
 
               <div drawer-body class="ac-admin-drawer-content">
+                <form id="branch-editor-form" (ngSubmit)="save()">
+                <p class="ac-admin-help">Set up the branch identity, contact details, and opening hours. Fields marked * are required.</p>
                 <section class="ac-admin-form-section">
                   <div class="ac-admin-section-title">
                     <span class="material-symbols-rounded">badge</span>
                     <h3>{{ t('Administration.Branch.Section.Profile') }}</h3>
                   </div>
                   <div class="ac-admin-form-grid">
-                    <label><span>{{ t('Administration.Branch.Fields.BranchCode') }}</span><input name="branchCode" [(ngModel)]="branchForm.branchCode" placeholder="MAIN" /></label>
-                    <label><span>{{ t('Administration.Branch.Fields.BranchName') }}</span><input name="branchName" [(ngModel)]="branchForm.branchName" placeholder="Main Branch" /></label>
-                    <label><span>{{ t('Administration.Branch.Fields.BranchTypeCode') }}</span><input name="branchTypeCode" [(ngModel)]="branchForm.branchTypeCode" placeholder="GENERAL" /></label>
+                    <label><span>Branch name *</span><input name="branchName" [(ngModel)]="branchForm.branchName" placeholder="e.g. Pune Clinic" required /></label>
+                    <label><span>Branch code *</span><input name="branchCode" [(ngModel)]="branchForm.branchCode" placeholder="e.g. PUNE" required [readonly]="!!branchForm.branchGuid" /></label>
+                    <label><span>Branch type</span><ac-dropdown name="branchTypeCode" [(ngModel)]="branchForm.branchTypeCode" [options]="[{label:'General hospital',value:'GENERAL'},{label:'Clinic',value:'CLINIC'},{label:'Speciality centre',value:'SPECIALTY'}]" /></label>
                     <label class="ac-admin-switch-row"><input type="checkbox" name="isDefault" [(ngModel)]="branchForm.isDefault" /><span>{{ t('Administration.Branch.Fields.DefaultBranch') }}</span></label>
                   </div>
                 </section>
@@ -224,9 +227,9 @@ const permissions = {
                     <h3>{{ t('Administration.Branch.Section.Address') }}</h3>
                   </div>
                   <div class="ac-admin-form-grid">
-                    <label class="ac-admin-wide"><span>{{ t('Administration.Branch.Fields.AddressLine1') }}</span><input name="addressLine1" [(ngModel)]="branchForm.address.addressLine1" /></label>
+                    <label class="ac-admin-wide"><span>Address *</span><input name="addressLine1" [(ngModel)]="branchForm.address.addressLine1" required placeholder="Street and building" autocomplete="address-line1" /></label>
                     <label class="ac-admin-wide"><span>{{ t('Administration.Branch.Fields.AddressLine2') }}</span><input name="addressLine2" [(ngModel)]="branchForm.address.addressLine2" /></label>
-                    <label><span>{{ t('Administration.Branch.Fields.CityName') }}</span><input name="cityName" [(ngModel)]="branchForm.address.cityName" /></label>
+                    <label><span>City *</span><input name="cityName" [(ngModel)]="branchForm.address.cityName" required autocomplete="address-level2" /></label>
                     <label><span>{{ t('Administration.Branch.Fields.StateName') }}</span><input name="stateName" [(ngModel)]="branchForm.address.stateName" /></label>
                     <label><span>{{ t('Administration.Branch.Fields.CountryCode') }}</span><input name="countryCode" [(ngModel)]="branchForm.address.countryCode" /></label>
                     <label><span>{{ t('Administration.Branch.Fields.PostalCode') }}</span><input name="postalCode" [(ngModel)]="branchForm.address.postalCode" /></label>
@@ -239,10 +242,10 @@ const permissions = {
                     <h3>{{ t('Administration.Branch.Section.Contact') }}</h3>
                   </div>
                   <div class="ac-admin-form-grid">
-                    <label><span>{{ t('Administration.Branch.Fields.PrimaryPhone') }}</span><input name="primaryPhone" [(ngModel)]="branchForm.contact.primaryPhone" /></label>
+                    <label><span>Primary phone *</span><input type="tel" name="primaryPhone" [(ngModel)]="branchForm.contact.primaryPhone" required autocomplete="tel" /></label>
                     <label><span>{{ t('Administration.Branch.Fields.SecondaryPhone') }}</span><input name="secondaryPhone" [(ngModel)]="branchForm.contact.secondaryPhone" /></label>
                     <label><span>{{ t('Administration.Branch.Fields.EmergencyPhone') }}</span><input name="emergencyPhone" [(ngModel)]="branchForm.contact.emergencyPhone" /></label>
-                    <label><span>{{ t('Administration.Branch.Fields.Email') }}</span><input type="email" name="email" [(ngModel)]="branchForm.contact.email" /></label>
+                    <label><span>Email *</span><input type="email" name="email" [(ngModel)]="branchForm.contact.email" required autocomplete="email" /></label>
                     <label><span>{{ t('Administration.Branch.Fields.Fax') }}</span><input name="fax" [(ngModel)]="branchForm.contact.fax" /></label>
                   </div>
                 </section>
@@ -256,8 +259,8 @@ const permissions = {
                     @for (hour of branchForm.workingHours; track hour.dayOfWeek) {
                       <div class="hour-row" [class.closed]="hour.isClosed">
                         <strong>{{ t(dayKey(hour.dayOfWeek)) }}</strong>
-                        <input type="time" [name]="'open_' + hour.dayOfWeek" [(ngModel)]="hour.openTime" [disabled]="hour.isClosed" />
-                        <input type="time" [name]="'close_' + hour.dayOfWeek" [(ngModel)]="hour.closeTime" [disabled]="hour.isClosed" />
+                        <input type="time" [name]="'open_' + hour.dayOfWeek" [(ngModel)]="hour.openTime" [disabled]="hour.isClosed" [attr.aria-label]="t(dayKey(hour.dayOfWeek)) + ' opening time'" />
+                        <input type="time" [name]="'close_' + hour.dayOfWeek" [(ngModel)]="hour.closeTime" [disabled]="hour.isClosed" [attr.aria-label]="t(dayKey(hour.dayOfWeek)) + ' closing time'" />
                         <label class="switch-row compact"><input type="checkbox" [name]="'closed_' + hour.dayOfWeek" [(ngModel)]="hour.isClosed" /><span>{{ t('Administration.Branch.Fields.Closed') }}</span></label>
                       </div>
                     }
@@ -286,12 +289,13 @@ const permissions = {
                     </div>
                   </section>
                 }
+                </form>
               </div>
 
-              <button drawer-actions class="ac-btn ac-btn-secondary" type="button" (click)="closeDrawer()">{{ t('Common.Actions.Cancel') }}</button>
-              <button drawer-actions class="ac-btn ac-btn-primary" type="button" (click)="save()" [disabled]="saving() || !canSave(branchForm)">
+              <button drawer-actions class="ac-btn ac-btn-secondary" type="button" (click)="closeDrawer()" [disabled]="saving()">{{ t('Common.Actions.Cancel') }}</button>
+              <button drawer-actions class="ac-btn ac-btn-primary" type="submit" form="branch-editor-form" [disabled]="saving() || !canSave(branchForm)">
                 <span class="material-symbols-rounded">save</span>
-                {{ branchForm.branchGuid ? 'Update branch' : t('Administration.Branch.Actions.SaveBranch') }}
+                {{ saving() ? 'Saving branch...' : branchForm.branchGuid ? 'Update branch' : t('Administration.Branch.Actions.SaveBranch') }}
               </button>
             </ac-admin-drawer>
           }

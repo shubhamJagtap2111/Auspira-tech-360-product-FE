@@ -7,6 +7,10 @@ import { ToastService } from '../../../shared/ui/toast/toast.service';
 import { AcAdminDrawerComponent } from '../../../shared/ui/admin-drawer/admin-drawer.component';
 import { Department } from './organization-management.models';
 import { OrganizationManagementService } from './organization-management.service';
+import { BranchContextService } from '../../../core/context/branch-context.service';
+import { AcDropdownComponent } from '../../../shared/ui/dropdown/dropdown.component';
+import { UserManagementService } from '../users/user-management.service';
+import { ManagedUser } from '../users/user-management.models';
 
 const permissions = {
   create: 'Administration.Department.Create',
@@ -18,7 +22,7 @@ const permissions = {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcAdminDrawerComponent],
+  imports: [CommonModule, FormsModule, AcAdminDrawerComponent, AcDropdownComponent],
   template: `
     <section class="org-page">
       <header class="page-head">
@@ -27,7 +31,7 @@ const permissions = {
           <p>{{ t('Administration.Department.Subtitle') }}</p>
         </div>
         @if (can(permissions.create)) {
-          <button class="ac-btn ac-btn-primary" type="button" (click)="startCreate()">
+          <button class="ac-btn ac-btn-primary" type="button" (click)="startCreate()" [disabled]="!branches.selectedBranch()">
             <span class="material-symbols-rounded">add</span>
             {{ t('Administration.Department.Actions.New') }}
           </button>
@@ -77,6 +81,7 @@ const permissions = {
           @if (form(); as model) {
             <ac-admin-drawer
               [open]="drawerOpen()"
+              [busy]="saving()"
               icon="business"
               [eyebrow]="model.departmentGuid ? t('Administration.UserManagement.Actions.Edit') : t('Administration.Department.Actions.New')"
               [title]="model.departmentName || t('Administration.Department.Title')"
@@ -85,22 +90,25 @@ const permissions = {
               <span drawer-summary class="ac-admin-pill"><span class="material-symbols-rounded">account_tree</span>{{ model.branchName || model.branchCode || 'Branch' }}</span>
               @if (model.isActive) { <span drawer-summary class="ac-admin-pill featured"><span class="material-symbols-rounded">check_circle</span>{{ t('Administration.UserManagement.Status.Active') }}</span> }
               <div drawer-body class="ac-admin-drawer-content">
+                <form id="department-editor-form" (ngSubmit)="save()">
                 <section class="ac-admin-form-section">
                   <div class="ac-admin-section-title"><span class="material-symbols-rounded">badge</span><h3>{{ t('Administration.Department.Title') }}</h3></div>
                   <div class="ac-admin-form-grid">
-                    <label><span>{{ t('Administration.Department.Fields.DepartmentCode') }}</span><input name="departmentCode" [(ngModel)]="model.departmentCode" /></label>
-                    <label><span>{{ t('Administration.Department.Fields.DepartmentName') }}</span><input name="departmentName" [(ngModel)]="model.departmentName" /></label>
-                    <label><span>{{ t('Administration.Department.Fields.BranchGuid') }}</span><input name="branchGuid" [(ngModel)]="model.branchGuid" /></label>
-                    <label><span>{{ t('Administration.Department.Fields.SortOrder') }}</span><input type="number" name="sortOrder" [(ngModel)]="model.sortOrder" /></label>
-                    <label class="ac-admin-wide"><span>{{ t('Administration.Department.Fields.DescriptionKey') }}</span><input name="descriptionKey" [(ngModel)]="model.descriptionKey" /></label>
+                    <label><span>Department name *</span><input name="departmentName" [(ngModel)]="model.departmentName" required placeholder="e.g. General Medicine" /></label>
+                    <label><span>Department code *</span><input name="departmentCode" [(ngModel)]="model.departmentCode" required placeholder="e.g. GEN-MED" /></label>
+                    <label><span>Branch *</span><ac-dropdown name="branchGuid" [(ngModel)]="model.branchGuid" [options]="branchOptions()" [disabled]="true" placeholder="Choose branch" /></label>
+                    <label><span>Display order</span><input type="number" name="sortOrder" [(ngModel)]="model.sortOrder" min="0" /></label>
+                    <label class="ac-admin-wide"><span>Description</span><textarea name="descriptionKey" [(ngModel)]="model.descriptionKey" rows="3" placeholder="Services offered by this department"></textarea></label>
                     @if (can(permissions.assignHead)) {
-                      <label class="ac-admin-wide"><span>{{ t('Administration.Department.Fields.DepartmentHeadUserGuid') }}</span><input name="departmentHeadUserGuid" [(ngModel)]="model.departmentHeadUserGuid" /></label>
+                      <label class="ac-admin-wide"><span>Department head</span><ac-dropdown name="departmentHeadUserGuid" [(ngModel)]="model.departmentHeadUserGuid" [options]="staffOptions()" placeholder="Choose staff member" /></label>
                     }
                   </div>
                 </section>
+                <p class="ac-admin-help">This department belongs to the branch selected in the top bar. Its head must be assigned to the same branch.</p>
+                </form>
               </div>
-              <button drawer-actions class="ac-btn ac-btn-secondary" type="button" (click)="closeDrawer()">{{ t('Common.Actions.Cancel') }}</button>
-              <button drawer-actions class="ac-btn ac-btn-primary" type="button" (click)="save()" [disabled]="saving() || !canSave(model)"><span class="material-symbols-rounded">save</span>{{ model.departmentGuid ? 'Update department' : t('Administration.Department.Actions.Save') }}</button>
+              <button drawer-actions class="ac-btn ac-btn-secondary" type="button" (click)="closeDrawer()" [disabled]="saving()">{{ t('Common.Actions.Cancel') }}</button>
+              <button drawer-actions class="ac-btn ac-btn-primary" type="submit" form="department-editor-form" [disabled]="saving() || !canSave(model) || !model.departmentName.trim() || !model.departmentCode.trim() || !model.branchGuid"><span class="material-symbols-rounded">save</span>{{ saving() ? 'Saving department...' : model.departmentGuid ? 'Update department' : t('Administration.Department.Actions.Save') }}</button>
             </ac-admin-drawer>
           }
         }
@@ -148,25 +156,46 @@ export class DepartmentManagementPageComponent implements OnInit {
   private readonly i18n = inject(I18nService);
   private readonly auth = inject(AuthStore);
   private readonly toast = inject(ToastService);
+  protected readonly branches = inject(BranchContextService);
+  private readonly userService = inject(UserManagementService);
+  private readonly staff = signal<ManagedUser[]>([]);
 
-  async ngOnInit(): Promise<void> { await this.load(); }
+  async ngOnInit(): Promise<void> {
+    await this.branches.loadBranches();
+    await this.load();
+    if (this.can(permissions.assignHead)) {
+      const response = await this.userService.searchUsers({ pageNumber: 1, pageSize: 100, isActive: true });
+      if (response.success && response.data) this.staff.set(response.data.items);
+    }
+  }
+  protected branchOptions() { return this.branches.branches().map(b => ({ label:b.branchName,value:b.branchGuid })); }
+  protected staffOptions() {
+    const code = this.branches.branches().find(b => b.branchGuid === this.form().branchGuid)?.branchCode;
+    return [{ label:'Not assigned',value:'' },...this.staff().filter(u => u.branchCode === code).map(u => ({label:u.fullName,value:u.userGuid}))];
+  }
   protected t(key: string): string { return this.i18n.translate(key); }
   protected can(permission: string): boolean { return this.auth.hasPermission(permission); }
   protected canSave(item: Department): boolean { return item.departmentGuid ? this.can(permissions.edit) : this.can(permissions.create); }
-  protected edit(item: Department): void { this.form.set({ ...item }); this.drawerOpen.set(true); }
-  protected startCreate(): void { this.form.set(createEmptyDepartment()); this.drawerOpen.set(true); }
-  protected closeDrawer(): void { this.drawerOpen.set(false); }
+  protected edit(item: Department): void {
+    if (item.branchGuid !== this.branches.selectedBranch()?.branchGuid) { this.toast.error('Select this department’s branch in the top bar to edit it.'); return; }
+    this.form.set({ ...item }); this.drawerOpen.set(true);
+  }
+  protected startCreate(): void { this.form.set({ ...createEmptyDepartment(),branchGuid:this.branches.selectedBranch()?.branchGuid ?? null }); this.drawerOpen.set(true); }
+  protected closeDrawer(): void { if (!this.saving()) this.drawerOpen.set(false); }
 
   protected async load(): Promise<void> {
     const response = await this.service.searchDepartments(this.searchText, true);
-    response.success && response.data ? this.departments.set(response.data) : this.toast.error(this.t(response.message));
+    response.success && response.data ? this.departments.set(response.data.filter(d => !this.branches.selectedBranch() || d.branchGuid === this.branches.selectedBranch()?.branchGuid)) : this.toast.error(this.t(response.message));
   }
 
   protected async save(): Promise<void> {
+    if (this.saving() || !this.form().branchGuid || !this.form().departmentName.trim() || !this.form().departmentCode.trim()) return;
+    this.form().departmentHeadUserGuid ||= null;
     await this.saveOperation(() => this.form().departmentGuid ? this.service.updateDepartment(this.form()) : this.service.createDepartment(this.form()), 'Administration.Department.Messages.Saved');
   }
 
   protected async setStatus(item: Department, isActive: boolean): Promise<void> {
+    if (item.branchGuid !== this.branches.selectedBranch()?.branchGuid) { this.toast.error('Select this department’s branch in the top bar to change its status.'); return; }
     const key = isActive ? 'Administration.Department.Messages.Activated' : 'Administration.Department.Messages.Deactivated';
     await this.saveOperation(() => this.service.setDepartmentStatus(item.departmentGuid, isActive), key);
   }

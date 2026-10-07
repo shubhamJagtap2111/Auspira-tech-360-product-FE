@@ -12,6 +12,8 @@ import { AcPaginationComponent } from '../../../shared/ui/pagination/pagination.
 import { AcGridLoaderComponent } from '../../../shared/ui/grid-loader/grid-loader.component';
 import { AssignableRole, ManagedUser, UserAuditHistoryItem, UserFormModel, UserLanguageOption, UserTimeZoneOption } from './user-management.models';
 import { UserManagementService } from './user-management.service';
+import { OrganizationManagementService } from '../organization/organization-management.service';
+import { Department } from '../organization/organization-management.models';
 
 const permissions = {
   create: 'Administration.UserManagement.Create',
@@ -70,11 +72,11 @@ const defaultResetPassword = 'Reset@123';
         </label>
         <label>
           <span>{{ t('Administration.UserManagement.Columns.Branch') }}</span>
-          <input name="branchFilter" [(ngModel)]="branchFilter" (keyup.enter)="loadUsers(1)" />
+          <ac-dropdown name="branchFilter" [(ngModel)]="branchFilter" [options]="branchOptions(true)" (selectionChange)="loadUsers(1)" />
         </label>
         <label>
           <span>{{ t('Administration.UserManagement.Columns.Department') }}</span>
-          <input name="departmentFilter" [(ngModel)]="departmentFilter" (keyup.enter)="loadUsers(1)" />
+          <ac-dropdown name="departmentFilter" [(ngModel)]="departmentFilter" [options]="departmentFilterOptions()" (selectionChange)="loadUsers(1)" />
         </label>
         <button class="icon-btn" type="button" (click)="loadUsers(1)" [attr.title]="t('Common.Actions.Updating')">
           <span class="material-symbols-rounded">search</span>
@@ -105,6 +107,7 @@ const defaultResetPassword = 'Reset@123';
                     <button class="user-link" type="button" (click)="selectUser(user)">
                       <strong>{{ user.fullName }}</strong>
                       <span>{{ user.mobileNo || '-' }}</span>
+                      <span>{{ user.branchNameKey || user.branchCode || 'No branch assigned' }}{{ user.departmentNameKey ? ' · ' + user.departmentNameKey : '' }}</span>
                     </button>
                   </td>
                   <td>{{ user.email }}</td>
@@ -176,6 +179,7 @@ const defaultResetPassword = 'Reset@123';
         @if (editorOpen()) {
         <ac-admin-drawer
           [open]="editorOpen()"
+          [busy]="saving()"
           icon="manage_accounts"
           [eyebrow]="editingUserGuid() ? t('Administration.UserManagement.Actions.Edit') : t('Administration.UserManagement.Actions.New')"
           [title]="form.fullName || t(editingUserGuid() ? 'Administration.UserManagement.Form.EditTitle' : 'Administration.UserManagement.Form.CreateTitle')"
@@ -196,11 +200,12 @@ const defaultResetPassword = 'Reset@123';
 
             <form id="user-editor-form" (ngSubmit)="saveUser()">
               <section class="ac-admin-form-section">
-                <div class="ac-admin-section-title"><span class="material-symbols-rounded">person</span><h3>{{ t('Administration.UserManagement.Form.CreateTitle') }}</h3></div>
+                <div class="ac-admin-section-title"><span class="material-symbols-rounded">person</span><h3>Staff account</h3></div>
+                <p class="ac-admin-help">Use the staff member's work email for sign-in. Fields marked * are required.</p>
                 <div class="ac-admin-form-grid">
-                  <label><span>{{ t('Administration.UserManagement.Form.FullName') }}</span><input name="fullName" [(ngModel)]="form.fullName" required /></label>
-                  <label><span>{{ t('Administration.UserManagement.Form.Email') }}</span><input type="email" name="email" [(ngModel)]="form.email" required /></label>
-                  <label><span>{{ t('Administration.UserManagement.Form.Mobile') }}</span><input name="mobileNo" [(ngModel)]="form.mobileNo" /></label>
+                  <label><span>{{ t('Administration.UserManagement.Form.FullName') }} *</span><input name="fullName" [(ngModel)]="form.fullName" required autocomplete="name" placeholder="e.g. Dr Priya Sharma" /></label>
+                  <label><span>{{ t('Administration.UserManagement.Form.Email') }} *</span><input type="email" name="email" [(ngModel)]="form.email" required autocomplete="email" placeholder="name@hospital.com" /></label>
+                  <label><span>{{ t('Administration.UserManagement.Form.Mobile') }}</span><input type="tel" inputmode="tel" name="mobileNo" [(ngModel)]="form.mobileNo" autocomplete="tel" placeholder="Mobile number" /></label>
                   @if (!editingUserGuid()) {
                     <label><span>{{ t('Administration.UserManagement.Form.Password') }}</span><input type="password" name="password" [(ngModel)]="form.password" required /></label>
                   }
@@ -223,13 +228,14 @@ const defaultResetPassword = 'Reset@123';
               </section>
 
               <section class="ac-admin-form-section">
-                <div class="ac-admin-section-title"><span class="material-symbols-rounded">corporate_fare</span><h3>{{ t('Administration.Branch.Section.Profile') }}</h3></div>
+                <div class="ac-admin-section-title"><span class="material-symbols-rounded">corporate_fare</span><h3>Branch & department</h3></div>
                 <div class="ac-admin-form-grid">
-                  <label><span>{{ t('Administration.UserManagement.Form.HospitalName') }}</span><input name="hospitalName" [(ngModel)]="form.hospitalName" /></label>
-                  <label><span>{{ t('Administration.UserManagement.Form.BranchCode') }}</span><input name="branchCode" [(ngModel)]="form.branchCode" /></label>
-                  <label><span>{{ t('Administration.UserManagement.Form.DepartmentCode') }}</span><input name="departmentCode" [(ngModel)]="form.departmentCode" /></label>
+                  <label class="ac-admin-wide"><span>Hospital</span><input [value]="branchContext.hospitalName()" readonly /></label>
+                  <label><span>Assigned branch *</span><ac-dropdown name="branchCode" [(ngModel)]="form.branchCode" [options]="branchOptions()" placeholder="Choose branch" (selectionChange)="form.departmentCode = ''" /></label>
+                  <label><span>Department</span><ac-dropdown name="departmentCode" [(ngModel)]="form.departmentCode" [options]="departmentOptions()" placeholder="Choose department" /></label>
                   <label><span>{{ t('Administration.UserManagement.Form.Language') }}</span><ac-dropdown name="languageCode" [(ngModel)]="form.languageCode" [options]="languageOptions()" /></label>
                   <label><span>{{ t('Administration.UserManagement.Form.TimeZone') }}</span><ac-dropdown name="timeZoneCode" [(ngModel)]="form.timeZoneCode" [options]="timeZoneOptions()" /></label>
+                  <p class="ac-admin-access-note">{{ hasOrganizationRole() ? 'Organisation-wide access: this administrator can view every branch. The assigned branch is their default workspace.' : 'Branch access: this staff member can view and work with data only in the assigned branch.' }}</p>
                 </div>
               </section>
 
@@ -239,8 +245,8 @@ const defaultResetPassword = 'Reset@123';
                   <legend>{{ t('Administration.UserManagement.Form.Roles') }}</legend>
                   @for (role of roles(); track role.roleCode) {
                     <label class="ac-admin-switch-row">
-                      <input type="checkbox" [name]="'role_' + role.roleCode" [checked]="hasRole(role.roleCode)" (change)="toggleRole(role.roleCode)" />
-                      <span>{{ t(role.roleNameKey) }}</span>
+                      <input type="checkbox" [name]="'role_' + role.roleCode" [checked]="hasRole(role.roleCode)" [disabled]="!!editingUserGuid() && !can(permissions.assignRoles)" (change)="toggleRole(role.roleCode)" />
+                      <span>{{ roleLabel(role) }}</span>
                     </label>
                   }
                 </fieldset>
@@ -337,7 +343,9 @@ export class UserListPageComponent implements OnInit {
   private readonly service = inject(UserManagementService);
   private readonly i18n = inject(I18nService);
   private readonly authStore = inject(AuthStore);
-  private readonly branchContext = inject(BranchContextService);
+  protected readonly branchContext = inject(BranchContextService);
+  private readonly organization = inject(OrganizationManagementService);
+  private readonly departments = signal<Department[]>([]);
   private readonly toast = inject(ToastService);
   private readonly dialog = inject(DialogService);
 
@@ -382,7 +390,7 @@ export class UserListPageComponent implements OnInit {
   async ngOnInit(): Promise<void> {
     this.initialLoading.set(true);
     try {
-      await Promise.all([this.loadRoles(), this.loadReferenceData(), this.branchContext.loadBranches()]);
+      await Promise.all([this.loadRoles(), this.loadReferenceData(), this.branchContext.loadBranches(), this.loadDepartments()]);
       this.lastBranchCode = this.branchContext.selectedBranchCode();
       this.branchReloadReady = true;
       await this.loadUsers();
@@ -404,6 +412,25 @@ export class UserListPageComponent implements OnInit {
       { label: this.t('Administration.UserManagement.Filter.AllRoles'), value: '' },
       ...this.roles().map(role => ({ label: this.t(role.roleNameKey), value: role.roleCode }))
     ];
+  }
+
+  protected branchOptions(includeAll = false) {
+    return [
+      ...(includeAll ? [{ label: 'Current workspace', value: '' }] : []),
+      ...this.branchContext.branches().map(branch => ({ label: branch.branchName, value: branch.branchCode }))
+    ];
+  }
+  protected departmentOptions() {
+    return [{ label: 'Not assigned', value: '' }, ...this.departments().filter(d => d.isActive && d.branchCode === this.form.branchCode).map(d => ({ label: d.departmentName, value: d.departmentCode }))];
+  }
+  protected departmentFilterOptions() {
+    return [{ label:'All departments',value:'' },...this.departments().filter(d => !this.branchFilter || d.branchCode === this.branchFilter).map(d => ({ label:`${d.departmentName} · ${d.branchName}`,value:d.departmentCode }))].filter((option,index,options) => options.findIndex(other => other.value === option.value) === index);
+  }
+  protected hasOrganizationRole(): boolean { return this.form.roleCodes.some(code => ['SUPER_ADMIN','HOSPITAL_ADMIN'].includes(code)); }
+  protected roleLabel(role: AssignableRole): string { return ['SUPER_ADMIN','HOSPITAL_ADMIN'].includes(role.roleCode) ? `${role.roleCode === 'SUPER_ADMIN' ? 'Super Administrator' : 'Hospital Administrator'} · all branches` : this.t(role.roleNameKey); }
+  private async loadDepartments(): Promise<void> {
+    const response = await this.organization.searchDepartments('',false);
+    if (response.success && response.data) this.departments.set(response.data);
   }
 
   protected statusOptions() {
@@ -481,6 +508,7 @@ export class UserListPageComponent implements OnInit {
 
   protected selectUser(user: ManagedUser): void {
     this.selectedUser.set(user);
+    if (this.can(permissions.edit)) this.startEdit(user);
   }
 
   protected startCreate(): void {
@@ -530,6 +558,7 @@ export class UserListPageComponent implements OnInit {
   }
 
   protected closeEditor(): void {
+    if (this.saving()) return;
     this.clearForm();
   }
 
@@ -544,6 +573,11 @@ export class UserListPageComponent implements OnInit {
   }
 
   protected async saveUser(): Promise<void> {
+    if (this.saving()) return;
+    if (!this.form.branchCode) {
+      this.errorKey.set('Choose an assigned branch before saving this staff account.');
+      return;
+    }
     this.saving.set(true);
     this.errorKey.set(null);
 
@@ -600,7 +634,7 @@ export class UserListPageComponent implements OnInit {
       searchText: this.searchText.trim(),
       roleCode: this.roleCode,
       isActive: this.statusFilter === 'all' ? null : this.statusFilter === 'active',
-      branchCode: this.branchFilter.trim(),
+      branchCode: this.branchFilter.trim() || this.branchContext.selectedBranchCode() || '',
       departmentCode: this.departmentFilter.trim(),
       languageCode: undefined,
       timeZoneCode: undefined

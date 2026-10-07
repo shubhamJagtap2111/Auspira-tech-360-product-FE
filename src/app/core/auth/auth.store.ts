@@ -15,6 +15,9 @@ export class AuthStore {
   readonly permissions = computed(() => this.sessionSignal()?.permissions ?? this.profileSignal()?.permissions ?? []);
 
   setSession(session: AuthResponse): void {
+    if (this.sessionSignal()?.userId !== session.userId) {
+      try { window.localStorage.removeItem('care360.selectedBranchCode'); } catch { /* Storage may be unavailable. */ }
+    }
     this.sessionSignal.set(session);
     this.profileSignal.set(null);
     writeStoredSession(session);
@@ -90,6 +93,7 @@ export class AuthStore {
   }
 
   clearSession(): void {
+    try { window.localStorage.removeItem('care360.selectedBranchCode'); } catch { /* Storage may be unavailable. */ }
     this.sessionSignal.set(null);
     this.profileSignal.set(null);
     removeStoredSession();

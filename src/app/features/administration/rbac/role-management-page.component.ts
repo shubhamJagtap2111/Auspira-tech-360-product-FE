@@ -4,7 +4,6 @@ import { FormsModule } from '@angular/forms';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { I18nService } from '../../../core/i18n/i18n.service';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
-import { AcDropdownComponent } from '../../../shared/ui/dropdown/dropdown.component';
 import { AcAdminDrawerComponent } from '../../../shared/ui/admin-drawer/admin-drawer.component';
 import { AcGridLoaderComponent } from '../../../shared/ui/grid-loader/grid-loader.component';
 import { PermissionCatalogItem, RoleDto, RoleFormModel } from './rbac.models';
@@ -25,7 +24,7 @@ interface PermissionGroupView {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcDropdownComponent, AcAdminDrawerComponent, AcGridLoaderComponent],
+  imports: [CommonModule, FormsModule, AcAdminDrawerComponent, AcGridLoaderComponent],
   template: `
     <section class="rbac-page">
       <header class="page-head">
@@ -97,7 +96,6 @@ interface PermissionGroupView {
             <thead>
               <tr>
                 <th>{{ t('Administration.Rbac.Columns.Role') }}</th>
-                <th>{{ t('Administration.Rbac.Form.ParentRole') }}</th>
                 <th>{{ t('Administration.Rbac.Columns.Permissions') }}</th>
                 <th>{{ t('Administration.Rbac.Columns.Users') }}</th>
                 <th>{{ t('Administration.UserManagement.Columns.Status') }}</th>
@@ -112,9 +110,6 @@ interface PermissionGroupView {
                       <strong>{{ t(role.roleNameKey) }}</strong>
                       <span>{{ role.roleCode }}</span>
                     </button>
-                  </td>
-                  <td>
-                    <span class="parent-pill">{{ role.parentRoleCode || '-' }}</span>
                   </td>
                   <td>
                     <span class="count-pill">{{ role.permissionCount }}</span>
@@ -144,7 +139,7 @@ interface PermissionGroupView {
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="6" class="empty">{{ t('Administration.Rbac.Empty.Roles') }}</td>
+                  <td colspan="5" class="empty">{{ t('Administration.Rbac.Empty.Roles') }}</td>
                 </tr>
               }
             </tbody>
@@ -154,6 +149,7 @@ interface PermissionGroupView {
         @if (editorOpen()) {
         <ac-admin-drawer
           [open]="editorOpen()"
+          [busy]="saving()"
           icon="admin_panel_settings"
           [eyebrow]="t(form.rowVersion ? 'Administration.Rbac.Form.EditRole' : 'Administration.Rbac.Form.CreateRole')"
           [title]="form.roleCode || t('Administration.Rbac.Actions.NewRole')"
@@ -169,18 +165,18 @@ interface PermissionGroupView {
             }
             <form id="role-editor-form" (ngSubmit)="saveRole()">
               <section class="ac-admin-form-section">
-                <div class="ac-admin-section-title"><span class="material-symbols-rounded">badge</span><h3>{{ t('Administration.Rbac.Form.CreateRole') }}</h3></div>
+                <div class="ac-admin-section-title"><span class="material-symbols-rounded">badge</span><h3>Role details</h3></div>
                 <div class="ac-admin-form-grid">
-                  <label><span>{{ t('Administration.Rbac.Form.RoleCode') }}</span><input name="roleCode" [(ngModel)]="form.roleCode" [disabled]="!!form.rowVersion" required /></label>
-                  <label><span>{{ t('Administration.Rbac.Form.RoleNameKey') }}</span><input name="roleNameKey" [(ngModel)]="form.roleNameKey" required /></label>
-                  <label class="ac-admin-wide"><span>{{ t('Administration.Rbac.Form.DescriptionKey') }}</span><input name="roleDescriptionKey" [(ngModel)]="form.roleDescriptionKey" /></label>
-                  <label><span>{{ t('Administration.Rbac.Form.ParentRole') }}</span><ac-dropdown name="parentRoleCode" [(ngModel)]="parentRoleCode" [options]="parentRoleOptions()" /></label>
+                  <label><span>Role name *</span><input name="roleNameKey" [(ngModel)]="form.roleNameKey" required placeholder="e.g. Reception Supervisor" /></label>
+                  <label><span>Role code *</span><input name="roleCode" [(ngModel)]="form.roleCode" [disabled]="!!form.rowVersion" required placeholder="e.g. RECEPTION_SUPERVISOR" /></label>
+                  <label class="ac-admin-wide"><span>Description</span><textarea name="roleDescriptionKey" [(ngModel)]="form.roleDescriptionKey" rows="3" placeholder="Who should use this role and their responsibilities"></textarea></label>
                   <label class="ac-admin-switch-row"><input type="checkbox" name="isActive" [(ngModel)]="form.isActive" /><span>{{ t('Administration.Rbac.Form.Active') }}</span></label>
                 </div>
               </section>
               <section class="ac-admin-form-section">
                 <div class="ac-admin-section-title"><span class="material-symbols-rounded">rule</span><h3>{{ t('Administration.Rbac.Actions.AssignPermissions') }}</h3></div>
-                <label><span>{{ t('Administration.Rbac.Columns.Permissions') }}</span><input name="permissionSearch" [(ngModel)]="permissionSearch" /></label>
+                <p class="ac-admin-help">Choose the actions this role may perform. Branch assignments control which records staff can access.</p>
+                <label><span>Find a module or action</span><input name="permissionSearch" [(ngModel)]="permissionSearch" placeholder="e.g. OPD, billing, view" /></label>
                 <div class="permission-groups" role="group" [attr.aria-label]="t('Administration.Rbac.Actions.AssignPermissions')">
                   @for (group of permissionGroups(); track group.pageKey) {
                     <section class="permission-group">
@@ -454,6 +450,7 @@ export class RoleManagementPageComponent implements OnInit {
   }
 
   protected closeEditor(): void {
+    if (this.saving()) return;
     this.form = emptyForm();
     this.parentRoleCode = '';
     this.originalParentRoleCode = '';

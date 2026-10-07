@@ -20,6 +20,8 @@ import { AppLoaderComponent } from '../../shared/ui/app-loader/app-loader.compon
 import { AppLoaderService } from '../../shared/ui/app-loader/app-loader.service';
 import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dropdown.component';
 import { AcDismissiblePopoverDirective } from '../../shared/ui/dismissible-popover.directive';
+import { DialogService } from '../../shared/ui/dialog/dialog.service';
+import { PendingChangesComponent } from '../../core/guards/pending-changes.guard';
 
 interface NavItem {
   path: string;
@@ -177,7 +179,8 @@ const fallbackLanguages: Language[] = [
                   [options]="branchOptions()"
                   placeholder="Select branch"
                   ariaLabel="Select branch"
-                  (ngModelChange)="changeBranch($event)" />
+                  #branchChooser
+                  (ngModelChange)="changeBranch($event, branchChooser)" />
               </div>
             </div>
 
@@ -310,7 +313,10 @@ const fallbackLanguages: Language[] = [
 
           <!-- Page Content -->
           <main class="main-content" id="main-workspace" tabindex="-1">
-            <router-outlet />
+            @if (selectedBranchCode() === 'ALL') {
+              <p class="organisation-scope-note"><span class="material-symbols-rounded">account_tree</span>Viewing all branches. Select a branch in the top bar before creating or changing clinical and operational records.</p>
+            }
+            <router-outlet (activate)="activePage = $event" (deactivate)="activePage = null" />
           </main>
         </div>
 
@@ -1927,6 +1933,8 @@ export class AppShellComponent implements OnInit {
   private   readonly branchContext = inject(BranchContextService);
   private   readonly apiBaseUrl = inject(API_BASE_URL);
   private   readonly appLoader = inject(AppLoaderService);
+  private readonly dialogs = inject(DialogService);
+  protected activePage: PendingChangesComponent | null = null;
 
   /* ── State ── */
   protected readonly sidebarCollapsed = signal<boolean>(
@@ -2061,10 +2069,10 @@ export class AppShellComponent implements OnInit {
   );
   protected readonly hospitalHeaderLabel = computed(() => this.organizationLabel());
   protected readonly branchHeaderLabel = computed(() =>
-    this.branchContext.selectedBranch()?.branchName
+    this.branchContext.selectedBranchCode() === 'ALL' ? 'All branches' : this.branchContext.selectedBranch()?.branchName
     || this.authStore.profile()?.branchNameKey?.trim()
     || this.authStore.profile()?.branchCode?.trim()
-    || 'Main Branch'
+    || 'Select branch'
   );
   protected readonly selectedBranchCode = computed(() =>
     this.branchContext.selectedBranchCode() ?? this.branchContext.selectedBranch()?.branchCode ?? ''
@@ -2076,9 +2084,9 @@ export class AppShellComponent implements OnInit {
       value: branch.branchCode
     }));
 
-    return options.length > 0
-      ? options
-      : [{ label: this.branchHeaderLabel(), value: this.selectedBranchCode() }];
+    return this.branchContext.organizationAccess()
+      ? [{ label: 'All branches · organisation', value: 'ALL' }, ...options]
+      : options;
   });
   protected readonly userInitials = computed(() => getInitials(this.displayName(), this.displayEmail()));
   protected readonly profileImageUrl = computed(() => {
@@ -2093,8 +2101,17 @@ export class AppShellComponent implements OnInit {
     }
   }
 
-  protected changeBranch(branchCode: string | null): void {
+  protected async changeBranch(branchCode: string | null, selector: AcDropdownComponent<string>): Promise<void> {
+    const previous = this.branchContext.selectedBranchCode();
+    if (branchCode === previous) return;
+    if (this.activePage?.hasUnsavedChanges?.() || document.querySelector('.ac-admin-drawer')) {
+      if (!await this.dialogs.confirmDiscard('Changing branches closes this workspace. Save your changes before switching branches.')) {
+        selector.writeValue(previous);
+        return;
+      }
+    }
     this.branchContext.setSelectedBranchCode(branchCode);
+    if (this.branchContext.selectedBranchCode() !== previous) window.location.reload();
   }
 
   /* ── Navigation Groups ── */
@@ -2131,7 +2148,6 @@ export class AppShellComponent implements OnInit {
         { path: '/administration/hospital', label: 'Hospital Management', icon: 'local_hospital', requiredPermission: 'Administration.Hospital.View', hospitalAdminOnly: true },
         { path: '/administration/users', label: 'User Management', icon: 'manage_accounts', requiredPermission: 'Administration.UserManagement.View', hospitalAdminOnly: true },
         { path: '/administration/roles', label: 'Roles & Permissions', icon: 'admin_panel_settings', requiredPermission: 'Administration.Roles.View', hospitalAdminOnly: true },
-        { path: '/administration/permissions', label: 'Permission Matrix', icon: 'rule', requiredPermission: 'Administration.Permissions.View', hospitalAdminOnly: true },
         { path: '/administration/departments', label: 'Departments', icon: 'business', requiredPermission: 'Administration.Department.View', hospitalAdminOnly: true },
         { path: '/administration/branches', label: 'Branches', icon: 'account_tree', requiredPermission: 'Administration.Branch.View', hospitalAdminOnly: true }
       ]

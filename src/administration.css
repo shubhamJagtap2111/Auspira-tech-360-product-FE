@@ -1,0 +1,62 @@
+/* Hospital administration: consistent alignment and quiet purple/blue accents. */
+:is(.hospital-page,.user-page,.rbac-page,.branch-page,.org-page) { max-width: 1440px; width: 100%; margin-inline: auto; min-width: 0; }
+:is(.hospital-page,.user-page,.rbac-page,.branch-page,.org-page) .page-head { gap: 20px; padding-block: 4px 8px; }
+:is(.hospital-page,.user-page,.rbac-page,.branch-page,.org-page) .page-head p { max-width: 70ch; line-height: 1.6; font-size: 13px; }
+:is(.hospital-page,.user-page,.rbac-page,.branch-page,.org-page) .toolbar { border-radius: 12px; padding: 16px; gap: 12px; box-shadow: none; }
+:is(.hospital-page,.user-page,.rbac-page,.branch-page,.org-page) .toolbar label { min-width: 0; }
+:is(.hospital-page,.user-page,.rbac-page,.branch-page,.org-page) .toolbar input { width: 100%; height: 44px; box-sizing: border-box; }
+:is(.hospital-page,.user-page,.rbac-page,.branch-page,.org-page) .table-wrap { border-radius: 12px; border: 1px solid var(--ac-border); max-width: 100%; }
+:is(.hospital-page,.user-page,.rbac-page,.branch-page,.org-page) th { font-weight: 600; letter-spacing: .035em; }
+:is(.hospital-page,.user-page,.rbac-page,.branch-page,.org-page) td { padding-block: 14px; line-height: 1.5; }
+.ac-admin-drawer-backdrop { pointer-events: auto; background: rgba(15,23,42,.24); backdrop-filter: blur(2px); }
+.ac-admin-drawer { top: 0; width: min(720px, 100vw); min-width: 0; max-width: 100vw; background: var(--ac-surface); grid-template-rows: auto auto minmax(0,1fr) auto; }
+.ac-admin-drawer-head { padding: 24px; align-items: center; }
+.ac-admin-drawer-title h2 { font-size: 22px; font-weight: 650; line-height: 1.3; }
+.ac-admin-drawer-summary { padding: 12px 24px; background: var(--ac-surface-2); }
+.ac-admin-pill { font-weight: 500; border-radius: 8px; }
+.ac-admin-drawer-body { padding: 24px; overscroll-behavior: contain; }
+.ac-admin-drawer-content > header { display: none; }
+.ac-admin-drawer .ac-admin-drawer-content { gap: 24px; }
+.ac-admin-drawer .ac-admin-drawer-content form { gap: 24px; }
+.ac-admin-drawer .ac-admin-form-section { padding: 0 0 24px; border: 0; border-bottom: 1px solid var(--ac-border); border-radius: 0; box-shadow: none; background: transparent; }
+.ac-admin-drawer .ac-admin-form-section:last-child { border-bottom: 0; padding-bottom: 0; }
+.ac-admin-section-title { margin-bottom: 16px; gap: 10px; }
+.ac-admin-section-title h3 { font-size: 15px; font-weight: 650; }
+.ac-admin-section-title .material-symbols-rounded { width: 30px; height: 30px; font-size: 18px; }
+.ac-admin-drawer .ac-admin-form-grid { gap: 18px 20px; align-items: start; }
+.ac-admin-drawer .ac-admin-form-section label { min-width: 0; font-size: 13px; font-weight: 500; line-height: 1.45; gap: 7px; }
+.ac-admin-drawer .ac-admin-form-section :is(input:not([type=checkbox]):not([type=radio]),select,textarea) { box-sizing: border-box; font-size: 14px; font-weight: 400; width: 100%; min-width: 0; border-radius: 8px; }
+.ac-admin-drawer .ac-admin-form-section :is(input:not([type=checkbox]):not([type=radio]),select) { height: 44px; }
+.ac-admin-drawer .ac-admin-form-section :is(input,select,textarea):focus-visible { outline: 2px solid color-mix(in srgb,var(--ac-primary) 65%,transparent); outline-offset: 2px; box-shadow: none; }
+.ac-admin-drawer .ac-admin-form-section :is(input[type=checkbox],input[type=radio]) { width: 18px !important; height: 18px !important; flex: 0 0 18px; padding: 0; margin: 0; accent-color: var(--ac-primary); }
+.ac-admin-drawer .ac-admin-switch-row { min-height: 44px; background: var(--ac-surface); border-color: var(--ac-border); padding: 10px 12px; box-sizing: border-box; }
+.ac-admin-drawer .ac-admin-fieldset { max-height: none; overflow: visible; padding: 0; border: 0; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.ac-admin-drawer .ac-admin-fieldset legend { padding: 0 0 10px; font-weight: 500; }
+.ac-admin-drawer .permission-groups { max-height: none; overflow: visible; }
+.ac-admin-drawer .permission-row { display: flex; flex-direction: row; gap: 10px; min-height: 44px; font-weight: 400; background: var(--ac-surface); }
+.ac-admin-drawer .permission-row span strong { display: none; }
+.ac-admin-drawer .permission-row span small { font-size: 13px; font-weight: 500; color: var(--ac-text); }
+.ac-admin-drawer-actions { padding: 16px 24px max(16px, env(safe-area-inset-bottom)); box-shadow: none; background: var(--ac-surface); }
+.ac-admin-drawer-actions .ac-btn { min-width: 110px; min-height: 44px; }
+.ac-admin-help { margin: 0 0 16px; color: var(--ac-muted); font-size: 13px; line-height: 1.6; font-weight: 400; }
+.ac-admin-access-note { grid-column: 1 / -1; margin: 0; padding: 12px 14px; border-radius: 8px; background: var(--ac-primary-light); color: var(--ac-text-2); font-size: 13px; line-height: 1.6; }
+.organisation-scope-note { display: flex; align-items: center; gap: 10px; margin: 0 0 18px; padding: 12px 16px; border: 1px solid var(--ac-border); border-radius: 10px; background: var(--ac-primary-light); color: var(--ac-text-2); font-size: 13px; line-height: 1.5; }
+.organisation-scope-note .material-symbols-rounded { color: var(--ac-primary); }
+.hospital-page .panel { border-radius: 12px; box-shadow: none; padding: 24px; }
+.hospital-page .form-grid { align-items: start; gap: 18px 20px; }
+.hospital-page .form-grid label { min-width: 0; font-size: 13px; font-weight: 500; }
+.hospital-page .form-grid :is(input,select) { width: 100%; min-width: 0; height: 44px; box-sizing: border-box; font-size: 14px; font-weight: 400; }
+.hospital-page .section-title h2 { font-size: 16px; font-weight: 650; }
+.hospital-page .section-title p { line-height: 1.6; }
+@media (max-width: 767px) {
+  .ac-admin-drawer-head { padding: 18px 16px; }
+  .ac-admin-drawer-title h2 { font-size: 20px; }
+  .ac-admin-drawer-summary,.ac-admin-drawer-body { padding: 16px; }
+  .ac-admin-drawer .ac-admin-form-grid,.ac-admin-drawer .ac-admin-fieldset { grid-template-columns: minmax(0,1fr); }
+  .ac-admin-drawer-actions { padding-inline: 16px; flex-direction: row; }
+  .ac-admin-drawer-actions .ac-btn { min-width: 0; flex: 1; }
+  .hospital-page .panel { padding: 18px 16px; }
+  .hospital-page .form-grid { grid-template-columns: minmax(0,1fr); }
+  .hospital-page .form-grid .wide { grid-column: 1; }
+  :is(.hospital-page,.user-page,.rbac-page,.branch-page,.org-page) .page-head { flex-direction: column; align-items: stretch; }
+}

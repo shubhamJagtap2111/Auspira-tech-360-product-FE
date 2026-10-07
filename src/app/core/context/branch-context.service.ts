@@ -5,8 +5,6 @@ import { ApiClientService } from '../http/api-client.service';
 
 export const selectedBranchStorageKey = 'care360.selectedBranchCode';
 const hospitalNameStorageKey = 'care360.hospitalName';
-const fallbackMainBranchCode = 'MAIN';
-const fallbackMainBranchName = 'Main Branch';
 
 interface BranchApiResponse<T> {
   success: boolean;
@@ -38,6 +36,8 @@ export class BranchContextService {
   private readonly api = inject(ApiClientService);
   private readonly authStore = inject(AuthStore);
   private readonly branchesSignal = signal<BranchContextOption[]>([]);
+  private readonly organizationAccessSignal = signal(false);
+  readonly organizationAccess = this.organizationAccessSignal.asReadonly();
   private readonly selectedBranchCodeSignal = signal<string | null>(readSelectedBranchCode());
   private readonly hospitalNameSignal = signal<string | null>(readStoredHospitalName(this.authStore.session()?.tenantCode));
   private loadingPromise: Promise<void> | null = null;
@@ -49,6 +49,7 @@ export class BranchContextService {
   readonly selectedBranch = computed(() => {
     const branches = this.branchesSignal();
     const selectedCode = this.selectedBranchCodeSignal();
+    if (selectedCode === 'ALL') return null;
     return findBranch(branches, selectedCode)
       ?? branches.find(branch => branch.isDefault && branch.isActive)
       ?? branches.find(branch => branch.isActive)
@@ -98,7 +99,8 @@ export class BranchContextService {
   setSelectedBranchCode(branchCode: string | null): void {
     const normalized = normalizeBranchCode(branchCode);
     const branch = findBranch(this.branchesSignal(), normalized);
-    const nextCode = branch?.branchCode ?? normalized;
+    if (!branch && !(normalized === 'ALL' && this.organizationAccessSignal())) return;
+    const nextCode = branch?.branchCode ?? 'ALL';
     if (nextCode === this.selectedBranchCodeSignal()) {
       return;
     }
@@ -131,42 +133,46 @@ export class BranchContextService {
   }
 
   private async fetchBranches(): Promise<void> {
-    let response: BranchApiResponse<BranchContextOption[]>;
+    let response: BranchApiResponse<{ organizationAccess: boolean; branches: BranchContextOption[] }>;
     try {
       response = await firstValueFrom(
-        this.api.get<BranchApiResponse<BranchContextOption[]>>('/administration/branches?includeInactive=false')
+        this.api.get<BranchApiResponse<{ organizationAccess: boolean; branches: BranchContextOption[] }>>('/administration/branch-context')
       );
     } catch {
-      this.applyProfileFallback();
+      this.clearUnavailableContext();
       return;
     }
 
     if (!response.success || !response.data) {
-      this.applyProfileFallback();
+      this.clearUnavailableContext();
       return;
     }
 
-    const branches = ensureMainBranchOption(response.data.filter(branch => branch.isActive));
+    const branches = response.data.branches.filter(branch => branch.isActive);
+    this.organizationAccessSignal.set(response.data.organizationAccess);
     this.loadedBranchesSuccessfully = true;
     this.branchesSignal.set(branches);
     const storedCode = readSelectedBranchCode();
     const profileCode = normalizeBranchCode(this.authStore.profile()?.branchCode);
+    if (storedCode === 'ALL' && response.data.organizationAccess) {
+      this.selectedBranchCodeSignal.set('ALL');
+      return;
+    }
     const nextBranch = findBranch(branches, storedCode)
       ?? findBranch(branches, profileCode)
       ?? branches.find(branch => branch.isDefault)
       ?? branches[0]
       ?? null;
 
-    this.selectedBranchCodeSignal.set(nextBranch?.branchCode ?? profileCode);
-    writeSelectedBranchCode(nextBranch?.branchCode ?? profileCode);
+    this.selectedBranchCodeSignal.set(nextBranch?.branchCode ?? null);
+    writeSelectedBranchCode(nextBranch?.branchCode ?? null);
   }
 
-  private applyProfileFallback(): void {
-    const profileCode = normalizeBranchCode(this.authStore.profile()?.branchCode);
-    if (!this.selectedBranchCodeSignal() && profileCode) {
-      this.selectedBranchCodeSignal.set(profileCode);
-      writeSelectedBranchCode(profileCode);
-    }
+  private clearUnavailableContext(): void {
+    this.branchesSignal.set([]);
+    this.organizationAccessSignal.set(false);
+    this.selectedBranchCodeSignal.set(null);
+    writeSelectedBranchCode(null);
   }
 }
 
@@ -176,35 +182,6 @@ function findBranch(branches: BranchContextOption[], branchCode: string | null):
   }
 
   return branches.find(branch => branch.branchCode.localeCompare(branchCode, undefined, { sensitivity: 'accent' }) === 0) ?? null;
-}
-
-function ensureMainBranchOption(branches: BranchContextOption[]): BranchContextOption[] {
-  const hasMainBranch = branches.some(branch =>
-    branch.branchCode.localeCompare(fallbackMainBranchCode, undefined, { sensitivity: 'accent' }) === 0
-    || branch.branchName.localeCompare(fallbackMainBranchName, undefined, { sensitivity: 'accent' }) === 0
-  );
-
-  if (hasMainBranch) {
-    return branches;
-  }
-
-  const firstBranch = branches[0];
-  const mainBranch: BranchContextOption = {
-    branchGuid: 'main-branch-fallback',
-    hospitalGuid: firstBranch?.hospitalGuid ?? '',
-    branchCode: fallbackMainBranchCode,
-    branchName: fallbackMainBranchName,
-    branchTypeCode: 'GENERAL',
-    isDefault: true,
-    cityName: null,
-    stateName: null,
-    countryCode: null,
-    primaryPhone: null,
-    email: null,
-    isActive: true
-  };
-
-  return [mainBranch, ...branches];
 }
 
 function normalizeBranchCode(branchCode: string | null | undefined): string | null {

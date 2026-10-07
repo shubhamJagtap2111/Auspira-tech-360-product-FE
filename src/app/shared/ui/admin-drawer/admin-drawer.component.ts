@@ -1,14 +1,16 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, EventEmitter, HostListener, Input, Output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, HostListener, Input, Output, OnDestroy, OnChanges, inject } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import { A11yModule } from '@angular/cdk/a11y';
 
 @Component({
   selector: 'ac-admin-drawer',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, A11yModule],
   template: `
     @if (open) {
-      <div class="ac-admin-drawer-backdrop" aria-hidden="true"></div>
-      <aside class="ac-admin-drawer" role="dialog" aria-modal="true" [attr.aria-label]="title">
+      <div class="ac-admin-drawer-backdrop" aria-hidden="true" (click)="requestClose()"></div>
+      <aside class="ac-admin-drawer" role="dialog" aria-modal="true" [attr.aria-label]="title" [attr.aria-busy]="busy" cdkTrapFocus [cdkTrapFocusAutoCapture]="true">
         <div class="ac-admin-drawer-head">
           <div class="ac-admin-drawer-title">
             <span class="ac-admin-drawer-icon material-symbols-rounded">{{ icon }}</span>
@@ -17,7 +19,7 @@ import { ChangeDetectionStrategy, Component, EventEmitter, HostListener, Input, 
               <h2>{{ title }}</h2>
             </div>
           </div>
-          <button class="icon-btn" type="button" (click)="requestClose()" [attr.title]="closeTitle">
+          <button class="icon-btn" type="button" cdkFocusInitial (click)="requestClose()" [disabled]="busy" [attr.aria-label]="closeTitle" [attr.title]="closeTitle">
             <span class="material-symbols-rounded">close</span>
           </button>
         </div>
@@ -38,13 +40,28 @@ import { ChangeDetectionStrategy, Component, EventEmitter, HostListener, Input, 
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class AcAdminDrawerComponent {
+export class AcAdminDrawerComponent implements OnChanges, OnDestroy {
+  private readonly document = inject(DOCUMENT);
+  private previousOverflow: string | null = null;
   @Input() open = false;
+  @Input() busy = false;
   @Input() icon = 'edit_square';
   @Input() eyebrow = '';
   @Input() title = '';
   @Input() closeTitle = 'Close editor';
   @Output() readonly closed = new EventEmitter<void>();
+
+  ngOnChanges(): void {
+    if (this.open && this.previousOverflow === null) {
+      this.previousOverflow = this.document.body.style.overflow;
+      this.document.body.style.overflow = 'hidden';
+    } else if (!this.open) this.unlockScroll();
+  }
+  ngOnDestroy(): void { this.unlockScroll(); }
+  private unlockScroll(): void {
+    if (this.previousOverflow !== null) this.document.body.style.overflow = this.previousOverflow;
+    this.previousOverflow = null;
+  }
 
   @HostListener('document:keydown.escape')
   protected onEscapeKey(): void {
@@ -54,6 +71,6 @@ export class AcAdminDrawerComponent {
   }
 
   protected requestClose(): void {
-    this.closed.emit();
+    if (!this.busy) this.closed.emit();
   }
 }

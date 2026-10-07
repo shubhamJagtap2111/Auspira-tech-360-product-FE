@@ -8,6 +8,7 @@ import { I18nService } from '../../../core/i18n/i18n.service';
 import { ToastService } from '../../../shared/ui/toast/toast.service';
 import { AcAdminDrawerComponent } from '../../../shared/ui/admin-drawer/admin-drawer.component';
 import { AcGridLoaderComponent } from '../../../shared/ui/grid-loader/grid-loader.component';
+import { AcDropdownComponent } from '../../../shared/ui/dropdown/dropdown.component';
 import { HospitalProfile, HospitalSetting } from './hospital-management.models';
 import { HospitalManagementService } from './hospital-management.service';
 
@@ -21,7 +22,7 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcAdminDrawerComponent, AcGridLoaderComponent],
+  imports: [CommonModule, FormsModule, AcAdminDrawerComponent, AcGridLoaderComponent, AcDropdownComponent],
   template: `
     <section class="hospital-page">
       <header class="page-head">
@@ -108,14 +109,14 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
               </div>
               <div class="form-grid">
                 <label><span>{{ t('Administration.Hospital.Fields.HospitalCode') }}</span><input name="hospitalCode" [(ngModel)]="form.hospitalCode" /></label>
-                <label><span>{{ t('Administration.Hospital.Fields.HospitalName') }}</span><input name="hospitalName" [(ngModel)]="form.hospitalName" /></label>
+                <label><span>Hospital name *</span><input name="hospitalName" [(ngModel)]="form.hospitalName" required placeholder="Hospital name shown on prescriptions" /></label>
                 <label><span>{{ t('Administration.Hospital.Fields.LegalName') }}</span><input name="legalName" [(ngModel)]="form.legalName" /></label>
                 <label><span>{{ t('Administration.Hospital.Fields.ShortName') }}</span><input name="shortName" [(ngModel)]="form.shortName" /></label>
-                <label><span>{{ t('Administration.Hospital.Fields.WebsiteUrl') }}</span><input name="websiteUrl" [(ngModel)]="form.websiteUrl" /></label>
+                <label><span>Website</span><input type="url" name="websiteUrl" [(ngModel)]="form.websiteUrl" placeholder="https://hospital.com" /></label>
                 <label><span>{{ t('Administration.Hospital.Fields.EstablishedDate') }}</span><input type="date" name="establishedDate" [(ngModel)]="form.establishedDate" /></label>
-                <label><span>{{ t('Administration.Hospital.Fields.PrimaryLanguageCode') }}</span><input name="primaryLanguageCode" [(ngModel)]="form.primaryLanguageCode" /></label>
-                <label><span>{{ t('Administration.Hospital.Fields.TimeZoneCode') }}</span><input name="timeZoneCode" [(ngModel)]="form.timeZoneCode" /></label>
-                <label><span>{{ t('Administration.Hospital.Fields.CurrencyCode') }}</span><input name="currencyCode" [(ngModel)]="form.currencyCode" /></label>
+                <label><span>Default language</span><ac-dropdown name="primaryLanguageCode" [(ngModel)]="form.primaryLanguageCode" [options]="[{label:'English',value:'en-US'},{label:'Hindi',value:'hi-IN'},{label:'Marathi',value:'mr-IN'}]" /></label>
+                <label><span>Time zone</span><ac-dropdown name="timeZoneCode" [(ngModel)]="form.timeZoneCode" [options]="[{label:'India (IST)',value:'Asia/Kolkata'},{label:'UTC',value:'UTC'}]" /></label>
+                <label><span>Currency</span><ac-dropdown name="currencyCode" [(ngModel)]="form.currencyCode" [options]="[{label:'Indian Rupee (INR)',value:'INR'},{label:'US Dollar (USD)',value:'USD'},{label:'UAE Dirham (AED)',value:'AED'}]" /></label>
               </div>
             </section>
 
@@ -258,6 +259,7 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
           @if (profileDrawer(); as drawer) {
             <ac-admin-drawer
               [open]="!!profileDrawer()"
+              [busy]="saving()"
               [icon]="drawerIcon(drawer)"
               [eyebrow]="t('Administration.Hospital.Title')"
               [title]="t(drawerTitle(drawer))"

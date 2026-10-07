@@ -3,16 +3,16 @@ import { AuthResponse } from './auth.models';
 const platformRoleCodes = new Set([
   'AUSPIRA_SUPER_ADMIN',
   'PLATFORM_SUPER_ADMIN',
-  'SOFTWARE_SUPER_ADMIN',
-  'SUPER_ADMIN'
+  'SOFTWARE_SUPER_ADMIN'
 ]);
 
 const hospitalAdminRoleCodes = new Set([
-  'HOSPITAL_ADMIN'
+  'HOSPITAL_ADMIN', 'SUPER_ADMIN'
 ]);
 
 const roleLabels: Record<string, string> = {
   HOSPITAL_ADMIN: 'Hospital Admin',
+  SUPER_ADMIN: 'Super Administrator',
   DATA_ENTRY_OPERATOR: 'Data Entry Operator',
   DOCTOR: 'Doctor',
   NURSE: 'Nurse',
@@ -52,7 +52,7 @@ export function getSessionRoleCodes(session: AuthResponse | null): string[] {
 
 export function isPlatformUser(session: AuthResponse | null): boolean {
   const roleCodes = getSessionRoleCodes(session);
-  if (roleCodes.some(role => platformRoleCodes.has(role) || role.includes('SUPER_ADMIN'))) {
+  if (roleCodes.some(role => platformRoleCodes.has(role))) {
     return true;
   }
 
