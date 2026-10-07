@@ -7087,7 +7087,16 @@ function printablePrescriptionHtml(prescription: PrescriptionPreview, autoPrint:
     .signature::before { width: 160px; margin-top: 28px; } .signature { font-size: 11px; }
     .paper.format-thermal table { font-size: 9px; } .paper.format-thermal th, .paper.format-thermal td { padding: 7px 3px; }
     @media(max-width:650px) { body { padding: 12px; }.sheet-head { grid-template-columns: 1fr; }.sheet-head aside { justify-items: center; text-align:center; }.logo { display:none; }.patient,.extras,.foot { grid-template-columns:1fr; }.signature { justify-items:start; text-align:left; } }
-    @media print { body { padding: 0; background: white; } .paper { border-radius: 0; border: 0; }.sheet-head { grid-template-columns: 62px minmax(0,1fr) 140px; }.sheet-head aside { justify-items:end; text-align:right; }.logo { display:grid; }.patient,.extras { grid-template-columns:1fr 1fr; }.foot { grid-template-columns:128px 1fr 170px; }.medicine-table { overflow: visible; } @page { size: ${options.format === 'A5' ? 'A5' : options.format === 'THERMAL' ? 'auto' : 'A4'}; margin: 12mm; } }
+    @media print { body { padding: 0; background: white; font-size: 12px; }
+      .sheet-head { padding: 12px 20px; gap: 10px; } .sheet-head h1 { font-size: 22px; } .hospital-contact { font-size: 10px; }
+      .doctor { padding: 10px 20px; } .doctor h2 { font-size: 18px; } .doctor p { font-size: 12px; margin-top: 4px; }
+      .patient { padding: 12px 20px; gap: 8px 20px; font-size: 12px; } .patient p { font-size: 11px; }
+      .patient .vital-grid { padding: 10px; gap: 8px; }
+      .rx { padding: 14px 20px; min-height: 0; } .rx h3 { margin-bottom: 10px; font-size: 28px; }
+      th { padding: 8px 6px; } td { padding: 10px 6px; font-size: 11px; }
+      .extras section { padding: 12px 20px; font-size: 11px; } .extras h3 { font-size: 12px; margin-bottom: 6px; }
+      .foot { padding: 12px 20px; } .disclaimer { padding: 8px 20px; font-size: 9px; }
+      .paper { border-radius: 0; border: 0; }.sheet-head { grid-template-columns: 62px minmax(0,1fr) 140px; }.sheet-head aside { justify-items:end; text-align:right; }.logo { display:grid; }.patient,.extras { grid-template-columns:1fr 1fr; }.foot { grid-template-columns:128px 1fr 170px; }.medicine-table { overflow: visible; } @page { size: ${options.format === 'A5' ? 'A5' : options.format === 'THERMAL' ? 'auto' : 'A4'}; margin: 12mm; } }
 
   </style>
 </head>
@@ -7133,7 +7142,7 @@ function printablePrescriptionHtml(prescription: PrescriptionPreview, autoPrint:
     ${(showQr || showSignature) ? `<footer class="foot ${!showQr ? 'no-qr' : ''} ${!showSignature ? 'no-signature' : ''}">
       ${showQr ? `<img class="qr" src="${escapeHtml(prescription.qrImage || '')}" alt="Scan to view prescription and visit history" />
       <div>
-        <strong>Scan to access digital prescription</strong>
+        <strong>Scan for prescription & visit history</strong>
         <small class="muted">Patient access code or hospital login required.</small><small class="muted">Link expires ${escapeHtml(prescription.accessExpiresAt ? new Date(prescription.accessExpiresAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '')}</small>
       </div>` : ''}
       ${showSignature ? `<div class="signature">

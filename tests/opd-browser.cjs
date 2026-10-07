@@ -71,6 +71,11 @@ const server = http.createServer((req, res) => {
         { id: '60000000-0000-0000-0000-000000000003', name: 'ORH', strength: '567', dosageForm: 'Tablet', unit: 'Strip', genericName: 'PARACITAMOAL' }
       ];
       else if (p === '/pharmacy/allergies/check' || p === '/pharmacy/interactions/check') data = [];
+      else if (p === '/prescription-access/hospital-header') data = { hospitalName: 'OPD Test Hospital', address: { addressLine1: 'Example Road', cityName: 'Pune', stateName: 'Maharashtra', postalCode: '411001' }, contact: { primaryPhone: '+91 2000000000', email: 'care@example.test' } };
+      else if (p === `/prescription-access/consultations/${ids.consultation}`) {
+        assert.equal(consultation.statusCode, 'COMPLETED');
+        data = { token: 'CfDJ' + 'A'.repeat(450), accessCode: '12345678', expiresAt: '2026-11-06T10:00:00Z', tenantCode: 'test' };
+      }
       else if (p === '/administration/hospital') data = { hospitalName: 'OPD Test Hospital' };
       else if (p === '/patients') data = { patients: [patient], totalCount: 1, pageNumber: 1, pageSize: 100, stats: {} };
       else if (p === `/patients/${ids.patient}`) data = patient;
@@ -415,6 +420,18 @@ const server = http.createServer((req, res) => {
       assert.equal(savedItem.body.medicineName, 'Synthetic medicine');
     }
     assert.equal(JSON.parse(consultation.clinicalData).prescriptions[0].isPrn, true);
+    await page.getByRole('button', { name: 'Patient access code', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Patient access code', exact: true }).waitFor();
+    assert.equal(await page.locator('.access-code').innerText(), '12345678');
+    await page.getByRole('button', { name: 'Done', exact: true }).click();
+    const printedPromise = page.waitForEvent('popup');
+    await page.getByRole('button', { name: 'Print prescription', exact: true }).click();
+    const printed = await printedPromise;
+    await printed.locator('h1').waitFor();
+    assert.equal(await printed.locator('h1').innerText(), 'OPD Test Hospital');
+    assert.equal(await printed.locator('img.qr').count(), 1);
+    assert.equal((await printed.locator('body').innerText()).includes('12345678'), false, 'patient code must not appear on the prescription');
+    await printed.close();
     assert.deepEqual(errors, []);
     console.log(JSON.stringify({ passed: true, pharmacyIntegrationEnabled: pharmacyEnabled, checks: ['settings checkbox persistence and three responsive widths', 'start', 'draft-only autosave', 'formatted history and visit selection', 'history results and imaging', 'history keyboard focus', 'history preserves input', ...(pharmacyEnabled ? ['medicine suggestion dismissal at six widths', 'catalog medicine validation and correction'] : ['manual medicine validation and correction', 'null catalogue ID saved with zero Pharmacy requests']), 'review', 'conflict recovery', 'responsive widths', 'completion'], screenshots: artifacts }, null, 2));
   } finally { await browser.close(); server.close(); }
