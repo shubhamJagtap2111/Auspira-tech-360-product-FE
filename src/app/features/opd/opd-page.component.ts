@@ -444,6 +444,7 @@ import { LabReport } from '../laboratory/laboratory.models';
                                 <div class="section-title">
                                   <h3>Medicine / Prescription</h3>
                                   <p>Add each medicine as a separate row with strength, form, dosage, frequency, route, duration, quantity, and instructions.</p>
+                                  @if (!pharmacyIntegrationEnabled()) { <p class="medicine-catalog-help">Independent prescribing: review the patient's recorded allergies and medicines. Automated pharmacy checks and pharmacy handoff are unavailable.</p> }
                                 </div>
                                 <div class="clinical-grid medicine-grid">
                                   <div class="field medicine-search-field" [acDismissiblePopover]="medicineSuggestionsOpen()" (dismissPopover)="medicineSuggestionsOpen.set(false)">
@@ -461,10 +462,12 @@ import { LabReport } from '../laboratory/laboratory.models';
                                       autocomplete="off"
                                       aria-describedby="opd-medicine-catalog-help"
                                     />
-                                    <small id="opd-medicine-catalog-help" class="medicine-catalog-help">{{ clinicalForm().prescriptionDraft.medicineId ? 'Hospital catalog medicine selected.' : 'Choose a medicine from the hospital catalog suggestions.' }}</small>
-                                    @if (medicineCatalogError()) {
+                                    <small id="opd-medicine-catalog-help" class="medicine-catalog-help">{{ !pharmacyIntegrationEnabled() ? 'Enter the medicine name. Pharmacy integration is switched off.' : clinicalForm().prescriptionDraft.medicineId ? 'Hospital catalog medicine selected.' : 'Choose a medicine from the hospital catalog suggestions.' }}</small>
+                                    @if (pharmacyConfigurationError()) {
+                                      <small class="medicine-validation-error" role="alert">Unable to load prescribing settings. <button type="button" (click)="reload()">Retry settings</button></small>
+                                    } @else if (pharmacyIntegrationEnabled() && medicineCatalogError()) {
                                       <small class="medicine-validation-error" role="alert">Medicine catalog could not be loaded. <button type="button" (click)="refreshMedicineCatalog()">Retry catalog</button></small>
-                                    } @else if (!clinicalForm().prescriptionDraft.medicineId && clinicalForm().prescriptionDraft.medicine.trim().length >= 2 && !medicineSearchResults().length) {
+                                    } @else if (pharmacyIntegrationEnabled() && !clinicalForm().prescriptionDraft.medicineId && clinicalForm().prescriptionDraft.medicine.trim().length >= 2 && !medicineSearchResults().length) {
                                       <small class="medicine-validation-error">No matching catalog medicine. Try another name or ask Pharmacy to update the catalog.</small>
                                     }
                                     @if (medicineSuggestionsOpen() && medicineSearchResults().length > 0) {
@@ -759,7 +762,7 @@ import { LabReport } from '../laboratory/laboratory.models';
             @for (section of completionSummary().sections; track section.title) { <section class="summary-section"><h3>{{ section.title }}</h3>@for (item of section.items; track item) { <p>{{ item }}</p> }</section> }
             @if (pendingCompletionLabs()) { <div class="draft-conflict" role="alert"><p>{{ pendingCompletionLabs() }} laboratory tests have not been submitted.</p><button type="button" class="ac-btn ac-btn-secondary" [disabled]="saving()" (click)="createLabOrder(visit)">Submit selected tests</button></div> }
             <p>Completing closes this clinical record, saves the follow-up plan, and prepares billing. Selected laboratory tests must be submitted before completion.</p>
-            @if (clinicalForm().prescriptions.length) { <label class="check-field"><input type="checkbox" [ngModel]="sendToPharmacyOnComplete()" (ngModelChange)="sendToPharmacyOnComplete.set($event)" [disabled]="saving()" /> Send prescription to pharmacy before completing</label> }
+            @if (pharmacyIntegrationEnabled() && clinicalForm().prescriptions.length) { <label class="check-field"><input type="checkbox" [ngModel]="sendToPharmacyOnComplete()" (ngModelChange)="sendToPharmacyOnComplete.set($event)" [disabled]="saving() || pharmacyConfigurationError()" /> Send prescription to pharmacy before completing</label> }
             <footer><button type="button" class="ac-btn ac-btn-secondary" [disabled]="saving()" (click)="reviewOpen.set(false)">Continue editing</button><button type="button" class="ac-btn ac-btn-primary" [disabled]="saving() || pendingCompletionLabs() > 0" (click)="completeVisit()">{{ saving() ? 'Saving…' : 'Complete Consultation' }}</button></footer>
           </section>
         </div>
@@ -2786,6 +2789,8 @@ export class OpdPageComponent implements OnInit {
   protected readonly medicines = signal<OpdMedicineRecord[]>([]);
   protected readonly medicineSuggestionsOpen = signal(false);
   protected readonly medicineCatalogError = signal(false);
+  protected readonly pharmacyIntegrationEnabled = signal(true);
+  protected readonly pharmacyConfigurationError = signal(false);
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly activeTab = signal<OpdTab>('dashboard');
@@ -2937,6 +2942,7 @@ export class OpdPageComponent implements OnInit {
   ]);
 
   protected readonly medicineSearchResults = computed<MedicineSuggestion[]>(() => {
+    if (!this.pharmacyIntegrationEnabled()) return [];
     if (this.clinicalForm().prescriptionDraft.medicineId) return [];
     const query = this.clinicalForm().prescriptionDraft.medicine.trim();
     return findMedicineSuggestions(query, this.medicines());
@@ -3163,6 +3169,12 @@ export class OpdPageComponent implements OnInit {
   protected async reload(): Promise<void> {
     this.loading.set(true);
     try {
+      const configuration = await this.opdService.getConfiguration().catch(() => null);
+      const configured = Boolean(configuration?.success && typeof configuration.data?.pharmacyIntegrationEnabled === 'boolean');
+      this.pharmacyConfigurationError.set(!configured);
+      this.pharmacyIntegrationEnabled.set(configured ? configuration!.data!.pharmacyIntegrationEnabled : true);
+      if (!configured) this.toast.error('Prescribing settings unavailable', 'Retry settings before issuing medicines. Your consultation notes are retained.');
+      if (!this.pharmacyIntegrationEnabled()) this.sendToPharmacyOnComplete.set(false);
       const [appointments, queues, patients, doctors, consultations, followUps, labTests, medicines] = await Promise.all([
         this.loadAll(page => this.appointmentService.list(page, 100)),
         this.loadAll(page => this.appointmentService.listQueue(page, 100)),
@@ -3171,7 +3183,9 @@ export class OpdPageComponent implements OnInit {
         this.loadAll(page => this.opdService.listConsultations(page, 100)),
         this.loadAll(page => this.opdService.listFollowUps(page, 100)),
         this.opdService.listLabTests(1, 100),
-        this.loadAll(page => this.opdService.listMedicines(page, 100)).catch(() => ({ success: false, data: null }))
+        configured && this.pharmacyIntegrationEnabled()
+          ? this.loadAll(page => this.opdService.listMedicines(page, 100)).catch(() => ({ success: false, data: null }))
+          : Promise.resolve({ success: true, data: [] })
       ]);
 
       if (appointments.success && appointments.data) {
@@ -3688,19 +3702,24 @@ export class OpdPageComponent implements OnInit {
   }
 
   protected medicineValidationIssues(item: OpdPrescriptionItemForm): string[] {
-    return prescriptionItemIssues(item);
+    return prescriptionItemIssues(item, this.pharmacyIntegrationEnabled());
   }
 
   private validatePrescriptionDetails(): boolean {
     const items = this.clinicalForm().prescriptions;
-    const index = items.findIndex(item => prescriptionItemIssues(item).length > 0);
+    if (items.length && this.pharmacyConfigurationError()) {
+      this.toast.warning('Prescribing settings unavailable', 'Retry settings before issuing medicines.');
+      return false;
+    }
+    const index = items.findIndex(item => prescriptionItemIssues(item, this.pharmacyIntegrationEnabled()).length > 0);
     if (index < 0) return true;
-    this.toast.warning('Complete medicine details', `Medicine ${index + 1} (${items[index].medicine || 'unnamed'}): ${prescriptionItemIssues(items[index]).join(', ')}. Use Edit on this medicine to correct it.`);
+    this.toast.warning('Complete medicine details', `Medicine ${index + 1} (${items[index].medicine || 'unnamed'}): ${prescriptionItemIssues(items[index], this.pharmacyIntegrationEnabled()).join(', ')}. Use Edit on this medicine to correct it.`);
     this.jumpToConsultation('treatment');
     return false;
   }
 
   protected async refreshMedicineCatalog(): Promise<void> {
+    if (!this.pharmacyIntegrationEnabled() || this.pharmacyConfigurationError()) return;
     try {
       const response = await this.loadAll(page => this.opdService.listMedicines(page, 100));
       if (!response.success || !response.data) throw new Error('Catalog unavailable');
@@ -4141,7 +4160,8 @@ export class OpdPageComponent implements OnInit {
       return;
     }
     const draft = this.clinicalForm().prescriptionDraft;
-    const issues = prescriptionItemIssues(draft);
+    if (this.pharmacyConfigurationError()) { this.toast.warning('Prescribing settings unavailable', 'Retry settings before adding medicines.'); return; }
+    const issues = prescriptionItemIssues(draft, this.pharmacyIntegrationEnabled());
     if (issues.length) {
       this.toast.warning('Complete medicine details', `${draft.medicine || 'This medicine'}: ${issues.join(', ')}.`);
       return;
@@ -4433,6 +4453,10 @@ export class OpdPageComponent implements OnInit {
   }
 
   protected async sendPrescriptionToPharmacy(): Promise<void> {
+    if (!this.pharmacyIntegrationEnabled() || this.pharmacyConfigurationError()) {
+      this.toast.warning('Pharmacy integration unavailable', 'Check hospital prescribing settings or print the prescription for the patient.');
+      return;
+    }
     if (this.prescriptionSentToPharmacy()) {
       return;
     }
@@ -4816,7 +4840,7 @@ export class OpdPageComponent implements OnInit {
       if (!followUp.recordId || (followUp.createAppointment && !followUp.appointmentId)) return;
       if (!await this.saveClinicalDraft(false)) return;
     }
-    if (this.sendToPharmacyOnComplete() && this.clinicalForm().prescriptions.length) {
+    if (this.pharmacyIntegrationEnabled() && this.sendToPharmacyOnComplete() && this.clinicalForm().prescriptions.length) {
       await this.sendPrescriptionToPharmacy();
       if (!this.prescriptionSentToPharmacy()) return;
     }
@@ -4879,6 +4903,7 @@ export class OpdPageComponent implements OnInit {
   }
 
   private async reviewDrugAllergies(): Promise<boolean> {
+    if (!this.pharmacyIntegrationEnabled()) return true;
     const visit = this.selectedVisit();
     const medicineIds = [...new Set(this.clinicalForm().prescriptions.map(item => item.medicineId).filter((id): id is string => Boolean(id)))];
     if (!visit || medicineIds.length === 0) {
@@ -4920,6 +4945,7 @@ export class OpdPageComponent implements OnInit {
   }
 
   private async reviewDrugInteractions(): Promise<boolean> {
+    if (!this.pharmacyIntegrationEnabled()) return true;
     const medicineIds = [...new Set(this.clinicalForm().prescriptions.map(item => item.medicineId).filter((id): id is string => Boolean(id)))];
     if (medicineIds.length < 2) {
       return true;

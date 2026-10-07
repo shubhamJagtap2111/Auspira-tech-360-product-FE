@@ -31,6 +31,10 @@ import {
 export class OpdManagementService {
   private readonly api = inject(ApiClientService);
 
+  getConfiguration(): Promise<OpdApiResponse<{ pharmacyIntegrationEnabled: boolean }>> {
+    return firstValueFrom(this.api.get<OpdApiResponse<{ pharmacyIntegrationEnabled: boolean }>>('/opd/configuration'));
+  }
+
   patientLabResults(patientId: string): Promise<OpdApiResponse<OpdLabResultSummary[]>> {
     return firstValueFrom(this.api.get<OpdApiResponse<OpdLabResultSummary[]>>(`/opd/consultations/patient/${patientId}/lab-results`));
   }

@@ -2139,9 +2139,9 @@ export class AppShellComponent implements OnInit {
     {
       label: 'System',
       items: [
-        { path: '/administration/system-configuration', label: 'Notifications', icon: 'notifications_active', requiredPermission: 'Administration.SystemConfiguration.View', hospitalAdminOnly: true },
+        { path: '/administration/system-configuration', label: 'Hospital Settings', icon: 'settings', requiredPermission: 'Administration.SystemConfiguration.View', hospitalAdminOnly: true },
         { path: '/profile/activity-logs', label: 'Audit Logs', icon: 'history' },
-        { path: '/profile/account-settings', label: 'Settings', icon: 'settings' }
+        { path: '/profile/account-settings', label: 'Account Settings', icon: 'manage_accounts' }
       ]
     },
     {

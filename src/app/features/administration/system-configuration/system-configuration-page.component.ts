@@ -54,9 +54,10 @@ type ConfigEditorMode = 'number-series' | 'fiscal-year' | 'template';
           @for (setting of settings(); track setting.settingKey) {
             @if (canEditCategory(setting.settingCategoryCode)) {
               <label class="setting-row">
-                <span>{{ t(setting.displayNameKey) }}</span>
+                <span>{{ setting.settingKey === 'OPD.PharmacyIntegration.Enabled' ? setting.displayNameKey : t(setting.displayNameKey) }}</span>
+                @if (setting.descriptionKey) { <small>{{ setting.settingKey === 'OPD.PharmacyIntegration.Enabled' ? setting.descriptionKey : t(setting.descriptionKey!) }}</small> }
                 @if (setting.dataType === 'Boolean') {
-                  <input type="checkbox" [name]="setting.settingKey" [ngModel]="setting.settingValue === 'true'" (ngModelChange)="setting.settingValue = $event ? 'true' : 'false'" />
+                  <input type="checkbox" [name]="setting.settingKey" [ngModel]="setting.settingValue?.toLowerCase() === 'true'" (ngModelChange)="setting.settingValue = $event ? 'true' : 'false'" [disabled]="saving()" />
                 } @else {
                   <input [name]="setting.settingKey" [(ngModel)]="setting.settingValue" />
                 }
@@ -283,6 +284,7 @@ type ConfigEditorMode = 'number-series' | 'fiscal-year' | 'template';
     .panel { border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 8px; padding: 16px; }
     .panel h2 { margin: 0; font-size: 16px; }
     .settings-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+    .setting-row small { color: var(--ac-muted); font-weight: 400; line-height: 1.5; }
     .workspace > .panel { flex: 1 1 0; min-width: 0; }
     .table-wrap { margin-top: 14px; overflow: auto; border: 1px solid var(--ac-border); border-radius: 8px; }
     table { width: 100%; min-width: 620px; border-collapse: collapse; }

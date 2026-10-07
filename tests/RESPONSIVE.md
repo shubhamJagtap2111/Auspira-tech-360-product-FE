@@ -12,4 +12,6 @@ The default route list covers 29 clinical, operational, administrative, profile,
 
 A deployment smoke test should also cover real records, long names, permissions, open drawers, and dispensing/hospital-save workflows.
 
+The OPD browser runner checks the hospital integration checkbox, its persistence after reload, and prescribing in the enabled mode by default. Run it again with `OPD_PHARMACY_INTEGRATION=off` to verify manual medicine names, null catalogue IDs, and completing a consultation with zero Pharmacy requests. Both modes use synthetic fixtures and write screenshots into separate `artifacts/responsive/opd/` subdirectories.
+
 Set `RESPONSIVE_DROPDOWNS=1` to test every visible shared dropdown on the selected routes for outside mouse clicks/touch taps, Escape, and focus leaving the control. This also covers account/language/notification menus, patient country/date popups, and dropdowns inside patient, doctor, and appointment editors. Escape must close the popup while keeping its editor open. The populated OPD smoke test separately checks medicine suggestion dismissal and selection at six widths, including event handlers that stop propagation.

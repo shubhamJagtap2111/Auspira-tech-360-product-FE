@@ -5,10 +5,12 @@ const path = require('node:path');
 const http = require('node:http');
 const { chromium } = require('playwright');
 const root = path.resolve('dist/auspira-care360-web/browser');
-const artifacts = path.resolve('artifacts/responsive/opd');
+const artifacts = path.resolve('artifacts/responsive/opd', process.env.OPD_PHARMACY_INTEGRATION === 'off' ? 'independent' : 'integrated');
 const permissions = [...fs.readFileSync('src/app/app.routes.ts', 'utf8').matchAll(/permission: '([^']+)'/g)].map(m => m[1]);
 const session = { userId: 'opd-fixture', email: 'doctor@example.test', fullName: 'Dr. Test', accessToken: 'fixture', refreshToken: 'fixture', accessTokenExpiresAt: '2099-01-01T00:00:00Z', permissions, roleCodes: ['HOSPITAL_ADMIN'], menuItems: [], hospitalName: 'OPD Test Hospital', tenantCode: 'test' };
 const now = new Date().toISOString();
+const pharmacyEnabled = process.env.OPD_PHARMACY_INTEGRATION !== 'off';
+session.permissions.push('Administration.SystemConfiguration.Edit');
 const ids = { patient: '10000000-0000-0000-0000-000000000001', doctor: '20000000-0000-0000-0000-000000000001', appointment: '30000000-0000-0000-0000-000000000001', consultation: '40000000-0000-0000-0000-000000000001' };
 const patient = { patientGuid: ids.patient, medicalRecordNo: 'TEST-001', fullName: 'Synthetic Patient', firstName: 'Synthetic', lastName: 'Patient', age: 35, genderName: 'Female', genderCode: 'FEMALE', mobileNo: '0000000000', knownConditions: 'Not recorded', allergies: [], prescriptions: [], documents: [], labOrders: [], visits: [], appointments: [], timeline: [], overview: {}, contacts: [], insurance: [], billingSummary: {} };
 const doctor = { doctorGuid: ids.doctor, fullName: 'Dr. Test', email: session.email, departmentName: 'General Medicine', branchName: 'Main Branch', primarySpecialization: 'General Medicine', consultationFee: 0, statusCode: 'ACTIVE' };
@@ -36,8 +38,9 @@ const server = http.createServer((req, res) => {
   try {
     fs.mkdirSync(artifacts, { recursive: true });
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, hasTouch: true });
-    const errors = [], writes = [];
-    let consultation = null, conflictNextSave = false, failReportDownload = true;
+    const errors = [], writes = [], pharmacyRequests = [];
+    let consultation = null, conflictNextSave = false, failReportDownload = true, configuredIntegration = !pharmacyEnabled;
+    const integrationSetting = () => ({ settingKey: 'OPD.PharmacyIntegration.Enabled', settingCategoryCode: 'APPLICATION', settingValue: String(configuredIntegration), dataType: 'Boolean', displayNameKey: 'Integrate OPD with Pharmacy', descriptionKey: 'Select hospital catalogue medicines when enabled. Enter medicine names independently when disabled.', isEncrypted: false, sortOrder: 10, isActive: true, rowVersion: '' });
     page.on('pageerror', error => errors.push(error.message));
     await page.addInitScript(session => localStorage.setItem('care360.auth.session', JSON.stringify(session)), session);
     await page.route('**/*', async route => {
@@ -47,6 +50,7 @@ const server = http.createServer((req, res) => {
         return route.continue();
       }
       const p = url.pathname.replace(/^.*\/api\/v1/, ''), method = request.method();
+      if (p.startsWith('/pharmacy/') || p.endsWith('/send-to-pharmacy')) pharmacyRequests.push(p);
       if (p === '/laboratory/reports/report-1/pdf') {
         assert.equal(url.searchParams.get('version'), '2');
         if (failReportDownload) { failReportDownload = false; return route.fulfill({ status: 503, json: { message: 'Unavailable' } }); }
@@ -55,6 +59,12 @@ const server = http.createServer((req, res) => {
       let data = [];
       if (method !== 'GET') writes.push({ path: p, body: request.postDataJSON() });
       if (p === '/auth/me') data = session;
+      else if (p === '/opd/configuration') data = { pharmacyIntegrationEnabled: configuredIntegration };
+      else if (p === '/administration/system-configuration') data = { settings: [integrationSetting()], numberSeries: [], fiscalYears: [], notificationTemplates: [] };
+      else if (p === '/administration/system-configuration/settings' && method === 'PUT') {
+        configuredIntegration = request.postDataJSON().settings.find(setting => setting.settingKey === 'OPD.PharmacyIntegration.Enabled').settingValue === 'true';
+        data = [integrationSetting()];
+      }
       else if (p === '/pharmacy/prescribing-catalog') data = [{ id: '60000000-0000-0000-0000-000000000001', name: 'Synthetic medicine 500mg Tablet', unit: 'Tablet', genericName: 'Synthetic medicine', salePrice: 0 }];
       else if (p === '/pharmacy/allergies/check' || p === '/pharmacy/interactions/check') data = [];
       else if (p === '/administration/hospital') data = { hospitalName: 'OPD Test Hospital' };
@@ -91,6 +101,27 @@ const server = http.createServer((req, res) => {
       else if (method !== 'GET') data = { ...request.postDataJSON(), id: crypto.randomUUID() };
       return route.fulfill({ json: { success: true, statusCode: 200, data, message: '', errors: [] } });
     });
+    await page.goto(base + '/administration/system-configuration');
+    const integrationCheckbox = page.getByRole('checkbox', { name: /Integrate OPD with Pharmacy/ });
+    await integrationCheckbox.waitFor().catch(async error => {
+      console.error({ url: page.url(), errors, settingsPage: await page.locator('body').innerText() });
+      throw error;
+    });
+    assert.equal(await integrationCheckbox.isChecked(), !pharmacyEnabled);
+    await integrationCheckbox.setChecked(pharmacyEnabled);
+    const settingsSave = page.waitForResponse(response => response.url().endsWith('/administration/system-configuration/settings') && response.request().method() === 'PUT');
+    await page.locator('.settings-panel .ac-btn-primary').click();
+    await settingsSave;
+    await page.reload();
+    await integrationCheckbox.waitFor();
+    assert.equal(await integrationCheckbox.isChecked(), pharmacyEnabled, 'integration checkbox persists after reload');
+    assert.equal(await page.locator('.setting-row small').innerText(), integrationSetting().descriptionKey, 'plain-language setting help remains complete');
+    for (const width of [360,768,1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      assert.equal(await integrationCheckbox.isVisible(), true);
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 2), false, `settings overflow at ${width}px`);
+      if (width === 360) await page.locator('.settings-panel').screenshot({ path: path.join(artifacts, 'integration-settings-mobile.png') });
+    }
     await page.goto(base + '/opd');
     await page.getByRole('button', { name: 'Start Consultation', exact: true }).waitFor({ timeout: 20000 });
     await page.getByRole('button', { name: 'Start Consultation', exact: true }).click();
@@ -150,7 +181,7 @@ const server = http.createServer((req, res) => {
       el.addEventListener('pointerdown', event => event.stopPropagation());
       el.addEventListener('click', event => event.stopPropagation());
     });
-    for (const width of [360,390,768,1024,1366,1920]) {
+    for (const width of pharmacyEnabled ? [360,390,768,1024,1366,1920] : []) {
       await page.setViewportSize({width,height:900});
       await medicineInput.fill('Synthetic medicine');
       await page.locator('.medicine-suggestions').waitFor();
@@ -179,12 +210,16 @@ const server = http.createServer((req, res) => {
     await page.getByRole('button', { name: 'BD - Twice Daily', exact: true }).click();
     await page.locator('input[name="duration"]').fill('5 Days');
     await page.locator('input[name="quantity"]').fill('10');
-    await page.getByRole('button', { name: 'Add Medicine', exact: true }).click();
-    await page.getByText('Unknown medicine: Catalog medicine selection.', { exact: true }).waitFor();
+    if (pharmacyEnabled) {
+      await page.getByRole('button', { name: 'Add Medicine', exact: true }).click();
+      await page.getByText('Unknown medicine: Catalog medicine selection.', { exact: true }).waitFor();
+    } else {
+      assert.match(await page.locator('#opd-medicine-catalog-help').innerText(), /integration is switched off/);
+    }
     assert.equal(await page.locator('.medicine-table-row').count(), 0);
     assert.equal(await page.locator('input[name="medicine"]').inputValue(), 'Unknown medicine');
     await page.locator('input[name="medicine"]').fill('Synthetic medicine');
-    await page.locator('.medicine-suggestions button').click();
+    if (pharmacyEnabled) await page.locator('.medicine-suggestions button').click();
     await page.locator('input[name="quantity"]').fill('');
     await page.getByRole('button', { name: 'Add Medicine', exact: true }).click();
     await page.getByText(/Quantity \(greater than zero\)\.$/).waitFor();
@@ -227,9 +262,15 @@ const server = http.createServer((req, res) => {
     await page.getByRole('button', { name: 'Complete Consultation', exact: true }).click();
     await page.locator('.completion-banner').waitFor({ timeout: 15000 });
     assert.equal(consultation.statusCode, 'COMPLETED');
-    assert.equal(JSON.parse(consultation.clinicalData).prescriptions[0].medicineId, '60000000-0000-0000-0000-000000000001');
+    assert.equal(JSON.parse(consultation.clinicalData).prescriptions[0].medicineId, pharmacyEnabled ? '60000000-0000-0000-0000-000000000001' : null);
+    if (!pharmacyEnabled) {
+      assert.deepEqual(pharmacyRequests, [], 'independent OPD must never call Pharmacy');
+      const savedItem = writes.find(write => write.path === '/opd/prescription-items');
+      assert.equal(savedItem.body.medicineId, null);
+      assert.equal(savedItem.body.medicineName, 'Synthetic medicine');
+    }
     assert.equal(JSON.parse(consultation.clinicalData).prescriptions[0].isPrn, true);
     assert.deepEqual(errors, []);
-    console.log(JSON.stringify({ passed: true, checks: ['start', 'draft-only autosave', 'formatted history and visit selection', 'history results and imaging', 'history keyboard focus', 'history preserves input', 'medicine suggestion dismissal at six widths', 'catalog medicine validation and correction', 'review', 'conflict recovery', 'responsive widths', 'completion'], screenshots: artifacts }, null, 2));
+    console.log(JSON.stringify({ passed: true, pharmacyIntegrationEnabled: pharmacyEnabled, checks: ['settings checkbox persistence and three responsive widths', 'start', 'draft-only autosave', 'formatted history and visit selection', 'history results and imaging', 'history keyboard focus', 'history preserves input', ...(pharmacyEnabled ? ['medicine suggestion dismissal at six widths', 'catalog medicine validation and correction'] : ['manual medicine validation and correction', 'null catalogue ID saved with zero Pharmacy requests']), 'review', 'conflict recovery', 'responsive widths', 'completion'], screenshots: artifacts }, null, 2));
   } finally { await browser.close(); server.close(); }
 })().catch(error => { console.error(error); server.close(); process.exitCode = 1; });

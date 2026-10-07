@@ -16,10 +16,10 @@ export function isAsNeededPrescription(item: OpdPrescriptionItemForm): boolean {
   return Boolean(item.isPrn) || /^(as\s+needed|prn|sos)$/i.test(item.frequency?.trim() ?? '');
 }
 
-export function prescriptionItemIssues(item: OpdPrescriptionItemForm): string[] {
+export function prescriptionItemIssues(item: OpdPrescriptionItemForm, requireCatalog = true): string[] {
   const issues: string[] = [];
   if (!item.medicine?.trim()) issues.push('Medicine name');
-  if (!item.medicineId) issues.push('Catalog medicine selection');
+  if (requireCatalog && !item.medicineId) issues.push('Catalog medicine selection');
   if (!item.dosage?.trim()) issues.push('Dosage');
   if (!item.route?.trim()) issues.push('Route');
   if (!item.frequency?.trim()) issues.push('Frequency');

@@ -20,13 +20,33 @@ const signal = initial => { let value = initial; const read = () => value; read.
 function setup(items = [valid], draft = {}) {
   const warnings = [], h = new context.Harness();
   Object.assign(h, { clinicalForm: signal({ complaints: [{}], clinicalNotes: '', history: { presentIllness: '' }, followUp: {}, prescriptions: items.map(x => ({ ...x })), prescriptionDraft: { ...valid, ...draft } }),
-    toast: { warning: (...args) => warnings.push(args) }, ensurePrescriptionEditable: () => true, markPrescriptionChanged: () => {}, jumpToConsultation: () => {}, customFrequencyMode: { set: () => {} }, medicineSuggestionsOpen: signal(false) });
+    toast: { warning: (...args) => warnings.push(args) }, ensurePrescriptionEditable: () => true, markPrescriptionChanged: () => {}, jumpToConsultation: () => {}, customFrequencyMode: { set: () => {} }, medicineSuggestionsOpen: signal(false), pharmacyIntegrationEnabled: signal(true), pharmacyConfigurationError: signal(false) });
   return { h, warnings };
 }
 test('a catalog medicine with all required fields completes validation', () => {
   const { h, warnings } = setup();
   assert.equal(h.validateCompletion(), true);
   assert.equal(warnings.length, 0);
+});
+test('independent prescribing accepts an unmapped medicine for Add and completion', () => {
+  const { h, warnings } = setup([], { medicineId: null, medicine: 'External medicine' });
+  h.pharmacyIntegrationEnabled.set(false);
+  h.addPrescriptionItem();
+  assert.equal(h.clinicalForm().prescriptions.length, 1);
+  assert.equal(h.clinicalForm().prescriptions[0].medicineId, null);
+  assert.equal(h.validateCompletion(), true);
+  assert.equal(warnings.length, 0);
+});
+test('independent prescribing still requires clinical details and a PRN indication', () => {
+  const issues = helpers.prescriptionItemIssues({ ...valid, medicineId: null, quantity: '', frequency: 'SOS', prnReason: '' }, false);
+  assert.deepEqual(Array.from(issues), ['Quantity (greater than zero)', 'As-needed indication']);
+});
+test('unknown integration settings block prescribing without silently relaxing validation', () => {
+  const { h } = setup();
+  h.pharmacyConfigurationError.set(true);
+  assert.equal(h.validateCompletion(), false);
+  h.addPrescriptionItem();
+  assert.equal(h.clinicalForm().prescriptions.length, 1);
 });
 test('visible values without a catalog selection identify that exact missing field', () => {
   const { h, warnings } = setup([{ ...valid, medicineId: null }]);
