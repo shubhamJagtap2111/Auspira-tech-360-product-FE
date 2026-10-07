@@ -84,18 +84,19 @@ test('an empty catalog never offers unmapped fallback suggestions', () => {
 
 test('medicine suggestions use pharmacy strength and form without stock or quantity requirements', () => {
   const rows = Array.from({ length: 12 }, (_, index) => ({ id: `medicine-${index}`, name: `Paracetamol brand ${index}`,
-    strength: '500 mg', dosageForm: 'Tablet', unit: 'Strip', stockOnHand: 0 }));
+    strength: '500 mg', dosageForm: 'Tablet', route: 'Oral', unit: 'Strip', stockOnHand: 0 }));
   const suggestions = context.findSuggestions('para', rows);
   assert.equal(suggestions.length, 12, 'all matching pharmacy names are available');
   assert.equal(suggestions[0].strength, '500 mg');
   assert.equal(suggestions[0].form, 'Tablet', 'dosage form is read from product details rather than pack unit');
-  const { h } = setup([], { dosage: 'Doctor dose', quantity: '7', duration: '3 days' });
+  const { h } = setup([], { dosage: 'Doctor dose', quantity: '7', duration: '3 days', route: '' });
   h.pharmacyIntegrationEnabled.set(false);
   h.selectMedicineSuggestion(suggestions[0]);
   const draft = h.clinicalForm().prescriptionDraft;
   assert.equal(draft.medicine, rows[0].name);
   assert.equal(draft.strength, '500 mg');
   assert.equal(draft.dosageForm, 'Tablet');
+  assert.equal(draft.route, 'Oral', 'route comes from the pharmacy record when available');
   assert.equal(draft.quantity, '7');
   assert.equal(draft.dosage, 'Doctor dose');
   assert.equal(draft.duration, '3 days');

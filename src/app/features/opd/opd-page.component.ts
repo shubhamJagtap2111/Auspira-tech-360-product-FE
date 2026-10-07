@@ -1,7 +1,7 @@
 import { AuthStore } from '../../core/auth/auth.store';
 import { PatientProfile } from '../patients/patient-management.models';
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, HostListener, Injector, OnInit, afterNextRender, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { A11yModule } from '@angular/cdk/a11y';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -55,7 +55,7 @@ import { LabReport } from '../laboratory/laboratory.models';
         } @else { <p>{{ historyByPatient()[visit.appointment.patientId] ? 'No previous completed visit recorded.' : (contextError() || 'Loading history…') }}</p> }
       </section>
     </ng-template>
-    <section class="opd-page">
+    <section class="opd-page" [class.consulting]="activeTab() === 'encounter'">
       <header class="page-header">
         <div>
           <p class="ac-eyebrow">Clinical workspace</p>
@@ -285,50 +285,64 @@ import { LabReport } from '../laboratory/laboratory.models';
 
             @case ('encounter') {
               <section class="encounter-layout">
-                <article class="encounter-card">
+                <article class="encounter-card" [style.--opd-header-height]="consultationHeaderHeight() + 'px'">
                   @if (selectedVisit(); as visit) {
-                    <div class="encounter-head">
+                    <div #consultationHeader class="encounter-head">
                       <div>
-                        <p class="ac-eyebrow">OPD Encounter</p>
+                        <p class="ac-eyebrow">Consultation workspace · {{ visit.doctorName }}</p>
                         <h2>{{ visit.patientName }}</h2>
-                        <span>{{ visit.patientMrn }} · {{ patientAgeGender(visit) }} · Token {{ visit.tokenNumber }}</span><p class="patient-allergy">Allergies: {{ allergySummary(visit) }}</p>
+                        <span>{{ visit.patientMrn }} · {{ patientAgeGender(visit) }} · Token {{ visit.tokenNumber }}</span>
                       </div>
-                      <span class="status-badge">{{ encounterStatusLabel(visit) }}</span>
+                      <div class="encounter-head-actions"><span class="status-badge">{{ encounterStatusLabel(visit) }}</span><button class="ac-btn ac-btn-secondary" type="button" (click)="showHistory(visit)"><span aria-hidden="true" class="material-symbols-rounded">history</span>History &amp; results</button></div>
+                      <div class="patient-alert-strip">
+                        <span class="clinical-alert" [class.allergy-alert]="hasRecordedAllergies(visit)"><span aria-hidden="true" class="material-symbols-rounded">shield</span><strong>Allergies:</strong> {{ allergySummary(visit) }}</span>
+                        @if (recordedConditions(visit); as conditions) { <span class="clinical-alert condition-alert"><span aria-hidden="true" class="material-symbols-rounded">medical_information</span>{{ conditions }}</span> }
+                      </div>
+                      <div class="patient-vitals-strip" aria-label="Current consultation vitals">
+                        @for (vital of compactVitals(); track vital.label) { <span><small>{{ vital.label }}</small><strong>{{ vital.value || '—' }}</strong><small>{{ vital.unit }}</small></span> }
+                        <button type="button" (click)="focusConsultationField('assessment', 'bloodPressure')">Record vitals <span aria-hidden="true" class="material-symbols-rounded">edit</span></button>
+                      </div>
                     </div>
 
                     <div class="encounter-workspace">
 
-                      <aside class="patient-snapshot">
-                        <h3>Patient context</h3>
-                        <p><strong>Medical history</strong><br />{{ visit.patient?.pastMedicalHistory || 'Not recorded' }}</p>
-                        <p><strong>Known conditions</strong><br />{{ visit.patient?.knownConditions || 'Not recorded' }}</p>
-                        <p><strong>Recorded medication history</strong><br />{{ recordedMedicationSummary(visit) }}</p>
-                        <small>Confirm which medicines the patient currently takes.</small>
-                        <ng-container *ngTemplateOutlet="previousVisitPanel; context: { $implicit: visit }" />
-                        <p>{{ pendingLabCount(visit) }} lab orders pending</p>
-                        <button class="ac-btn ac-btn-secondary" type="button" (click)="showHistory(visit)">History &amp; results</button>
+                      <aside class="patient-snapshot doctor-summary" aria-label="Doctor summary">
+                        <details class="doctor-summary-details" [open]="wideConsultation()">
+                          <summary><span aria-hidden="true" class="material-symbols-rounded">clinical_notes</span>Doctor summary<span class="summary-live">Live</span></summary>
+                          <div class="summary-content">
+                            <div class="summary-patient"><strong>{{ visit.patientName }}</strong><small>{{ patientAgeGender(visit) }} · {{ visit.patientMrn }}</small></div>
+                            <section><h4>Patient context</h4><p>{{ visit.patient?.pastMedicalHistory || 'Medical history not recorded' }}</p><p>{{ visit.patient?.knownConditions || 'Conditions not recorded' }}</p></section>
+                            <section><h4>Previous medicines</h4><p>{{ recordedMedicationSummary(visit) }}</p><small>Confirm current use with the patient.</small></section>
+                            <section><h4>Today's diagnosis <span>{{ clinicalForm().diagnoses.length }}</span></h4>@for (diagnosis of clinicalForm().diagnoses; track $index) { <p><strong>{{ diagnosis.diagnosisType === 'PRIMARY' ? '★ ' : '' }}{{ diagnosis.diagnosisName }}</strong><small>{{ diagnosis.diagnosisCode }}</small></p> } @empty { <p class="summary-empty">No diagnosis added yet</p> }</section>
+                            <section><h4>Treatment <span>{{ clinicalForm().prescriptions.length }}</span></h4>@for (medicine of clinicalForm().prescriptions; track $index) { <p><strong>{{ medicine.medicine }} {{ medicine.strength }}</strong><small>{{ medicine.dosage }} · {{ medicine.frequency }} · {{ medicine.duration }}</small></p> } @empty { <p class="summary-empty">No medicines added yet</p> }</section>
+                            <section><h4>Follow-up</h4><p>{{ clinicalForm().followUp.followUpRequired ? (clinicalForm().followUp.followUpDate || 'Choose a review date') : 'Not requested' }}</p>@if (clinicalForm().followUp.followUpRequired) { <small>{{ clinicalForm().followUp.reason }}</small> }</section>
+                            <button class="summary-results" type="button" (click)="showHistory(visit)"><span aria-hidden="true" class="material-symbols-rounded">lab_research</span>{{ pendingLabCount(visit) }} pending lab orders<span aria-hidden="true" class="material-symbols-rounded">arrow_forward</span></button>
+                            <details class="summary-previous"><summary>Previous visit</summary><ng-container *ngTemplateOutlet="previousVisitPanel; context: { $implicit: visit }" /></details>
+                            <small class="shortcut-hint">F2 Diagnosis · F3 Medicine · F4 Investigation<br />Ctrl + S Save · Ctrl + Enter Review</small>
+                          </div>
+                        </details>
                       </aside>
 
 
                       <section class="clinical-board">
 
                         <nav class="consultation-jump-links" aria-label="Consultation sections">
-                          <button type="button" (click)="jumpToConsultation('assessment')">Assessment</button>
-                          <button type="button" (click)="jumpToConsultation('treatment')">Treatment</button>
-                          <button type="button" (click)="jumpToConsultation('follow-up')">Follow-up</button>
+                          @for (stage of consultationStages; track stage.id) {
+                            <button type="button" [class.active]="consultationStage() === stage.id" [attr.aria-current]="consultationStage() === stage.id ? 'step' : null" [disabled]="saving() && !draftSaving()" (click)="jumpToConsultation(stage.id)"><span class="stage-number">{{ $index + 1 }}</span><span><strong>{{ stage.label }}</strong><small>{{ stage.description }}</small></span><span aria-hidden="true" class="material-symbols-rounded">{{ stage.icon }}</span></button>
+                          }
                         </nav>
                         <fieldset class="consultation-fields" [disabled]="reviewOpen() || (saving() && !draftSaving()) || finishing()">
                           <legend class="sr-only">Consultation for {{ visit.patientName }}</legend>
-                          <section class="consultation-group" id="opd-assessment">
+                          <section class="consultation-group" id="opd-assessment" [hidden]="consultationStage() !== 'assessment'">
                             <div class="group-heading"><span>1</span><div><h2>Clinical assessment</h2><p>Record today's findings once.</p></div></div>
-                            <details class="optional-section"><summary>Review / record vitals · BP {{ clinicalForm().vitals.bloodPressure || 'Not recorded' }} · Pulse {{ clinicalForm().vitals.pulseRate || 'Not recorded' }} · SpO₂ {{ clinicalForm().vitals.spo2 || 'Not recorded' }}</summary><div class="section-title">
+                            <details class="optional-section vitals-section" open><summary>Vitals <span>Review and record</span></summary><div class="section-title">
                                 <h3>Vitals</h3>
                                 <p>BMI is calculated automatically from height and weight.</p>
                               </div>
                               <div class="clinical-grid">
-                                <label class="field"><span>Temperature</span><input name="temperature" [(ngModel)]="clinicalForm().vitals.temperature" placeholder="98.6 F" /></label>
+                                    <label class="field"><span>Temperature (°F)</span><input name="temperature" [(ngModel)]="clinicalForm().vitals.temperature" placeholder="°F" /></label>
                                 <label class="field"><span>Blood Pressure</span><input name="bloodPressure" [(ngModel)]="clinicalForm().vitals.bloodPressure" placeholder="120/80" /></label>
-                                <label class="field"><span>Pulse Rate</span><input name="pulseRate" [(ngModel)]="clinicalForm().vitals.pulseRate" placeholder="72 bpm" /></label>
+                                    <label class="field"><span>Pulse (bpm)</span><input name="pulseRate" [(ngModel)]="clinicalForm().vitals.pulseRate" placeholder="bpm" /></label>
                                 <label class="field"><span>Respiratory Rate</span><input name="respiratoryRate" [(ngModel)]="clinicalForm().vitals.respiratoryRate" placeholder="16 / min" /></label>
                                 <label class="field"><span>SpO2</span><input name="spo2" [(ngModel)]="clinicalForm().vitals.spo2" placeholder="98%" /></label>
                                 <label class="field"><span>Height</span><input name="height" [(ngModel)]="clinicalForm().vitals.height" placeholder="cm" /></label>
@@ -358,7 +372,10 @@ import { LabReport } from '../laboratory/laboratory.models';
                                 <section>
                                   <div class="section-title"><h3>Clinical History</h3><p>Present illness and relevant medical background.</p></div>
                                   <div class="clinical-grid single">
-                                    <label class="field"><span>Present Illness</span><textarea rows="3" name="presentIllness" [(ngModel)]="clinicalForm().history.presentIllness"></textarea></label>
+                                    <label class="field"><span>History of present illness</span><textarea rows="3" name="presentIllness" [(ngModel)]="clinicalForm().history.presentIllness" placeholder="Describe onset, course and associated symptoms…"></textarea></label>
+                                    <details class="optional-section"><summary>Structured symptom history <span>Optional</span></summary><div class="clinical-grid">
+                                      <label class="field"><span>Location</span><input name="hpiLocation" [(ngModel)]="clinicalForm().history.location" /></label><label class="field"><span>Onset</span><input name="hpiOnset" [(ngModel)]="clinicalForm().history.onset" /></label><label class="field"><span>Character</span><input name="hpiCharacter" [(ngModel)]="clinicalForm().history.character" /></label><label class="field"><span>Associated symptoms</span><input name="hpiAssociatedSymptoms" [(ngModel)]="clinicalForm().history.associatedSymptoms" /></label><label class="field"><span>Aggravating factors</span><input name="hpiAggravating" [(ngModel)]="clinicalForm().history.aggravatingFactors" /></label><label class="field"><span>Relieving factors</span><input name="hpiRelieving" [(ngModel)]="clinicalForm().history.relievingFactors" /></label>
+                                    </div><button type="button" class="ac-btn ac-btn-secondary" (click)="appendStructuredHistory()">Add to HPI</button></details>
                                     <details class="optional-section"><summary>Past, family, and surgical history</summary>
                                     <label class="field"><span>Past History</span><textarea rows="3" name="pastHistory" [(ngModel)]="clinicalForm().history.pastHistory"></textarea></label>
                                     <label class="field"><span>Family History</span><textarea rows="3" name="familyHistory" [(ngModel)]="clinicalForm().history.familyHistory"></textarea></label>
@@ -371,7 +388,8 @@ import { LabReport } from '../laboratory/laboratory.models';
                                   <div class="section-title"><h3>Examination</h3><p>General, system, and observational findings.</p></div>
                                   <div class="clinical-grid single">
                                     <label class="field"><span>General Examination</span><textarea rows="3" name="generalExamination" [(ngModel)]="clinicalForm().examination.generalExamination"></textarea></label>
-                                    <details class="optional-section"><summary>System examination and additional observations</summary>
+                                    <details class="optional-section system-examination"><summary>+ System examination <span>Expand when needed</span></summary>
+                                    <div class="system-template-buttons">@for (system of examinationSystems(); track system) { <button type="button" (click)="addExaminationSystem(system)">{{ system }}</button> }</div>
                                     <label class="field"><span>System Examination</span><textarea rows="3" name="systemExamination" [(ngModel)]="clinicalForm().examination.systemExamination"></textarea></label>
                                     <label class="field"><span>Observations</span><textarea rows="3" name="observations" [(ngModel)]="clinicalForm().examination.observations"></textarea></label>
                                     </details>
@@ -381,7 +399,7 @@ import { LabReport } from '../laboratory/laboratory.models';
                             <div class="section-title"><h3>Diagnosis</h3><p>Primary and secondary diagnoses are supported.</p></div>
                               <div class="clinical-grid">
                                 <label class="field"><span>ICD Code</span><input name="diagnosisCode" [(ngModel)]="clinicalForm().diagnosisDraft.diagnosisCode" placeholder="M25.512" /></label>
-                                <label class="field"><span>Diagnosis</span><input name="diagnosisName" [(ngModel)]="clinicalForm().diagnosisDraft.diagnosisName" placeholder="Shoulder Pain" /></label>
+                                <div class="field diagnosis-search-field" [acDismissiblePopover]="diagnosisSuggestionsOpen()" (dismissPopover)="diagnosisSuggestionsOpen.set(false)"><label for="opd-diagnosis-name">Diagnosis</label><input id="opd-diagnosis-name" name="diagnosisName" [(ngModel)]="clinicalForm().diagnosisDraft.diagnosisName" (ngModelChange)="diagnosisSuggestionsOpen.set(true)" (focus)="diagnosisSuggestionsOpen.set(true)" placeholder="Search a recorded diagnosis or enter one…" autocomplete="off" />@if (diagnosisSuggestionsOpen() && diagnosisSuggestions().length) { <div class="medicine-suggestions diagnosis-suggestions">@for (diagnosis of diagnosisSuggestions(); track diagnosis.diagnosisCode + diagnosis.diagnosisName) { <button type="button" (click)="selectDiagnosisSuggestion(diagnosis)"><strong>{{ diagnosis.diagnosisName }}</strong><small>{{ diagnosis.diagnosisCode || 'No code recorded' }} · Recorded diagnosis</small></button> }</div> }</div>
                                 <div class="field">
                                   <span>Type</span>
                                   <div class="radio-segment">
@@ -400,7 +418,7 @@ import { LabReport } from '../laboratory/laboratory.models';
                             <details class="optional-section"><summary>Additional clinical notes</summary><div class="section-title"><h3>Clinical Notes</h3><p>Free-form clinical summary for this encounter.</p></div>
                               <label class="field"><span>Clinical Notes</span><textarea rows="9" name="clinicalNotes" [(ngModel)]="clinicalForm().clinicalNotes" placeholder="Capture summary, advice, counseling, and follow-up plan."></textarea></label></details>
                           </section>
-                          <section class="consultation-group" id="opd-treatment">
+                          <section class="consultation-group" id="opd-treatment" [hidden]="consultationStage() !== 'treatment'">
                             <div class="group-heading"><span>2</span><div><h2>Treatment plan</h2><p>Add medicines, tests, and advice as needed.</p></div></div>
                             @if (prescriptionLocked()) {
                                 <div class="prescription-lock-banner">
@@ -511,33 +529,19 @@ import { LabReport } from '../laboratory/laboratory.models';
                               </section>
                               <div class="medicine-table" [class.prescription-edit-locked]="prescriptionLocked()">
                                 <div class="medicine-table-head">
-                                  <span>#</span>
-                                  <span>Medicine</span>
-                                  <span>Strength</span>
-                                  <span>Form</span>
-                                  <span>Frequency</span>
-                                  <span>Route</span>
-                                  <span>Duration</span>
-                                  <span>Instructions</span>
-                                  <span></span>
+                                  <strong>Prescription medicines</strong><span>{{ clinicalForm().prescriptions.length }} added</span>
                                 </div>
                                 @for (item of clinicalForm().prescriptions; track $index) {
                                   <div class="medicine-table-row">
-                                    <span>{{ $index + 1 }}</span>
-                                    <span><strong>{{ item.medicine }}</strong><small>Dose: {{ item.dosage || '-' }} · Quantity: {{ item.quantity || '-' }}</small>@if (medicineValidationIssues(item).length) { <small class="medicine-validation-error">Required: {{ medicineValidationIssues(item).join(', ') }}. Use Edit to correct this medicine.</small> }</span>
-                                    <span>{{ item.strength || '-' }}</span>
-                                    <span>{{ item.dosageForm || '-' }}</span>
-                                    <span>{{ item.frequency || '-' }}</span>
-                                    <span>{{ item.route || '-' }}</span>
-                                    <span>{{ item.duration || '-' }}</span>
-                                    <span>{{ item.instructions || '-' }}</span>
-                                    <span><button type="button" (click)="editPrescriptionItem($index)">Edit</button><button type="button" (click)="removePrescriptionItem($index)">Remove</button></span>
+                                    <span class="medicine-index">{{ $index + 1 }}</span>
+                                    <span class="medicine-card-content"><strong>{{ item.medicine }} <span>{{ item.strength }}</span></strong><small>{{ item.dosageForm }} · {{ item.dosage || 'Dose not recorded' }} · {{ item.frequency }} · {{ item.route }} · {{ item.duration }}</small><small>Quantity: {{ item.quantity || '-' }}{{ item.instructions ? ' · ' + item.instructions : '' }}{{ item.isPrn ? ' · As needed: ' + item.prnReason : '' }}</small>@if (medicineValidationIssues(item).length) { <small class="medicine-validation-error">Required: {{ medicineValidationIssues(item).join(', ') }}. Use Edit to correct this medicine.</small> }</span>
+                                    <span class="medicine-card-actions"><button type="button" (click)="editPrescriptionItem($index)" [attr.aria-label]="'Edit ' + item.medicine">Edit</button><button type="button" (click)="removePrescriptionItem($index)" [attr.aria-label]="'Remove ' + item.medicine">Remove</button></span>
                                   </div>
                                 } @empty {
                                   <div class="empty-state compact">No medicines added yet.</div>
                                 }
                               </div>
-                              <section class="prescription-extra-card" [class.prescription-edit-locked]="prescriptionLocked()">
+                              <details class="optional-section" [open]="clinicalForm().prescriptionInvestigations.length > 0"><summary>Investigations / imaging advice <span>{{ clinicalForm().prescriptionInvestigations.length }} added</span></summary><section class="prescription-extra-card" [class.prescription-edit-locked]="prescriptionLocked()">
                                 <div class="mini-section-title">
                                   <div>
                                     <h4>Other investigations / imaging advice</h4>
@@ -545,11 +549,7 @@ import { LabReport } from '../laboratory/laboratory.models';
                                   </div>
                                   <label class="include-toggle"><input type="checkbox" name="includeInvestigations" [(ngModel)]="clinicalForm().includeInvestigationsInPrescription" /> Include in Prescription</label>
                                 </div>
-                                <div class="quick-complaints">
-                                  @for (investigation of investigationTemplates; track investigation) {
-                                    <button type="button" (click)="addInvestigation(investigation)">{{ investigation }}</button>
-                                  }
-                                </div>
+                                <div class="investigation-categories">@for (category of investigationCategories; track category.label) { <section><small>{{ category.label }}</small><div class="quick-complaints">@for (investigation of category.items; track investigation) { <button type="button" (click)="addInvestigation(investigation)">{{ investigation }}</button> }</div></section> }</div>
                                 <div class="clinical-grid single">
                                   <label class="field"><span>Investigation</span><input name="investigationDraft" [(ngModel)]="clinicalForm().investigationDraft" placeholder="CBC, Blood Sugar, X-Ray..." /></label>
                                 </div>
@@ -559,9 +559,9 @@ import { LabReport } from '../laboratory/laboratory.models';
                                     <span>{{ item }} <button type="button" (click)="removeInvestigation($index)">Remove</button></span>
                                   }
                                 </div>
-                              </section>
+                              </section></details>
 
-                              <section class="prescription-extra-card" [class.prescription-edit-locked]="prescriptionLocked()">
+                              <details class="optional-section" [open]="clinicalForm().adviceList.length > 0"><summary>Patient advice <span>{{ clinicalForm().adviceList.length }} added</span></summary><section class="prescription-extra-card" [class.prescription-edit-locked]="prescriptionLocked()">
                                 <div class="mini-section-title">
                                   <div>
                                     <h4>Advice</h4>
@@ -583,8 +583,8 @@ import { LabReport } from '../laboratory/laboratory.models';
                                     <span>{{ item }} <button type="button" (click)="removeAdvice($index)">Remove</button></span>
                                   }
                                 </div>
-                              </section>
-                              <section class="prescription-extra-card" [class.prescription-edit-locked]="prescriptionLocked()">
+                              </section></details>
+                              <details class="optional-section" [open]="clinicalForm().dietAdviceList.length > 0"><summary>Diet guidance <span>{{ clinicalForm().dietAdviceList.length }} added</span></summary><section class="prescription-extra-card" [class.prescription-edit-locked]="prescriptionLocked()">
                                 <div class="mini-section-title">
                                   <div>
                                     <h4>Diet Advice</h4>
@@ -607,7 +607,7 @@ import { LabReport } from '../laboratory/laboratory.models';
                                     <span>{{ item }} <button type="button" (click)="removeDietAdvice($index)">Remove</button></span>
                                   }
                                 </div>
-                              </section>
+                              </section></details>
 
 
                             <details class="optional-section" [open]="clinicalForm().labOrders.length > 0"><summary>Laboratory tests · {{ clinicalForm().labOrders.length }} selected</summary><div class="lab-order-composer">
@@ -622,7 +622,7 @@ import { LabReport } from '../laboratory/laboratory.models';
                                   <label class="field"><span>Test Category</span><input name="testCategory" [(ngModel)]="clinicalForm().labOrderDraft.testCategory" placeholder="Hematology" /></label>
                                   <label class="field"><span>Test</span><ac-dropdown ariaLabel="lab Test" name="labTest" [(ngModel)]="clinicalForm().labOrderDraft.testId" [options]="labTestOptions()" /></label>
                                   <label class="field"><span>Priority</span><ac-dropdown ariaLabel="lab Priority" name="labPriority" [(ngModel)]="clinicalForm().labOrderDraft.priority" [options]="labPriorityOptions" /></label>
-                                  <label class="field wide"><span>Notes</span><input name="labNotes" [(ngModel)]="clinicalForm().labOrderDraft.notes" placeholder="Special instructions for laboratory team" /></label>
+                                  <label class="field wide"><span>Clinical indication / instructions</span><input name="labNotes" [(ngModel)]="clinicalForm().labOrderDraft.notes" placeholder="Reason for testing and instructions for the laboratory" /></label>
                                 </div>
                                 <div class="lab-order-actions">
                                   <button class="ac-btn ac-btn-secondary" type="button" (click)="addLabOrderDraft()"><span aria-hidden="true" class="material-symbols-rounded">add</span>Add Test</button>
@@ -647,13 +647,14 @@ import { LabReport } from '../laboratory/laboratory.models';
                                 }
                               </div></details>
                           </section>
-                          <section class="consultation-group" id="opd-follow-up">
+                          <section class="consultation-group" id="opd-follow-up" [hidden]="consultationStage() !== 'follow-up'">
                             <div class="group-heading"><span>3</span><div><h2>Follow-up and next steps</h2><p>Record the review plan or refer for admission.</p></div></div>
                             <div class="section-title"><h3>Follow-up</h3><p>Create a follow-up task or appointment automatically.</p></div>
                               <div class="clinical-grid">
                                 <label class="check-field"><input type="checkbox" name="followUpRequired" [(ngModel)]="clinicalForm().followUp.followUpRequired" /> Follow-up Required</label>
                                 <label class="field"><span>Review after (days)</span><input name="followUpAfter" [ngModel]="clinicalForm().followUp.followUpAfterDays" (ngModelChange)="updateFollowUpAfterDays($event)" inputmode="numeric" /></label><label class="field"><span>Follow-up Date</span><input type="date" name="followUpDate" [(ngModel)]="clinicalForm().followUp.followUpDate" /></label>
                                 <label class="field"><span>Preferred Doctor</span><ac-dropdown ariaLabel="preferred Doctor" name="preferredDoctor" [(ngModel)]="clinicalForm().followUp.preferredDoctorId" [options]="preferredDoctorOptions()" /></label>
+                                <label class="field"><span>Follow-up reason</span><input name="followUpReason" [(ngModel)]="clinicalForm().followUp.reason" list="opd-follow-up-reasons" placeholder="Select or enter a reason" /><datalist id="opd-follow-up-reasons"><option value="Review symptoms"></option><option value="Review investigations"></option><option value="Medication review"></option><option value="Post-procedure review"></option><option value="Chronic disease follow-up"></option></datalist></label>
                                 <label class="check-field"><input type="checkbox" name="createFollowUpAppointment" [(ngModel)]="clinicalForm().followUp.createAppointment" /> Create Follow-Up Appointment Automatically</label>
                                 @if (clinicalForm().followUp.createAppointment) { <label class="field"><span>Follow-up appointment time</span><input type="time" name="followUpAppointmentTime" [(ngModel)]="clinicalForm().followUp.appointmentTime" /></label> }
                                 <label class="field wide"><span>Notes</span><input name="followUpNotes" [(ngModel)]="clinicalForm().followUp.notes" /></label>
@@ -664,8 +665,9 @@ import { LabReport } from '../laboratory/laboratory.models';
                         </fieldset>
                         <footer class="consultation-footer">
                           <span class="draft-status" role="status" aria-live="polite">{{ draftSaveStatus() }}</span>
+                          @if (consultationStage() !== 'assessment') { <button class="ac-btn ac-btn-secondary stage-back" type="button" (click)="moveConsultationStage(-1)"><span aria-hidden="true" class="material-symbols-rounded">arrow_back</span>Back</button> }
                           <button class="ac-btn ac-btn-secondary" type="button" [disabled]="saving() || draftConflict()" (click)="saveEncounterDraft()">Save Draft</button>
-                          <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving() || draftConflict()" (click)="openCompletionReview()">Review &amp; Complete</button>
+                          @if (consultationStage() !== 'follow-up') { <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving() && !draftSaving()" (click)="moveConsultationStage(1)">Next: {{ consultationStage() === 'assessment' ? 'Treatment' : 'Follow-up' }}<span aria-hidden="true" class="material-symbols-rounded">arrow_forward</span></button> } @else { <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving() || draftConflict()" (click)="openCompletionReview()">Review &amp; Complete</button> }
                         </footer>
                         @if (draftConflict()) { <div class="draft-conflict" role="alert"><p>This visit changed in another session. Your local draft is retained. Open patient history to compare records before loading the latest version.</p><button type="button" class="ac-btn ac-btn-secondary" [disabled]="saving()" (click)="loadLatestDraft()">Load latest saved version</button><button type="button" class="ac-btn ac-btn-secondary" (click)="downloadLocalDraft()">Download my local notes</button></div> }
                       </section>
@@ -2748,6 +2750,138 @@ import { LabReport } from '../laboratory/laboratory.models';
     .history-drawer button:focus-visible, .history-drawer summary:focus-visible { outline: 3px solid var(--ac-primary); outline-offset: 3px; }
     @media (max-width: 700px) { .history-visits-layout { height: auto; min-height: 100%; } .history-detail { overflow: visible; } .history-timeline { overflow-y: hidden; } }
     @media (max-width: 700px) { .history-overlay { padding: 0; } .history-drawer { height: 100dvh; max-height: 100dvh; border-radius: 0; width: 100%; } .history-drawer .history-header, .history-patient { padding: 16px 18px; } .history-heading-icon { width: 38px; height: 38px; } .history-drawer h2 { font-size: 18px; } .history-navigation { padding: 0 18px; gap: 18px; } .history-visits-layout { grid-template-columns: minmax(0, 1fr); } .history-timeline { padding: 16px; border-right: 0; border-bottom: 1px solid var(--ac-border); display: flex; gap: 10px; overflow-x: auto; } .history-timeline > .history-eyebrow { display: none; } .history-timeline-item { flex: 0 0 180px; margin-bottom: 0; } .history-detail, .history-results { padding: 18px; } .history-drawer .history-detail-heading h3 { font-size: 16px; } .history-detail-heading { flex-wrap: wrap; } .history-drawer .history-footer { padding: 12px 18px; } .history-readonly { display: none; } .history-vitals { grid-template-columns: repeat(2, minmax(0, 1fr)); } .history-result-card { grid-template-columns: minmax(0, 1fr); } .history-result-value { align-items: flex-start; } .history-context-error { padding: 12px 18px; } }
+    /* Focused consultation: one stage at a time, with patient context always close. */
+    .opd-page.consulting { overflow: visible; }
+    .consulting > .page-header .page-desc, .consulting > .stats-row { display: none; }
+    .consulting > .page-header { margin-bottom: 12px; }
+    .consulting > .page-header h1 { font-size: 23px; }
+    .consulting .toolbar { display: none; }
+    .consulting .opd-shell { padding: 0; border-color: transparent; background: transparent; box-shadow: none; }
+    .consulting .opd-tabs { background: var(--ac-surface); margin-bottom: 14px; border: 1px solid var(--ac-border); border-radius: 12px; }
+    .encounter-card { padding: 0; border: 0; background: transparent; container-type: normal; }
+    .encounter-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 20px; margin-bottom: 18px; padding: 20px 24px 16px; border: 1px solid var(--ac-border); border-top: 3px solid var(--ac-secondary, #7c3aed); border-radius: 16px; box-shadow: 0 6px 24px #33415508; top: 0; z-index: 25; }
+    .encounter-head h2 { margin: 5px 0 7px; font-size: 26px; letter-spacing: -.025em; }
+    .encounter-head .ac-eyebrow { margin: 0; }
+    .encounter-head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+    .patient-alert-strip { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+    .clinical-alert { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 7px 10px; border-radius: 8px; font-size: 12px; background: #fff7ed; color: #9a3412 !important; }
+    .clinical-alert .material-symbols-rounded { font-size: 18px; color: inherit; }
+    .clinical-alert.allergy-alert { background: #fff1f2; color: #be123c !important; border: 1px solid #fecdd3; }
+    .patient-vitals-strip { grid-column: 1 / -1; display: flex; align-items: center; gap: 0; flex-wrap: wrap; border-top: 1px solid var(--ac-border); padding-top: 12px; }
+    .patient-vitals-strip > span { display: flex; align-items: baseline; gap: 5px; padding: 3px 18px 3px 0; margin-right: 18px; border-right: 1px solid var(--ac-border); }
+    .patient-vitals-strip strong { color: var(--ac-text); font-size: 15px; }
+    .patient-vitals-strip small { color: var(--ac-muted); font-size: 11px; }
+    .patient-vitals-strip button { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; min-height: 36px; padding: 6px 9px; color: var(--ac-primary); background: var(--ac-primary-light); border: 0; border-radius: 8px; font: inherit; font-size: 12px; cursor: pointer; }
+    .patient-vitals-strip button .material-symbols-rounded { font-size: 16px; color: inherit; }
+    .encounter-workspace { grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; }
+    .clinical-board { order: 1; min-width: 0; }
+    .doctor-summary { order: 2; position: sticky; top: calc(var(--opd-header-height, 180px) + 20px); padding: 0; border-radius: 14px; box-shadow: 0 4px 18px #33415506; max-height: calc(100dvh - var(--opd-header-height, 180px) - 110px); overflow-y: auto; overscroll-behavior: contain; }
+    .doctor-summary-details > summary { display: flex; align-items: center; gap: 8px; list-style: none; cursor: pointer; padding: 16px; font-weight: 750; background: linear-gradient(115deg, var(--ac-primary-light), color-mix(in srgb, var(--ac-secondary, #7c3aed) 5%, var(--ac-surface))); border-bottom: 1px solid var(--ac-border); }
+    .doctor-summary-details > summary::-webkit-details-marker { display: none; }
+    .doctor-summary-details > summary > .material-symbols-rounded { font-size: 20px; color: var(--ac-primary); }
+    .summary-live { margin-left: auto; padding: 3px 6px; border-radius: 5px; color: #047857; background: #ecfdf5; font-size: 10px; }
+    .summary-content { display: grid; gap: 0; padding: 0 16px 16px; }
+    .summary-content > section, .summary-patient { padding: 13px 0; border-bottom: 1px solid var(--ac-border); }
+    .summary-patient { display: grid; gap: 5px; }
+    .summary-content h4 { display: flex; justify-content: space-between; margin: 0 0 8px; font-size: 11px; color: var(--ac-muted); text-transform: uppercase; letter-spacing: .055em; }
+    .summary-content h4 span { color: var(--ac-primary); }
+    .summary-content p { font-size: 12px; line-height: 1.6; margin-bottom: 7px; }
+    .summary-content p small { display: block; }
+    .summary-content small { font-size: 11px; color: var(--ac-muted); }
+    .summary-empty { color: var(--ac-muted); }
+    .summary-results { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 10px 0; border: 0; background: transparent; color: var(--ac-primary); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+    .summary-results .material-symbols-rounded { font-size: 18px; }
+    .summary-results .material-symbols-rounded:last-child { margin-left: auto; }
+    .summary-previous { font-size: 12px; }
+    .shortcut-hint { margin-top: 15px; line-height: 1.9 !important; }
+    .consultation-jump-links { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 0; margin-bottom: 16px; position: sticky; top: calc(var(--opd-header-height, 180px) + 10px); z-index: 24; background: var(--ac-bg); }
+    .consultation-jump-links button { display: flex; gap: 9px; align-items: center; text-align: left; min-width: 0; padding: 14px 12px; background: var(--ac-surface); border-radius: 12px; transition: border-color 150ms; }
+    .consultation-jump-links button.active { border-color: var(--ac-primary); background: linear-gradient(120deg, var(--ac-primary-light), color-mix(in srgb, var(--ac-secondary, #7c3aed) 5%, var(--ac-surface))); box-shadow: 0 3px 12px #2563eb0b; }
+    .consultation-jump-links .stage-number { display: grid; place-items: center; flex: 0 0 28px; height: 28px; background: var(--ac-bg); color: var(--ac-muted); border-radius: 8px; font-size: 12px; }
+    .consultation-jump-links .active .stage-number { background: linear-gradient(135deg, var(--ac-primary), var(--ac-secondary, #7c3aed)); color: white; }
+    .consultation-jump-links strong { font-size: 13px; display: block; }
+    .consultation-jump-links small { display: block; margin-top: 4px; font-size: 10px; font-weight: 500; color: var(--ac-muted); line-height: 1.4; }
+    .consultation-jump-links .material-symbols-rounded { font-size: 18px; color: var(--ac-primary); margin-left: auto; }
+    .consultation-group { padding: 22px; border-radius: 14px; gap: 18px; scroll-margin-top: calc(var(--opd-header-height, 180px) + 105px); box-shadow: 0 4px 18px #33415505; }
+    .consultation-group[hidden] { display: none !important; }
+    .group-heading h2 { font-size: 19px; }
+    .group-heading p { font-size: 12px; color: var(--ac-muted); }
+    .consultation-stack { gap: 18px; }
+    .consultation-stack > section { padding: 16px 0; border: 0; border-bottom: 1px solid var(--ac-border); border-radius: 0; background: transparent; }
+    .consultation-group .section-title h3 { font-size: 15px; }
+    .consultation-group .section-title p { font-size: 12px; }
+    .optional-section > summary > span { float: right; color: var(--ac-muted); font-size: 11px; font-weight: 500; }
+    .vitals-section { background: var(--ac-bg); }
+    .vitals-section .clinical-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .vitals-section .section-title h3 { display: none; }
+    .vitals-section .section-title p { margin: 0; }
+    .system-template-buttons { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 14px; }
+    .system-template-buttons button { min-height: 36px; padding: 7px 10px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-primary); font: inherit; font-size: 12px; cursor: pointer; }
+    .diagnosis-search-field { position: relative; }
+    .consultation-footer { margin-top: 16px; padding: 12px 16px; border-radius: 12px; background: color-mix(in srgb, var(--ac-surface) 96%, transparent); backdrop-filter: blur(12px); }
+    .consultation-footer { z-index: 300; }
+    .consultation-footer .draft-status { font-size: 11px; }
+    .investigation-categories { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .investigation-categories > section > small { display: block; margin-bottom: 7px; color: var(--ac-muted); font-size: 11px; font-weight: 650; }
+    .opd-page button:focus-visible, .opd-page input:focus-visible, .opd-page textarea:focus-visible, .opd-page summary:focus-visible { outline-width: 2px; outline-offset: 2px; }
+    .consultation-footer .ac-btn { font-size: 12px; }
+    .consultation-footer .material-symbols-rounded { font-size: 17px; }
+    .medicine-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .medicine-table { display: grid; gap: 8px; overflow: visible; border: 0; background: transparent; }
+    .medicine-table-head { min-width: 0; display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; background: transparent; border: 0; text-transform: none; letter-spacing: normal; font-size: 12px; }
+    .medicine-table-row { min-width: 0; display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 12px; align-items: start; border: 1px solid var(--ac-border); border-radius: 10px; padding: 14px; background: var(--ac-surface); }
+    .medicine-table-row > span::before { display: none !important; }
+    .medicine-table-row .medicine-index { display: grid; place-items: center; background: var(--ac-primary-light); color: var(--ac-primary); height: 26px; border-radius: 7px; font-size: 11px; }
+    .medicine-card-content strong { font-size: 14px; line-height: 1.5; }
+    .medicine-card-content strong > span { color: var(--ac-muted); font-weight: 500; }
+    .medicine-card-content small { display: block; margin-top: 5px; font-size: 11px; line-height: 1.5; color: var(--ac-muted); white-space: normal; }
+    .medicine-table-row .medicine-card-actions { display: flex; gap: 6px; }
+    .medicine-card-actions button { min-height: 32px; border: 1px solid var(--ac-border); border-radius: 7px; padding: 5px 8px; background: var(--ac-surface); color: var(--ac-primary); font: inherit; font-size: 11px; cursor: pointer; }
+    .medicine-card-actions button:last-child { color: #be123c; }
+    @media (max-width: 1250px) {
+      .encounter-workspace { grid-template-columns: minmax(0, 1fr); }
+      .doctor-summary { position: static; max-height: none; }
+      .shortcut-hint { display: none; }
+    }
+    @media (max-width: 700px) {
+      .consulting > .page-header { display: none; }
+      .encounter-head { padding: 14px; gap: 10px; border-radius: 12px; }
+      .encounter-head h2 { font-size: 20px; }
+      .encounter-head > div:first-child > span { font-size: 11px; }
+      .encounter-head .ac-eyebrow { font-size: 9px; }
+      .encounter-head-actions { gap: 6px; }
+      .encounter-head-actions .ac-btn { min-height: 36px; padding: 6px; font-size: 10px; }
+      .encounter-head-actions .ac-btn .material-symbols-rounded { display: none; }
+      .encounter-head-actions .status-badge { font-size: 10px; }
+      .patient-alert-strip { gap: 5px; }
+      .clinical-alert { font-size: 10px; padding: 5px 7px; }
+      .patient-vitals-strip { gap: 6px 12px; padding-top: 8px; }
+      .patient-vitals-strip > span { margin: 0; padding: 0; border: 0; }
+      .patient-vitals-strip > span:nth-child(5), .patient-vitals-strip > span:nth-child(6) { display: none; }
+      .patient-vitals-strip strong { font-size: 12px; }
+      .patient-vitals-strip small { font-size: 9px; }
+      .patient-vitals-strip button { min-height: 28px; font-size: 10px; padding: 4px; }
+      .patient-vitals-strip button .material-symbols-rounded { display: none; }
+      .consultation-jump-links { gap: 5px; }
+      .consultation-jump-links button { padding: 9px 7px; gap: 6px; min-height: 48px; }
+      .consultation-jump-links strong { font-size: 11px; }
+      .consultation-jump-links small, .consultation-jump-links .material-symbols-rounded { display: none; }
+      .consultation-jump-links .stage-number { flex-basis: 22px; height: 22px; font-size: 10px; }
+      .consultation-group { padding: 14px; scroll-margin-top: calc(var(--opd-header-height, 180px) + 65px); }
+      .group-heading { gap: 8px; }
+      .group-heading h2 { font-size: 17px; }
+      .vitals-section .clinical-grid, .medicine-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .consultation-footer { gap: 7px; padding: 10px; }
+      .consultation-footer .draft-status { flex-basis: 100%; }
+      .consultation-footer .ac-btn { flex: 1 1 auto; }
+      .medicine-table-row { grid-template-columns: 24px minmax(0, 1fr); gap: 8px; padding: 12px; }
+      .medicine-table-row .medicine-card-actions { grid-column: 2; }
+    }
+    @media (max-width: 400px) {
+      .encounter-head { padding: 12px; }
+      .medicine-grid { grid-template-columns: 1fr; }
+      .investigation-categories { grid-template-columns: 1fr; }
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -2798,6 +2932,47 @@ export class OpdPageComponent implements OnInit {
   protected readonly saving = signal(false);
   protected readonly activeTab = signal<OpdTab>('dashboard');
   protected readonly activeEncounterSection = signal<OpdEncounterSection>('snapshot');
+  private readonly consultationInjector = inject(Injector);
+  private readonly consultationHeader = viewChild<ElementRef<HTMLElement>>('consultationHeader');
+  protected readonly consultationHeaderHeight = signal(180);
+  protected readonly wideConsultation = signal(window.innerWidth > 1250);
+  protected readonly diagnosisSuggestionsOpen = signal(false);
+  protected readonly consultationStages = [
+    { id: 'assessment', label: 'Assessment', description: 'Symptoms, findings & diagnosis', icon: 'stethoscope' },
+    { id: 'treatment', label: 'Treatment', description: 'Medicines, tests & advice', icon: 'medication' },
+    { id: 'follow-up', label: 'Follow-up', description: 'Review & next steps', icon: 'event_repeat' }
+  ];
+  protected readonly consultationStage = computed(() => consultationStageForSection(this.activeEncounterSection()));
+  protected readonly compactVitals = computed(() => {
+    const vitals = this.clinicalForm().vitals;
+    return [
+      { label: 'BP', value: vitals.bloodPressure, unit: 'mmHg' },
+      { label: 'Pulse', value: vitals.pulseRate, unit: 'bpm' },
+      { label: 'SpO₂', value: vitals.spo2, unit: '%' },
+      { label: 'Temp', value: vitals.temperature, unit: '°F' },
+      { label: 'Weight', value: vitals.weight, unit: 'kg' },
+      { label: 'BMI', value: this.bmiValue(), unit: '' }
+    ];
+  });
+  protected readonly examinationSystems = computed(() => {
+    const specialty = this.selectedVisit()?.doctor?.primarySpecialization || this.selectedVisit()?.departmentName || '';
+    return examinationSystemsForSpecialty(specialty);
+  });
+  protected readonly diagnosisSuggestions = computed(() => {
+    const visit = this.selectedVisit();
+    const query = this.clinicalForm().diagnosisDraft.diagnosisName.trim().toLowerCase();
+    if (!visit || query.length < 2) return [];
+    const records = [...this.consultations(), ...(this.historyByPatient()[visit.appointment.patientId] || [])];
+    const seen = new Set<string>();
+    return records.filter(record => record.doctorId === visit.appointment.doctorId || record.patientId === visit.appointment.patientId)
+      .flatMap(record => restoreClinicalForm(record).diagnoses)
+      .filter(diagnosis => {
+        const key = `${diagnosis.diagnosisCode}|${diagnosis.diagnosisName}`.toLowerCase();
+        if (seen.has(key) || !key.includes(query)) return false;
+        seen.add(key);
+        return true;
+      }).slice(0, 8);
+  });
   protected readonly selectedVisit = signal<OpdVisitVm | null>(null);
   protected readonly transferVisit = signal<OpdVisitVm | null>(null);
   protected readonly encounterForm = signal<OpdEncounterForm>(emptyEncounterForm());
@@ -2835,6 +3010,11 @@ export class OpdPageComponent implements OnInit {
   ];
   protected readonly complaintTemplates = ['Weakness', 'Shoulder pain', 'Fever', 'Headache'];
   protected readonly investigationTemplates = ['CBC', 'Blood Sugar', 'Lipid Profile', 'X-Ray', 'MRI', 'ECG'];
+  protected readonly investigationCategories = [
+    { label: 'Laboratory', items: ['CBC', 'Blood Sugar', 'Lipid Profile'] },
+    { label: 'Radiology', items: ['X-Ray', 'MRI'] },
+    { label: 'Cardiology', items: ['ECG'] }
+  ];
   protected readonly procedureTemplates = ['Physiotherapy', 'Dressing', 'Injection', 'Nebulization', 'Minor Procedure'];
   protected readonly adviceTemplates = [
     'Take adequate rest.',
@@ -3295,6 +3475,7 @@ export class OpdPageComponent implements OnInit {
     this.prescriptionRevisionNo.set(1);
     this.prescriptionPreviewOpen.set(false);
     this.activeEncounterSection.set(draftState?.section ?? 'consultation');
+    this.diagnosisSuggestionsOpen.set(false);
     this.setActiveTab(tab);
   }
 
@@ -3544,10 +3725,17 @@ export class OpdPageComponent implements OnInit {
   private readonly auth = inject(AuthStore);
   private focusPatientId = '';
   constructor() {
+    effect(onCleanup => {
+      const header = this.consultationHeader()?.nativeElement;
+      if (!header) return;
+      const observer = new ResizeObserver(() => this.consultationHeaderHeight.set(Math.ceil(header.getBoundingClientRect().height)));
+      observer.observe(header);
+      onCleanup(() => observer.disconnect());
+    });
     const poll = setInterval(() => this.observeDraftChanges(), 1000);
     const retainDraft = () => {
       const visit = this.selectedVisit();
-      if (visit && !isCompletedVisit(visit)) persistEncounterDraftState(visit, 'consultation', this.clinicalForm());
+      if (visit && !isCompletedVisit(visit)) persistEncounterDraftState(visit, this.activeEncounterSection(), this.clinicalForm());
     };
     const beforeUnload = (event: BeforeUnloadEvent) => {
       retainDraft();
@@ -3578,7 +3766,7 @@ export class OpdPageComponent implements OnInit {
     this.lastObservedDraft = serialized;
     this.clinicalForm.update(form => ({ ...form }));
     this.draftSaveStatus.set('Unsaved changes');
-    persistEncounterDraftState(visit, 'consultation', this.clinicalForm());
+    persistEncounterDraftState(visit, this.activeEncounterSection(), this.clinicalForm());
     clearTimeout(this.draftTimer);
     this.draftTimer = setTimeout(() => { void this.saveClinicalDraft(false); }, 1200);
   }
@@ -3608,19 +3796,88 @@ export class OpdPageComponent implements OnInit {
     } catch (error) {
       if (isDraftConflict(error)) this.draftConflict.set(true);
       this.draftSaveStatus.set(this.draftConflict() ? 'Another session changed this visit' : 'Couldn’t save · use Save Draft to retry');
-      persistEncounterDraftState(visit, 'consultation', this.clinicalForm());
+      persistEncounterDraftState(visit, this.activeEncounterSection(), this.clinicalForm());
       if (showToast) this.toast.error('Draft not saved', getApiErrorMessage(error as ApiResponse<unknown>, 'Your local draft is retained. Retry saving.'));
       return false;
     } finally { this.draftSaving.set(false); this.saving.set(false); }
   }
 
   protected jumpToConsultation(section: string): void {
-    const element = document.getElementById(`opd-${section}`);
-    element?.scrollIntoView({ block: 'start' });
-    const heading = element?.querySelector('h2');
-    heading?.setAttribute('tabindex', '-1');
-    heading?.focus({ preventScroll: true });
+    const sectionId: OpdEncounterSection = section === 'treatment' ? 'prescription' : section === 'follow-up' ? 'follow-up' : 'consultation';
+    this.setEncounterStep(sectionId);
+    this.medicineSuggestionsOpen.set(false);
+    this.diagnosisSuggestionsOpen.set(false);
+    afterNextRender(() => {
+      const element = document.getElementById(`opd-${section}`);
+      element?.scrollIntoView({ block: 'start', behavior: 'instant' });
+      const heading = element?.querySelector('h2');
+      heading?.setAttribute('tabindex', '-1');
+      heading?.focus({ preventScroll: true });
+    }, { injector: this.consultationInjector });
   }
+
+  protected moveConsultationStage(direction: number): void {
+    const index = this.consultationStages.findIndex(stage => stage.id === this.consultationStage());
+    const next = this.consultationStages[index + direction];
+    if (next) this.jumpToConsultation(next.id);
+  }
+
+  protected focusConsultationField(stage: string, name: string): void {
+    this.jumpToConsultation(stage);
+    afterNextRender(() => {
+      const field = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(`.clinical-board [name="${name}"]`);
+      const details = field?.closest('details');
+      if (details) details.open = true;
+      field?.focus();
+    }, { injector: this.consultationInjector });
+  }
+
+  protected hasRecordedAllergies(visit: OpdVisitVm): boolean {
+    const recorded = visit.patient?.knownAllergies?.trim() || '';
+    return Boolean(this.patientContexts()[visit.appointment.patientId]?.allergies.some(item => item.statusCode === 'ACTIVE')
+      || (recorded && !/^(none|nil|nka|nkda|no known( drug)? allergies|not recorded)\.?$/i.test(recorded)));
+  }
+
+  protected recordedConditions(visit: OpdVisitVm): string {
+    const conditions = visit.patient?.knownConditions?.trim() || '';
+    return /^(none|nil|not recorded|unknown|n\/a)\.?$/i.test(conditions) ? '' : conditions;
+  }
+
+  protected appendStructuredHistory(): void {
+    this.clinicalForm.update(form => ({ ...form, history: { ...form.history,
+      presentIllness: appendHistoryDetails(form.history) } }));
+  }
+
+  protected addExaminationSystem(system: string): void {
+    this.clinicalForm.update(form => ({ ...form, examination: { ...form.examination,
+      systemExamination: form.examination.systemExamination.includes(`${system}:`)
+        ? form.examination.systemExamination : [form.examination.systemExamination, `${system}: `].filter(Boolean).join('\n') } }));
+    afterNextRender(() => document.querySelector<HTMLTextAreaElement>('[name="systemExamination"]')?.focus(), { injector: this.consultationInjector });
+  }
+
+  protected selectDiagnosisSuggestion(diagnosis: OpdDiagnosisForm): void {
+    this.clinicalForm.update(form => ({ ...form, diagnosisDraft: { ...form.diagnosisDraft,
+      diagnosisName: diagnosis.diagnosisName, diagnosisCode: diagnosis.diagnosisCode } }));
+    this.diagnosisSuggestionsOpen.set(false);
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  protected onConsultationShortcut(event: KeyboardEvent): void {
+    if (this.activeTab() !== 'encounter' || this.reviewOpen() || this.historyVisit() || document.querySelector('[role="dialog"]')
+      || this.saving() || this.finishing() || event.altKey || event.repeat) return;
+    const shortcut = (event.ctrlKey || event.metaKey) ? event.key.toLowerCase() : event.key;
+    if ((event.ctrlKey || event.metaKey) && shortcut === 's') {
+      event.preventDefault(); void this.saveEncounterDraft();
+    } else if ((event.ctrlKey || event.metaKey) && shortcut === 'enter') {
+      event.preventDefault(); void this.openCompletionReview();
+    } else if (!event.ctrlKey && !event.metaKey && ['F2', 'F3', 'F4'].includes(shortcut)) {
+      event.preventDefault();
+      this.focusConsultationField(shortcut === 'F2' ? 'assessment' : 'treatment', shortcut === 'F2' ? 'diagnosisName' : shortcut === 'F3' ? 'medicine' : 'investigationDraft');
+    }
+  }
+
+  @HostListener('window:resize')
+  protected resizeConsultation(): void { this.wideConsultation.set(window.innerWidth > 1250); }
 
   protected async loadLatestDraft(): Promise<void> {
     const visit = this.selectedVisit();
@@ -3657,7 +3914,7 @@ export class OpdPageComponent implements OnInit {
   }
 
   protected openAdmissionWorkspace(visit: OpdVisitVm): void {
-    persistEncounterDraftState(visit, 'consultation', this.clinicalForm());
+    persistEncounterDraftState(visit, this.activeEncounterSection(), this.clinicalForm());
     void this.router.navigate(['/ipd'], { queryParams: { patientGuid: visit.appointment.patientId, action: 'admit', consultationId: visit.consultation?.id } });
   }
 
@@ -4131,7 +4388,8 @@ export class OpdPageComponent implements OnInit {
         medicineId: medicine.id,
         medicine: medicine.name,
         strength: medicine.strength,
-        dosageForm: medicine.form
+        dosageForm: medicine.form,
+        route: medicine.route || form.prescriptionDraft.route
       }
     }));
     this.markPrescriptionChanged();
@@ -4666,7 +4924,7 @@ export class OpdPageComponent implements OnInit {
       }
       const batchId = this.clinicalForm().pendingLabBatchId || crypto.randomUUID();
       this.clinicalForm.update(form => ({ ...form, pendingLabBatchId: batchId }));
-      persistEncounterDraftState(visit, 'consultation', this.clinicalForm());
+      persistEncounterDraftState(visit, this.activeEncounterSection(), this.clinicalForm());
       const orderPriority = pendingOrders.some(item => item.priority === 'STAT') ? 'STAT' : pendingOrders.some(item => item.priority === 'Urgent' || item.priority === 'URGENT') ? 'URGENT' : 'ROUTINE';
       const clinicalNotes = pendingOrders.map(item => item.notes).filter(Boolean).join(' · ');
       const orderResponse = await this.opdService.createLabOrder(visit.appointment.patientId, consultation.id, selectedTests, orderPriority, clinicalNotes, visit.appointment.doctorId, batchId);
@@ -4720,7 +4978,7 @@ export class OpdPageComponent implements OnInit {
           appointmentTime: form.appointmentTime || '',
           appointmentType: 'FOLLOW_UP',
           statusCode: 'SCHEDULED',
-          reason: 'Follow-up OPD visit',
+          reason: form.reason?.trim() || 'Follow-up OPD visit',
           notes: form.notes
         } satisfies AppointmentForm);
 
@@ -5809,6 +6067,29 @@ function emptyClinicalForm(notes = ''): OpdClinicalForm {
   };
 }
 
+function consultationStageForSection(section: OpdEncounterSection): 'assessment' | 'treatment' | 'follow-up' {
+  if (section === 'follow-up') return 'follow-up';
+  return ['prescription', 'lab-orders', 'procedures'].includes(section) ? 'treatment' : 'assessment';
+}
+
+function examinationSystemsForSpecialty(specialty: string): string[] {
+  const systems = ['Cardiovascular', 'Respiratory', 'Abdomen', 'Neurological', 'Musculoskeletal'];
+  const preferred = /ortho|rheumat|physio/i.test(specialty) ? 'Musculoskeletal'
+    : /cardio/i.test(specialty) ? 'Cardiovascular' : /neuro/i.test(specialty) ? 'Neurological'
+    : /pulmon|respir/i.test(specialty) ? 'Respiratory' : null;
+  return preferred ? [preferred, ...systems.filter(system => system !== preferred)] : systems;
+}
+
+function appendHistoryDetails(history: OpdClinicalForm['history']): string {
+  const details = [
+    ['Location', history.location], ['Onset', history.onset], ['Character', history.character],
+    ['Associated symptoms', history.associatedSymptoms], ['Aggravating factors', history.aggravatingFactors],
+    ['Relieving factors', history.relievingFactors]
+  ].filter(([, value]) => value?.trim()).map(([label, value]) => `${label}: ${value!.trim()}`);
+  const existing = history.presentIllness.trim();
+  return [existing, ...details.filter(detail => !existing.includes(detail))].filter(Boolean).join('\n');
+}
+
 function emptyComplaintForm(): OpdComplaintForm {
   return { complaint: '', duration: '', severity: 'Moderate', notes: '' };
 }
@@ -5995,7 +6276,7 @@ function composeClinicalNotes(form: OpdClinicalForm, labTests: OpdLabTestRecord[
     ]],
     ['Chief Complaints', form.complaints.map(formatComplaint)],
     ['Clinical History', [
-      `Present Illness: ${form.history.presentIllness || '-'}`,
+      `Present Illness: ${appendHistoryDetails(form.history) || '-'}`,
       `Past History: ${form.history.pastHistory || '-'}`,
       `Family History: ${form.history.familyHistory || '-'}`,
       `Surgical History: ${form.history.surgicalHistory || '-'}`
@@ -6554,6 +6835,7 @@ function escapeHtml(value: string): string {
 }
 
 interface MedicineSuggestion {
+  route?: string;
   key: string;
   id: string | null;
   label: string;
@@ -6634,6 +6916,7 @@ function toMedicineSuggestion(record: OpdMedicineRecord): MedicineSuggestion {
     label,
     name: record.name,
     genericName: record.genericName || '',
+    route: record.route?.trim() || '',
     strength,
     form,
     formularyStatus: record.formularyStatus,

@@ -99,6 +99,7 @@ export interface OpdPrescriptionItemRecord {
 }
 
 export interface OpdMedicineRecord {
+  route?: string | null;
   strength?: string | null;
   dosageForm?: string | null;
   id: string;
@@ -236,6 +237,12 @@ export interface OpdComplaintForm {
 }
 
 export interface OpdHistoryForm {
+  location?: string;
+  onset?: string;
+  character?: string;
+  associatedSymptoms?: string;
+  aggravatingFactors?: string;
+  relievingFactors?: string;
   presentIllness: string;
   pastHistory: string;
   familyHistory: string;

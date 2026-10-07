@@ -24,7 +24,7 @@ function setup() {
   Object.assign(h, { selectedVisit: signal(visit), clinicalForm: signal({ notes: 'assessment', prescriptions: [], followUp: {} }), saving: signal(false), draftSaving: signal(false), finishing: signal(false), reviewOpen: signal(false), draftConflict: signal(false), draftSaveStatus: signal(''), labTests: signal([]), draftSession: 1, lastSavedDraft: '', lastObservedDraft: '', destroyed: false,
     upsertConsultation: record => calls.push(['upsert', record]), toast: { success: () => {}, error: () => {}, warning: () => {} },
     opdService: { saveConsultationDraft: async (...args) => { calls.push(['draft', ...args]); return { success: true, data: { ...visit.consultation, updatedAt: '2026-10-05T10:01:00Z' } }; } },
-    validateCompletion: () => true, pendingCompletionLabs: () => 0,
+    validateCompletion: () => true, pendingCompletionLabs: () => 0, activeEncounterSection: signal('consultation'),
     reviewDrugAllergies: async () => true, reviewDrugInteractions: async () => true,
     saveEncounter: async () => { calls.push(['workflow']); return null; }, sendToPharmacyOnComplete: () => false,
   });

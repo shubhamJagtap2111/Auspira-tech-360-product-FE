@@ -130,10 +130,26 @@ const server = http.createServer((req, res) => {
     await page.getByRole('button', { name: 'Start Consultation', exact: true }).waitFor({ timeout: 20000 });
     await page.getByRole('button', { name: 'Start Consultation', exact: true }).click();
     await page.locator('#opd-assessment').waitFor();
+    assert.equal(await page.locator('.consultation-group:visible').count(), 1, 'one stage is shown at a time');
+    assert.equal(await page.locator('.consultation-jump-links [aria-current="step"]').count(), 1);
+    assert.equal(await page.locator('.doctor-summary').count(), 1);
     assert.equal(await page.locator('.encounter-workflow-stepper').count(), 0);
     await page.locator('input[name="complaint"]').fill('Review of symptoms');
     await page.locator('textarea[name="generalExamination"]').fill('Clinical examination documented.');
+    await page.locator('input[name="bloodPressure"]').fill('128/82');
+    await page.locator('input[name="pulseRate"]').fill('78');
+    await page.locator('input[name="spo2"]').fill('98');
+    await page.getByText('Structured symptom history', { exact: false }).first().click();
+    await page.locator('input[name="hpiLocation"]').fill('Left shoulder');
+    await page.getByRole('button', { name: 'Add to HPI', exact: true }).click();
+    assert.match(await page.locator('textarea[name="presentIllness"]').inputValue(), /Location: Left shoulder/);
     await page.waitForFunction(() => document.querySelector('.draft-status')?.textContent.includes('Saved to server'), { timeout: 10000 });
+    const assertPatientHeader = async () => {
+      const header = await page.locator('.encounter-head').boundingBox();
+      const appHeader = await page.locator('.header').boundingBox();
+      assert.ok(header.y >= appHeader.y + appHeader.height - 2 && header.y < appHeader.y + appHeader.height + 40, 'patient header stays visible while editing');
+    };
+    await assertPatientHeader();
     assert.equal(writes.some(write => /prescriptions|symptoms|diagnoses|laboratory\/orders/.test(write.path)), false, 'autosave must not create downstream records');
     await page.getByRole('button', { name: 'History & results', exact: true }).click();
     await page.getByRole('dialog', { name: 'History & results' }).waitFor();
@@ -176,8 +192,15 @@ const server = http.createServer((req, res) => {
     await page.keyboard.press('Shift+Tab');
     assert.equal(await page.evaluate(() => document.activeElement.textContent.trim()), 'Back to OPD', 'keyboard focus stays within the history dialog');
     await page.keyboard.press('Escape');
-    assert.equal(await page.evaluate(() => document.activeElement.textContent.trim()), 'History & results', 'closing history restores focus to the opener');
+    assert.match(await page.evaluate(() => document.activeElement.textContent.trim()), /History & results$/, 'closing history restores focus to the opener');
     assert.equal(await page.locator('input[name="complaint"]').inputValue(), 'Review of symptoms');
+    await page.keyboard.press('F3');
+    await page.locator('#opd-treatment').waitFor();
+    assert.equal(await page.locator('.consultation-group:visible').count(), 1);
+    await page.waitForFunction(() => document.activeElement?.getAttribute('name') === 'medicine');
+    await page.locator('.consultation-jump-links button').filter({ hasText: 'Assessment' }).click();
+    assert.equal(await page.locator('input[name="complaint"]').inputValue(), 'Review of symptoms', 'stage switching retains assessment');
+    await page.locator('.consultation-jump-links button').filter({ hasText: 'Treatment' }).click();
     const medicineInput = page.locator('input[name="medicine"]');
     const outsideHeading = page.getByRole('heading', { name: 'Treatment plan', exact: true });
     // Dialogs and rows can stop bubbling; dismissal must still see the original event.
@@ -250,6 +273,10 @@ const server = http.createServer((req, res) => {
     assert.equal(await page.locator('.medicine-table-row .medicine-validation-error').count(), 0);
     await page.locator('.medicine-composer').scrollIntoViewIfNeeded();
     await page.screenshot({ path: path.join(artifacts, 'medicine-validation-desktop.png') });
+    await assertPatientHeader();
+    await page.getByRole('button', { name: /Next: Follow-up/ }).click();
+    assert.equal(await page.locator('.consultation-group:visible').count(), 1);
+    await page.locator('input[name="followUpReason"]').fill('Medication review');
     await page.getByRole('button', { name: 'Review & Complete', exact: true }).click();
     await page.getByRole('dialog', { name: 'Review consultation' }).waitFor();
     assert.equal(await page.getByRole('dialog').getByText('Review of symptoms', { exact: false }).count() > 0, true);
@@ -257,20 +284,24 @@ const server = http.createServer((req, res) => {
     await page.getByRole('button', { name: 'Back to editing', exact: true }).click();
     // A conflicting save must preserve the editor and prevent finishing.
     conflictNextSave = true;
+    await page.locator('.consultation-jump-links button').filter({ hasText: 'Assessment' }).click();
     await page.locator('textarea[name="generalExamination"]').fill('Local edit retained after conflict.');
     await page.waitForFunction(() => document.querySelector('.draft-conflict') !== null, { timeout: 10000 });
-    assert.equal(await page.getByRole('button', { name: 'Review & Complete', exact: true }).isDisabled(), true);
+    assert.equal(await page.getByRole('button', { name: 'Save Draft', exact: true }).isDisabled(), true);
     assert.equal(await page.locator('textarea[name="generalExamination"]').inputValue(), 'Local edit retained after conflict.');
     await page.getByRole('button', { name: 'Load latest saved version', exact: true }).click();
     await page.waitForFunction(() => document.querySelector('.draft-conflict') === null);
     for (const width of [1440, 768, 390]) {
       await page.setViewportSize({ width, height: 900 });
       await page.locator('#opd-assessment').scrollIntoViewIfNeeded();
+      await page.locator('input[name="diagnosisName"]').scrollIntoViewIfNeeded();
+      await assertPatientHeader();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 2);
       assert.equal(overflow, false, `page overflow at ${width}px`);
       await page.screenshot({ path: path.join(artifacts, `consultation-${width}.png`) });
     }
     await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.locator('.consultation-jump-links button').filter({ hasText: 'Follow-up' }).click();
     await page.getByRole('button', { name: 'Review & Complete', exact: true }).click();
     await page.getByRole('button', { name: 'Complete Consultation', exact: true }).click();
     await page.locator('.completion-banner').waitFor({ timeout: 15000 });
