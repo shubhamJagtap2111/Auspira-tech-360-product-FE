@@ -10,7 +10,7 @@ export class PharmacyService {
   prescriptions(search = '', status = '') { return this.get<PrescriptionQueueItem[]>(`/pharmacy/prescriptions?search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}`); }
   prescription(id: string) { return this.get<PrescriptionDetail>(`/pharmacy/prescriptions/${id}`); }
   dispensings(search = '') { return this.get<RecentDispensing[]>(`/pharmacy/dispensings?search=${encodeURIComponent(search)}`); }
-  medicines(search = '') { return this.get<Medicine[]>(`/pharmacy/medicines?search=${encodeURIComponent(search)}`); }
+  medicines(search = '') { return this.get<Medicine[]>(`/pharmacy/medicines?activeOnly=false&search=${encodeURIComponent(search)}`); }
   drugMasterOptions() { return this.get<DrugMasterOptions>('/pharmacy/drug-master/options'); }
   createGenericDrug(body: SaveGenericDrugRequest) { return this.post<{ id: string }>('/pharmacy/generic-drugs', body); }
   updateGenericDrug(id: string, body: SaveGenericDrugRequest) { return this.put<{ id: string }>(`/pharmacy/generic-drugs/${id}`, body); }
@@ -30,7 +30,7 @@ export class PharmacyService {
   updateAllergyMapping(id: string, body: SaveDrugAllergyMappingRequest) { return this.put<{ id: string }>(`/pharmacy/allergy-mappings/${id}`, body); }
   stock(search = '', state = '') { return this.get<StockBatch[]>(`/pharmacy/stock?search=${encodeURIComponent(search)}&state=${encodeURIComponent(state)}`); }
   receiveBatch(body: ReceiveBatchRequest) { return this.post<{ id: string }>('/pharmacy/stock/batches', body); }
-  dispense(prescriptionId: string, items: DispenseLine[], notes = '') { return this.post<{ id: string; dispenseNumber: string; saleNumber: string; totalAmount: number }>('/pharmacy/dispensings', { prescriptionId, locationId: null, notes, items }); }
+  dispense(prescriptionId: string, items: DispenseLine[], notes = '', requestId?:string) { return this.post<{ id: string; dispenseNumber: string; saleNumber: string; totalAmount: number }>('/pharmacy/dispensings', { prescriptionId, locationId: null, notes, items, requestId }); }
   private async get<T>(path:string):Promise<T>{return unwrap(await firstValueFrom(this.api.get<PharmacyApiResponse<T>|T>(path)));}
   private async post<T>(path:string,body:unknown):Promise<T>{return unwrap(await firstValueFrom(this.api.post<PharmacyApiResponse<T>|T>(path,body)));}
   private async put<T>(path:string,body:unknown):Promise<T>{return unwrap(await firstValueFrom(this.api.put<PharmacyApiResponse<T>|T>(path,body)));}
