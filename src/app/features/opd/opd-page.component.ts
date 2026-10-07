@@ -304,6 +304,12 @@ import { LabReport } from '../laboratory/laboratory.models';
                       </div>
                     </div>
 
+                        <nav class="consultation-jump-links" aria-label="Consultation sections">
+                          @for (stage of consultationStages; track stage.id) {
+                            <button type="button" [class.active]="consultationStage() === stage.id" [attr.aria-current]="consultationStage() === stage.id ? 'step' : null" [disabled]="saving() && !draftSaving()" (click)="jumpToConsultation(stage.id)"><span class="stage-number">{{ $index + 1 }}</span><span><strong>{{ stage.label }}</strong></span></button>
+                          }
+                        </nav>
+
                     <div class="encounter-workspace">
 
                       <aside class="patient-snapshot doctor-summary" aria-label="Doctor summary">
@@ -313,8 +319,8 @@ import { LabReport } from '../laboratory/laboratory.models';
                             <div class="summary-patient"><strong>{{ visit.patientName }}</strong><small>{{ patientAgeGender(visit) }} · {{ visit.patientMrn }}</small></div>
                             <section><h4>Patient context</h4><p>{{ visit.patient?.pastMedicalHistory || 'Medical history not recorded' }}</p><p>{{ visit.patient?.knownConditions || 'Conditions not recorded' }}</p></section>
                             <section><h4>Previous medicines</h4><p>{{ recordedMedicationSummary(visit) }}</p><small>Confirm current use with the patient.</small></section>
-                            <section><h4>Today's diagnosis <span>{{ clinicalForm().diagnoses.length }}</span></h4>@for (diagnosis of clinicalForm().diagnoses; track $index) { <p><strong>{{ diagnosis.diagnosisType === 'PRIMARY' ? '★ ' : '' }}{{ diagnosis.diagnosisName }}</strong><small>{{ diagnosis.diagnosisCode }}</small></p> } @empty { <p class="summary-empty">No diagnosis added yet</p> }</section>
-                            <section><h4>Treatment <span>{{ clinicalForm().prescriptions.length }}</span></h4>@for (medicine of clinicalForm().prescriptions; track $index) { <p><strong>{{ medicine.medicine }} {{ medicine.strength }}</strong><small>{{ medicine.dosage }} · {{ medicine.frequency }} · {{ medicine.duration }}</small></p> } @empty { <p class="summary-empty">No medicines added yet</p> }</section>
+                            <section><h4>Today's diagnosis <span>{{ clinicalForm().diagnoses.length }}</span></h4>@for (diagnosis of clinicalForm().diagnoses; track $index) { <p><strong>{{ diagnosis.diagnosisType === 'PRIMARY' ? '★ ' : '' }}{{ diagnosis.diagnosisName }}</strong><small>{{ diagnosis.diagnosisCode }}</small></p> } @empty { <p class="consultation-summary-empty">No diagnosis added yet</p> }</section>
+                            <section><h4>Treatment <span>{{ clinicalForm().prescriptions.length }}</span></h4>@for (medicine of clinicalForm().prescriptions; track $index) { <p><strong>{{ medicine.medicine }} {{ medicine.strength }}</strong><small>{{ medicine.dosage }} · {{ medicine.frequency }} · {{ medicine.duration }}</small></p> } @empty { <p class="consultation-summary-empty">No medicines added yet</p> }</section>
                             <section><h4>Follow-up</h4><p>{{ clinicalForm().followUp.followUpRequired ? (clinicalForm().followUp.followUpDate || 'Choose a review date') : 'Not requested' }}</p>@if (clinicalForm().followUp.followUpRequired) { <small>{{ clinicalForm().followUp.reason }}</small> }</section>
                             <button class="summary-results" type="button" (click)="showHistory(visit)"><span aria-hidden="true" class="material-symbols-rounded">lab_research</span>{{ pendingLabCount(visit) }} pending lab orders<span aria-hidden="true" class="material-symbols-rounded">arrow_forward</span></button>
                             <details class="summary-previous"><summary>Previous visit</summary><ng-container *ngTemplateOutlet="previousVisitPanel; context: { $implicit: visit }" /></details>
@@ -326,34 +332,17 @@ import { LabReport } from '../laboratory/laboratory.models';
 
                       <section class="clinical-board">
 
-                        <nav class="consultation-jump-links" aria-label="Consultation sections">
-                          @for (stage of consultationStages; track stage.id) {
-                            <button type="button" [class.active]="consultationStage() === stage.id" [attr.aria-current]="consultationStage() === stage.id ? 'step' : null" [disabled]="saving() && !draftSaving()" (click)="jumpToConsultation(stage.id)"><span class="stage-number">{{ $index + 1 }}</span><span><strong>{{ stage.label }}</strong><small>{{ stage.description }}</small></span><span aria-hidden="true" class="material-symbols-rounded">{{ stage.icon }}</span></button>
-                          }
-                        </nav>
+
                         <fieldset class="consultation-fields" [disabled]="reviewOpen() || (saving() && !draftSaving()) || finishing()">
                           <legend class="sr-only">Consultation for {{ visit.patientName }}</legend>
                           <section class="consultation-group" id="opd-assessment" [hidden]="consultationStage() !== 'assessment'">
                             <div class="group-heading"><span>1</span><div><h2>Clinical assessment</h2><p>Record today's findings once.</p></div></div>
-                            <details class="optional-section vitals-section" open><summary>Vitals <span>Review and record</span></summary><div class="section-title">
-                                <h3>Vitals</h3>
-                                <p>BMI is calculated automatically from height and weight.</p>
-                              </div>
-                              <div class="clinical-grid">
-                                    <label class="field"><span>Temperature (°F)</span><input name="temperature" [(ngModel)]="clinicalForm().vitals.temperature" placeholder="°F" /></label>
-                                <label class="field"><span>Blood Pressure</span><input name="bloodPressure" [(ngModel)]="clinicalForm().vitals.bloodPressure" placeholder="120/80" /></label>
-                                    <label class="field"><span>Pulse (bpm)</span><input name="pulseRate" [(ngModel)]="clinicalForm().vitals.pulseRate" placeholder="bpm" /></label>
-                                <label class="field"><span>Respiratory Rate</span><input name="respiratoryRate" [(ngModel)]="clinicalForm().vitals.respiratoryRate" placeholder="16 / min" /></label>
-                                <label class="field"><span>SpO2</span><input name="spo2" [(ngModel)]="clinicalForm().vitals.spo2" placeholder="98%" /></label>
-                                <label class="field"><span>Height</span><input name="height" [(ngModel)]="clinicalForm().vitals.height" placeholder="cm" /></label>
-                                <label class="field"><span>Weight</span><input name="weight" [(ngModel)]="clinicalForm().vitals.weight" placeholder="kg" /></label>
-                                <span class="metric-tile"><small>BMI</small><strong>{{ bmiValue() || '-' }}</strong></span>
-                              </div></details>
+
                             <div class="consultation-stack">
                                 <section>
                                   <div class="section-title">
-                                    <h3>Consultation</h3>
-                                    <p>Capture chief complaints, clinical history, and examination findings in one place.</p>
+                                    <h3>Chief complaints</h3>
+                                    <p>What brings the patient in today?</p>
                                   </div>
                                   <div class="clinical-grid">
                                     <label class="field"><span>Complaint</span><input name="complaint" [(ngModel)]="clinicalForm().complaintDraft.complaint" placeholder="Body pain" /></label>
@@ -368,6 +357,21 @@ import { LabReport } from '../laboratory/laboratory.models';
                                     }
                                   </div>
                                 </section>
+
+                            <details class="optional-section vitals-section" open><summary>Vitals <span>Review and record</span></summary><div class="section-title">
+                                <h3>Vitals</h3>
+                                <p>BMI is calculated automatically from height and weight.</p>
+                              </div>
+                              <div class="clinical-grid">
+                                    <label class="field"><span>Temperature (°F)</span><input name="temperature" [(ngModel)]="clinicalForm().vitals.temperature" placeholder="°F" /></label>
+                                <label class="field"><span>Blood Pressure</span><input name="bloodPressure" [(ngModel)]="clinicalForm().vitals.bloodPressure" placeholder="120/80" /></label>
+                                    <label class="field"><span>Pulse (bpm)</span><input name="pulseRate" [(ngModel)]="clinicalForm().vitals.pulseRate" placeholder="bpm" /></label>
+                                <label class="field"><span>Respiratory Rate</span><input name="respiratoryRate" [(ngModel)]="clinicalForm().vitals.respiratoryRate" placeholder="16 / min" /></label>
+                                <label class="field"><span>SpO2</span><input name="spo2" [(ngModel)]="clinicalForm().vitals.spo2" placeholder="98%" /></label>
+                                <label class="field"><span>Height</span><input name="height" [(ngModel)]="clinicalForm().vitals.height" placeholder="cm" /></label>
+                                <label class="field"><span>Weight</span><input name="weight" [(ngModel)]="clinicalForm().vitals.weight" placeholder="kg" /></label>
+                                <span class="metric-tile"><small>BMI</small><strong>{{ bmiValue() || '-' }}</strong></span>
+                              </div></details>
 
                                 <section>
                                   <div class="section-title"><h3>Clinical History</h3><p>Present illness and relevant medical background.</p></div>
@@ -2753,14 +2757,14 @@ import { LabReport } from '../laboratory/laboratory.models';
     /* Focused consultation: one stage at a time, with patient context always close. */
     .opd-page.consulting { overflow: visible; }
     .consulting > .page-header .page-desc, .consulting > .stats-row { display: none; }
-    .consulting > .page-header { margin-bottom: 12px; }
+    .consulting > .page-header { display: none; }
     .consulting > .page-header h1 { font-size: 23px; }
     .consulting .toolbar { display: none; }
     .consulting .opd-shell { padding: 0; border-color: transparent; background: transparent; box-shadow: none; }
     .consulting .opd-tabs { background: var(--ac-surface); margin-bottom: 14px; border: 1px solid var(--ac-border); border-radius: 12px; }
     .encounter-card { padding: 0; border: 0; background: transparent; container-type: normal; }
-    .encounter-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 20px; margin-bottom: 18px; padding: 20px 24px 16px; border: 1px solid var(--ac-border); border-top: 3px solid var(--ac-secondary, #7c3aed); border-radius: 16px; box-shadow: 0 6px 24px #33415508; top: 0; z-index: 25; }
-    .encounter-head h2 { margin: 5px 0 7px; font-size: 26px; letter-spacing: -.025em; }
+    .encounter-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 20px; margin-bottom: 18px; padding: 16px 20px; border: 1px solid var(--ac-border); border-left: 3px solid var(--ac-secondary, #7c3aed); border-radius: 12px; box-shadow: none; top: 0; z-index: 25; }
+    .encounter-head h2 { margin: 5px 0 7px; font-size: 23px; letter-spacing: -.025em; }
     .encounter-head .ac-eyebrow { margin: 0; }
     .encounter-head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
     .patient-alert-strip { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
@@ -2788,37 +2792,39 @@ import { LabReport } from '../laboratory/laboratory.models';
     .summary-content p { font-size: 12px; line-height: 1.6; margin-bottom: 7px; }
     .summary-content p small { display: block; }
     .summary-content small { font-size: 11px; color: var(--ac-muted); }
-    .summary-empty { color: var(--ac-muted); }
+    .consultation-summary-empty { color: var(--ac-muted); margin: 0; font-size: 12px; }
     .summary-results { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 10px 0; border: 0; background: transparent; color: var(--ac-primary); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
     .summary-results .material-symbols-rounded { font-size: 18px; }
     .summary-results .material-symbols-rounded:last-child { margin-left: auto; }
     .summary-previous { font-size: 12px; }
     .shortcut-hint { margin-top: 15px; line-height: 1.9 !important; }
-    .consultation-jump-links { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 0; margin-bottom: 16px; position: sticky; top: 0; z-index: 24; background: var(--ac-bg); }
-    .consultation-jump-links button { display: flex; gap: 9px; align-items: center; text-align: left; min-width: 0; padding: 14px 12px; background: var(--ac-surface); border-radius: 12px; transition: border-color 150ms; }
-    .consultation-jump-links button.active { border-color: var(--ac-primary); background: linear-gradient(120deg, var(--ac-primary-light), color-mix(in srgb, var(--ac-secondary, #7c3aed) 5%, var(--ac-surface))); box-shadow: 0 3px 12px #2563eb0b; }
-    .consultation-jump-links .stage-number { display: grid; place-items: center; flex: 0 0 28px; height: 28px; background: var(--ac-bg); color: var(--ac-muted); border-radius: 8px; font-size: 12px; }
-    .consultation-jump-links .active .stage-number { background: linear-gradient(135deg, var(--ac-primary), var(--ac-secondary, #7c3aed)); color: white; }
-    .consultation-jump-links strong { font-size: 13px; display: block; }
-    .consultation-jump-links small { display: block; margin-top: 4px; font-size: 10px; font-weight: 500; color: var(--ac-muted); line-height: 1.4; }
-    .consultation-jump-links .material-symbols-rounded { font-size: 18px; color: var(--ac-primary); margin-left: auto; }
-    .consultation-group { padding: 22px; border-radius: 14px; gap: 18px; scroll-margin-top: 95px; box-shadow: 0 4px 18px #33415505; }
+    .consultation-jump-links { display: flex; gap: 4px; padding: 6px; margin-bottom: 18px; position: static; background: var(--ac-surface); border: 1px solid var(--ac-border); border-radius: 10px; }
+    .consultation-jump-links button { flex: 1; display: flex; gap: 9px; align-items: center; justify-content: center; min-width: 0; min-height: 44px; padding: 8px 12px; border: 0; border-radius: 6px; background: transparent; color: var(--ac-muted); font: inherit; }
+    .consultation-jump-links button:hover { background: var(--ac-bg); }
+    .consultation-jump-links button.active { color: var(--ac-primary); background: var(--ac-primary-light); box-shadow: none; }
+    .consultation-jump-links .stage-number { display: grid; place-items: center; flex: 0 0 24px; height: 24px; background: var(--ac-bg); color: var(--ac-muted); border-radius: 50%; font-size: 11px; }
+    .consultation-jump-links .active .stage-number { background: var(--ac-primary); color: white; }
+    .consultation-jump-links strong { font-size: 13px; font-weight: 650; }
+    .consultation-group { padding: 24px; border-radius: 12px; gap: 20px; scroll-margin-top: 16px; box-shadow: none; }
     .consultation-group[hidden] { display: none !important; }
     .group-heading h2 { font-size: 19px; }
     .group-heading p { font-size: 12px; color: var(--ac-muted); }
-    .consultation-stack { gap: 18px; }
-    .consultation-stack > section { padding: 16px 0; border: 0; border-bottom: 1px solid var(--ac-border); border-radius: 0; background: transparent; }
+    .consultation-stack { gap: 22px; }
+    .consultation-stack > section { padding: 0 0 22px; border: 0; border-bottom: 1px solid var(--ac-border); border-radius: 0; background: transparent; }
     .consultation-group .section-title h3 { font-size: 15px; }
     .consultation-group .section-title p { font-size: 12px; }
     .optional-section > summary > span { float: right; color: var(--ac-muted); font-size: 11px; font-weight: 500; }
-    .vitals-section { background: var(--ac-bg); }
+    .consultation-stack > section:first-child { background: transparent; }
+    .vitals-section { background: transparent; border: 0; border-bottom: 1px solid var(--ac-border); border-radius: 0; padding: 0 0 22px; }
+    .vitals-section > summary { font-size: 15px; }
+    .vitals-section .metric-tile { background: var(--ac-bg); box-shadow: none; border: 1px solid var(--ac-border); }
     .vitals-section .clinical-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .vitals-section .section-title h3 { display: none; }
     .vitals-section .section-title p { margin: 0; }
     .system-template-buttons { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 14px; }
     .system-template-buttons button { min-height: 36px; padding: 7px 10px; border: 1px solid var(--ac-border); border-radius: 8px; background: var(--ac-surface); color: var(--ac-primary); font: inherit; font-size: 12px; cursor: pointer; }
     .diagnosis-search-field { position: relative; }
-    .consultation-footer { margin-top: 16px; padding: 12px 16px; border-radius: 12px; background: color-mix(in srgb, var(--ac-surface) 96%, transparent); backdrop-filter: blur(12px); }
+    .consultation-footer { position: static; margin-top: 16px; padding: 16px 20px; border-radius: 12px; background: var(--ac-surface); box-shadow: none; }
     .consultation-footer { z-index: 300; }
     .consultation-footer .draft-status { font-size: 11px; }
     .investigation-categories { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
@@ -2867,7 +2873,7 @@ import { LabReport } from '../laboratory/laboratory.models';
       .consultation-jump-links strong { font-size: 11px; }
       .consultation-jump-links small, .consultation-jump-links .material-symbols-rounded { display: none; }
       .consultation-jump-links .stage-number { flex-basis: 22px; height: 22px; font-size: 10px; }
-      .consultation-group { padding: 14px; scroll-margin-top: 65px; }
+      .consultation-group { padding: 14px; scroll-margin-top: 12px; }
       .group-heading { gap: 8px; }
       .group-heading h2 { font-size: 17px; }
       .vitals-section .clinical-grid, .medicine-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

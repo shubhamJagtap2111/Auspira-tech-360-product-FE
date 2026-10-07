@@ -134,6 +134,13 @@ const server = http.createServer((req, res) => {
     assert.equal(await page.locator('.consultation-jump-links [aria-current="step"]').count(), 1);
     assert.equal(await page.locator('.doctor-summary').count(), 1);
     assert.equal(await page.locator('.encounter-workflow-stepper').count(), 0);
+    assert.equal(await page.locator('.clinical-board .consultation-jump-links').count(), 0, 'stage navigation sits above the workspace');
+    for (const width of [1440, 768, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.locator('.main-content').evaluate(element => { element.scrollTop = 0; });
+      await page.screenshot({ path: path.join(artifacts, 'workspace-' + width + '.png') });
+    }
+    await page.setViewportSize({ width: 1440, height: 1000 });
     await page.locator('input[name="complaint"]').fill('Review of symptoms');
     await page.locator('textarea[name="generalExamination"]').fill('Clinical examination documented.');
     await page.locator('input[name="bloodPressure"]').fill('128/82');
@@ -152,16 +159,21 @@ const server = http.createServer((req, res) => {
         scroller.scrollTop = 0;
         await new Promise(requestAnimationFrame);
         const before = header.getBoundingClientRect().top;
+        const navBefore = document.querySelector('.consultation-jump-links').getBoundingClientRect().top;
         scroller.scrollTop = 150;
         await new Promise(requestAnimationFrame);
         const after = header.getBoundingClientRect().top;
         const distance = scroller.scrollTop;
+        const navAfter = document.querySelector('.consultation-jump-links').getBoundingClientRect().top;
         scroller.scrollTop = previous;
-        return { before, after, distance, summaryOverflow: getComputedStyle(document.querySelector('.doctor-summary')).overflowY };
+        return { before, after, distance, navBefore, navAfter, footerPosition: getComputedStyle(document.querySelector('.consultation-footer')).position, emptyHeights: [...document.querySelectorAll('.consultation-summary-empty')].map(element => element.getBoundingClientRect().height), summaryOverflow: getComputedStyle(document.querySelector('.doctor-summary')).overflowY };
       });
       assert.ok(scroll.distance > 100, 'consultation uses the application scroll container');
       assert.ok(Math.abs(scroll.before - scroll.after - scroll.distance) < 2, 'patient header scrolls naturally with the consultation');
       assert.equal(scroll.summaryOverflow, 'visible', 'doctor summary has no separate scroll frame');
+      assert.ok(Math.abs(scroll.navBefore - scroll.navAfter - scroll.distance) < 2, 'stage navigation scrolls with the workspace instead of covering inputs');
+      assert.equal(scroll.footerPosition, 'static', 'actions do not float over clinical fields');
+      assert.ok(scroll.emptyHeights.every(height => height < 50), 'summary empty states use compact text instead of large cards');
     };
     await assertNaturalConsultationScroll();
     assert.equal(writes.some(write => /prescriptions|symptoms|diagnoses|laboratory\/orders/.test(write.path)), false, 'autosave must not create downstream records');
