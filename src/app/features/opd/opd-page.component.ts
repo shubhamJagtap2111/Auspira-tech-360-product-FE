@@ -56,6 +56,7 @@ import { LabReport } from '../laboratory/laboratory.models';
         } @else { <p>{{ historyByPatient()[visit.appointment.patientId] ? 'No previous completed visit recorded.' : (contextError() || 'Loading history…') }}</p> }
       </section>
     </ng-template>
+    @if (preparingDigitalAccess()) { <div class="rx-preparing" role="status" aria-live="polite"><span class="material-symbols-rounded" aria-hidden="true">hourglass_top</span> Preparing secure prescription & QR…</div> }
     @if (patientAccessDetails(); as access) {
       <div class="prescription-backdrop"><section class="patient-access-dialog" role="dialog" aria-modal="true" aria-label="Patient access code" cdkTrapFocus [cdkTrapFocusAutoCapture]="true">
         <h2>Patient access code</h2><p>Share this code privately with the patient. Keep it separate from the QR prescription.</p><strong class="access-code">{{ access.accessCode }}</strong><p>Expires {{ access.expiresAt | date:'dd MMM yyyy' }}. Previous completed visits are available after the consultation is completed.</p><button type="button" class="ac-btn ac-btn-primary" (click)="patientAccessDetails.set(null)">Done</button>
@@ -123,7 +124,7 @@ import { LabReport } from '../laboratory/laboratory.models';
           @switch (activeTab()) {
             @case ('dashboard') {
               @if (completedPatientName()) {
-                <div class="completion-banner" role="status"><span aria-hidden="true" class="material-symbols-rounded">task_alt</span><span>Consultation completed for {{ completedPatientName() }}. Your next patient is ready below.</span>@if (completedPrescription()) { <button type="button" class="ac-btn ac-btn-secondary" (click)="printCompletedPrescription()">Print prescription</button><button type="button" class="ac-btn ac-btn-secondary" (click)="showPatientAccessCode()">Patient access code</button> }</div>
+                <div class="completion-banner" role="status"><span aria-hidden="true" class="material-symbols-rounded">task_alt</span><span>Consultation completed for {{ completedPatientName() }}. Your next patient is ready below.</span>@if (completedPrescription()) { <button type="button" class="ac-btn ac-btn-secondary" [disabled]="preparingDigitalAccess()" (click)="printCompletedPrescription()">Print prescription</button><button type="button" class="ac-btn ac-btn-secondary" [disabled]="preparingDigitalAccess()" (click)="showPatientAccessCode()">Patient access code</button> }</div>
               }
               <section class="opd-today-grid">
                 <article class="panel today-queue-panel">
@@ -932,12 +933,12 @@ import { LabReport } from '../laboratory/laboratory.models';
                 <p class="rx-disclaimer">Disclaimer: This prescription is generated from the Care360 OPD encounter and should be used only under the advice of the issuing doctor.</p>
               </div>
 
-              <div class="rx-access-handover"><span>Give the patient their access code separately from the prescription.</span><button type="button" class="ac-btn ac-btn-secondary" (click)="showPatientAccessCode()">Patient access code</button></div><footer class="prescription-modal-actions">
+              <div class="rx-access-handover"><span>Give the patient their access code separately from the prescription.</span><button type="button" class="ac-btn ac-btn-secondary" [disabled]="preparingDigitalAccess()" (click)="showPatientAccessCode()">Patient access code</button></div><footer class="prescription-modal-actions">
                 <button class="ac-btn ac-btn-secondary" type="button" (click)="sharePrescription()">
                   <span aria-hidden="true" class="material-symbols-rounded">ios_share</span>
                   Share to Patient
                 </button>
-                <button class="ac-btn ac-btn-secondary" type="button" (click)="downloadPrescription()">
+                <button class="ac-btn ac-btn-secondary" type="button" [disabled]="preparingDigitalAccess()" (click)="downloadPrescription()">
                   <span aria-hidden="true" class="material-symbols-rounded">download</span>
                   Download PDF
                 </button>
@@ -1061,7 +1062,7 @@ import { LabReport } from '../laboratory/laboratory.models';
 
             <footer>
               <button class="ac-btn ac-btn-secondary" type="button" (click)="closePrintOptions()">Cancel</button>
-              <button class="ac-btn ac-btn-primary" type="button" (click)="confirmPrintPrescription()">
+              <button class="ac-btn ac-btn-primary" type="button" [disabled]="preparingDigitalAccess()" (click)="confirmPrintPrescription()">
                 <span aria-hidden="true" class="material-symbols-rounded">print</span>
                 Print
               </button>
@@ -2335,6 +2336,7 @@ import { LabReport } from '../laboratory/laboratory.models';
       letter-spacing: .12em;
     }
     .rx-sheet-head h2 { margin: 0; color: var(--ac-text); font-size: 25px; }
+    .rx-preparing { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 2400; display: flex; align-items: center; gap: 10px; background: #fff; color: #51339b; padding: 16px 22px; border-radius: 12px; border: 1px solid #dacef6; box-shadow: 0 8px 32px #1d194222; max-width: calc(100vw - 32px); font-size: 14px; }
     .patient-access-dialog { width: min(440px, calc(100vw - 32px)); margin: auto; background: white; padding: 28px; border-radius: 18px; color: #172554; }
     .patient-access-dialog p { line-height: 1.6; color: #5c6d88; }
     .access-code { display: block; font-size: 32px; letter-spacing: .18em; background: #f4f0ff; padding: 18px; border-radius: 10px; margin: 18px 0; }
@@ -3295,6 +3297,7 @@ export class OpdPageComponent implements OnInit {
   private readonly accessService = inject(PrescriptionAccessService);
   protected readonly accessLinks = signal<Record<string, PrescriptionAccessLink>>({});
   protected readonly patientAccessDetails = signal<PrescriptionAccessLink | null>(null);
+  protected readonly preparingDigitalAccess = signal(false);
   private readonly hospitalHeader = signal<PrescriptionHospitalHeader | null>(null);
   private readonly accessRequests = new Map<string, Promise<boolean>>();
   private readonly opdService = inject(OpdManagementService);
@@ -3350,7 +3353,7 @@ export class OpdPageComponent implements OnInit {
   protected readonly prescriptionPreview = computed<PrescriptionPreview | null>(() => {
     const visit = this.selectedVisit();
     if (!visit) return null;
-    return this.enrichPrescription({ ...buildPrescriptionPreview(visit, this.clinicalForm(), this.labTests(), this.prescriptionStatusLabel(), this.prescriptionRevisionNo()), hospitalName: this.branchContext.hospitalName(), allergySummary: this.allergySummary(visit) });
+    return this.enrichPrescription({ ...buildPrescriptionPreview(visit, this.clinicalForm(), this.labTests(), this.prescriptionStatusLabel(), this.prescriptionRevisionNo(), this.branchContext.hospitalName()), hospitalName: this.branchContext.hospitalName(), allergySummary: this.allergySummary(visit) });
   });
 
   protected readonly prescriptionHeader = computed<PrescriptionHeaderVm | null>(() => {
@@ -5383,6 +5386,7 @@ export class OpdPageComponent implements OnInit {
     if (!id) return false;
     if (this.accessLinks()[id]) return true;
     if (this.accessRequests.has(id)) return this.accessRequests.get(id)!;
+    this.preparingDigitalAccess.set(true);
     const task = (async () => {
       try {
         const [access, header] = await Promise.all([this.accessService.issue(id), this.accessService.header()]);
@@ -5390,7 +5394,7 @@ export class OpdPageComponent implements OnInit {
         this.accessLinks.update(links => ({ ...links, [id]: access }));
         return true;
       } catch { this.toast.error('Digital prescription unavailable', 'Unable to prepare the QR link. Please retry. Your prescription is retained.'); return false; }
-      finally { this.accessRequests.delete(id); }
+      finally { this.accessRequests.delete(id); this.preparingDigitalAccess.set(this.accessRequests.size > 0); }
     })();
     this.accessRequests.set(id, task);
     return task;
@@ -6629,8 +6633,12 @@ function formatPrescriptionMedicineInstruction(item: OpdPrescriptionItemForm): s
     item.dosage || item.dosageForm,
     item.frequency,
     item.instructions,
-    item.duration
+    prescriptionDuration(item.duration)
   ].filter(Boolean).join(' - ') || '-';
+}
+
+function prescriptionDuration(value: string): string {
+  return /^\d+(?:\.\d+)?$/.test(value.trim()) ? `${value.trim()} days` : value;
 }
 
 function buildSymptomSummary(form: OpdClinicalForm): string {
@@ -6672,7 +6680,7 @@ function buildPrescriptionFollowUpLines(form: OpdClinicalForm): string[] {
 
   return [
     form.followUp.followUpAfterDays ? `Follow-up after ${form.followUp.followUpAfterDays} days` : '',
-    form.followUp.followUpDate ? `Next visit date: ${form.followUp.followUpDate}` : '',
+    form.followUp.followUpDate ? `Next visit date: ${new Date(form.followUp.followUpDate + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}` : '',
     form.followUp.reason ? `Reason: ${form.followUp.reason}` : '',
     form.followUp.notes ? `Notes: ${form.followUp.notes}` : ''
   ].filter(Boolean);
@@ -6744,12 +6752,12 @@ function buildPrescriptionInstructions(form: OpdClinicalForm, labTests: OpdLabTe
   ].join('\n');
 }
 
-function buildPrescriptionPreview(visit: OpdVisitVm, form: OpdClinicalForm, labTests: OpdLabTestRecord[], statusLabel: string, revisionNo: number): PrescriptionPreview {
+function buildPrescriptionPreview(visit: OpdVisitVm, form: OpdClinicalForm, labTests: OpdLabTestRecord[], statusLabel: string, revisionNo: number, hospitalName = 'Auspira Care360'): PrescriptionPreview {
   const consultation = visit.consultation;
   const prescriptionNo = form.prescriptionNo || buildPrescriptionNo(visit, consultation);
   const opdEncounterNo = derivedOpdEncounterNo(consultation?.id);
   return {
-    hospitalName: visit.branchName,
+    hospitalName,
     patientId: visit.appointment.patientId,
     patientName: visit.patientName,
     patientMrn: visit.patientMrn,
@@ -6952,7 +6960,7 @@ function openPrescriptionDocument(prescription: PrescriptionPreview, autoPrint: 
 function printablePrescriptionHtml(prescription: PrescriptionPreview, autoPrint: boolean, options: PrescriptionPrintOptions): string {
   const medicineRows = prescription.medicines.map((item, index) => `
     <tr><td>${index + 1}</td><td><strong>${escapeHtml(formatPrescriptionMedicineName(item))}</strong><small>${escapeHtml(item.dosageForm)}</small></td>
-      <td>${escapeHtml(item.dosage)}</td><td>${escapeHtml(item.frequency)}</td><td>${escapeHtml(item.route)}</td><td>${escapeHtml(item.duration)}</td><td>${escapeHtml(item.quantity)}</td></tr>
+      <td>${escapeHtml(item.dosage)}</td><td>${escapeHtml(item.frequency)}</td><td>${escapeHtml(item.route)}</td><td>${escapeHtml(prescriptionDuration(item.duration))}</td><td>${escapeHtml(item.quantity)}</td></tr>
     ${item.instructions || item.isPrn ? `<tr class="instructions"><td></td><td colspan="6">${escapeHtml([item.instructions, item.isPrn ? 'As needed: ' + (item.prnReason || '') : ''].filter(Boolean).join(' · '))}</td></tr>` : ''}
   `).join('') || '<tr><td colspan="7">No medicines recorded.</td></tr>';
   const investigationRows = prescription.investigations.length ? printableList(prescription.investigations) : '';
@@ -7060,6 +7068,9 @@ function printablePrescriptionHtml(prescription: PrescriptionPreview, autoPrint:
     .patient { font-size: 13px; padding: 18px 26px; gap: 10px 26px; }
     .patient p { font-weight: 400; font-size: 12px; }
     .rx { min-height: 160px; padding: 18px 26px; }
+    .patient .vital-grid { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; background: #f8f9fc; padding: 14px; border: 0; }
+    .patient .vital-grid div { display: grid; gap: 5px; border: 0; }
+    .patient .vital-grid strong { text-align: left; font-size: 12px; }
     .rx-caption { font: 600 14px Arial, sans-serif; padding-left: 10px; }
     .medicine-table { overflow-x: auto; }
     table { border-collapse: collapse; width: 100%; font-size: 12px; }
@@ -7104,7 +7115,7 @@ function printablePrescriptionHtml(prescription: PrescriptionPreview, autoPrint:
       <div><small>Date</small><strong>${escapeHtml(prescription.generatedAt)}</strong></div>
       <div><small>Age / Gender</small><strong>${escapeHtml(prescription.ageGender)}</strong></div>
       <div><small>MRN</small><strong>${escapeHtml(prescription.patientMrn)}</strong></div>
-      ${showVitals ? `<p><strong>Vitals:</strong> ${escapeHtml(prescription.vitalSummary)}</p>` : ''}
+      ${showVitals ? `<div class="vital-grid">${prescription.vitals.map(vital => `<div><small>${escapeHtml(vital.label)}</small><strong>${escapeHtml(vital.value)} <small>${escapeHtml(({ 'Blood Pressure': 'mmHg', 'Pulse Rate': 'bpm', 'Temperature': '°F', 'SpO2': '%', 'Weight': 'kg', 'Height': 'cm' } as Record<string, string>)[vital.label] || '')}</small></strong></div>`).join('')}</div>` : ''}
       <p><strong>Allergies:</strong> ${escapeHtml(prescription.allergySummary || 'Not recorded — verify with patient')}</p><p><strong>Symptoms:</strong> ${escapeHtml(prescription.symptomSummary)}</p>
       ${showDiagnosis ? `<p><strong>Diagnosis:</strong> ${escapeHtml(prescription.diagnosisSummary)}</p>` : ''}
     </section>

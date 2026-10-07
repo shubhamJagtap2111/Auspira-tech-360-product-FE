@@ -50,6 +50,7 @@ export class PrescriptionAccessService {
 export interface DigitalVisit {
   id: string; visitDate: string; status: string; patientName: string; mrn: string; age: number | null; gender: string;
   doctorName: string; qualification: string; registrationNo: string; department: string;
+  investigations?: string[];
   clinical: Partial<import('./opd-management.models').OpdClinicalForm>; legacyNotes?: string;
 }
 export interface DigitalPrescription extends PrescriptionHospitalHeader { selectedId: string; expiresAt: string; visits: DigitalVisit[]; }

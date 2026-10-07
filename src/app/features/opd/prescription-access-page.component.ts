@@ -47,11 +47,12 @@ import { DigitalPrescription, DigitalVisit, PrescriptionAccessService } from './
             </section>
             <section class="medicines"><h2 class="rx">Rx <span>Medicines prescribed</span></h2>
               @for (medicine of visit.clinical.prescriptions || []; track $index) { <article><div class="medicine-title"><span>{{ $index + 1 }}</span><h3>{{ medicine.medicine }} <small>{{ medicine.strength }} · {{ medicine.dosageForm }}</small></h3></div>
-                <div class="schedule"><div><small>DOSE</small><strong>{{ medicine.dosage }}</strong></div><div><small>FREQUENCY</small><strong>{{ frequency(medicine.frequency) }}</strong></div><div><small>ROUTE</small><strong>{{ medicine.route }}</strong></div><div><small>DURATION</small><strong>{{ medicine.duration }}</strong></div><div><small>QUANTITY</small><strong>{{ medicine.quantity }}</strong></div></div>
+                <div class="schedule"><div><small>DOSE</small><strong>{{ medicine.dosage }}</strong></div><div><small>FREQUENCY</small><strong>{{ frequency(medicine.frequency) }}</strong></div><div><small>ROUTE</small><strong>{{ medicine.route }}</strong></div><div><small>DURATION</small><strong>{{ duration(medicine.duration) }}</strong></div><div><small>QUANTITY</small><strong>{{ medicine.quantity }}</strong></div></div>
                 @if (medicine.instructions) { <p>{{ medicine.instructions }}</p> } @if (medicine.isPrn) { <p>As needed: {{ medicine.prnReason }}</p> }
               </article> } @empty { <p class="muted">No medicines recorded for this visit.</p> }
             </section>
-            <div class="extras"><section><h3>Investigations</h3>@for (item of visit.clinical.prescriptionInvestigations || []; track $index) { <p>{{ item }}</p> } @empty { <p class="muted">None recorded</p> }</section><section><h3>Advice</h3>@for (item of visit.clinical.adviceList || []; track $index) { <p>{{ item }}</p> }@for (item of visit.clinical.dietAdviceList || []; track $index) { <p>{{ item }}</p> }</section></div>
+            <div class="extras"><section><h3>Investigations</h3>@for (item of investigations(visit); track $index) { <p>{{ item }}</p> } @empty { <p class="muted">None recorded</p> }</section><section><h3>Advice</h3>@for (item of visit.clinical.adviceList || []; track $index) { <p>{{ item }}</p> }@for (item of visit.clinical.dietAdviceList || []; track $index) { <p>{{ item }}</p> }</section></div>
+            @if (visit.clinical.procedures?.length) { <section class="clinical"><h3>Procedures</h3>@for (procedure of visit.clinical.procedures || []; track $index) { <p>{{ procedure.procedure }} · {{ procedure.notes }}</p> }</section> }
             @if (visit.clinical.followUp?.followUpRequired) { <section class="follow"><h3>Next visit</h3><strong>{{ visit.clinical.followUp!.followUpDate | date:'dd MMM yyyy' }}</strong><p>{{ visit.clinical.followUp!.reason }}</p><p>{{ visit.clinical.followUp!.notes }}</p><small>{{ visit.clinical.followUp!.createAppointment ? 'An appointment was requested. Confirm the time with the hospital.' : 'Please contact the hospital to book your follow-up.' }}</small></section> }
             <details class="clinical"><summary>Clinical history & examination</summary>
               @for (line of clinicalHistory(visit); track $index) { <p>{{ line }}</p> } @empty { <p>No additional history recorded.</p> }
@@ -94,6 +95,8 @@ export class PrescriptionAccessPageComponent {
   }
   protected close(): void { this.record.set(null); this.selected.set(null); this.code = ''; }
   protected print(): void { window.print(); }
+  protected investigations(visit: DigitalVisit): string[] { return [...new Set([...(visit.clinical.prescriptionInvestigations || []), ...(visit.investigations || [])])]; }
+  protected duration(value: string): string { return /^\d+(?:\.\d+)?$/.test(value.trim()) ? value.trim() + ' days' : value; }
   protected gender(value: string): string { return ({ M: 'Male', F: 'Female', O: 'Other', MALE: 'Male', FEMALE: 'Female' } as Record<string,string>)[value] || value || 'Not recorded'; }
   protected status(value: string): string { return value === 'COMPLETED' ? 'Completed' : 'In progress'; }
   protected frequency(value: string): string { return ({ OD: 'Once daily', BD: 'Twice daily', TDS: 'Three times daily', QID: 'Four times daily', HS: 'At bedtime', PRN: 'As needed', STAT: 'Immediately' } as Record<string,string>)[value] || value; }
