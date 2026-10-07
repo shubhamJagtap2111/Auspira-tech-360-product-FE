@@ -769,14 +769,30 @@ import { LabReport } from '../laboratory/laboratory.models';
         </div>
       }
       @if (reviewOpen() && selectedVisit(); as visit) {
-        <div class="opd-overlay">
-          <section class="completion-review" role="dialog" aria-modal="true" aria-labelledby="opd-review-title" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (keydown.escape)="!saving() && reviewOpen.set(false)">
-            <header><div><h2 id="opd-review-title">Review consultation</h2><p>{{ visit.patientName }} · {{ visit.patientMrn }}</p></div><button type="button" class="ac-btn ac-btn-secondary" cdkFocusInitial [disabled]="saving()" (click)="reviewOpen.set(false)">Back to editing</button></header>
-            @for (section of completionSummary().sections; track section.title) { <section class="summary-section"><h3>{{ section.title }}</h3>@for (item of section.items; track item) { <p>{{ item }}</p> }</section> }
-            @if (pendingCompletionLabs()) { <div class="draft-conflict" role="alert"><p>{{ pendingCompletionLabs() }} laboratory tests have not been submitted.</p><button type="button" class="ac-btn ac-btn-secondary" [disabled]="saving()" (click)="createLabOrder(visit)">Submit selected tests</button></div> }
-            <p>Completing closes this clinical record, saves the follow-up plan, and prepares billing. Selected laboratory tests must be submitted before completion.</p>
-            @if (pharmacyIntegrationEnabled() && clinicalForm().prescriptions.length) { <label class="check-field"><input type="checkbox" [ngModel]="sendToPharmacyOnComplete()" (ngModelChange)="sendToPharmacyOnComplete.set($event)" [disabled]="saving() || pharmacyConfigurationError()" /> Send prescription to pharmacy before completing</label> }
-            <footer><button type="button" class="ac-btn ac-btn-secondary" [disabled]="saving()" (click)="reviewOpen.set(false)">Continue editing</button><button type="button" class="ac-btn ac-btn-primary" [disabled]="saving() || pendingCompletionLabs() > 0" (click)="completeVisit()">{{ saving() ? 'Saving…' : 'Complete Consultation' }}</button></footer>
+        <div class="opd-overlay review-overlay">
+          <section class="completion-review" role="dialog" aria-modal="true" aria-labelledby="opd-review-title" cdkTrapFocus [cdkTrapFocusAutoCapture]="true" (keydown.escape)="!saving() && !finishing() && reviewOpen.set(false)">
+            <header class="review-header"><div class="review-heading"><span aria-hidden="true" class="review-heading-icon material-symbols-rounded">fact_check</span><div><p class="ac-eyebrow">FINAL CONSULTATION REVIEW</p><h2 id="opd-review-title">Review consultation</h2><p>Confirm the findings and treatment plan before closing this visit.</p></div></div><button type="button" class="ac-btn ac-btn-secondary" cdkFocusInitial [disabled]="saving() || finishing()" (click)="reviewOpen.set(false)">Back to editing</button></header>
+            <div class="review-body" tabindex="0" aria-label="Consultation summary">
+              <section class="review-patient" aria-label="Patient and visit details"><div class="review-patient-identity"><span class="review-avatar" aria-hidden="true">{{ visit.patientName.slice(0, 1) }}</span><div><h3>{{ visit.patientName }}</h3><p>{{ visit.patientMrn }} · {{ patientAgeGender(visit) }}</p></div></div><dl class="review-visit-details"><div><dt>Consulting doctor</dt><dd>{{ visit.doctorName }}</dd></div><div><dt>Visit</dt><dd>{{ visit.appointment.startsAt | date:'dd MMM yyyy' }} · {{ visit.tokenNumber }}</dd></div></dl><div class="review-allergy" [class.known-allergy]="hasRecordedAllergies(visit)"><span aria-hidden="true" class="material-symbols-rounded">shield</span><strong>Allergies</strong><span>{{ allergySummary(visit) }}</span></div></section>
+              <div class="review-counts" aria-label="Review overview"><span><strong>{{ clinicalForm().complaints.length }}</strong> Complaints</span><span><strong>{{ clinicalForm().diagnoses.length }}</strong> Diagnoses</span><span><strong>{{ clinicalForm().prescriptions.length }}</strong> Medicines</span><span><strong>{{ clinicalForm().labOrders.length }}</strong> Lab tests</span></div>
+              <section class="review-card review-vitals"><div class="review-section-heading"><h3><span aria-hidden="true" class="material-symbols-rounded">monitor_heart</span>Vitals</h3><button type="button" [disabled]="saving() || finishing()" (click)="editReviewSection('assessment')" aria-label="Edit vitals">Edit</button></div><dl class="review-vitals-grid">@for (vital of reviewVitals(); track vital.label) { <div [class.unrecorded]="!vital.value"><dt>{{ vital.label }} @if (vital.unit) { <small>{{ vital.unit }}</small> }</dt><dd>{{ vital.value || 'Not recorded' }}</dd></div> }</dl></section>
+              <div class="review-assessment-grid">
+                <section class="review-card"><div class="review-section-heading"><h3><span aria-hidden="true" class="material-symbols-rounded">symptoms</span>Chief complaints</h3><button type="button" [disabled]="saving() || finishing()" (click)="editReviewSection('assessment')" aria-label="Edit complaints">Edit</button></div><div class="review-item-list">@for (complaint of clinicalForm().complaints; track $index) { <article><div class="review-item-heading"><strong>{{ complaint.complaint }}</strong>@if (complaint.severity) { <span class="review-badge">{{ complaint.severity }}</span> }</div>@if (complaint.duration) { <p>Duration: {{ complaint.duration }}</p> }@if (complaint.notes) { <p class="review-note">{{ complaint.notes }}</p> }</article> } @empty { <p class="review-unrecorded">No complaints recorded</p> }</div></section>
+                <section class="review-card"><div class="review-section-heading"><h3><span aria-hidden="true" class="material-symbols-rounded">diagnosis</span>Diagnosis</h3><button type="button" [disabled]="saving() || finishing()" (click)="editReviewSection('assessment')" aria-label="Edit diagnosis">Edit</button></div><div class="review-item-list">@for (diagnosis of clinicalForm().diagnoses; track $index) { <article><div class="review-item-heading"><strong>{{ diagnosis.diagnosisName }}</strong><span class="review-badge" [class.primary]="diagnosis.diagnosisType === 'PRIMARY'">{{ diagnosis.diagnosisType === 'PRIMARY' ? 'Primary' : 'Secondary' }}</span></div>@if (diagnosis.diagnosisCode) { <p>ICD: {{ diagnosis.diagnosisCode }}</p> }@if (diagnosis.notes) { <p class="review-note">{{ diagnosis.notes }}</p> }</article> } @empty { <p class="review-unrecorded">No diagnosis recorded</p> }</div></section>
+              </div>
+              @for (section of reviewAssessmentSections(); track section.title) {
+                <section class="review-card"><div class="review-section-heading"><h3><span aria-hidden="true" class="material-symbols-rounded">{{ reviewSectionIcon(section.title) }}</span>{{ section.title }}</h3><button type="button" [disabled]="saving() || finishing()" (click)="editReviewSection(reviewSectionStage(section.title))" [attr.aria-label]="'Edit ' + section.title">Edit</button></div><div class="review-narrative">@for (row of section.rows; track $index) { <div>@if (row.label) { <h4>{{ row.label }}</h4> }<p>{{ row.value }}</p>@if (row.details.length) { <div class="review-detail-tags">@for (detail of row.details; track $index) { <span>{{ detail }}</span> }</div> }</div> }</div></section>
+              }
+              <section class="review-card review-prescriptions"><div class="review-section-heading"><h3><span aria-hidden="true" class="material-symbols-rounded">medication</span>Prescription <span class="review-section-count">{{ clinicalForm().prescriptions.length }}</span></h3><button type="button" [disabled]="saving() || finishing()" (click)="editReviewSection('treatment')" aria-label="Edit prescription">Edit</button></div><div class="review-medicine-list">@for (medicine of clinicalForm().prescriptions; track $index) { <article class="review-medicine"><span class="review-medicine-number">{{ $index + 1 }}</span><div class="review-medicine-content"><div class="review-item-heading"><h4>{{ medicine.medicine }} @if (medicine.strength) { <span>{{ medicine.strength }}</span> }</h4><span class="review-badge">{{ medicine.dosageForm }}</span></div><dl class="review-medicine-details"><div><dt>Dose</dt><dd>{{ medicine.dosage }}</dd></div><div><dt>Frequency</dt><dd>{{ medicine.frequency }}</dd></div><div><dt>Route</dt><dd>{{ medicine.route }}</dd></div><div><dt>Duration</dt><dd>{{ medicine.duration }}{{ medicine.duration.trim().match('^[0-9]+$') ? ' days' : '' }}</dd></div><div><dt>Quantity</dt><dd>{{ medicine.quantity }}</dd></div></dl>@if (medicine.instructions) { <p class="review-medication-note"><strong>Instructions:</strong> {{ medicine.instructions }}</p> }@if (isAsNeededPrescription(medicine)) { <p class="review-medication-note"><strong>As needed:</strong> {{ medicine.prnReason }}</p> }</div></article> } @empty { <p class="review-unrecorded">No medicines prescribed</p> }</div></section>
+              @for (section of reviewTreatmentSections(); track section.title) {
+                <section class="review-card"><div class="review-section-heading"><h3><span aria-hidden="true" class="material-symbols-rounded">{{ reviewSectionIcon(section.title) }}</span>{{ section.title }}</h3><button type="button" [disabled]="saving() || finishing()" (click)="editReviewSection(reviewSectionStage(section.title))" [attr.aria-label]="'Edit ' + section.title">Edit</button></div><div class="review-narrative">@for (row of section.rows; track $index) { <div>@if (row.label) { <h4>{{ row.label }}</h4> }<p>{{ row.value }}</p>@if (row.details.length) { <div class="review-detail-tags">@for (detail of row.details; track $index) { <span>{{ detail }}</span> }</div> }</div> }</div></section>
+              }
+              <section class="review-card review-follow-up"><div class="review-section-heading"><h3><span aria-hidden="true" class="material-symbols-rounded">event_repeat</span>Follow-up plan</h3><button type="button" [disabled]="saving() || finishing()" (click)="editReviewSection('follow-up')" aria-label="Edit follow-up plan">Edit</button></div>@if (clinicalForm().followUp.followUpRequired) { <div class="review-follow-up-plan"><div class="review-follow-up-date"><span aria-hidden="true" class="material-symbols-rounded">calendar_month</span><div><small>Next review</small><strong>{{ clinicalForm().followUp.followUpDate | date:'dd MMM yyyy' }}</strong>@if (clinicalForm().followUp.followUpAfterDays) { <span>After {{ clinicalForm().followUp.followUpAfterDays }} days</span> }</div></div><dl><div><dt>Reason</dt><dd>{{ clinicalForm().followUp.reason || 'Not recorded' }}</dd></div><div><dt>Preferred doctor</dt><dd>{{ reviewFollowUpDoctor() }}</dd></div><div><dt>Appointment</dt><dd>{{ clinicalForm().followUp.createAppointment ? 'Create appointment on completion' : 'No automatic booking selected' }}</dd></div>@if (clinicalForm().followUp.appointmentTime && clinicalForm().followUp.createAppointment) { <div><dt>Time</dt><dd>{{ clinicalForm().followUp.appointmentTime }}</dd></div> }</dl></div>@if (clinicalForm().followUp.notes) { <p class="review-note">{{ clinicalForm().followUp.notes }}</p> } } @else { <p class="review-unrecorded">No follow-up planned for this visit</p>@if (clinicalForm().followUp.notes) { <p class="review-note">{{ clinicalForm().followUp.notes }}</p> } }</section>
+              <div class="review-completion-info"><span aria-hidden="true" class="material-symbols-rounded">info</span><p>Completing closes this clinical record, saves the follow-up plan, and prepares billing.</p></div>
+              @if (pendingCompletionLabs()) { <div class="review-pending-tests" role="alert"><div><strong>{{ pendingCompletionLabs() }} selected lab tests still need submission</strong><p>Submit these tests before completing the consultation.</p></div><button type="button" class="ac-btn ac-btn-secondary" [disabled]="saving() || finishing()" (click)="createLabOrder(visit)">Submit selected tests</button></div> }
+              @if (pharmacyIntegrationEnabled() && clinicalForm().prescriptions.length) { <label class="review-pharmacy-option"><input type="checkbox" [ngModel]="sendToPharmacyOnComplete()" (ngModelChange)="sendToPharmacyOnComplete.set($event)" [disabled]="saving() || finishing() || pharmacyConfigurationError()" /><span><strong>Send prescription to pharmacy</strong><small>Send these medicines before completing this consultation.</small></span></label> }
+            </div>
+            <footer class="review-footer"><p>{{ pendingCompletionLabs() ? 'Lab submission required before completion' : 'Confirm the clinical details before completing' }}</p><div><button type="button" class="ac-btn ac-btn-secondary" [disabled]="saving() || finishing()" (click)="reviewOpen.set(false)">Continue editing</button><button type="button" class="ac-btn ac-btn-primary" [disabled]="saving() || finishing() || pendingCompletionLabs() > 0" (click)="completeVisit()"><span aria-hidden="true" class="material-symbols-rounded">check_circle</span>{{ saving() || finishing() ? 'Saving…' : 'Complete Consultation' }}</button></div></footer>
           </section>
         </div>
       }
@@ -2768,6 +2784,104 @@ import { LabReport } from '../laboratory/laboratory.models';
     .quick-choice-row.compact button { font-size: 11px; padding: 5px 8px; min-height: 32px; }
     .complaint-picker { position: relative; }
     .complaint-picker .medicine-suggestions { top: 100%; max-height: 280px; }
+    /* Structured final review: fixed dialog chrome, one scrollable summary. */
+    .review-overlay .completion-review { width: min(1040px, 100%); height: min(920px, calc(100dvh - 48px)); max-height: calc(100dvh - 48px); padding: 0; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--ac-border); border-radius: 18px; box-shadow: 0 24px 80px #0f172a35; }
+    .review-header { flex: 0 0 auto; padding: 20px 24px; border-bottom: 1px solid var(--ac-border); background: linear-gradient(110deg, var(--ac-primary-light), var(--ac-surface) 70%); }
+    .review-heading { display: flex; align-items: center; gap: 14px; min-width: 0; }
+    .review-heading-icon { display: grid; place-items: center; width: 46px; height: 46px; flex: 0 0 46px; border-radius: 12px; color: var(--ac-primary); background: var(--ac-surface); border: 1px solid var(--ac-border); }
+    .review-heading .ac-eyebrow { font-size: 10px; margin: 0 0 5px; }
+    .review-header h2 { font-size: 22px; margin: 0; letter-spacing: -.02em; }
+    .review-heading p:last-child { margin: 5px 0 0; font-size: 12px; color: var(--ac-muted); }
+    .review-body { flex: 1; min-height: 0; padding: 22px 24px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; overscroll-behavior: contain; background: var(--ac-bg); }
+    .review-body > * { flex-shrink: 0; }
+    .review-patient { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; padding: 18px; background: var(--ac-surface); border: 1px solid var(--ac-border); border-left: 3px solid var(--ac-secondary, #7c3aed); border-radius: 12px; }
+    .review-patient-identity { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .review-avatar { display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 44px; border-radius: 50%; background: var(--ac-primary-light); color: var(--ac-primary); font-weight: 750; font-size: 18px; }
+    .review-patient h3 { font-size: 20px; margin: 0 0 5px; overflow-wrap: anywhere; }
+    .review-patient p { font-size: 12px; margin: 0; color: var(--ac-muted); }
+    .review-visit-details { display: grid; gap: 8px; margin: 0; font-size: 12px; }
+    .review-body dt { color: var(--ac-muted); font-size: 11px; margin-bottom: 4px; }
+    .review-body dd { margin: 0; overflow-wrap: anywhere; }
+    .review-allergy { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 7px; border-top: 1px solid var(--ac-border); padding-top: 12px; font-size: 12px; color: #9a3412; }
+    .review-allergy .material-symbols-rounded { font-size: 18px; }
+    .review-allergy.known-allergy { color: #be123c; }
+    .review-counts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .review-counts > span { display: flex; align-items: center; gap: 9px; padding: 10px 14px; border: 1px solid var(--ac-border); border-radius: 9px; background: var(--ac-surface); color: var(--ac-muted); font-size: 12px; }
+    .review-counts strong { font-size: 20px; color: var(--ac-primary); }
+    .review-card { padding: 18px; min-width: 0; border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-surface); }
+    .review-section-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid var(--ac-border); }
+    .review-section-heading h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; }
+    .review-section-heading h3 > .material-symbols-rounded { font-size: 19px; color: var(--ac-primary); }
+    .review-section-heading > button { min-height: 36px; padding: 5px 9px; border: 0; border-radius: 6px; background: var(--ac-primary-light); color: var(--ac-primary); font: inherit; font-size: 12px; cursor: pointer; }
+    .review-vitals-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 0; }
+    .review-vitals-grid > div { padding: 12px; background: var(--ac-bg); border-radius: 8px; }
+    .review-vitals-grid dt small { font-size: 10px; display: inline-block; margin-left: 3px; }
+    .review-vitals-grid dd { font-size: 19px; font-weight: 700; }
+    .review-vitals-grid .unrecorded dd { font-size: 12px; font-weight: 500; color: var(--ac-muted); }
+    .review-assessment-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .review-item-list { display: grid; gap: 12px; }
+    .review-item-list article + article { border-top: 1px solid var(--ac-border); padding-top: 12px; }
+    .review-item-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .review-item-heading strong { font-size: 14px; }
+    .review-item-list p { margin: 6px 0 0; font-size: 12px; color: var(--ac-muted); }
+    .review-badge, .review-section-count { padding: 3px 7px; border-radius: 5px; background: var(--ac-bg); color: var(--ac-muted); font-size: 10px; white-space: nowrap; }
+    .review-badge.primary { color: var(--ac-primary); background: var(--ac-primary-light); }
+    .review-narrative { display: grid; gap: 12px; }
+    .review-narrative h4 { margin: 0 0 5px; font-size: 12px; color: var(--ac-muted); }
+    .review-narrative p, .review-note { white-space: pre-line; overflow-wrap: anywhere; font-size: 13px; line-height: 1.7; margin: 0; }
+    .review-detail-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .review-detail-tags span { border: 1px solid var(--ac-border); border-radius: 5px; padding: 4px 7px; font-size: 11px; color: var(--ac-muted); }
+    .review-medicine-list { display: grid; gap: 12px; }
+    .review-medicine { display: flex; gap: 12px; padding: 14px; background: var(--ac-bg); border: 1px solid var(--ac-border); border-radius: 9px; }
+    .review-medicine-number { flex: 0 0 26px; height: 26px; display: grid; place-items: center; background: var(--ac-primary-light); color: var(--ac-primary); border-radius: 6px; font-size: 11px; }
+    .review-medicine-content { flex: 1; min-width: 0; }
+    .review-medicine h4 { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
+    .review-medicine h4 span { font-size: 13px; font-weight: 500; color: var(--ac-muted); }
+    .review-medicine-details { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin: 14px 0 0; font-size: 12px; }
+    .review-medication-note { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--ac-border); font-size: 12px; line-height: 1.6; white-space: pre-line; overflow-wrap: anywhere; }
+    .review-follow-up { border-left: 3px solid var(--ac-secondary, #7c3aed); }
+    .review-follow-up-plan { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin-bottom: 12px; }
+    .review-follow-up-date { display: flex; align-items: center; gap: 12px; padding: 14px; background: var(--ac-primary-light); border-radius: 9px; }
+    .review-follow-up-date > .material-symbols-rounded { color: var(--ac-primary); font-size: 28px; }
+    .review-follow-up-date > div { display: grid; gap: 5px; }
+    .review-follow-up-date small, .review-follow-up-date span { font-size: 11px; color: var(--ac-muted); }
+    .review-follow-up-date strong { font-size: 18px; }
+    .review-follow-up-plan dl { display: grid; gap: 10px; margin: 0; font-size: 12px; }
+    .review-unrecorded { margin: 0; font-size: 12px; color: var(--ac-muted); }
+    .review-completion-info { display: flex; gap: 8px; align-items: flex-start; color: var(--ac-muted); }
+    .review-completion-info .material-symbols-rounded { font-size: 18px; }
+    .review-completion-info p { margin: 0; font-size: 12px; line-height: 1.6; }
+    .review-pending-tests { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; padding: 16px; border: 1px solid #fcd34d; background: #fffbeb; border-radius: 10px; color: #92400e; font-size: 13px; }
+    .review-pending-tests p { margin: 5px 0 0; font-size: 12px; }
+    .review-pharmacy-option { display: flex; align-items: flex-start; gap: 10px; padding: 14px; border: 1px solid var(--ac-border); background: var(--ac-surface); border-radius: 9px; font-size: 13px; cursor: pointer; }
+    .review-pharmacy-option input { margin-top: 3px; }
+    .review-pharmacy-option small { display: block; margin-top: 5px; color: var(--ac-muted); font-size: 11px; }
+    .review-overlay .completion-review .review-footer { flex: 0 0 auto; position: static; padding: 16px 24px; border-top: 1px solid var(--ac-border); background: var(--ac-surface); }
+    .review-footer p { margin: 0; color: var(--ac-muted); font-size: 11px; }
+    .review-footer > div { display: flex; gap: 10px; }
+    @media (max-width: 700px) {
+      .review-overlay { padding: 0; }
+      .review-overlay .completion-review { width: 100%; height: 100dvh; max-height: 100dvh; border: 0; border-radius: 0; }
+      .review-header { padding: 14px; }
+      .review-heading { gap: 10px; }
+      .review-heading-icon { width: 36px; height: 36px; flex-basis: 36px; }
+      .review-header h2 { font-size: 18px; }
+      .review-heading p:last-child { display: none; }
+      .review-header > button { padding: 8px; font-size: 11px; }
+      .review-body { padding: 14px; gap: 12px; }
+      .review-patient { grid-template-columns: minmax(0, 1fr); padding: 14px; }
+      .review-patient h3 { font-size: 18px; }
+      .review-visit-details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .review-counts, .review-vitals-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .review-assessment-grid, .review-follow-up-plan { grid-template-columns: minmax(0, 1fr); }
+      .review-card { padding: 14px; }
+      .review-medicine-details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .review-medicine { padding: 12px; gap: 8px; }
+      .review-overlay .completion-review .review-footer { padding: 12px 14px; }
+      .review-footer > p { display: none; }
+      .review-footer > div { width: 100%; gap: 8px; }
+      .review-footer .ac-btn { flex: 1; padding: 10px 7px; font-size: 11px; }
+    }
     /* Focused consultation: one stage at a time, with patient context always close. */
     .opd-page.consulting { overflow: visible; }
     .consulting > .page-header .page-desc, .consulting > .stats-row { display: none; }
@@ -2929,6 +3043,27 @@ export class OpdPageComponent implements OnInit {
   protected readonly completedPrescription = signal<PrescriptionPreview | null>(null);
   protected readonly completionSummary = computed(() => buildCompletionSummary(composeClinicalNotes(this.clinicalForm(), this.labTests())));
   protected readonly draftSaving = signal(false);
+  protected readonly isAsNeededPrescription = isAsNeededPrescription;
+  protected readonly reviewFollowUpDoctor = computed(() => {
+    const id = this.clinicalForm().followUp.preferredDoctorId;
+    return id ? this.doctors().find(doctor => doctor.doctorGuid === id)?.fullName || 'Selected doctor unavailable' : this.selectedVisit()?.doctorName || 'Not selected';
+  });
+  protected readonly reviewNarrativeSections = computed(() => buildHistorySections(composeClinicalNotes(this.clinicalForm(), this.labTests())).filter(section => !['Vitals', 'Chief Complaints', 'Diagnosis', 'Prescription', 'Follow-up'].includes(section.title)));
+  protected readonly reviewAssessmentSections = computed(() => this.reviewNarrativeSections().filter(section => this.reviewSectionStage(section.title) === 'assessment'));
+  protected readonly reviewTreatmentSections = computed(() => this.reviewNarrativeSections().filter(section => this.reviewSectionStage(section.title) === 'treatment'));
+  protected readonly reviewVitals = computed(() => {
+    const vitals = this.clinicalForm().vitals;
+    return [
+      { label: 'Temperature', unit: '°F', value: vitals.temperature },
+      { label: 'Blood pressure', unit: 'mmHg', value: vitals.bloodPressure },
+      { label: 'Pulse', unit: 'bpm', value: vitals.pulseRate },
+      { label: 'Respiratory rate', unit: '/ min', value: vitals.respiratoryRate },
+      { label: 'SpO₂', unit: '%', value: vitals.spo2 },
+      { label: 'Height', unit: 'cm', value: vitals.height },
+      { label: 'Weight', unit: 'kg', value: vitals.weight },
+      { label: 'BMI', unit: '', value: this.bmiValue() }
+    ];
+  });
   protected readonly pendingCompletionLabs = computed(() => this.clinicalForm().labOrders.filter(item => !item.labOrderId).length);
   private readonly destroyRef = inject(DestroyRef);
   private draftTimer: ReturnType<typeof setTimeout> | undefined;
@@ -3940,6 +4075,20 @@ export class OpdPageComponent implements OnInit {
   protected openAdmissionWorkspace(visit: OpdVisitVm): void {
     persistEncounterDraftState(visit, this.activeEncounterSection(), this.clinicalForm());
     void this.router.navigate(['/ipd'], { queryParams: { patientGuid: visit.appointment.patientId, action: 'admit', consultationId: visit.consultation?.id } });
+  }
+
+  protected editReviewSection(stage: string): void {
+    if (this.saving() || this.finishing()) return;
+    this.reviewOpen.set(false);
+    this.jumpToConsultation(stage);
+  }
+
+  protected reviewSectionStage(title: string): string {
+    return ['Prescription Investigations', 'Lab Orders', 'Procedures', 'Advice', 'Diet Advice'].includes(title) ? 'treatment' : 'assessment';
+  }
+
+  protected reviewSectionIcon(title: string): string {
+    return ({ 'Clinical History': 'history', 'Examination': 'stethoscope', 'Prescription Investigations': 'radiology', 'Lab Orders': 'lab_research', 'Procedures': 'medical_services', 'Advice': 'tips_and_updates', 'Diet Advice': 'nutrition', 'Clinical Notes': 'clinical_notes' } as Record<string, string>)[title] || 'clinical_notes';
   }
 
   protected async openCompletionReview(): Promise<void> {

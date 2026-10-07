@@ -329,9 +329,39 @@ const server = http.createServer((req, res) => {
     assert.ok(await page.locator('input[name="followUpDate"]').inputValue());
     await page.locator('[aria-label="Follow-up reason"]').getByRole('button', { name: 'Medication review', exact: true }).click();
     assert.equal(await page.locator('input[name="followUpReason"]').inputValue(), 'Medication review');
+    while (await page.locator('.toast-close').count()) await page.locator('.toast-close').first().click();
     await page.getByRole('button', { name: 'Review & Complete', exact: true }).click();
     await page.getByRole('dialog', { name: 'Review consultation' }).waitFor();
     assert.equal(await page.getByRole('dialog').getByText('Review of symptoms', { exact: false }).count() > 0, true);
+    const reviewDialog = page.getByRole('dialog', { name: 'Review consultation' });
+    assert.equal(await reviewDialog.locator('.review-vitals-grid > div').count(), 8, 'review includes every vital with explicit missing values');
+    assert.equal(await reviewDialog.locator('.review-medicine').count(), 1);
+    assert.match(await reviewDialog.locator('.review-medicine-details').innerText(), /Dose[\s\S]*Frequency[\s\S]*Route[\s\S]*Duration[\s\S]*Quantity/);
+    assert.match(await reviewDialog.locator('.review-medication-note').last().innerText(), /Synthetic recorded indication/);
+    assert.match(await reviewDialog.locator('.review-follow-up').innerText(), /Medication review/);
+    assert.match(await reviewDialog.locator('.review-vitals-grid').innerText(), /Not recorded/);
+    for (const width of [1440, 768, 390, 360]) {
+      await page.setViewportSize({ width, height: 900 });
+      await reviewDialog.locator('.review-body').evaluate(element => { element.scrollTop = 0; });
+      await page.screenshot({ path: path.join(artifacts, 'review-' + width + '.png') });
+      assert.equal(await reviewDialog.evaluate(element => element.scrollWidth > element.clientWidth + 2), false, 'review dialog fits width ' + width);
+      const headerBefore = await reviewDialog.locator('.review-header').boundingBox();
+      await reviewDialog.locator('.review-follow-up').scrollIntoViewIfNeeded();
+      const headerAfter = await reviewDialog.locator('.review-header').boundingBox();
+      assert.ok(Math.abs(headerBefore.y - headerAfter.y) < 2, 'dialog title stays visible during review');
+      const footer = await reviewDialog.locator('.review-footer').boundingBox();
+      const body = await reviewDialog.locator('.review-body').boundingBox();
+      assert.ok(footer.y >= body.y + body.height - 2, 'actions do not cover the review content');
+      assert.equal(await reviewDialog.locator('.review-body').evaluate(element => element.scrollWidth > element.clientWidth + 2), false, 'summary content fits width ' + width);
+      await page.screenshot({ path: path.join(artifacts, 'review-plan-' + width + '.png') });
+    }
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await reviewDialog.getByRole('button', { name: 'Edit prescription', exact: true }).click();
+    assert.equal(await page.locator('#opd-treatment').isVisible(), true, 'section editing returns to the correct stage');
+    assert.equal(await page.locator('.medicine-table-row').count(), 1, 'editing keeps the prescription');
+    await page.keyboard.press('Control+Enter');
+    await page.getByRole('dialog', { name: 'Review consultation' }).waitFor();
+    await page.locator('.review-body').evaluate(element => { element.scrollTop = 0; });
     await page.screenshot({ path: path.join(artifacts, 'review-desktop.png') });
     await page.getByRole('button', { name: 'Back to editing', exact: true }).click();
     // A conflicting save must preserve the editor and prevent finishing.
