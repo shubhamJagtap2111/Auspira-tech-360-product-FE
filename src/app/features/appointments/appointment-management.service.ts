@@ -31,6 +31,20 @@ export class AppointmentManagementService {
     return firstValueFrom(this.api.get<AppointmentApiResponse<AppointmentQueueRecord[]>>(`/queue?pageNumber=${pageNumber}&pageSize=${pageSize}`));
   }
 
+  getQueueForAppointment(appointmentId: string): Promise<AppointmentApiResponse<AppointmentQueueRecord | null>> {
+    return firstValueFrom(this.api.get<AppointmentApiResponse<AppointmentQueueRecord | null>>(`/queue/appointment/${appointmentId}`));
+  }
+
+  async listAllQueues(): Promise<AppointmentApiResponse<AppointmentQueueRecord[]>> {
+    const records: AppointmentQueueRecord[] = [];
+    for (let page = 1; ; page++) {
+      const response = await this.listQueue(page, 100);
+      if (!response.success || !response.data) return response;
+      records.push(...response.data);
+      if (response.data.length < 100) return { ...response, data: records };
+    }
+  }
+
   createQueue(form: AppointmentCheckInForm): Promise<AppointmentApiResponse<AppointmentQueueRecord>> {
     return firstValueFrom(this.api.post<AppointmentApiResponse<AppointmentQueueRecord>>('/queue', createQueuePayload(form)));
   }

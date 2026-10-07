@@ -462,10 +462,10 @@ import { LabReport } from '../laboratory/laboratory.models';
                                       autocomplete="off"
                                       aria-describedby="opd-medicine-catalog-help"
                                     />
-                                    <small id="opd-medicine-catalog-help" class="medicine-catalog-help">{{ !pharmacyIntegrationEnabled() ? 'Enter the medicine name. Pharmacy integration is switched off.' : clinicalForm().prescriptionDraft.medicineId ? 'Hospital catalog medicine selected.' : 'Choose a medicine from the hospital catalog suggestions.' }}</small>
+                                    <small id="opd-medicine-catalog-help" class="medicine-catalog-help">{{ clinicalForm().prescriptionDraft.medicineId ? 'Hospital catalog medicine selected.' : pharmacyIntegrationEnabled() ? 'Choose a medicine from the hospital catalog suggestions.' : 'Choose a pharmacy medicine suggestion or enter your own medicine name. Stock availability does not limit suggestions.' }}</small>
                                     @if (pharmacyConfigurationError()) {
                                       <small class="medicine-validation-error" role="alert">Unable to load prescribing settings. <button type="button" (click)="reload()">Retry settings</button></small>
-                                    } @else if (pharmacyIntegrationEnabled() && medicineCatalogError()) {
+                                    } @else if (medicineCatalogError()) {
                                       <small class="medicine-validation-error" role="alert">Medicine catalog could not be loaded. <button type="button" (click)="refreshMedicineCatalog()">Retry catalog</button></small>
                                     } @else if (pharmacyIntegrationEnabled() && !clinicalForm().prescriptionDraft.medicineId && clinicalForm().prescriptionDraft.medicine.trim().length >= 2 && !medicineSearchResults().length) {
                                       <small class="medicine-validation-error">No matching catalog medicine. Try another name or ask Pharmacy to update the catalog.</small>
@@ -2942,7 +2942,6 @@ export class OpdPageComponent implements OnInit {
   ]);
 
   protected readonly medicineSearchResults = computed<MedicineSuggestion[]>(() => {
-    if (!this.pharmacyIntegrationEnabled()) return [];
     if (this.clinicalForm().prescriptionDraft.medicineId) return [];
     const query = this.clinicalForm().prescriptionDraft.medicine.trim();
     return findMedicineSuggestions(query, this.medicines());
@@ -3183,9 +3182,7 @@ export class OpdPageComponent implements OnInit {
         this.loadAll(page => this.opdService.listConsultations(page, 100)),
         this.loadAll(page => this.opdService.listFollowUps(page, 100)),
         this.opdService.listLabTests(1, 100),
-        configured && this.pharmacyIntegrationEnabled()
-          ? this.loadAll(page => this.opdService.listMedicines(page, 100)).catch(() => ({ success: false, data: null }))
-          : Promise.resolve({ success: true, data: [] })
+        this.loadAll(page => this.opdService.listMedicines(page, 100)).catch(() => ({ success: false, data: null }))
       ]);
 
       if (appointments.success && appointments.data) {
@@ -3719,7 +3716,6 @@ export class OpdPageComponent implements OnInit {
   }
 
   protected async refreshMedicineCatalog(): Promise<void> {
-    if (!this.pharmacyIntegrationEnabled() || this.pharmacyConfigurationError()) return;
     try {
       const response = await this.loadAll(page => this.opdService.listMedicines(page, 100));
       if (!response.success || !response.data) throw new Error('Catalog unavailable');
@@ -6575,20 +6571,21 @@ function findMedicineSuggestions(query: string, medicines: OpdMedicineRecord[]):
   const catalog = medicines.map(toMedicineSuggestion);
   const merged = dedupeMedicineSuggestions(catalog.filter(item => item.id));
   return merged
-    .filter(item => normalizeSearchText([item.label, item.name, item.strength, item.form].join(' ')).includes(normalized))
-    .slice(0, 8);
+    .filter(item => normalizeSearchText([item.label, item.name, item.strength, item.form].join(' ')).includes(normalized));
 }
 
 function toMedicineSuggestion(record: OpdMedicineRecord): MedicineSuggestion {
-  const label = [record.name, record.unit].filter(Boolean).join(' ').trim() || record.name;
-  const parsed = parseMedicineLabel(label);
+  const parsed = parseMedicineLabel([record.name, record.unit].filter(Boolean).join(' '));
+  const strength = record.strength?.trim() || parsed.strength;
+  const form = record.dosageForm?.trim() || parsed.form || record.unit || '';
+  const label = [record.name, record.strength?.trim(), record.dosageForm?.trim()].filter(Boolean).join(' ').trim();
   return {
     key: record.id,
     id: record.id,
     label,
-    name: parsed.name || record.name,
-    strength: parsed.strength,
-    form: parsed.form || record.unit || '',
+    name: record.name,
+    strength,
+    form,
     formularyStatus: record.formularyStatus,
     approvalRequired: record.approvalRequired,
     restrictionReason: record.restrictionReason

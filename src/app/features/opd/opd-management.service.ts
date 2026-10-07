@@ -56,7 +56,7 @@ export class OpdManagementService {
   }
 
   listMedicines(pageNumber = 1, pageSize = 100): Promise<OpdApiResponse<OpdMedicineRecord[]>> {
-    return firstValueFrom(this.api.get<OpdApiResponse<OpdMedicineRecord[]>>(`/pharmacy/prescribing-catalog?pageNumber=${pageNumber}&pageSize=${pageSize}`));
+    return firstValueFrom(this.api.get<OpdApiResponse<OpdMedicineRecord[]>>(`/opd/medicine-catalog?pageNumber=${pageNumber}&pageSize=${pageSize}`));
   }
 
   checkDrugInteractions(medicineIds: string[]): Promise<OpdApiResponse<OpdDrugInteractionAlert[]>> {

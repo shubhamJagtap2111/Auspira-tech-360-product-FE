@@ -65,7 +65,7 @@ const server = http.createServer((req, res) => {
         configuredIntegration = request.postDataJSON().settings.find(setting => setting.settingKey === 'OPD.PharmacyIntegration.Enabled').settingValue === 'true';
         data = [integrationSetting()];
       }
-      else if (p === '/pharmacy/prescribing-catalog') data = [{ id: '60000000-0000-0000-0000-000000000001', name: 'Synthetic medicine 500mg Tablet', unit: 'Tablet', genericName: 'Synthetic medicine', salePrice: 0 }];
+      else if (p === '/opd/medicine-catalog') data = [{ id: '60000000-0000-0000-0000-000000000001', name: 'Synthetic medicine', strength: '500 mg', dosageForm: 'Tablet', unit: 'Strip', genericName: 'Synthetic medicine' }];
       else if (p === '/pharmacy/allergies/check' || p === '/pharmacy/interactions/check') data = [];
       else if (p === '/administration/hospital') data = { hospitalName: 'OPD Test Hospital' };
       else if (p === '/patients') data = { patients: [patient], totalCount: 1, pageNumber: 1, pageSize: 100, stats: {} };
@@ -181,8 +181,9 @@ const server = http.createServer((req, res) => {
       el.addEventListener('pointerdown', event => event.stopPropagation());
       el.addEventListener('click', event => event.stopPropagation());
     });
-    for (const width of pharmacyEnabled ? [360,390,768,1024,1366,1920] : []) {
+    for (const width of [360,390,768,1024,1366,1920]) {
       await page.setViewportSize({width,height:900});
+      await medicineInput.fill('');
       await medicineInput.fill('Synthetic medicine');
       await page.locator('.medicine-suggestions').waitFor();
       if (width <= 1024) await outsideHeading.tap(); else await outsideHeading.click();
@@ -200,6 +201,8 @@ const server = http.createServer((req, res) => {
       await page.locator('.medicine-suggestions button').click();
       await page.locator('.medicine-suggestions').waitFor({state:'hidden'});
       assert.equal(await page.locator('#opd-medicine-catalog-help').innerText(), 'Hospital catalog medicine selected.');
+      assert.equal(await page.locator('input[name="medicineStrength"]').inputValue(), '500 mg');
+      assert.equal(await page.locator('input[name="dosageForm"]').inputValue(), 'Tablet');
     }
     await page.setViewportSize({width:1440,height:1000});
     // Fully filled text still needs a real catalog selection. Failed Add keeps the editor.
@@ -214,7 +217,7 @@ const server = http.createServer((req, res) => {
       await page.getByRole('button', { name: 'Add Medicine', exact: true }).click();
       await page.getByText('Unknown medicine: Catalog medicine selection.', { exact: true }).waitFor();
     } else {
-      assert.match(await page.locator('#opd-medicine-catalog-help').innerText(), /integration is switched off/);
+      assert.match(await page.locator('#opd-medicine-catalog-help').innerText(), /suggestion or enter your own medicine name/);
     }
     assert.equal(await page.locator('.medicine-table-row').count(), 0);
     assert.equal(await page.locator('input[name="medicine"]').inputValue(), 'Unknown medicine');

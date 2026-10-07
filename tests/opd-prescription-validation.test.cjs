@@ -14,6 +14,8 @@ const component = ast.statements.find(n => ts.isClassDeclaration(n) && n.name?.t
 const names = ['validateCompletion', 'validatePrescriptionDetails', 'addPrescriptionItem', 'updateMedicineSearch', 'selectMedicineSuggestion'];
 const methods = component.members.filter(n => ts.isMethodDeclaration(n) && names.includes(n.name.getText(ast))).map(n => n.getText(ast));
 const functions = ast.statements.filter(ts.isFunctionDeclaration).map(n => n.getText(ast));
+const medicineForms = ast.statements.find(n => ts.isVariableStatement(n) && n.declarationList.declarations.some(d => d.name.getText(ast) === 'medicineForms'));
+vm.runInContext(compile(medicineForms.getText(ast)), context);
 vm.runInContext(compile(`${functions.join('\n')}\nclass Harness {${methods.join('\n')}}\nglobalThis.Harness = Harness;globalThis.findSuggestions = findMedicineSuggestions;`), context);
 const valid = { medicineId: 'catalog-1', medicine: 'Test medicine', dosage: '1 tablet', route: 'Oral', frequency: 'Twice daily', duration: '5 Days', quantity: '10', isPrn: false, prnReason: '' };
 const signal = initial => { let value = initial; const read = () => value; read.update = fn => { value = fn(value); }; read.set = next => { value = next; }; return read; };
@@ -78,6 +80,25 @@ test('an empty catalog never offers unmapped fallback suggestions', () => {
   const { h } = setup();
   h.selectMedicineSuggestion({ id: null, name: 'Unmapped fallback' });
   assert.equal(h.clinicalForm().prescriptionDraft.medicineId, valid.medicineId);
+});
+
+test('medicine suggestions use pharmacy strength and form without stock or quantity requirements', () => {
+  const rows = Array.from({ length: 12 }, (_, index) => ({ id: `medicine-${index}`, name: `Paracetamol brand ${index}`,
+    strength: '500 mg', dosageForm: 'Tablet', unit: 'Strip', stockOnHand: 0 }));
+  const suggestions = context.findSuggestions('para', rows);
+  assert.equal(suggestions.length, 12, 'all matching pharmacy names are available');
+  assert.equal(suggestions[0].strength, '500 mg');
+  assert.equal(suggestions[0].form, 'Tablet', 'dosage form is read from product details rather than pack unit');
+  const { h } = setup([], { dosage: 'Doctor dose', quantity: '7', duration: '3 days' });
+  h.pharmacyIntegrationEnabled.set(false);
+  h.selectMedicineSuggestion(suggestions[0]);
+  const draft = h.clinicalForm().prescriptionDraft;
+  assert.equal(draft.medicine, rows[0].name);
+  assert.equal(draft.strength, '500 mg');
+  assert.equal(draft.dosageForm, 'Tablet');
+  assert.equal(draft.quantity, '7');
+  assert.equal(draft.dosage, 'Doctor dose');
+  assert.equal(draft.duration, '3 days');
 });
 test('duration and quantity reject negative, range, and malformed values without stripping signs', () => {
   for (const value of ['-5', '0', '1.5 days', '5-7 days', '1 week', 'abc5']) assert.equal(helpers.parsePrescriptionDuration(value), null, value);

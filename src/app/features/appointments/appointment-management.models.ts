@@ -40,6 +40,8 @@ export interface AppointmentForm {
 }
 
 export interface AppointmentQueueRecord {
+  appointmentStatusCode?: string;
+  alreadyQueued?: boolean;
   id: string;
   appointmentId: string;
   queueNo: number;

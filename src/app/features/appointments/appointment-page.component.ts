@@ -1,6 +1,6 @@
 import { appointmentCalendarDates, calendarDateKey, CalendarPeriod, shiftAppointmentCalendar } from './appointment-calendar';
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, Injector, OnDestroy, OnInit, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { BranchContextService } from '../../core/context/branch-context.service';
@@ -137,7 +137,7 @@ import { AppointmentManagementService } from './appointment-management.service';
                     @for (appointment of selectedDayAppointments(); track appointment.id) {
                       <article class="agenda-appointment" [class.selected]="selectedAppointment()?.id === appointment.id">
                         <button class="agenda-open" type="button" (click)="selectAppointment(appointment)"><span class="agenda-time">{{ formatTime(appointment.startsAt) }}</span><span class="agenda-patient"><strong>{{ appointment.patientName }}</strong><small>{{ appointment.patientMrn }} · {{ appointment.displayAppointmentType }}</small><span>{{ appointment.doctorName }}</span><small>{{ appointment.doctorDepartment }}</small></span><span class="material-symbols-rounded">chevron_right</span></button>
-                        <div class="agenda-card-footer"><span class="status-badge" [ngClass]="statusClass(appointment.statusCode)">{{ statusLabel(appointment.statusCode) }}</span>@if (canCheckIn(appointment)) { <button class="agenda-checkin" type="button" [disabled]="checkingIn()" (click)="openCheckIn(appointment)">Check in <span class="material-symbols-rounded">arrow_forward</span></button> }</div>
+                        <div class="agenda-card-footer"><span class="status-badge" [ngClass]="statusClass(appointment.statusCode)">{{ statusLabel(appointment.statusCode) }}</span>@if (canManageCheckIn(appointment)) { <button class="agenda-checkin" type="button" [disabled]="checkingIn()" (click)="openCheckIn(appointment)">{{ checkInActionLabel(appointment) }} <span class="material-symbols-rounded">arrow_forward</span></button> }</div>
                       </article>
                     } @empty {
                       <div class="agenda-empty"><span class="material-symbols-rounded">event_available</span><h4>No appointments{{ activeFilterCount() || searchQuery || doctorFilter ? ' match' : ' yet' }}</h4><p>{{ activeFilterCount() || searchQuery || doctorFilter ? 'Try another date or clear your filters.' : 'A clear day. Book an appointment to add it to this schedule.' }}</p>@if (activeFilterCount() || searchQuery || doctorFilter) { <button class="filter-toggle" (click)="clearCalendarFilters()">Clear filters</button> }</div>
@@ -187,7 +187,7 @@ import { AppointmentManagementService } from './appointment-management.service';
                               <button class="tbl-btn" type="button" title="Details" (click)="selectAppointment(appointment)">
                                 <span class="material-symbols-rounded">visibility</span>
                               </button>
-                              <button class="tbl-btn" type="button" title="Check-In" [disabled]="!canCheckIn(appointment)" (click)="openCheckIn(appointment)">
+                              <button class="tbl-btn" type="button" [title]="checkInActionLabel(appointment)" [disabled]="checkingIn() || !canManageCheckIn(appointment)" (click)="openCheckIn(appointment)">
                                 <span class="material-symbols-rounded">how_to_reg</span>
                               </button>
                               <button class="tbl-btn" type="button" title="Edit" (click)="openEdit(appointment)">
@@ -218,11 +218,11 @@ import { AppointmentManagementService } from './appointment-management.service';
           }
 
           @if (selectedAppointment(); as appointment) {
-            <aside class="details-panel">
+            <aside #appointmentDetails class="details-panel" tabindex="-1" aria-labelledby="appointment-details-heading">
               <div class="details-head">
                 <div>
                   <p class="ac-eyebrow">Appointment details</p>
-                  <h2>{{ appointment.patientName }}</h2>
+                  <h2 id="appointment-details-heading">{{ appointment.patientName }}</h2>
                 </div>
                 <button class="icon-btn" type="button" title="Close details" (click)="selectedAppointment.set(null)">
                   <span class="material-symbols-rounded">close</span>
@@ -250,9 +250,9 @@ import { AppointmentManagementService } from './appointment-management.service';
                 <span class="span-2"><small>Notes</small><strong>{{ appointment.notes || '-' }}</strong></span>
               </div>
               <div class="details-actions">
-                <button class="ac-btn ac-btn-primary" type="button" [disabled]="checkingIn() || !canCheckIn(appointment)" (click)="openCheckIn(appointment)">
+                <button class="ac-btn ac-btn-primary" type="button" [disabled]="checkingIn() || !canManageCheckIn(appointment)" (click)="openCheckIn(appointment)">
                   <span class="material-symbols-rounded">how_to_reg</span>
-                  Check-In
+                  {{ checkInActionLabel(appointment) }}
                 </button>
                 <button class="ac-btn ac-btn-secondary" type="button" (click)="openEdit(appointment)">
                   <span class="material-symbols-rounded">edit</span>
@@ -365,7 +365,7 @@ import { AppointmentManagementService } from './appointment-management.service';
         <ac-admin-drawer
           [open]="checkInDrawerOpen()"
           icon="how_to_reg"
-          eyebrow="Check-In Patient"
+          [eyebrow]="checkInForm().queueId ? 'Update Check-In' : 'Check-In Patient'"
           [title]="appointment.patientName"
           (closed)="closeCheckInDrawer()">
           <span drawer-summary class="ac-admin-pill">
@@ -398,12 +398,21 @@ import { AppointmentManagementService } from './appointment-management.service';
                 <div class="checkin-progress">
                   <span class="material-symbols-rounded spin">progress_activity</span>
                   <div>
-                    <strong>Adding patient to doctor queue</strong>
+                    <strong>{{ checkInForm().queueId ? 'Updating check-in' : 'Adding patient to doctor queue' }}</strong>
                     <small>The check-in API is processing. Please wait a few seconds.</small>
                   </div>
                 </div>
               }
 
+              @if (checkInForm().queueId) {
+                <div class="checkin-progress" role="status">
+                  <span class="material-symbols-rounded" aria-hidden="true">check_circle</span>
+                  <div>
+                    <strong>Already added to doctor queue</strong>
+                    <small>You can update arrival, priority and notes without adding another queue entry.</small>
+                  </div>
+                </div>
+              }
               <div class="queue-ticket">
                 <div>
                   <small>Token Number</small>
@@ -443,7 +452,7 @@ import { AppointmentManagementService } from './appointment-management.service';
           <button drawer-actions class="ac-btn ac-btn-secondary" type="button" [disabled]="checkingIn()" (click)="closeCheckInDrawer()">Cancel</button>
           <button drawer-actions class="ac-btn ac-btn-primary" type="button" [disabled]="checkingIn() || !canSubmitCheckIn()" (click)="saveCheckIn()">
             <span class="material-symbols-rounded" [class.spin]="checkingIn()">{{ checkingIn() ? 'progress_activity' : 'queue' }}</span>
-            {{ checkingIn() ? 'Adding...' : 'Add to Doctor Queue' }}
+            {{ checkingIn() ? 'Saving...' : checkInForm().queueId ? 'Update check-in' : 'Add to Doctor Queue' }}
           </button>
         </ac-admin-drawer>
       }
@@ -528,7 +537,7 @@ import { AppointmentManagementService } from './appointment-management.service';
     .status-completed { border-left-color: #10b981; color: #047857; background: #ecfdf5; }
     .status-cancelled { border-left-color: #ef4444; color: #b91c1c; background: #fef2f2; }
     .status-no-show { border-left-color: #f59e0b; color: #b45309; background: #fffbeb; }
-    .details-panel { border: 1px solid color-mix(in srgb, var(--ac-primary) 20%, var(--ac-border)); border-radius: 12px; padding: 16px; background: linear-gradient(135deg, color-mix(in srgb, var(--ac-primary) 6%, var(--ac-surface)), var(--ac-surface)); }
+    .details-panel { scroll-margin-top: 12px; border: 1px solid color-mix(in srgb, var(--ac-primary) 20%, var(--ac-border)); border-radius: 12px; padding: 16px; background: linear-gradient(135deg, color-mix(in srgb, var(--ac-primary) 6%, var(--ac-surface)), var(--ac-surface)); }
     .details-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 14px; }
     .details-head h2 { margin: 0; color: var(--ac-text); }
     .details-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -662,6 +671,8 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
   protected readonly doctors = signal<DoctorSummary[]>([]);
   protected readonly selectedDoctorProfile = signal<DoctorProfile | null>(null);
   protected readonly selectedAppointment = signal<AppointmentVm | null>(null);
+  private readonly appointmentDetails = viewChild<ElementRef<HTMLElement>>('appointmentDetails');
+  private readonly renderInjector = inject(Injector);
   protected readonly checkInAppointment = signal<AppointmentVm | null>(null);
   protected readonly initialLoading = signal(true);
   protected readonly saving = signal(false);
@@ -836,6 +847,9 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
         const doctorDepartment = appointment.departmentName?.trim() || doctor?.departmentName || '-';
         return {
           ...appointment,
+          statusCode: queue && ['BOOKED', 'SCHEDULED', 'CONFIRMED'].includes(appointment.statusCode.toUpperCase())
+            ? (['WAITING', 'CHECKED_IN'].includes(queue.statusCode.toUpperCase()) ? 'CHECKED_IN' : queue.statusCode)
+            : appointment.statusCode,
           appointmentNo: appointment.appointmentNo || derivedAppointmentNo(appointment.id),
           appointmentType: appointment.appointmentType || 'NEW_CONSULTATION',
           branchName: appointment.branchName || doctor?.branchName || 'Main Branch',
@@ -979,7 +993,7 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
     try {
       const [appointments, queues, patients, doctors] = await Promise.all([
         this.appointmentService.list(1, 100),
-        this.appointmentService.listQueue(1, 100),
+        this.appointmentService.listAllQueues(),
         this.patientService.search('', '', '', '', '', 1, 100),
         this.doctorService.search({ searchText: '', departmentName: '', specializationName: '', branchName: '', employmentType: '', statusCode: '', pageNumber: 1, pageSize: 100 }),
         this.branchContext.loadBranches()
@@ -1097,20 +1111,48 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
 
   protected selectAppointment(appointment: AppointmentVm): void {
     this.selectedAppointment.set(appointment);
+    afterNextRender(() => {
+      if (this.selectedAppointment()?.id !== appointment.id) return;
+      const panel = this.appointmentDetails()?.nativeElement;
+      if (!panel) return;
+      panel.focus({ preventScroll: true });
+      panel.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+        block: 'start'
+      });
+    }, { injector: this.renderInjector });
   }
 
-  protected openCheckIn(appointment: AppointmentVm): void {
+  protected async openCheckIn(appointment: AppointmentVm): Promise<void> {
     if (this.checkingIn()) {
       return;
     }
 
-    if (!this.canCheckIn(appointment)) {
+    if (!this.canManageCheckIn(appointment)) {
       return;
     }
 
-    this.checkInAppointment.set(appointment);
-    this.checkInForm.set(createCheckInForm(appointment, this.queues(), this.appointments()));
-    this.checkInDrawerOpen.set(true);
+    this.checkingIn.set(true);
+    try {
+      const response = await this.appointmentService.getQueueForAppointment(appointment.id);
+      if (!response.success) {
+        this.toast.error('Unable to verify check-in', getApiErrorMessage(response, 'Please refresh and try again.'));
+        return;
+      }
+      if (response.data) this.upsertQueue(response.data);
+      const current = { ...appointment, queue: response.data };
+      if (!this.canManageCheckIn(current)) {
+        this.toast.warning('Check-in unavailable', 'The patient is already in consultation or the visit is closed.');
+        return;
+      }
+      this.checkInAppointment.set(current);
+      this.checkInForm.set(createCheckInForm(current, response.data ? [response.data, ...this.queues()] : this.queues(), this.appointments()));
+      this.checkInDrawerOpen.set(true);
+    } catch {
+      this.toast.error('Unable to verify check-in', 'Please refresh and try again.');
+    } finally {
+      this.checkingIn.set(false);
+    }
   }
 
   protected closeCheckInDrawer(): void {
@@ -1135,13 +1177,14 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
   }
 
   protected async saveCheckIn(): Promise<void> {
+    if (this.checkingIn()) return;
     const appointment = this.checkInAppointment();
     if (!appointment || !this.canSubmitCheckIn()) {
       this.toast.warning('Missing check-in details', 'Valid arrival date, arrival time, and token number are required.');
       return;
     }
 
-    this.toast.info('Check-in started', 'Adding the patient to the doctor queue. This may take a few seconds.');
+    let saved = false;
     this.checkingIn.set(true);
     try {
       const form = this.checkInForm();
@@ -1154,18 +1197,16 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
         return;
       }
 
-      const appointmentResponse = await this.appointmentService.updateStatus(appointment, 'CHECKED_IN');
-      if (!appointmentResponse.success || !appointmentResponse.data) {
-        this.toast.error('Unable to check in appointment', getApiErrorMessage(appointmentResponse, 'Appointment API failed'));
-        return;
-      }
-
       this.upsertQueue(queueResponse.data);
-      this.upsertAppointment(appointmentResponse.data);
-      this.closeCheckInDrawer();
-      this.toast.success('Patient checked in', `${queueResponse.data.tokenNumber} added to doctor queue.`);
+      this.checkInForm.update(current => ({ ...current, queueId: queueResponse.data!.id }));
+      this.upsertAppointment({ ...appointment, statusCode: queueResponse.data.appointmentStatusCode ?? 'CHECKED_IN' });
+      saved = true;
+      this.toast.success(form.queueId ? 'Check-in updated' : queueResponse.data.alreadyQueued ? 'Already added to doctor queue' : 'Patient checked in', `${queueResponse.data.tokenNumber} · ${appointment.patientName}`);
+    } catch {
+      this.toast.error('Unable to save check-in', 'Please try again. Repeated check-ins will reuse the existing queue entry.');
     } finally {
       this.checkingIn.set(false);
+      if (saved) this.closeCheckInDrawer();
     }
   }
 
@@ -1187,7 +1228,18 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
   }
 
   protected canCheckIn(appointment: AppointmentVm): boolean {
-    return ['BOOKED', 'SCHEDULED', 'CONFIRMED'].includes(String(appointment.statusCode).toUpperCase());
+    return !appointment.queue && !this.queues().some(queue => queue.appointmentId === appointment.id)
+      && ['BOOKED', 'SCHEDULED', 'CONFIRMED'].includes(String(appointment.statusCode).toUpperCase());
+  }
+
+  protected canManageCheckIn(appointment: AppointmentVm): boolean {
+    const queue = appointment.queue ?? this.queues().find(item => item.appointmentId === appointment.id);
+    return ['BOOKED', 'SCHEDULED', 'CONFIRMED', 'CHECKED_IN', 'WAITING'].includes(String(appointment.statusCode).toUpperCase())
+      && (!queue || ['WAITING', 'CHECKED_IN'].includes(queue.statusCode.toUpperCase()));
+  }
+
+  protected checkInActionLabel(appointment: AppointmentVm): string {
+    return appointment.queue || this.queues().some(queue => queue.appointmentId === appointment.id) ? 'Update check-in' : 'Check in';
   }
 
   protected onBranchChanged(branchName: string): void {

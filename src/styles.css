@@ -444,7 +444,7 @@ body.dark input:-webkit-autofill:focus {
   content: '';
   position: fixed;
   inset: var(--ac-header-h) 0 0 0;
-  z-index: 110;
+  z-index: 700;
   background: rgba(15, 23, 42, .18);
   backdrop-filter: blur(4px) saturate(1.05);
   animation: fadeIn .16s ease;
@@ -460,7 +460,7 @@ body.dark input:-webkit-autofill:focus {
   top: var(--ac-header-h);
   right: 0;
   bottom: 0;
-  z-index: 120;
+  z-index: 710;
   display: grid;
   grid-template-rows: auto auto 1fr auto;
   width: min(50vw, calc(100vw - var(--ac-sidebar-w-sm)));

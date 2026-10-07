@@ -99,6 +99,8 @@ export interface OpdPrescriptionItemRecord {
 }
 
 export interface OpdMedicineRecord {
+  strength?: string | null;
+  dosageForm?: string | null;
   id: string;
   name: string;
   genericName: string;
