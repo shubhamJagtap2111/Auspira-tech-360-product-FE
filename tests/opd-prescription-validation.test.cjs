@@ -100,6 +100,36 @@ test('medicine suggestions use pharmacy strength and form without stock or quant
   assert.equal(draft.dosage, 'Doctor dose');
   assert.equal(draft.duration, '3 days');
 });
+
+test('screenshot spelling and transposed letters find catalog medicines without changing the typed name', () => {
+  const catalog = [{ id: 'para', name: 'Paracetamol', strength: '500 mg', dosageForm: 'Tablet' },
+    { id: 'other', name: 'Amoxicillin', strength: '500 mg', dosageForm: 'Capsule' }];
+  for (const query of ['PARACITAMO', 'paracetmaol', 'PARA', 'paraci']) {
+    const results = context.findSuggestions(query, catalog);
+    assert.equal(results.length, 1, query);
+    assert.equal(results[0].id, 'para');
+    assert.equal(results[0].name, 'Paracetamol');
+  }
+  const { h } = setup([], { medicineId: null });
+  h.updateMedicineSearch('PARACITAMO');
+  assert.equal(h.clinicalForm().prescriptionDraft.medicine, 'PARACITAMO');
+  assert.equal(h.clinicalForm().prescriptionDraft.medicineId, null);
+});
+
+test('generic names are searchable and exact product matches rank before close spellings', () => {
+  const catalog = [{ id: 'brand', name: 'Dolo', genericName: 'Paracetamol', strength: '650 mg', dosageForm: 'Tablet' },
+    { id: 'exact', name: 'Paracetamol', strength: '500 mg', dosageForm: 'Tablet' }];
+  assert.deepEqual(Array.from(context.findSuggestions('paracetamol', catalog), item => item.id), ['exact', 'brand']);
+  assert.equal(context.findSuggestions('PARACITAMO', catalog).length, 2);
+  assert.equal(context.findSuggestions('unrelated medicine', catalog).length, 0);
+  assert.equal(context.findSuggestions('px', catalog).length, 0);
+});
+
+test('live catalog brand ORH is suggested when its stored generic name is entered', () => {
+  const catalog = [{ id: 'brand', name: 'ORH', genericName: 'PARACITAMOAL', strength: '567', dosageForm: 'Tablet' }];
+  assert.equal(context.findSuggestions('PARACITAMO', catalog)[0].name, 'ORH');
+  assert.equal(context.findSuggestions('paracitamoal', catalog)[0].id, 'brand');
+});
 test('duration and quantity reject negative, range, and malformed values without stripping signs', () => {
   for (const value of ['-5', '0', '1.5 days', '5-7 days', '1 week', 'abc5']) assert.equal(helpers.parsePrescriptionDuration(value), null, value);
   assert.equal(helpers.parsePrescriptionDuration(' 5 days '), 5);

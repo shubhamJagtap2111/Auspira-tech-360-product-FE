@@ -65,7 +65,11 @@ const server = http.createServer((req, res) => {
         configuredIntegration = request.postDataJSON().settings.find(setting => setting.settingKey === 'OPD.PharmacyIntegration.Enabled').settingValue === 'true';
         data = [integrationSetting()];
       }
-      else if (p === '/opd/medicine-catalog') data = [{ id: '60000000-0000-0000-0000-000000000001', name: 'Synthetic medicine', strength: '500 mg', dosageForm: 'Tablet', unit: 'Strip', genericName: 'Synthetic medicine' }];
+      else if (p === '/opd/medicine-catalog') data = [
+        { id: '60000000-0000-0000-0000-000000000001', name: 'Synthetic medicine', strength: '500 mg', dosageForm: 'Tablet', unit: 'Strip', genericName: 'Synthetic medicine' },
+        { id: '60000000-0000-0000-0000-000000000002', name: 'Paracetamol', strength: '500 mg', dosageForm: 'Tablet', unit: 'Strip', genericName: 'Paracetamol' },
+        { id: '60000000-0000-0000-0000-000000000003', name: 'ORH', strength: '567', dosageForm: 'Tablet', unit: 'Strip', genericName: 'PARACITAMOAL' }
+      ];
       else if (p === '/pharmacy/allergies/check' || p === '/pharmacy/interactions/check') data = [];
       else if (p === '/administration/hospital') data = { hospitalName: 'OPD Test Hospital' };
       else if (p === '/patients') data = { patients: [patient], totalCount: 1, pageNumber: 1, pageSize: 100, stats: {} };
@@ -183,6 +187,12 @@ const server = http.createServer((req, res) => {
     });
     for (const width of [360,390,768,1024,1366,1920]) {
       await page.setViewportSize({width,height:900});
+      await medicineInput.fill('PARACITAMO');
+      await page.locator('.medicine-suggestions').waitFor();
+      assert.match(await page.locator('.medicine-suggestions').innerText(), /Paracetamol/);
+      assert.match(await page.locator('.medicine-suggestions').innerText(), /ORH/);
+      assert.match(await page.locator('.medicine-suggestions').innerText(), /PARACITAMOAL/);
+      assert.equal(await medicineInput.inputValue(), 'PARACITAMO', 'a close match never automatically changes the prescription');
       await medicineInput.fill('');
       await medicineInput.fill('Synthetic medicine');
       await page.locator('.medicine-suggestions').waitFor();

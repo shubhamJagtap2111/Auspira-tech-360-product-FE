@@ -467,14 +467,17 @@ import { LabReport } from '../laboratory/laboratory.models';
                                       <small class="medicine-validation-error" role="alert">Unable to load prescribing settings. <button type="button" (click)="reload()">Retry settings</button></small>
                                     } @else if (medicineCatalogError()) {
                                       <small class="medicine-validation-error" role="alert">Medicine catalog could not be loaded. <button type="button" (click)="refreshMedicineCatalog()">Retry catalog</button></small>
-                                    } @else if (pharmacyIntegrationEnabled() && !clinicalForm().prescriptionDraft.medicineId && clinicalForm().prescriptionDraft.medicine.trim().length >= 2 && !medicineSearchResults().length) {
-                                      <small class="medicine-validation-error">No matching catalog medicine. Try another name or ask Pharmacy to update the catalog.</small>
+                                    } @else if (!clinicalForm().prescriptionDraft.medicineId && clinicalForm().prescriptionDraft.medicine.trim().length >= 2 && !medicineSearchResults().length) {
+                                      <small class="medicine-catalog-help" role="status">{{ medicines().length ? 'No matching pharmacy medicine. Try the brand or generic name.' : 'No active medicines are available in the pharmacy catalog.' }}{{ pharmacyIntegrationEnabled() ? ' Ask Pharmacy to update the catalog if needed.' : ' You can enter your own medicine name.' }}</small>
                                     }
                                     @if (medicineSuggestionsOpen() && medicineSearchResults().length > 0) {
                                       <div class="medicine-suggestions" id="opd-medicine-suggestions">
                                         @for (medicine of medicineSearchResults(); track medicine.key) {
                                           <button type="button" (click)="selectMedicineSuggestion(medicine)">
                                             <strong>{{ medicine.label }}</strong>
+                                            @if (medicine.genericName && medicine.genericName.toLowerCase() !== medicine.name.toLowerCase()) {
+                                              <small>{{ medicine.genericName }}</small>
+                                            }
                                             <small>{{ medicine.name }} · {{ medicine.strength || '-' }} · {{ medicine.form || '-' }}</small>
                                             @if (medicine.formularyStatus === 'RESTRICTED') { <small class="medicine-formulary-warning">Restricted{{ medicine.approvalRequired ? ' · Approval required' : '' }}{{ medicine.restrictionReason ? ' · ' + medicine.restrictionReason : '' }}</small> }
                                           </button>
@@ -6555,6 +6558,7 @@ interface MedicineSuggestion {
   id: string | null;
   label: string;
   name: string;
+  genericName?: string;
   strength: string;
   form: string;
   formularyStatus?: 'APPROVED' | 'RESTRICTED';
@@ -6571,7 +6575,52 @@ function findMedicineSuggestions(query: string, medicines: OpdMedicineRecord[]):
   const catalog = medicines.map(toMedicineSuggestion);
   const merged = dedupeMedicineSuggestions(catalog.filter(item => item.id));
   return merged
-    .filter(item => normalizeSearchText([item.label, item.name, item.strength, item.form].join(' ')).includes(normalized));
+    .map(item => ({ item, score: medicineSuggestionScore(normalized, item) }))
+    .filter(match => match.score !== null)
+    .sort((a, b) => a.score! - b.score!)
+    .map(match => match.item);
+}
+
+function medicineSuggestionScore(query: string, medicine: MedicineSuggestion): number | null {
+  const name = normalizeSearchText(medicine.name);
+  const generic = normalizeSearchText(medicine.genericName || '');
+  if (name.includes(query)) return 0;
+  if (generic.includes(query)) return 1;
+  if (normalizeSearchText([medicine.label, medicine.strength, medicine.form].join(' ')).includes(query)) return 2;
+
+  // Close spellings are suggestions only: the doctor still explicitly selects the product.
+  const words = [name, generic].join(' ').split(/[^a-z0-9]+/).filter(Boolean);
+  const tokens = query.split(/[^a-z0-9]+/).filter(Boolean);
+  if (!tokens.length) return null;
+  let edits = 0;
+  for (const token of tokens) {
+    if (words.some(word => word.includes(token))) continue;
+    if (token.length < 5 || !/^[a-z]+$/.test(token)) return null;
+    const limit = token.length >= 8 ? 2 : 1;
+    const distances = words.filter(word => word.length >= 5).map(word => Math.min(
+      medicineSpellingDistance(token, word),
+      medicineSpellingDistance(token, word.slice(0, token.length))
+    ));
+    const distance = Math.min(...distances);
+    if (distance > limit) return null;
+    edits += distance;
+  }
+  return 3 + edits;
+}
+
+function medicineSpellingDistance(left: string, right: string): number {
+  const rows = Array.from({ length: left.length + 1 }, (_, index) => [index]);
+  rows[0] = Array.from({ length: right.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= left.length; i++) {
+    for (let j = 1; j <= right.length; j++) {
+      rows[i][j] = Math.min(rows[i - 1][j] + 1, rows[i][j - 1] + 1,
+        rows[i - 1][j - 1] + (left[i - 1] === right[j - 1] ? 0 : 1));
+      if (i > 1 && j > 1 && left[i - 1] === right[j - 2] && left[i - 2] === right[j - 1]) {
+        rows[i][j] = Math.min(rows[i][j], rows[i - 2][j - 2] + 1);
+      }
+    }
+  }
+  return rows[left.length][right.length];
 }
 
 function toMedicineSuggestion(record: OpdMedicineRecord): MedicineSuggestion {
@@ -6584,6 +6633,7 @@ function toMedicineSuggestion(record: OpdMedicineRecord): MedicineSuggestion {
     id: record.id,
     label,
     name: record.name,
+    genericName: record.genericName || '',
     strength,
     form,
     formularyStatus: record.formularyStatus,
