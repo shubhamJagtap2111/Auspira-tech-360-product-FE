@@ -18,6 +18,14 @@ const medicineForms = ast.statements.find(n => ts.isVariableStatement(n) && n.de
 vm.runInContext(compile(medicineForms.getText(ast)), context);
 vm.runInContext(compile(`${functions.join('\n')}\nclass Harness {${methods.join('\n')}}\nglobalThis.Harness = Harness;globalThis.findSuggestions = findMedicineSuggestions;`), context);
 const valid = { medicineId: 'catalog-1', medicine: 'Test medicine', dosage: '1 tablet', route: 'Oral', frequency: 'Twice daily', duration: '5 Days', quantity: '10', isPrn: false, prnReason: '' };
+test('a catalogue formulation without a verified route does not inherit Oral', () => {
+  for (const route of ['', undefined, 'Confirm route']) {
+    const { h } = setup([], { route: 'Oral' });
+    h.selectMedicineSuggestion({ id: 'nlem-injection', name: 'Injection reference', route, strength: '10 mg/mL', form: 'Injection' });
+    assert.equal(h.clinicalForm().prescriptionDraft.route, '');
+    assert.ok(helpers.prescriptionItemIssues(h.clinicalForm().prescriptionDraft).includes('Route'));
+  }
+});
 const signal = initial => { let value = initial; const read = () => value; read.update = fn => { value = fn(value); }; read.set = next => { value = next; }; return read; };
 function setup(items = [valid], draft = {}) {
   const warnings = [], h = new context.Harness();

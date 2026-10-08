@@ -4629,7 +4629,7 @@ export class OpdPageComponent implements OnInit {
         medicine: medicine.name,
         strength: medicine.strength,
         dosageForm: medicine.form,
-        route: medicine.route || form.prescriptionDraft.route
+        route: !medicine.route || medicine.route === 'Confirm route' ? '' : medicine.route
       }
     }));
     this.markPrescriptionChanged();
