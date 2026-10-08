@@ -6,3 +6,12 @@ function service(status=404,rx='rx-1'){const app=new context.Service(),calls=[];
 test('404 document endpoint recovers exact prescription from existing OPD history',async()=>{const {app,calls}=service();const r=await app.prescriptionDocument('patient-1','rx-1');assert.equal(r.data.id,'rx-1');assert.equal(r.data.consultationId,'visit-1');assert.equal(r.data.doctorName,'Dr. Shree');assert.equal(calls.length,3);});
 test('missing prescription never substitutes another visit',async()=>{const {app}=service(404,'other-rx');await assert.rejects(()=>app.prescriptionDocument('patient-1','rx-1'),/requested prescription/);});
 test('permission errors do not trigger the compatibility fallback',async()=>{const {app,calls}=service(403);await assert.rejects(()=>app.prescriptionDocument('patient-1','rx-1'));assert.equal(calls.length,1);});
+test('ApiClient normalized 404 recovers the requested saved prescription',async()=>{
+ const {app,calls}=service();const get=app.api.get;
+ app.api.get=async path=>path.endsWith('/document')?(calls.push(path),{success:false,statusCode:404,data:null}):get(path);
+ const result=await app.prescriptionDocument('patient-1','rx-1');assert.equal(result.data.id,'rx-1');assert.equal(result.data.consultationId,'visit-1');assert.equal(calls.length,3);
+});
+test('ApiClient normalized authorization and server failures never use history fallback',async()=>{
+ for(const statusCode of [401,403,500]){const {app,calls}=service();app.api.get=async path=>{calls.push(path);return {success:false,statusCode,data:null};};
+ const result=await app.prescriptionDocument('patient-1','rx-1');assert.equal(result.statusCode,statusCode);assert.equal(calls.length,1);}
+});

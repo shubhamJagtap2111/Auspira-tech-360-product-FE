@@ -67,7 +67,7 @@ export class NotificationInboxPageComponent {
   constructor() { effect(() => { this.branch.selectedBranchCode(); this.inbox.snapshot(); void this.load(); }); }
   reset() { this.page = 1; void this.load(); }
   changePage(delta: number) { this.page += delta; void this.load(); }
-  async refresh() { await this.inbox.refresh(); await this.load(); }
+  async refresh() { await this.inbox.refresh(true); await this.load(); }
   async readAll() { await this.inbox.markAllRead(); await this.load(); }
   async read(id: string) { await this.inbox.markRead(id); await this.load(); }
   private async load() {

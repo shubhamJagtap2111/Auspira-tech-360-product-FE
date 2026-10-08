@@ -40,3 +40,9 @@ Emergency, scheduled report execution, external payment-provider failure callbac
 - `NotificationVerification.cs` extends the isolated branch integration suite with recipient/branch isolation, direct grants, revocation, persisted read actions, transactional rollback, deduplication and runtime forgery rejection.
 
 Deploy the API with migration 045 before deploying the frontend. No existing events are backfilled into fake historical alerts. Workflow events start after migration; current time-based conditions are evaluated on the next authenticated refresh.
+
+### Missing routes in an older deployment
+
+On 8 October 2026 the Render API returned 404 for both the notification refresh and patient prescription document routes, and its published Swagger definition contained neither route. These routes are present in the current API source; changing clinical data or permissions cannot repair an absent deployed route. Deploy the current API and verify startup migrations, then deploy the matching frontend.
+
+Run the API repository's read-only `scripts/Test-ApiReleaseRoutes.ps1 -ApiOrigin https://auspira-tech-360-product-api.onrender.com` after deployment. It fails if either required method/route is absent. The prescription frontend retains an exact-prescription saved-history fallback for older APIs; permission failures never use it. Notification 404 responses show an unavailable state and pause automatic retries for five minutes. The explicit Retry button checks immediately, so deployment recovery does not require signing out.

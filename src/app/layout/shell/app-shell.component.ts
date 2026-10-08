@@ -235,7 +235,7 @@ const fallbackLanguages: Language[] = [
                 <span class="np-title">Notifications</span>
                 <button class="np-markall" (click)="inbox.markAllRead()" [disabled]="inbox.busy() || !inbox.unreadCount()">Mark all as read</button>
               </div>
-              @if (inbox.error()) {<p class="np-status" role="alert">{{inbox.error()}} <button (click)="inbox.refresh()">Retry</button></p>}
+              @if (inbox.error()) {<p class="np-status" role="alert">{{inbox.error()}} <button (click)="inbox.refresh(true)">Retry</button></p>}
               @if (inbox.loading() && !inbox.recent().length) {<p class="np-status" role="status">Loading notifications…</p>}
               @for (n of inbox.recent(); track n.id) {
                 <button type="button" class="np-item" [class.unread]="!n.readAt" (click)="notifOpen.set(false); inbox.open(n)">
