@@ -1,3 +1,6 @@
+import { BranchContextService } from '../../core/context/branch-context.service';
+import { PrescriptionAccessService } from '../opd/prescription-access.service';
+import { billingDocumentHtml } from './billing-document';
 import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
 import { CommonModule, DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
@@ -239,6 +242,8 @@ type BillingDialog = 'charge-master' | 'charge' | 'invoice' | 'payment' | 'refun
   `]
 })
 export class BillingPageComponent implements OnInit {
+  private readonly documentBranch = inject(BranchContextService);
+  private readonly documentHeader = inject(PrescriptionAccessService);
   private readonly service = inject(BillingService);
   private readonly patientService = inject(PatientManagementService);
   private readonly toast = inject(ToastService);
@@ -371,11 +376,46 @@ export class BillingPageComponent implements OnInit {
   protected canPay(invoice: BillingInvoice): boolean { return invoice.dueAmount > 0 && !['DRAFT', 'CANCELLED', 'REFUNDED'].includes(invoice.statusCode); }
   protected openPayment(invoice: BillingInvoice): void { this.selectedInvoiceForAction.set(invoice); this.paymentForm = { amount: invoice.dueAmount, mode: 'CASH', reference: '' }; this.dialog.set('payment'); }
   protected async openPaymentForInvoice(id: string): Promise<void> { const invoice = this.invoices().find(x => x.id === id); if (invoice) this.openPayment(invoice); else { const response = await this.service.invoice(id); if (response.success && response.data) this.openPayment(response.data.invoice); } }
-  protected async recordPayment(): Promise<void> { const invoice = this.selectedInvoiceForAction(); if (!invoice) return; this.saving.set(true); const response = await this.service.createPayment(invoice.id, Number(this.paymentForm.amount), this.paymentForm.mode, this.paymentForm.reference.trim() || null); if (response.success) { this.toast.success('Payment received', `${response.data?.receiptNo || 'Receipt'} was generated automatically.`); const receiptId = response.data?.receiptId; this.closeDialog(); this.closeInvoiceDetail(); await Promise.all([this.loadPayments(), this.loadInvoices(), this.loadDashboard(), this.loadOutstanding()]); if (receiptId) await this.printReceiptById(receiptId); } else this.fail(response, 'Unable to record payment'); this.saving.set(false); }
+  protected async recordPayment():Promise<void>{
+    const invoice=this.selectedInvoiceForAction();if(!invoice||this.saving())return;
+    const printWindow=window.open('','_blank','width=980,height=900');
+    let confirmed=false;
+    this.saving.set(true);
+    try{
+      const response=await this.service.createPayment(invoice.id,Number(this.paymentForm.amount),this.paymentForm.mode,this.paymentForm.reference.trim()||null);
+      if(response.success){
+        confirmed=true;
+        this.toast.success('Payment received',(response.data?.receiptNo||'Receipt')+' was generated automatically.');
+        const receiptId=response.data?.receiptId;this.closeDialog();this.closeInvoiceDetail();
+        if(receiptId)await this.printReceiptById(receiptId,printWindow);else printWindow?.close();
+        await Promise.all([this.loadPayments(),this.loadInvoices(),this.loadDashboard(),this.loadOutstanding()]);
+      }else{printWindow?.close();this.fail(response,'Unable to record payment');}
+    }catch{if(confirmed)this.toast.info('Payment received','Refresh the workspace to update the payment list.');else{printWindow?.close();this.toast.error('Payment could not be confirmed','Refresh the payment list before retrying.');}}
+    finally{this.saving.set(false);}
+  }
   protected async reversePayment(payment: BillingPayment): Promise<void> { const reason = window.prompt(`Reason for reversing ${payment.paymentNo}?`); if (!reason?.trim()) return; const response = await this.service.reversePayment(payment.id, reason); if (response.success) { this.toast.success('Payment reversed'); await Promise.all([this.loadPayments(), this.loadInvoices()]); } else this.fail(response, 'Unable to reverse payment'); }
-  protected async printReceiptById(id: string): Promise<void> { const response = await this.service.receipt(id); if (response.success && response.data) this.printReceipt(response.data); else this.fail(response, 'Unable to load receipt'); }
-  protected printReceipt(receipt: BillingReceipt): void { openPrintWindow('Payment Receipt', `<div class="brand"><h1>Care360 Hospital</h1><p>Official Payment Receipt</p></div><dl><dt>Receipt No.</dt><dd>${safe(receipt.receiptNo)}</dd><dt>Patient</dt><dd>${safe(receipt.patientName)} (${safe(receipt.medicalRecordNo)})</dd><dt>Invoice</dt><dd>${safe(receipt.invoiceNo)}</dd><dt>Amount</dt><dd class="amount">${this.money(receipt.amount)}</dd><dt>Payment mode</dt><dd>${safe(this.titleCase(receipt.paymentMode))}</dd><dt>Reference</dt><dd>${safe(receipt.referenceNumber || 'N/A')}</dd><dt>Collected by</dt><dd>${safe(receipt.issuedBy || 'Billing Desk')}</dd><dt>Date</dt><dd>${new Date(receipt.issuedAt).toLocaleString()}</dd></dl><p class="footer">Thank you. This is a system-generated receipt.</p>`); }
-  protected printInvoice(detail: InvoiceDetail): void { const rows = detail.items.map(x => `<tr><td>${safe(x.description)}</td><td>${x.quantity}</td><td>${this.money(x.unitPrice)}</td><td>${this.money(x.netAmount)}</td></tr>`).join(''); openPrintWindow('Invoice', `<div class="brand"><h1>Care360 Hospital</h1><p>Tax Invoice ${safe(detail.invoice.invoiceNo)}</p></div><p><strong>${safe(detail.invoice.patientName)}</strong><br>${safe(detail.invoice.medicalRecordNo)} · ${new Date(detail.invoice.invoiceDate).toLocaleString()}</p><table><thead><tr><th>Service</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table><dl><dt>Gross</dt><dd>${this.money(detail.invoice.grossAmount)}</dd><dt>Discount</dt><dd>${this.money(detail.invoice.discountAmount)}</dd><dt>Tax</dt><dd>${this.money(detail.invoice.taxAmount)}</dd><dt>Net</dt><dd class="amount">${this.money(detail.invoice.netAmount)}</dd><dt>Paid</dt><dd>${this.money(detail.invoice.paidAmount)}</dd><dt>Due</dt><dd>${this.money(detail.invoice.dueAmount)}</dd></dl>`); }
+  protected async printReceiptById(id:string,popup?:Window|null):Promise<void>{
+    const printWindow=popup||window.open('','_blank','width=980,height=900');
+    if(!printWindow){this.toast.error('Unable to print receipt','Allow pop-ups for this site and try again.');return;}
+    try{const response=await this.service.receipt(id);if(response.success&&response.data)await this.printReceipt(response.data,printWindow);else{printWindow.close();this.fail(response,'Unable to load receipt');}}
+    catch{printWindow.close();this.toast.error('Unable to load receipt','Please retry from the Receipts tab.');}
+  }
+  protected async printReceipt(receipt:BillingReceipt,popup?:Window|null):Promise<void>{
+    const printWindow=popup||window.open('','_blank','width=980,height=900');
+    if(!printWindow){this.toast.error('Unable to print receipt','Allow pop-ups for this site and try again.');return;}
+    try{
+      const [response,hospital]=await Promise.all([this.service.invoice(receipt.invoiceId).catch(()=>null),this.documentHeader.header().catch(()=>null)]);
+      this.writeBillingDocument(printWindow,billingDocumentHtml({hospital,hospitalName:this.documentBranch.hospitalName(),branchName:this.documentBranch.selectedBranch()?.branchName||''},response?.success?response.data:null,receipt));
+    }catch{printWindow.close();this.toast.error('Unable to print receipt','Please refresh and try again.');}
+  }
+  protected async printInvoice(detail:InvoiceDetail):Promise<void>{
+    const popup=window.open('','_blank','width=980,height=900');
+    if(!popup){this.toast.error('Unable to print invoice','Allow pop-ups for this site and try again.');return;}
+    try{const hospital=await this.documentHeader.header().catch(()=>null);
+      this.writeBillingDocument(popup,billingDocumentHtml({hospital,hospitalName:this.documentBranch.hospitalName(),branchName:this.documentBranch.selectedBranch()?.branchName||''},detail,null));
+    }catch{popup.close();this.toast.error('Unable to print invoice','Please refresh and try again.');}
+  }
+  private writeBillingDocument(popup:Window,html:string):void{popup.opener=null;popup.document.open();popup.document.write(html);popup.document.close();}
   protected async requestRefund(): Promise<void> { this.saving.set(true); const response = await this.service.requestRefund(this.refundForm.paymentId, Number(this.refundForm.amount), this.refundForm.reason, this.refundForm.mode); if (response.success) { this.toast.success('Refund requested', 'A billing manager must approve it before processing.'); this.closeDialog(); await this.loadRefunds(); } else this.fail(response, 'Unable to request refund'); this.saving.set(false); }
   protected async approveRefund(refund: BillingRefund): Promise<void> { const response = await this.service.approveRefund(refund.id); if (response.success) { this.toast.success('Refund approved'); await this.loadRefunds(); } else this.fail(response, 'Unable to approve refund'); }
   protected async processRefund(refund: BillingRefund): Promise<void> { const response = await this.service.processRefund(refund.id); if (response.success) { this.toast.success('Refund processed', 'Patient balance and invoice status were reconciled.'); await Promise.all([this.loadRefunds(), this.loadInvoices(), this.loadDashboard()]); } else this.fail(response, 'Unable to process refund'); }
@@ -407,4 +447,3 @@ function monthStart(): string { const date = new Date(); return isoDate(new Date
 function csv(value: unknown): string { return `"${String(value ?? '').replaceAll('"', '""')}"`; }
 function downloadCsv(name: string, lines: string[]): void { const url = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = name; anchor.click(); URL.revokeObjectURL(url); }
 function safe(value: string): string { return value.replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character] || character); }
-function openPrintWindow(title: string, body: string): void { const popup = window.open('', '_blank', 'width=900,height=760'); if (!popup) return; popup.document.write(`<!doctype html><html><head><title>${safe(title)}</title><style>body{font:14px Arial;color:#172033;max-width:760px;margin:30px auto;padding:20px}.brand{border-bottom:2px solid #2563eb;margin-bottom:22px}.brand h1{margin:0}.brand p{color:#64748b}dl{display:grid;grid-template-columns:180px 1fr;gap:8px;margin-top:24px}dt{color:#64748b}dd{margin:0;font-weight:600}.amount{font-size:20px;color:#155eef}table{width:100%;border-collapse:collapse;margin:20px 0}th,td{text-align:left;padding:9px;border-bottom:1px solid #ddd}.footer{margin-top:35px;color:#64748b;text-align:center}@media print{body{margin:0}.footer{position:fixed;bottom:10px}}</style></head><body>${body}<script>window.onload=()=>window.print()<\/script></body></html>`); popup.document.close(); }

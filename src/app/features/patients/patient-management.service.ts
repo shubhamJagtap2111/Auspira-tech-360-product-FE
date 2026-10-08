@@ -1,3 +1,4 @@
+import { findSavedPrescriptionConsultation } from './patient-prescription-document';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { BranchContextService } from '../../core/context/branch-context.service';
@@ -46,8 +47,23 @@ export class PatientManagementService {
     return firstValueFrom(this.api.get<PatientApiResponse<PatientProfile>>(`/patients/${patientGuid}`));
   }
 
-  prescriptionDocument(patientGuid: string, prescriptionId: string): Promise<PatientApiResponse<import('./patient-prescription-document').SavedPatientPrescription>> {
-    return firstValueFrom(this.api.get<PatientApiResponse<import('./patient-prescription-document').SavedPatientPrescription>>('/patients/'+patientGuid+'/prescriptions/'+prescriptionId+'/document'));
+  async prescriptionDocument(patientGuid:string,prescriptionId:string):Promise<PatientApiResponse<import('./patient-prescription-document').SavedPatientPrescription>> {
+    try{
+      const response=await firstValueFrom(this.api.get<PatientApiResponse<import('./patient-prescription-document').SavedPatientPrescription>>('/patients/'+patientGuid+'/prescriptions/'+prescriptionId+'/document'));
+      if(response.success || response.statusCode!==404)return response;
+    }catch(error){if((error as {status?:number}).status!==404)throw error;}
+    // Older deployed APIs expose the saved clinical form through the existing OPD history route.
+    const history=await firstValueFrom(this.api.get<PatientApiResponse<import('../opd/opd-management.models').OpdConsultationRecord[]>>('/opd/consultations/patient/'+patientGuid+'/history'));
+    if(!history.success||!history.data)throw new Error('Unable to load saved OPD history.');
+    const saved=findSavedPrescriptionConsultation(history.data,prescriptionId);
+    if(!saved)throw new Error('The requested prescription is not present in saved OPD history.');
+    const doctorResponse=await firstValueFrom(this.api.get<PatientApiResponse<import('../doctors/doctor-management.models').DoctorProfile>>('/doctors/'+saved.consultation.doctorId)).catch(()=>null);
+    const doctor=doctorResponse?.success?doctorResponse.data:null;
+    return {...history,success:true,statusCode:200,message:'',data:{id:prescriptionId,consultationId:saved.consultation.id,
+      clinicalData:saved.consultation.clinicalData||'{}',instructions:'',status:saved.consultation.statusCode,
+      createdAt:saved.consultation.createdAt,doctorName:doctor?.fullName||null,qualification:doctor?.qualification||null,
+      specialization:doctor?.primarySpecialization||null,registrationNo:doctor?.registrationNo||null,
+      department:doctor?.departmentName||null,branchName:doctor?.branchName||null,investigations:[]}};
   }
 
   checkDuplicates(patient: PatientForm): Promise<PatientApiResponse<PatientDuplicateCheck>> {

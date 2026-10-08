@@ -60,3 +60,12 @@ export function savedPatientPrescriptionPreview(patient:PatientProfile,saved:Sav
 }
 
 
+
+export function findSavedPrescriptionConsultation(history:import('../opd/opd-management.models').OpdConsultationRecord[],prescriptionId:string):{consultation:import('../opd/opd-management.models').OpdConsultationRecord;form:Partial<OpdClinicalForm>}|null {
+  for(const consultation of history){
+    try{const form:Partial<OpdClinicalForm>=JSON.parse(consultation.clinicalData||'{}');
+      if(form.prescriptionId===prescriptionId)return {consultation,form};
+    }catch{ /* Continue past malformed legacy records; never substitute another prescription. */ }
+  }
+  return null;
+}
