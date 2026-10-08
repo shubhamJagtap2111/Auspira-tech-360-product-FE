@@ -35,8 +35,8 @@ const defaultResetPassword = 'Reset@123';
   standalone: true,
   imports: [CommonModule, FormsModule, AcDropdownComponent, AcAdminDrawerComponent, AcPaginationComponent, AcGridLoaderComponent],
   template: `
-    <section class="user-page">
-      <header class="page-head">
+    <section class="user-page ac-workspace">
+      <header class="page-head ac-workspace-head">
         <div>
           <h1 class="ac-page-title">{{ t('Administration.UserManagement.Title') }}</h1>
           <p>{{ t('Administration.UserManagement.Subtitle') }}</p>

@@ -1,3 +1,4 @@
+import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -14,10 +15,10 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
+  imports: [AcKpiCardComponent, CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
   template: `
-    <section class="reports-page">
-      <header class="reports-header">
+    <section class="reports-page ac-workspace">
+      <header class="reports-header ac-workspace-head">
         <div>
           <p class="ac-eyebrow">Analytics</p>
           <h1 class="ac-page-title">Reports & Insights</h1>
@@ -78,16 +79,9 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
           <ac-grid-loader title="Loading reports..." message="Preparing dashboard metrics, report catalog, and filter lists." [compact]="true" />
         </section>
       } @else if (workspace(); as model) {
-        <section class="summary-grid">
+        <section class="ac-kpi-grid" aria-label="Overview">
           @for (card of summaryCards(); track card.label) {
-            <button type="button" class="summary-card ac-card" [style.--tone]="card.color" [routerLink]="card.route">
-              <span class="material-symbols-rounded">{{ card.icon }}</span>
-              <div>
-                <strong>{{ card.value }}</strong>
-                <small>{{ card.label }}</small>
-                <em>{{ card.meta }}</em>
-              </div>
-            </button>
+            <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.color" [detail]="card.meta" [actionable]="true" (activated)="openSummaryRoute(card.route)" />
           }
         </section>
 
@@ -119,18 +113,11 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
             @if (generating()) {
               <ac-grid-loader title="Generating report..." message="Aggregating report data from module transactions." [compact]="true" />
             } @else {
-              <div class="report-kpis">
+              <section class="ac-kpi-grid" aria-label="Report indicators">
                 @for (kpi of generated.kpis; track kpi.label) {
-                  <article class="report-kpi" [style.--tone]="kpi.color">
-                    <span class="material-symbols-rounded">{{ kpi.icon }}</span>
-                    <div>
-                      <small>{{ kpi.label }}</small>
-                      <strong>{{ kpi.value }}</strong>
-                      <em>{{ kpi.meta }}</em>
-                    </div>
-                  </article>
+                  <ac-kpi-card [label]="kpi.label" [value]="kpi.value" [icon]="kpi.icon" [tone]="kpi.color" [detail]="kpi.meta" />
                 }
-              </div>
+              </section>
 
               <section class="analytics-grid">
                 @if (generated.trend.length) {
@@ -729,6 +716,7 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
 export class ReportsInsightsPageComponent implements OnInit {
   private readonly service = inject(ReportsInsightsService);
   private readonly route = inject(ActivatedRoute);
+  protected openSummaryRoute(route: string): void { void this.router.navigateByUrl(route); }
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);

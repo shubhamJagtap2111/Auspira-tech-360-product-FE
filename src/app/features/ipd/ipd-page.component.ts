@@ -1,3 +1,4 @@
+import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
 import { buildIpdManagerTasks, ManagerTask } from './ipd-manager-workflow';
 import { PatientManagementService } from '../patients/patient-management.service';
 import { CommonModule } from '@angular/common';
@@ -55,7 +56,7 @@ interface IpdKpiCard {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent],
+  imports: [AcKpiCardComponent, CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent],
   template: `
     <ng-template #readinessPanel>
       <section class="readiness-panel" aria-label="Discharge preparation">
@@ -67,8 +68,8 @@ interface IpdKpiCard {
         <small aria-live="polite">{{ dischargeDraftStatus() }}</small>
       </section>
     </ng-template>
-    <section class="ipd-page">
-      <header class="page-header">
+    <section class="ipd-page ac-workspace">
+      <header class="page-header ac-workspace-head">
         <div>
           <p class="ac-eyebrow">Inpatient operations</p>
           <h1 class="ac-page-title">IPD Manager</h1>
@@ -87,20 +88,13 @@ interface IpdKpiCard {
       </header>
 
       @if (workspace(); as model) {
-        <section class="kpi-strip">
-          @for (card of kpiCards(); track card.label) {
-            <article class="kpi-card" [style.--tone]="card.tone">
-              <span class="material-symbols-rounded kpi-icon">{{ card.icon }}</span>
-              <div>
-                <strong>{{ card.value }}</strong>
-                <span>{{ card.label }}</span>
-                <small>{{ card.meta }}</small>
-              </div>
-            </article>
-          }
-        </section>
+        <section class="ac-kpi-grid" aria-label="Workspace overview">
+        @for (card of kpiCards(); track card.label) {
+          <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.tone" [detail]="card.meta" [pending]="refreshing()"  />
+        }
+      </section>
 
-        <nav class="module-tabs" aria-label="IPD areas">
+        <nav class="module-tabs ac-workspace-tabs" aria-label="IPD areas">
           @for (tab of visibleManagerTabs(); track tab.key) {
             <button type="button" [class.active]="activeTab() === tab.key" (click)="setTab(tab.key)">
               <span class="material-symbols-rounded">{{ tab.icon }}</span>

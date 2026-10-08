@@ -1,3 +1,4 @@
+import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
 import { PrescriptionAccessService, PrescriptionAccessLink, PrescriptionHospitalHeader } from './prescription-access.service';
 import { AuthStore } from '../../core/auth/auth.store';
 import { PatientProfile } from '../patients/patient-management.models';
@@ -44,7 +45,7 @@ import { LabReport } from '../laboratory/laboratory.models';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, A11yModule, AcDropdownComponent, AcGridLoaderComponent, AcDismissiblePopoverDirective],
+  imports: [AcKpiCardComponent, CommonModule, FormsModule, A11yModule, AcDropdownComponent, AcGridLoaderComponent, AcDismissiblePopoverDirective],
   template: `
     <ng-template #previousVisitPanel let-visit>
       <section class="history-visit"><h3>Previous visit</h3>
@@ -62,8 +63,8 @@ import { LabReport } from '../laboratory/laboratory.models';
         <h2>Patient access code</h2><p>Share this code privately with the patient. Keep it separate from the QR prescription.</p><strong class="access-code">{{ access.accessCode }}</strong><p>Expires {{ access.expiresAt | date:'dd MMM yyyy' }}. Previous completed visits are available after the consultation is completed.</p><button type="button" class="ac-btn ac-btn-primary" (click)="patientAccessDetails.set(null)">Done</button>
       </section></div>
     }
-    <section class="opd-page" [class.consulting]="activeTab() === 'encounter'" [attr.inert]="finishing() ? '' : null">
-      <header class="page-header">
+    <section class="opd-page ac-workspace" [class.consulting]="activeTab() === 'encounter'" [attr.inert]="finishing() ? '' : null">
+      <header class="page-header ac-workspace-head">
         <div>
           <p class="ac-eyebrow">Clinical workspace</p>
           <h1 class="ac-page-title">Today's OPD</h1>
@@ -81,21 +82,15 @@ import { LabReport } from '../laboratory/laboratory.models';
         </div>
       </header>
 
-      <div class="stats-row">
+      <section class="ac-kpi-grid" aria-label="Workspace overview">
         @for (card of statCards(); track card.label) {
-          <button type="button" class="stat-card ac-card" (click)="openStatCard(card.tab)">
-            <span class="stat-icon material-symbols-rounded" [style.background]="card.bg" [style.color]="card.color">{{ card.icon }}</span>
-            <div>
-              <strong>{{ card.value }}</strong>
-              <span>{{ card.label }}</span>
-            </div>
-          </button>
+          <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.color" [detail]="card.meta" [pending]="loading()" [actionable]="true" (activated)="openStatCard(card.tab)" />
         }
-      </div>
+      </section>
       @if (averageConsultationMinutes(); as minutes) { <p class="page-desc">Average consultation time today: {{ minutes }} min</p> }
 
       <section class="opd-shell ac-card">
-        <div class="opd-tabs">
+        <div class="opd-tabs ac-workspace-tabs">
           @for (tab of tabs; track tab.id) {
             <button type="button" [class.active]="activeTab() === tab.id" [disabled]="saving()" (click)="setActiveTab(tab.id)">
               <span aria-hidden="true" class="material-symbols-rounded">{{ tab.icon }}</span>
@@ -3497,10 +3492,10 @@ export class OpdPageComponent implements OnInit {
   protected readonly statCards = computed(() => {
     const stats = this.stats();
     return [
-      { label: 'Waiting', value: formatNumber(stats.waiting), icon: 'queue', color: '#2563eb', bg: '#eff6ff', tab: 'dashboard' as OpdTab },
-      { label: 'Current', value: formatNumber(stats.inConsultation), icon: 'clinical_notes', color: '#0f766e', bg: '#f0fdfa', tab: 'encounter' as OpdTab },
-      { label: 'Completed', value: formatNumber(stats.completed), icon: 'task_alt', color: '#059669', bg: '#ecfdf5', tab: 'completed' as OpdTab },
-      { label: 'Follow-ups', value: formatNumber(stats.followUps), icon: 'event_repeat', color: '#7c3aed', bg: '#f5f3ff', tab: 'follow-ups' as OpdTab }
+      { label: 'Waiting', meta: 'Patients ready to be seen', value: formatNumber(stats.waiting), icon: 'queue', color: '#2563eb', bg: '#eff6ff', tab: 'dashboard' as OpdTab },
+      { label: 'Current', meta: 'Consultation in progress', value: formatNumber(stats.inConsultation), icon: 'clinical_notes', color: '#0f766e', bg: '#f0fdfa', tab: 'encounter' as OpdTab },
+      { label: 'Completed', meta: 'Visits completed today', value: formatNumber(stats.completed), icon: 'task_alt', color: '#059669', bg: '#ecfdf5', tab: 'completed' as OpdTab },
+      { label: 'Follow-ups', meta: 'Scheduled return visits', value: formatNumber(stats.followUps), icon: 'event_repeat', color: '#7c3aed', bg: '#f5f3ff', tab: 'follow-ups' as OpdTab }
     ];
   });
 

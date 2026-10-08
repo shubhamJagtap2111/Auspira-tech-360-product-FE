@@ -38,7 +38,8 @@
               "src/assets/fonts/fonts.css",
               "src/styles.css",
               "src/enterprise-theme.css",
-              "src/administration.css"
+              "src/administration.css",
+              "src/workspace-design.css"
             ],
             "allowedCommonJsDependencies": [
               "qrcode"

@@ -19,8 +19,8 @@ const permissions = {
   standalone: true,
   imports: [CommonModule, FormsModule, AcAdminDrawerComponent],
   template: `
-    <section class="org-page">
-      <header class="page-head">
+    <section class="org-page ac-workspace">
+      <header class="page-head ac-workspace-head">
         <div>
           <h1 class="ac-page-title">{{ t('Administration.Designation.Title') }}</h1>
           <p>{{ t('Administration.Designation.Subtitle') }}</p>

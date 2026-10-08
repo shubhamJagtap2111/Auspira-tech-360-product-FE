@@ -1,3 +1,4 @@
+import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -14,10 +15,10 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
+  imports: [AcKpiCardComponent, CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
   template: `
-    <section class="mis-page">
-      <header class="mis-header">
+    <section class="mis-page ac-workspace">
+      <header class="mis-header ac-workspace-head">
         <div>
           <p class="ac-eyebrow">MIS Reports</p>
           <h1 class="ac-page-title">Management Information Reports</h1>
@@ -77,16 +78,9 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
           <ac-grid-loader title="Loading MIS reports..." message="Preparing management dashboard, catalogue, and filters." [compact]="true" />
         </section>
       } @else {
-        <section class="summary-grid">
+        <section class="ac-kpi-grid" aria-label="Overview">
           @for (card of summaryCards(); track card.label) {
-            <button type="button" class="summary-card ac-card" [style.--tone]="card.color" [routerLink]="['/reports/mis']" [queryParams]="{ report: card.reportKey }">
-              <span class="material-symbols-rounded">{{ card.icon }}</span>
-              <div>
-                <small>{{ card.label }}</small>
-                <strong>{{ card.value }}</strong>
-                <em>{{ card.meta }}</em>
-              </div>
-            </button>
+            <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.color" [detail]="card.meta" [actionable]="true" (activated)="selectReportByKey(card.reportKey)" />
           }
         </section>
 
@@ -138,18 +132,11 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
             @if (generating()) {
               <ac-grid-loader title="Generating MIS report..." message="Aggregating report metrics from hospital transactions." [compact]="true" />
             } @else {
-              <div class="kpi-grid">
+              <section class="ac-kpi-grid" aria-label="Report indicators">
                 @for (kpi of generated.kpis; track kpi.label) {
-                  <article class="kpi-card" [style.--tone]="kpi.color">
-                    <span class="material-symbols-rounded">{{ kpi.icon }}</span>
-                    <div>
-                      <small>{{ kpi.label }}</small>
-                      <strong>{{ kpi.value }}</strong>
-                      <em>{{ kpi.meta }}</em>
-                    </div>
-                  </article>
+                  <ac-kpi-card [label]="kpi.label" [value]="kpi.value" [icon]="kpi.icon" [tone]="kpi.color" [detail]="kpi.meta" />
                 }
-              </div>
+              </section>
 
               <section class="analysis-grid">
                 <article class="chart-panel">
@@ -340,6 +327,7 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
 export class MisReportsPageComponent implements OnInit {
   private readonly service = inject(ReportsInsightsService);
   private readonly route = inject(ActivatedRoute);
+  protected selectReportByKey(report: string): void { void this.router.navigate(['/reports/mis'], { queryParams: { report } }); }
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);

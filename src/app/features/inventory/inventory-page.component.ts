@@ -1,3 +1,4 @@
+import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -12,7 +13,7 @@ import { InventoryService, emptyWorkspace, StoreItem, Vendor, Asset, PurchaseOrd
 type Tab = 'overview'|'items'|'orders'|'assets'|'vendors'|'ledger';
 type Editor = 'item'|'vendor'|'asset'|'order'|'receive'|'movement'|null;
 @Component({
-  standalone:true, imports:[CommonModule,FormsModule,RouterLink,AcAdminDrawerComponent],
+  standalone:true, imports:[AcKpiCardComponent,CommonModule,FormsModule,RouterLink,AcAdminDrawerComponent],
   templateUrl:'./inventory-page.component.html', styleUrl:'./inventory-page.component.css', changeDetection:ChangeDetectionStrategy.OnPush
 })
 export class InventoryPageComponent implements OnInit {

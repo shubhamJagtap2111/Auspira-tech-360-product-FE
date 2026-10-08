@@ -1,0 +1,33 @@
+/* Shared HMIS workspace chrome. Clinical forms keep their module-specific behavior. */
+.ac-workspace.ac-workspace { width:100%; min-width:0; max-width:100%; display:grid; gap:20px; align-content:start; }
+.ac-workspace.ac-workspace > .ac-workspace-head { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:4px 0 18px; margin:0; border-bottom:1px solid var(--ac-border); }
+.ac-workspace.ac-workspace > .ac-workspace-head > div:first-child { min-width:0; }
+.ac-workspace.ac-workspace .ac-workspace-head h1 { margin:3px 0 7px; font-size:clamp(24px,2.4vw,30px); font-weight:750; letter-spacing:-.8px; line-height:1.2; color:var(--ac-text); }
+.ac-workspace.ac-workspace .ac-workspace-head p:last-child { margin:0; max-width:720px; font-size:13px; line-height:1.6; color:var(--ac-muted); }
+.main-content .ac-workspace.ac-workspace .ac-workspace-head :is(.ac-eyebrow,.eyebrow) { margin:0 0 5px; color:var(--ac-secondary); font-size:10px; font-weight:750; letter-spacing:.09em; text-transform:uppercase; }
+.ac-workspace.ac-workspace .ac-workspace-head :is(.header-actions,.head-actions,.page-actions,.actions) { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:8px; flex:none; }
+.ac-kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr)); gap:12px; min-width:0; }
+.ac-workspace.ac-workspace .ac-workspace-tabs { display:flex; align-items:center; gap:4px; width:100%; min-width:0; overflow-x:auto; scrollbar-width:thin; padding:6px; margin:0; border:1px solid var(--ac-border); border-radius:12px; background:var(--ac-surface); box-shadow:var(--ac-sh-xs); }
+.ac-workspace.ac-workspace .ac-workspace-tabs > button { display:inline-flex; flex:none; justify-content:center; align-items:center; gap:7px; min-height:40px; height:auto; padding:9px 13px; border:1px solid transparent; border-radius:8px; background:transparent; color:var(--ac-muted); font:inherit; font-size:12px; font-weight:650; white-space:nowrap; cursor:pointer; }
+.ac-workspace.ac-workspace .ac-workspace-tabs > button:is(.active,.selected) { background:var(--ac-secondary-light); color:var(--ac-secondary); border-color:color-mix(in srgb,var(--ac-secondary) 20%,var(--ac-border)); box-shadow:none; }
+.ac-workspace.ac-workspace .ac-workspace-tabs > button:hover:not(:disabled) { background:var(--ac-surface-2); color:var(--ac-text); }
+.ac-workspace.ac-workspace .ac-workspace-tabs > button:focus-visible { outline:2px solid var(--ac-primary); outline-offset:-2px; }
+.ac-workspace.ac-workspace .ac-workspace-tabs .material-symbols-rounded { font-size:19px; }
+.ac-workspace.ac-workspace :is(.panel,.table-card,.doctor-table-card,.appointment-shell,.opd-shell,.stock-summary,.manager-board) { min-width:0; border-radius:12px; box-shadow:var(--ac-sh-xs); border-color:var(--ac-border); }
+.ac-workspace.ac-workspace :is(.panel-head,.panel-title) h2 { font-size:17px; line-height:1.4; letter-spacing:-.25px; }
+.ac-workspace.ac-workspace :is(.toolbar,.workspace-toolbar) { gap:10px; border-radius:12px; }
+.ac-workspace.ac-workspace :is(.table-wrap,.table-scroll) { max-width:100%; overflow-x:auto; }
+.ac-workspace.ac-workspace :is(th,.table-head) { font-size:10px; letter-spacing:.05em; color:var(--ac-muted); }
+.ac-workspace.ac-workspace .empty { line-height:1.6; }
+.ac-workspace.ac-workspace :is(input,select,textarea):focus-visible { outline:1px solid var(--ac-primary); outline-offset:1px; box-shadow:none; }
+@media(max-width:1100px) { .ac-workspace.ac-workspace > .ac-workspace-head { align-items:flex-start; flex-wrap:wrap; } .ac-workspace.ac-workspace .ac-workspace-head :is(.header-actions,.head-actions,.actions) { justify-content:flex-start; } }
+@media(max-width:600px) {
+  .ac-workspace.ac-workspace { gap:16px; }
+  .ac-workspace.ac-workspace > .ac-workspace-head { gap:12px; padding-bottom:16px; }
+  .ac-workspace.ac-workspace .ac-workspace-head :is(.header-actions,.head-actions,.actions) { width:100%; flex-wrap:wrap; }
+  .ac-workspace.ac-workspace .ac-workspace-head .ac-btn { flex:1 1 auto; justify-content:center; min-height:42px; padding:9px 12px; }
+  .ac-kpi-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+  .ac-workspace.ac-workspace .ac-workspace-tabs { border-radius:10px; }
+  .ac-workspace.ac-workspace .ac-workspace-tabs > button { min-height:42px; padding:9px 11px; }
+}
+@media(max-width:359px) { .ac-kpi-grid { grid-template-columns:1fr; } }

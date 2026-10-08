@@ -25,8 +25,8 @@ const permissions = {
   standalone: true,
   imports: [CommonModule, FormsModule, AcAdminDrawerComponent, AcDropdownComponent, AcPaginationComponent, AcGridLoaderComponent],
   template: `
-    <section class="branch-page">
-      <header class="page-head">
+    <section class="branch-page ac-workspace">
+      <header class="page-head ac-workspace-head">
         <div>
           <h1 class="ac-page-title">{{ t('Administration.Branch.Title') }}</h1>
           <p>{{ t('Administration.Branch.Subtitle') }}</p>

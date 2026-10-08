@@ -26,8 +26,8 @@ interface PermissionGroupView {
   standalone: true,
   imports: [CommonModule, FormsModule, AcAdminDrawerComponent, AcGridLoaderComponent],
   template: `
-    <section class="rbac-page">
-      <header class="page-head">
+    <section class="rbac-page ac-workspace">
+      <header class="page-head ac-workspace-head">
         <div>
           <h1 class="ac-page-title">{{ t('Administration.Rbac.Roles.Title') }}</h1>
           <p>{{ t('Administration.Rbac.Roles.Subtitle') }}</p>

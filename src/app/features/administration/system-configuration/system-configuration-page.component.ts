@@ -28,8 +28,8 @@ type ConfigEditorMode = 'number-series' | 'fiscal-year' | 'template';
   standalone: true,
   imports: [CommonModule, FormsModule, AcDropdownComponent, AcAdminDrawerComponent],
   template: `
-    <section class="config-page">
-      <header class="page-head">
+    <section class="config-page ac-workspace">
+      <header class="page-head ac-workspace-head">
         <div>
           <h1 class="ac-page-title">{{ t('Administration.SystemConfiguration.Title') }}</h1>
           <p>{{ t('Administration.SystemConfiguration.Subtitle') }}</p>

@@ -1,3 +1,4 @@
+import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
 import { AcDismissiblePopoverDirective } from '../../shared/ui/dismissible-popover.directive';
@@ -20,10 +21,10 @@ type PatientDatePickerMode = 'calendar' | 'years';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent, AcPaginationComponent, AcAdminDrawerComponent, AcDismissiblePopoverDirective],
+  imports: [AcKpiCardComponent, CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent, AcPaginationComponent, AcAdminDrawerComponent, AcDismissiblePopoverDirective],
   template: `
-    <section class="patients">
-      <header class="page-header">
+    <section class="patients ac-workspace">
+      <header class="page-header ac-workspace-head">
         <div>
           <p class="ac-eyebrow">Clinical</p>
           <h1 class="ac-page-title">Patient Registry</h1>
@@ -41,19 +42,11 @@ type PatientDatePickerMode = 'calendar' | 'years';
         </div>
       </header>
 
-      <div class="stats-row">
-        @for (s of statCards(); track s.label) {
-          <article class="stat-card ac-card">
-            <div class="stat-icon" [style.background]="s.bg" [style.color]="s.color">
-              <span class="material-symbols-rounded msf">{{ s.icon }}</span>
-            </div>
-            <div>
-              <p class="stat-value">{{ s.value }}</p>
-              <p class="stat-label">{{ s.label }}</p>
-            </div>
-          </article>
+      <section class="ac-kpi-grid" aria-label="Workspace overview">
+        @for (card of statCards(); track card.label) {
+          <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.color" [detail]="card.meta" [pending]="initialLoading()"  />
         }
-      </div>
+      </section>
 
       <section class="toolbar ac-card">
         <div class="search-field">
@@ -1049,10 +1042,10 @@ export class PatientListPageComponent implements OnInit, OnDestroy {
   protected readonly statCards = computed(() => {
     const current = this.stats();
     return [
-      { label: 'Total Patients', value: formatNumber(current.totalPatients), icon: 'people', bg: 'rgba(37,99,235,0.08)', color: '#2563EB' },
-      { label: 'Checked In Today', value: formatNumber(current.checkedInToday), icon: 'how_to_reg', bg: 'rgba(16,185,129,0.08)', color: '#10B981' },
-      { label: 'New This Month', value: formatNumber(current.newThisMonth), icon: 'person_add', bg: 'rgba(124,58,237,0.08)', color: '#7C3AED' },
-      { label: 'Pending Review', value: formatNumber(current.pendingReview), icon: 'pending', bg: 'rgba(245,158,11,0.08)', color: '#F59E0B' }
+      { label: 'Total Patients', meta: 'Registered care records', value: formatNumber(current.totalPatients), icon: 'people', bg: 'rgba(37,99,235,0.08)', color: '#2563EB' },
+      { label: 'Checked In Today', meta: 'Arrivals for today', value: formatNumber(current.checkedInToday), icon: 'how_to_reg', bg: 'rgba(16,185,129,0.08)', color: '#10B981' },
+      { label: 'New This Month', meta: 'Registrations this month', value: formatNumber(current.newThisMonth), icon: 'person_add', bg: 'rgba(124,58,237,0.08)', color: '#7C3AED' },
+      { label: 'Pending Review', meta: 'Records needing review', value: formatNumber(current.pendingReview), icon: 'pending', bg: 'rgba(245,158,11,0.08)', color: '#F59E0B' }
     ];
   });
 

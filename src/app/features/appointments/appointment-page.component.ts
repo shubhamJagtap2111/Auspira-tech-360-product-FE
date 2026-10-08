@@ -1,3 +1,4 @@
+import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
 import { appointmentCalendarDates, calendarDateKey, CalendarPeriod, shiftAppointmentCalendar } from './appointment-calendar';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, ElementRef, Injector, OnDestroy, OnInit, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
@@ -32,10 +33,10 @@ import { AppointmentManagementService } from './appointment-management.service';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent, AcAdminDrawerComponent],
+  imports: [AcKpiCardComponent, CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent, AcAdminDrawerComponent],
   template: `
-    <section class="appointment-page">
-      <header class="page-header">
+    <section class="appointment-page ac-workspace">
+      <header class="page-header ac-workspace-head">
         <div>
           <p class="ac-eyebrow">Clinical workflow</p>
           <h1 class="ac-page-title">Appointment Management</h1>
@@ -53,17 +54,11 @@ import { AppointmentManagementService } from './appointment-management.service';
         </div>
       </header>
 
-      <div class="stats-row">
+      <section class="ac-kpi-grid" aria-label="Workspace overview">
         @for (card of statCards(); track card.label) {
-          <article class="stat-card ac-card">
-            <span class="stat-icon material-symbols-rounded" [style.background]="card.bg" [style.color]="card.color">{{ card.icon }}</span>
-            <div>
-              <p class="stat-value">{{ card.value }}</p>
-              <p class="stat-label">{{ card.label }}</p>
-            </div>
-          </article>
+          <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.color" [detail]="card.meta" [pending]="initialLoading()"  />
         }
-      </div>
+      </section>
 
       <section class="appointment-shell ac-card">
         <div class="workspace-toolbar">
@@ -942,12 +937,12 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
   protected readonly statCards = computed(() => {
     const stats = this.stats();
     return [
-      { label: 'Total', value: formatNumber(stats.total), icon: 'event', color: '#2563eb', bg: '#eff6ff' },
-      { label: 'Today', value: formatNumber(stats.today), icon: 'today', color: '#7c3aed', bg: '#f5f3ff' },
-      { label: 'Scheduled', value: formatNumber(stats.booked), icon: 'event_available', color: '#0891b2', bg: '#ecfeff' },
-      { label: 'Checked In', value: formatNumber(stats.checkedIn), icon: 'how_to_reg', color: '#10b981', bg: '#ecfdf5' },
-      { label: 'Completed', value: formatNumber(stats.completed), icon: 'task_alt', color: '#059669', bg: '#ecfdf5' },
-      { label: 'Cancelled', value: formatNumber(stats.cancelled), icon: 'event_busy', color: '#dc2626', bg: '#fef2f2' }
+      { label: 'Total', meta: 'Loaded appointments', value: formatNumber(stats.total), icon: 'event', color: '#2563eb', bg: '#eff6ff' },
+      { label: 'Today', meta: 'Appointments for today', value: formatNumber(stats.today), icon: 'today', color: '#7c3aed', bg: '#f5f3ff' },
+      { label: 'Scheduled', meta: 'Booked in loaded records', value: formatNumber(stats.booked), icon: 'event_available', color: '#0891b2', bg: '#ecfeff' },
+      { label: 'Checked In', meta: 'Arrived in loaded records', value: formatNumber(stats.checkedIn), icon: 'how_to_reg', color: '#10b981', bg: '#ecfdf5' },
+      { label: 'Completed', meta: 'Completed in loaded records', value: formatNumber(stats.completed), icon: 'task_alt', color: '#059669', bg: '#ecfdf5' },
+      { label: 'Cancelled', meta: 'Cancelled in loaded records', value: formatNumber(stats.cancelled), icon: 'event_busy', color: '#dc2626', bg: '#fef2f2' }
     ];
   });
 

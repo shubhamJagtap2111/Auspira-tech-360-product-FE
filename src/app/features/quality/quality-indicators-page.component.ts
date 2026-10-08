@@ -1,3 +1,4 @@
+import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -23,10 +24,10 @@ type QualityTab = 'dashboard' | 'indicators' | 'audits' | 'events' | 'builder';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
+  imports: [AcKpiCardComponent, CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
   template: `
-    <section class="quality-page">
-      <header class="quality-header">
+    <section class="quality-page ac-workspace">
+      <header class="quality-header ac-workspace-head">
         <div>
           <p class="ac-eyebrow">Quality & KPI</p>
           <h1 class="ac-page-title">Automated Quality Indicators</h1>
@@ -71,7 +72,7 @@ type QualityTab = 'dashboard' | 'indicators' | 'audits' | 'events' | 'builder';
         </button>
       </section>
 
-      <nav class="tab-bar ac-card" aria-label="Quality workspace">
+      <nav class="tab-bar ac-card ac-workspace-tabs" aria-label="Quality workspace">
         @for (tab of tabs; track tab.value) {
           <button type="button" [class.active]="activeTab() === tab.value" (click)="activeTab.set(tab.value)">
             <span class="material-symbols-rounded">{{ tab.icon }}</span>
@@ -86,18 +87,11 @@ type QualityTab = 'dashboard' | 'indicators' | 'audits' | 'events' | 'builder';
         </section>
       } @else if (dashboard(); as model) {
         @if (activeTab() === 'dashboard') {
-          <section class="summary-grid">
-            @for (card of dashboardCards(model); track card.label) {
-              <article class="summary-card ac-card" [style.--tone]="card.color">
-                <span class="material-symbols-rounded">{{ card.icon }}</span>
-                <div>
-                  <small>{{ card.label }}</small>
-                  <strong>{{ card.value }}</strong>
-                  <em>{{ card.meta }}</em>
-                </div>
-              </article>
-            }
-          </section>
+          <section class="ac-kpi-grid" aria-label="Overview">
+          @for (card of dashboardCards(model); track card.label) {
+            <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.color" [detail]="card.meta"  />
+          }
+        </section>
 
           <section class="dashboard-grid">
             <article class="score-panel ac-card">

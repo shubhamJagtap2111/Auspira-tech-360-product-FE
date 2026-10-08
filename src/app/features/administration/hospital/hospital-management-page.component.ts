@@ -24,8 +24,8 @@ type HospitalProfileDrawer = 'branding' | 'settings' | 'subscription';
   standalone: true,
   imports: [CommonModule, FormsModule, AcAdminDrawerComponent, AcGridLoaderComponent, AcDropdownComponent],
   template: `
-    <section class="hospital-page">
-      <header class="page-head">
+    <section class="hospital-page ac-workspace">
+      <header class="page-head ac-workspace-head">
         <div>
           <h1 class="ac-page-title">{{ t('Administration.Hospital.Title') }}</h1>
           <p>{{ t('Administration.Hospital.Subtitle') }}</p>

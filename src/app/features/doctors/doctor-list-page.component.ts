@@ -1,3 +1,4 @@
+import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -17,10 +18,10 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent, AcPaginationComponent, AcAdminDrawerComponent],
+  imports: [AcKpiCardComponent, CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent, AcPaginationComponent, AcAdminDrawerComponent],
   template: `
-    <section class="doctor-registry">
-      <header class="page-header">
+    <section class="doctor-registry ac-workspace">
+      <header class="page-header ac-workspace-head">
         <div>
           <p class="ac-eyebrow">Clinical</p>
           <h1 class="ac-page-title">Doctor Registry</h1>
@@ -38,17 +39,11 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
         </div>
       </header>
 
-      <div class="stats-row">
+      <section class="ac-kpi-grid" aria-label="Workspace overview">
         @for (card of statCards(); track card.label) {
-          <article class="stat-card ac-card">
-            <span class="stat-icon material-symbols-rounded" [style.background]="card.bg" [style.color]="card.color">{{ card.icon }}</span>
-            <div>
-              <p class="stat-value">{{ card.value }}</p>
-              <p class="stat-label">{{ card.label }}</p>
-            </div>
-          </article>
+          <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.color" [detail]="card.meta" [pending]="initialLoading()"  />
         }
-      </div>
+      </section>
 
       <section class="toolbar ac-card">
         <div class="search-field">
@@ -441,10 +436,10 @@ export class DoctorListPageComponent implements OnInit, OnDestroy {
   ];
 
   protected readonly statCards = computed(() => [
-    { label: 'Total Doctors', value: formatNumber(this.stats().totalDoctors), icon: 'medical_services', color: '#2563EB', bg: '#EAF1FF' },
-    { label: 'Active Doctors', value: formatNumber(this.stats().activeDoctors), icon: 'verified_user', color: '#059669', bg: '#E7F8F0' },
-    { label: 'On Leave', value: formatNumber(this.stats().onLeaveDoctors), icon: 'event_busy', color: '#EA580C', bg: '#FFF3E6' },
-    { label: 'Expiring Registrations', value: formatNumber(this.stats().expiringRegistrations), icon: 'workspace_premium', color: '#7C3AED', bg: '#F1E8FF' }
+    { label: 'Total Doctors', meta: 'Doctors in this workspace', value: formatNumber(this.stats().totalDoctors), icon: 'medical_services', color: '#2563EB', bg: '#EAF1FF' },
+    { label: 'Active Doctors', meta: 'Active clinical staff', value: formatNumber(this.stats().activeDoctors), icon: 'verified_user', color: '#059669', bg: '#E7F8F0' },
+    { label: 'On Leave', meta: 'Leave recorded today', value: formatNumber(this.stats().onLeaveDoctors), icon: 'event_busy', color: '#EA580C', bg: '#FFF3E6' },
+    { label: 'Expiring Registrations', meta: 'Registration renewals due', value: formatNumber(this.stats().expiringRegistrations), icon: 'workspace_premium', color: '#7C3AED', bg: '#F1E8FF' }
   ]);
 
   private readonly service = inject(DoctorManagementService);

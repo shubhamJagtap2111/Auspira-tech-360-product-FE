@@ -1,3 +1,4 @@
+import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -77,9 +78,9 @@ interface HospitalPulseItem {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [AcKpiCardComponent, CommonModule, FormsModule, RouterLink],
   template: `
-    <section class="admin-dashboard">
+    <section class="admin-dashboard ac-workspace">
       <header class="dashboard-hero" [class.staff-hero]="!isHospitalAdmin()">
         <div class="hero-copy">
           <span class="eyebrow">{{ isHospitalAdmin() ? 'Control center' : 'My workspace' }}</span>
@@ -95,16 +96,9 @@ interface HospitalPulseItem {
 
       @if (dashboard(); as model) {
         @if (isHospitalAdmin()) {
-          <section class="kpi-grid">
+          <section class="ac-kpi-grid" aria-label="Hospital overview">
             @for (card of createOperationalCards(model.operationalSummary); track card.label) {
-              <article class="metric-card" [style.--tone]="card.tone">
-                <div class="metric-icon"><span class="material-symbols-rounded">{{ card.icon }}</span></div>
-                <div>
-                  <p class="metric-label">{{ card.label }}</p>
-                  <strong>{{ card.value }}</strong>
-                  <span>{{ card.subLabel }}</span>
-                </div>
-              </article>
+              <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.tone" [detail]="card.subLabel" />
             }
           </section>
 
@@ -362,16 +356,9 @@ interface HospitalPulseItem {
             </div>
           </section>
         } @else {
-          <section class="staff-kpi-grid">
+          <section class="ac-kpi-grid" aria-label="Hospital overview">
             @for (card of createStaffCards(model.summary); track card.label) {
-              <article class="metric-card staff-card" [style.--tone]="card.tone">
-                <div class="metric-icon"><span class="material-symbols-rounded">{{ card.icon }}</span></div>
-                <div>
-                  <p class="metric-label">{{ card.label }}</p>
-                  <strong>{{ card.value }}</strong>
-                  <span>{{ card.subLabel }}</span>
-                </div>
-              </article>
+              <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.tone" [detail]="card.subLabel" />
             }
           </section>
 

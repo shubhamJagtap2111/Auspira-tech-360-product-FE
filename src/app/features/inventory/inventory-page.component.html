@@ -1,5 +1,5 @@
-<section class="inventory-page" [attr.aria-busy]="loading()">
-  <header class="page-head">
+<section class="inventory-page ac-workspace" [attr.aria-busy]="loading()">
+  <header class="page-head ac-workspace-head">
     <div><span class="eyebrow">HOSPITAL STORES</span><h1>Inventory</h1><p>Supplies ready for care. Equipment ready for use.</p></div>
     <div class="actions"><button class="ac-btn ac-btn-secondary" (click)="load()" [disabled]="loading()||busy()"><span class="material-symbols-rounded" aria-hidden="true">refresh</span>Refresh</button>
       @if(tab()==='ledger'&&can('Edit')){<button class="ac-btn ac-btn-primary" (click)="open('movement')" [disabled]="!canWrite()||busy()||!activeItems().length">Record movement</button>} @else if(can('Create')) {<button class="ac-btn ac-btn-primary" (click)="open(tab()==='vendors'?'vendor':tab()==='assets'?'asset':tab()==='orders'?'order':'item')" [disabled]="!canWrite()||busy()||loading()"><span class="material-symbols-rounded" aria-hidden="true">add</span>{{tab()==='vendors'?'New vendor':tab()==='assets'?'Register asset':tab()==='orders'?'New order':'New item'}}</button>}
@@ -9,13 +9,13 @@
   @if(error()){<div class="error" role="alert">{{error()}} <button class="ac-btn ac-btn-secondary" (click)="load()">Retry</button></div>}
   @if(loading()){<div class="loading" role="status"><span class="spinner"></span>Loading inventory…</div>}
   @if(!error()){
-    <div class="metrics">
-      <button (click)="choose('items')"><span class="metric-icon blue material-symbols-rounded">inventory_2</span><div><strong>{{data().items.length}}</strong><span>Stock items</span></div></button>
-      <button (click)="choose('items');state.set('LOW')"><span class="metric-icon amber material-symbols-rounded">warning</span><div><strong>{{lowStock().length}}</strong><span>Need replenishment</span></div></button>
-      <button (click)="choose('orders')"><span class="metric-icon purple material-symbols-rounded">shopping_cart</span><div><strong>{{openOrders().length}}</strong><span>Open purchase orders</span></div></button>
-      <button (click)="choose('assets')"><span class="metric-icon teal material-symbols-rounded">medical_services</span><div><strong>{{data().assets.length}}</strong><span>Registered assets · {{maintenance().length}} need attention</span></div></button>
-    </div>
-    <nav class="tabs" aria-label="Inventory sections">@for(t of tabs;track t.key){<button (click)="choose(t.key)" [class.selected]="tab()===t.key" [attr.aria-label]="t.name" [attr.aria-current]="tab()===t.key?'page':null"><span class="material-symbols-rounded" aria-hidden="true">{{t.icon}}</span>{{t.name}}</button>}</nav>
+    <section class="ac-kpi-grid" aria-label="Inventory overview">
+      <ac-kpi-card label="Stock items" [value]="data().items.length" icon="inventory_2" detail="Items in the stores register" [pending]="loading()" [actionable]="true" (activated)="choose('items')" />
+      <ac-kpi-card label="Replenishment needed" [value]="lowStock().length" icon="warning" tone="var(--ac-warning-text)" detail="At or below reorder level" [pending]="loading()" [actionable]="true" (activated)="choose('items');state.set('LOW')" />
+      <ac-kpi-card label="Open purchase orders" [value]="openOrders().length" icon="shopping_cart" tone="var(--ac-secondary)" detail="Orders awaiting fulfilment" [pending]="loading()" [actionable]="true" (activated)="choose('orders')" />
+      <ac-kpi-card label="Registered assets" [value]="data().assets.length" icon="medical_services" tone="var(--ac-teal)" [detail]="maintenance().length + ' assets need attention'" [pending]="loading()" [actionable]="true" (activated)="choose('assets')" />
+    </section>
+    <nav class="tabs ac-workspace-tabs" aria-label="Inventory sections">@for(t of tabs;track t.key){<button (click)="choose(t.key)" [class.selected]="tab()===t.key" [attr.aria-label]="t.name" [attr.aria-current]="tab()===t.key?'page':null"><span class="material-symbols-rounded" aria-hidden="true">{{t.icon}}</span>{{t.name}}</button>}</nav>
     @if(tab()==='overview'){
       <div class="overview-grid">
         <article class="panel stock-summary"><span class="eyebrow">STORES SNAPSHOT</span><h2>Stock on hand</h2><strong class="value">{{stockValue()|currency:'INR':'symbol':'1.0-2'}}</strong><p>Estimated value at the latest item cost.</p><div class="workflow"><div><span>1</span><b>Order</b><small>Choose vendor & supplies</small></div><div><span>2</span><b>Receive</b><small>Confirm actual quantities</small></div><div><span>3</span><b>Issue</b><small>Record department usage</small></div></div>

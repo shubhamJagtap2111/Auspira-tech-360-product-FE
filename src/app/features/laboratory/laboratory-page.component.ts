@@ -1,3 +1,4 @@
+import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -14,18 +15,18 @@ type PendingReportOrder = LabOrder & { processingCount: number; verificationCoun
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcGridLoaderComponent],
+  imports: [AcKpiCardComponent, CommonModule, FormsModule, AcGridLoaderComponent],
   selector: 'ac-laboratory-page',
   template: `
-    <main class="laboratory-page">
-      <header class="page-head">
+    <main class="laboratory-page ac-workspace">
+      <header class="page-head ac-workspace-head">
         <div><p class="ac-eyebrow">Clinical diagnostics</p><h1 class="ac-page-title">Laboratory</h1><p>Order, collect, process, verify, and release diagnostic results from one controlled workspace.</p></div>
         <div class="head-actions">
           <button class="ac-btn ac-btn-secondary" type="button" (click)="refresh()" [disabled]="loading()"><span class="material-symbols-rounded">refresh</span><span>Refresh</span></button>
           <button class="ac-btn ac-btn-primary" type="button" (click)="openOrderDialog()"><span class="material-symbols-rounded">add</span><span>New Lab Order</span></button>
         </div>
       </header>
-      <nav class="laboratory-tabs" aria-label="Laboratory workspace">
+      <nav class="laboratory-tabs ac-workspace-tabs" aria-label="Laboratory workspace">
         @for(tab of tabs; track tab.key){<button type="button" [class.active]="activeTab()===tab.key" (click)="setActiveTab(tab.key)"><span class="material-symbols-rounded">{{tab.icon}}</span>{{tab.label}}@if(tab.count()){<b>{{tab.count()}}</b>}</button>}
       </nav>
 
@@ -33,9 +34,11 @@ type PendingReportOrder = LabOrder & { processingCount: number; verificationCoun
       @else {
         @switch(activeTab()){
           @case('dashboard'){
-            <section class="metric-grid">
-              @for(card of dashboardCards(); track card.label){<button type="button" class="metric" (click)="setActiveTab(card.tab)"><span class="material-symbols-rounded">{{card.icon}}</span><div><small>{{card.label}}</small><strong>{{card.value}}</strong><em>{{card.meta}}</em></div></button>}
-            </section>
+            <section class="ac-kpi-grid" aria-label="Workspace overview">
+        @for (card of dashboardCards(); track card.label) {
+          <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.tab === 'critical' ? 'var(--ac-error)' : 'var(--ac-primary)'" [detail]="card.meta" [pending]="loading()" [actionable]="true" (activated)="setActiveTab(card.tab)" />
+        }
+      </section>
             <section class="panel"><div class="panel-head"><div><p class="ac-eyebrow">Priority watch</p><h2>Actionable laboratory queues</h2></div><span>Items requiring immediate attention</span></div><div class="queue-grid"><article class="alert critical"><span class="material-symbols-rounded">emergency</span><div><strong>{{dashboard()?.criticalUnacknowledged||0}} critical results</strong><small>Awaiting clinical acknowledgement</small></div><button class="small-btn" (click)="setActiveTab('critical')">Open</button></article><article class="alert stat"><span class="material-symbols-rounded">bolt</span><div><strong>{{dashboard()?.statOpen||0}} STAT orders</strong><small>Open high-priority diagnostics</small></div><button class="small-btn" (click)="setActiveTab('orders')">Open</button></article></div></section>
           }
           @case('catalog'){
@@ -329,8 +332,8 @@ type PendingReportOrder = LabOrder & { processingCount: number; verificationCoun
     .dialog header,.detail-drawer header{margin:-2px -2px 0;padding:2px 2px 14px}
     .dialog .form-grid{padding:2px}
     .result-panel label{display:block;margin-top:12px}
-    :host-context(.dark) .laboratory-page{color:var(--ac-border)}
-    :host-context(.dark) .page-head h1{color:var(--ac-bg)}
+    :host-context(.dark) .laboratory-page{color:var(--ac-text-2)}
+    :host-context(.dark) .page-head h1{color:var(--ac-text)}
     :host-context(.dark) .page-head p:last-child,
     :host-context(.dark) .panel-head>span,
     :host-context(.dark) .dialog header span,
@@ -349,17 +352,17 @@ type PendingReportOrder = LabOrder & { processingCount: number; verificationCoun
     :host-context(.dark) .test-card,
     :host-context(.dark) .verify-card,
     :host-context(.dark) .detail-drawer,
-    :host-context(.dark) .dialog{background:var(--ac-text);border-color:#263244;box-shadow:0 12px 30px rgba(0,0,0,.24)}
+    :host-context(.dark) .dialog{background:var(--ac-surface);border-color:#263244;box-shadow:0 12px 30px rgba(0,0,0,.24)}
     :host-context(.dark) .laboratory-tabs{scrollbar-color:var(--ac-muted) #1f2937}
     :host-context(.dark) .laboratory-tabs::-webkit-scrollbar-track{background:#1f2937}
     :host-context(.dark) .laboratory-tabs::-webkit-scrollbar-thumb{background:var(--ac-muted)}
-    :host-context(.dark) .laboratory-tabs button{color:var(--ac-border-2)}
-    :host-context(.dark) .laboratory-tabs button:hover{background:#172033;border-color:var(--ac-text-3);color:var(--ac-bg)}
-    :host-context(.dark) .laboratory-tabs button.active{background:var(--ac-text);border-color:var(--ac-primary);color:#93c5fd;box-shadow:0 8px 20px rgba(37,99,235,.2)}
+    :host-context(.dark) .laboratory-tabs button{color:var(--ac-muted)}
+    :host-context(.dark) .laboratory-tabs button:hover{background:#172033;border-color:var(--ac-border-2);color:var(--ac-text)}
+    :host-context(.dark) .laboratory-tabs button.active{background:var(--ac-surface);border-color:var(--ac-primary);color:#93c5fd;box-shadow:0 8px 20px rgba(37,99,235,.2)}
     :host-context(.dark) .laboratory-tabs .material-symbols-rounded,
-    :host-context(.dark) .metric>.material-symbols-rounded{background:var(--ac-text-2);color:#93c5fd}
+    :host-context(.dark) .metric>.material-symbols-rounded{background:var(--ac-surface-2);color:#93c5fd}
     :host-context(.dark) .laboratory-tabs button.active .material-symbols-rounded{background:var(--ac-primary);color:#fff}
-    :host-context(.dark) .laboratory-tabs b{background:#263244;color:var(--ac-border-2)}
+    :host-context(.dark) .laboratory-tabs b{background:#263244;color:var(--ac-muted)}
     :host-context(.dark) .laboratory-tabs button.active b{background:var(--ac-primary-hover);color:#fff}
     :host-context(.dark) .metric{border-top-color:#3b82f6}
     :host-context(.dark) .metric:hover,
@@ -373,7 +376,7 @@ type PendingReportOrder = LabOrder & { processingCount: number; verificationCoun
     :host-context(.dark) .critical-card h3,
     :host-context(.dark) .alert strong,
     :host-context(.dark) .sample-label strong,
-    :host-context(.dark) .table-row strong{color:var(--ac-bg)}
+    :host-context(.dark) .table-row strong{color:var(--ac-text)}
     :host-context(.dark) .metric small,
     :host-context(.dark) label>span,
     :host-context(.dark) legend{color:#d1d5db}
@@ -382,7 +385,7 @@ type PendingReportOrder = LabOrder & { processingCount: number; verificationCoun
     :host-context(.dark) .ac-eyebrow{color:#8ab4f8}
     :host-context(.dark) input,
     :host-context(.dark) select,
-    :host-context(.dark) textarea{background:var(--ac-text);border-color:var(--ac-text-3);color:var(--ac-border)}
+    :host-context(.dark) textarea{background:var(--ac-surface);border-color:var(--ac-border-2);color:var(--ac-text-2)}
     :host-context(.dark) input:focus,
     :host-context(.dark) select:focus,
     :host-context(.dark) textarea:focus{border-color:#60a5fa;box-shadow:0 0 0 3px rgba(96,165,250,.15)}
@@ -393,7 +396,7 @@ type PendingReportOrder = LabOrder & { processingCount: number; verificationCoun
     :host-context(.dark) .dialog header,
     :host-context(.dark) .dialog footer{border-color:#263244}
     :host-context(.dark) .table-head{background:#1f2937;border-color:#263244;color:#aeb9c8}
-    :host-context(.dark) .table-row{border-color:#1f2937;color:var(--ac-border)}
+    :host-context(.dark) .table-row{border-color:#1f2937;color:var(--ac-text-2)}
     :host-context(.dark) .table-row:hover,
     :host-context(.dark) .checks label:hover{background:#172033;border-color:#263244}
     :host-context(.dark) .table button,
@@ -403,29 +406,29 @@ type PendingReportOrder = LabOrder & { processingCount: number; verificationCoun
     :host-context(.dark) .small-btn,
     :host-context(.dark) .icon-btn,
     :host-context(.dark) .dialog header button.icon-btn,
-    :host-context(.dark) .dialog footer .ac-btn-secondary{background:var(--ac-text);border-color:var(--ac-text-3);color:var(--ac-border)}
+    :host-context(.dark) .dialog footer .ac-btn-secondary{background:var(--ac-surface);border-color:var(--ac-border-2);color:var(--ac-text-2)}
     :host-context(.dark) .table button:hover,
     :host-context(.dark) .actions button:hover,
     :host-context(.dark) .small-btn:hover{background:#1f2937}
     :host-context(.dark) .icon-btn:hover,
-    :host-context(.dark) .dialog header button.icon-btn:hover{background:var(--ac-text);border-color:#3b82f6;color:#bfdbfe;box-shadow:0 10px 22px rgba(37,99,235,.2)}
+    :host-context(.dark) .dialog header button.icon-btn:hover{background:var(--ac-surface);border-color:#3b82f6;color:#bfdbfe;box-shadow:0 10px 22px rgba(37,99,235,.2)}
     :host-context(.dark) .dialog footer .ac-btn-primary,
     :host-context(.dark) .primary{background:var(--ac-primary)!important;border-color:var(--ac-primary)!important;color:#fff!important}
     :host-context(.dark) .source-tag,
     :host-context(.dark) .test-card>div span,
-    :host-context(.dark) .test-code{background:var(--ac-text);color:#93c5fd}
-    :host-context(.dark) mark{background:#263244;color:var(--ac-border-2)}
+    :host-context(.dark) .test-code{background:var(--ac-surface);color:#93c5fd}
+    :host-context(.dark) mark{background:#263244;color:var(--ac-muted)}
     :host-context(.dark) mark.stat{background:#78350f!important;color:#fde68a!important}
     :host-context(.dark) mark.danger{background:#7f1d1d!important;color:#fecaca!important}
-    :host-context(.dark) .status{background:#263244;color:var(--ac-border-2)}
+    :host-context(.dark) .status{background:#263244;color:var(--ac-muted)}
     :host-context(.dark) .status.success{background:#064e3b;color:#a7f3d0}
     :host-context(.dark) .status.warning{background:#78350f;color:#fde68a}
     :host-context(.dark) .status.danger{background:#7f1d1d;color:#fecaca}
-    :host-context(.dark) .status.muted{background:#263244;color:var(--ac-border-2)}
-    :host-context(.dark) .alert{background:var(--ac-text);border-color:#263244}
+    :host-context(.dark) .status.muted{background:#263244;color:var(--ac-muted)}
+    :host-context(.dark) .alert{background:var(--ac-surface);border-color:#263244}
     :host-context(.dark) .alert.critical,
     :host-context(.dark) .critical-card{background:#2a1214;border-color:#7f1d1d;border-left-color:#ef4444}
-    :host-context(.dark) .alert.stat{background:#241a0b!important;border-color:#854d0e;color:var(--ac-bg)!important;border-left-color:#f59e0b}
+    :host-context(.dark) .alert.stat{background:#241a0b!important;border-color:#854d0e;color:var(--ac-text)!important;border-left-color:#f59e0b}
     :host-context(.dark) .critical-card.done{background:#092016;border-color:#166534;border-left-color:#22c55e}
     :host-context(.dark) .panel,
     :host-context(.dark) .metric,
@@ -433,13 +436,13 @@ type PendingReportOrder = LabOrder & { processingCount: number; verificationCoun
     :host-context(.dark) .test-card,
     :host-context(.dark) .verify-card,
     :host-context(.dark) .dialog,
-    :host-context(.dark) .detail-drawer{background:linear-gradient(135deg,var(--ac-text),var(--ac-text));border-color:#263244;box-shadow:0 12px 28px rgba(0,0,0,.26)}
+    :host-context(.dark) .detail-drawer{background:linear-gradient(135deg,var(--ac-surface),var(--ac-surface));border-color:#263244;box-shadow:0 12px 28px rgba(0,0,0,.26)}
     :host-context(.dark) .panel-head{border-bottom-color:#1f2937}
     :host-context(.dark) .metric::before{background:linear-gradient(180deg,#60a5fa,var(--ac-primary))}
     :host-context(.dark) .metric>.material-symbols-rounded,
     :host-context(.dark) .alert>span,
     :host-context(.dark) .sample-label>span,
-    :host-context(.dark) .critical-card>.material-symbols-rounded{background:var(--ac-text);box-shadow:inset 0 0 0 1px var(--ac-primary-hover);color:#bfdbfe}
+    :host-context(.dark) .critical-card>.material-symbols-rounded{background:var(--ac-surface);box-shadow:inset 0 0 0 1px var(--ac-primary-hover);color:#bfdbfe}
     :host-context(.dark) .alert.critical>span{background:#450a0a;color:#fecaca;box-shadow:inset 0 0 0 1px #7f1d1d}
     :host-context(.dark) .alert.stat>span{background:#451a03;color:#fde68a;box-shadow:inset 0 0 0 1px #92400e}
     :host-context(.dark) .search-field input,
@@ -447,24 +450,24 @@ type PendingReportOrder = LabOrder & { processingCount: number; verificationCoun
     :host-context(.dark) .drawer-summary-grid span{background:#0b1220;border-color:#263244}
     :host-context(.dark) .drawer-summary-grid small{color:#94a3b8}
     :host-context(.dark) .drawer-summary-grid strong,
-    :host-context(.dark) .drawer-empty strong{color:var(--ac-bg)}
-    :host-context(.dark) .drawer-empty .material-symbols-rounded{background:var(--ac-text);color:#bfdbfe}
+    :host-context(.dark) .drawer-empty strong{color:var(--ac-text)}
+    :host-context(.dark) .drawer-empty .material-symbols-rounded{background:var(--ac-surface);color:#bfdbfe}
     :host-context(.dark) .drawer-empty p{color:#94a3b8}
-    :host-context(.dark) .result-empty{background:#0b1220;border-color:var(--ac-text-3);color:var(--ac-border-2)}
-    :host-context(.dark) .result-empty .material-symbols-rounded{background:var(--ac-text);color:#bfdbfe}
-    :host-context(.dark) .result-empty strong{color:var(--ac-bg)}
+    :host-context(.dark) .result-empty{background:#0b1220;border-color:var(--ac-border-2);color:var(--ac-muted)}
+    :host-context(.dark) .result-empty .material-symbols-rounded{background:var(--ac-surface);color:#bfdbfe}
+    :host-context(.dark) .result-empty strong{color:var(--ac-text)}
     :host-context(.dark) .result-empty small{color:#94a3b8}
     :host-context(.dark) .collection-panel,
-    :host-context(.dark) .received-panel{background:radial-gradient(circle at top left,rgba(20,184,166,.13),transparent 32%),linear-gradient(135deg,var(--ac-text),var(--ac-text))}
+    :host-context(.dark) .received-panel{background:radial-gradient(circle at top left,rgba(20,184,166,.13),transparent 32%),linear-gradient(135deg,var(--ac-surface),var(--ac-surface))}
     :host-context(.dark) .barcode-field,
     :host-context(.dark) .collection-summary span,
     :host-context(.dark) .collection-card,
-    :host-context(.dark) .barcode-card{background:#0b1220;border-color:#263244;color:var(--ac-border)}
+    :host-context(.dark) .barcode-card{background:#0b1220;border-color:#263244;color:var(--ac-text-2)}
     :host-context(.dark) .collection-summary b,
     :host-context(.dark) .specimen-icon{color:#5eead4}
     :host-context(.dark) .barcode-field>span,
     :host-context(.dark) .barcode-card>.material-symbols-rounded,
-    :host-context(.dark) .test-pills span{background:var(--ac-text);color:#bfdbfe}
+    :host-context(.dark) .test-pills span{background:var(--ac-surface);color:#bfdbfe}
     :host-context(.dark) .collection-card:hover{border-color:#14b8a6;box-shadow:0 14px 30px rgba(20,184,166,.14)}
     :host-context(.dark) .specimen-icon{background:#134e4a}
     :host-context(.dark) .collection-summary small,
@@ -472,33 +475,33 @@ type PendingReportOrder = LabOrder & { processingCount: number; verificationCoun
     :host-context(.dark) .barcode-card small,
     :host-context(.dark) .barcode-card p{color:#94a3b8}
     :host-context(.dark) .collection-card h3,
-    :host-context(.dark) .barcode-card strong{color:var(--ac-bg)}
-    :host-context(.dark) .verification-panel{background:radial-gradient(circle at top right,rgba(124,58,237,.18),transparent 34%),linear-gradient(135deg,var(--ac-text),var(--ac-text))}
+    :host-context(.dark) .barcode-card strong{color:var(--ac-text)}
+    :host-context(.dark) .verification-panel{background:radial-gradient(circle at top right,rgba(124,58,237,.18),transparent 34%),linear-gradient(135deg,var(--ac-surface),var(--ac-surface))}
     :host-context(.dark) .review-card,
     :host-context(.dark) .review-banner,
     :host-context(.dark) .review-note,
     :host-context(.dark) .review-table .table-row{background:#0b1220;border-color:#263244}
     :host-context(.dark) .review-card .actions .ac-btn-secondary,
-    :host-context(.dark) .result-value{background:var(--ac-text);border-color:var(--ac-primary);color:#bfdbfe}
+    :host-context(.dark) .result-value{background:var(--ac-surface);border-color:var(--ac-primary);color:#bfdbfe}
     :host-context(.dark) .review-banner>.material-symbols-rounded{background:var(--ac-primary);color:#fff}
     :host-context(.dark) .review-card small,
     :host-context(.dark) .review-banner small,
     :host-context(.dark) .review-note p{color:#94a3b8}
     :host-context(.dark) .review-banner strong,
-    :host-context(.dark) .review-note span{color:var(--ac-bg)}
+    :host-context(.dark) .review-note span{color:var(--ac-text)}
     :host-context(.dark) .ack-critical{background:#2a1214;border-color:#7f1d1d;border-left-color:#ef4444}
     :host-context(.dark) .ack-critical>.material-symbols-rounded{background:#450a0a;color:#fecaca}
-    :host-context(.dark) .ack-critical strong{color:var(--ac-bg)}
+    :host-context(.dark) .ack-critical strong{color:var(--ac-text)}
     :host-context(.dark) .ack-critical small{color:#94a3b8}
     :host-context(.dark) .reject-warning{background:#241a0b;border-color:#854d0e;border-left-color:#f59e0b}
     :host-context(.dark) .reject-warning>.material-symbols-rounded{background:#451a03;color:#fde68a}
-    :host-context(.dark) .reject-warning strong{color:var(--ac-bg)}
+    :host-context(.dark) .reject-warning strong{color:var(--ac-text)}
     :host-context(.dark) .reject-warning small{color:#94a3b8}
-    :host-context(.dark) .processing-panel{background:radial-gradient(circle at top right,rgba(37,99,235,.18),transparent 34%),linear-gradient(135deg,var(--ac-text),var(--ac-text))}
-    :host-context(.dark) .pending-report-panel{background:radial-gradient(circle at top right,rgba(245,158,11,.16),transparent 34%),linear-gradient(135deg,var(--ac-text),var(--ac-text))}
+    :host-context(.dark) .processing-panel{background:radial-gradient(circle at top right,rgba(37,99,235,.18),transparent 34%),linear-gradient(135deg,var(--ac-surface),var(--ac-surface))}
+    :host-context(.dark) .pending-report-panel{background:radial-gradient(circle at top right,rgba(245,158,11,.16),transparent 34%),linear-gradient(135deg,var(--ac-surface),var(--ac-surface))}
     :host-context(.dark) .pending-report-card{background:#241a0b;border-color:#854d0e}
     :host-context(.dark) .pending-report-card>.material-symbols-rounded{background:#451a03;color:#fde68a}
-    :host-context(.dark) .pending-report-card h3{color:var(--ac-bg)}
+    :host-context(.dark) .pending-report-card h3{color:var(--ac-text)}
     :host-context(.dark) .pending-report-card p,
     :host-context(.dark) .pending-report-card small{color:#94a3b8}
     :host-context(.dark) .processing-summary span,
@@ -512,12 +515,12 @@ type PendingReportOrder = LabOrder & { processingCount: number; verificationCoun
     :host-context(.dark) .pretty-empty small{color:#94a3b8}
     :host-context(.dark) .work-card:hover{border-color:#3b82f6;box-shadow:0 14px 30px rgba(37,99,235,.16)}
     :host-context(.dark) .work-icon,
-    :host-context(.dark) .work-meta span{background:var(--ac-text);color:#bfdbfe}
+    :host-context(.dark) .work-meta span{background:var(--ac-surface);color:#bfdbfe}
     :host-context(.dark) .work-title strong,
     :host-context(.dark) .work-card h3,
-    :host-context(.dark) .pretty-empty strong{color:var(--ac-bg)}
-    :host-context(.dark) .checks label:has(input:checked){background:var(--ac-text);border-color:var(--ac-primary)}
-    :host-context(.dark) .table{background:var(--ac-text);border-color:#263244}
+    :host-context(.dark) .pretty-empty strong{color:var(--ac-text)}
+    :host-context(.dark) .checks label:has(input:checked){background:var(--ac-surface);border-color:var(--ac-primary)}
+    :host-context(.dark) .table{background:var(--ac-surface);border-color:#263244}
     :host-context(.dark) .table-head{background:#172033}
     :host-context(.dark) .table-row:hover{background:#111c31}
     :host-context(.dark) .overlay{background:rgba(2,6,23,.72)}

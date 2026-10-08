@@ -1,3 +1,4 @@
+import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
 import { CommonModule, DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -18,11 +19,11 @@ type BillingDialog = 'charge-master' | 'charge' | 'invoice' | 'payment' | 'refun
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, DatePipe, AcGridLoaderComponent],
+  imports: [AcKpiCardComponent, CommonModule, FormsModule, DatePipe, AcGridLoaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="billing-page">
-      <header class="page-head">
+    <section class="billing-page ac-workspace">
+      <header class="page-head ac-workspace-head">
         <div>
           <p class="ac-eyebrow">Central Finance</p>
           <h1 class="ac-page-title">Billing & Revenue Cycle</h1>
@@ -38,7 +39,7 @@ type BillingDialog = 'charge-master' | 'charge' | 'invoice' | 'payment' | 'refun
         </div>
       </header>
 
-      <nav class="billing-tabs" aria-label="Billing workspace">
+      <nav class="billing-tabs ac-workspace-tabs" aria-label="Billing workspace">
         @for (tab of tabs; track tab.value) {
           <button type="button" [class.active]="activeTab() === tab.value" (click)="setTab(tab.value)">
             <span class="material-symbols-rounded">{{ tab.icon }}</span><span>{{ tab.label }}</span>
@@ -53,14 +54,11 @@ type BillingDialog = 'charge-master' | 'charge' | 'invoice' | 'payment' | 'refun
         @switch (activeTab()) {
           @case ('dashboard') {
             @if (dashboard(); as model) {
-              <section class="metric-grid">
-                @for (card of dashboardCards(model); track card.label) {
-                  <article class="metric" [style.--tone]="card.color">
-                    <span class="material-symbols-rounded">{{ card.icon }}</span>
-                    <div><small>{{ card.label }}</small><strong>{{ money(card.value) }}</strong><em>{{ card.meta }}</em></div>
-                  </article>
-                }
-              </section>
+              <section class="ac-kpi-grid" aria-label="Workspace overview">
+        @for (card of dashboardCards(model); track card.label) {
+          <ac-kpi-card [label]="card.label" [value]="money(card.value)" [icon]="card.icon" [tone]="card.color" [detail]="card.meta" [pending]="loading()"  />
+        }
+      </section>
 
               <section class="dashboard-layout">
                 <article class="panel trend-panel">
@@ -140,7 +138,7 @@ type BillingDialog = 'charge-master' | 'charge' | 'invoice' | 'payment' | 'refun
           }
 
           @case ('payments') {
-            <section class="metric-grid compact"><article class="metric"><span class="material-symbols-rounded">payments</span><div><small>Completed collections</small><strong>{{ money(completedCollections()) }}</strong><em>{{ completedPaymentCount() }} transactions</em></div></article><article class="metric"><span class="material-symbols-rounded">account_balance_wallet</span><div><small>Today</small><strong>{{ money(todayPayments()) }}</strong><em>Across all modes</em></div></article></section>
+            <section class="ac-kpi-grid" aria-label="Collection overview"><ac-kpi-card label="Completed collections" [value]="money(completedCollections())" icon="payments" [detail]="completedPaymentCount() + ' transactions'" /><ac-kpi-card label="Today" [value]="money(todayPayments())" icon="account_balance_wallet" tone="var(--ac-teal)" detail="Across all payment modes" /></section>
             <section class="panel"><div class="panel-head"><div><p class="ac-eyebrow">Collection Ledger</p><h2>Payments</h2></div></div><div class="table-wrap"><table><thead><tr><th>Payment</th><th>Patient</th><th>Invoice</th><th>Date</th><th>Mode</th><th>Amount</th><th>Status</th><th>Receipt</th></tr></thead><tbody>
               @for (payment of payments(); track payment.id) { <tr><td><strong>{{ payment.paymentNo }}</strong><small>{{ payment.collectedBy || 'Billing desk' }}</small></td><td>{{ payment.patientName }}</td><td><button class="row-link" type="button" (click)="viewInvoiceById(payment.invoiceId)">{{ payment.invoiceNo }}</button></td><td>{{ payment.paidAt | date:'medium' }}</td><td>{{ titleCase(payment.paymentMode) }}<small>{{ payment.referenceNumber || 'No reference' }}</small></td><td><strong>{{ money(payment.amount) }}</strong></td><td><span class="status" [class]="statusClass(payment.statusCode)">{{ statusLabel(payment.statusCode) }}</span></td><td>@if(payment.receiptId){<button class="icon-btn" type="button" (click)="printReceiptById(payment.receiptId)" title="Print receipt"><span class="material-symbols-rounded">print</span></button>} @if(payment.statusCode==='COMPLETED'){<button class="icon-btn danger" type="button" (click)="reversePayment(payment)" title="Reverse payment"><span class="material-symbols-rounded">undo</span></button>}</td></tr> }
               @empty { <tr><td colspan="8"><div class="empty">No payments recorded.</div></td></tr> }
