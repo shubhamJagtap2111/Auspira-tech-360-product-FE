@@ -169,10 +169,21 @@ import { LabReport } from '../laboratory/laboratory.models';
               </section>
             }
             @case ('follow-ups') {
-              <section class="panel"><h2>Upcoming follow-ups</h2>
+              <section class="panel follow-up-panel">
+                <header class="follow-up-heading"><div class="follow-up-heading-icon"><span class="material-symbols-rounded" aria-hidden="true">event_repeat</span></div><div><p class="ac-eyebrow">Continuity of care</p><h2>Upcoming follow-ups</h2><p>Review the care plan before your patient's next visit.</p></div><span class="follow-up-count">{{ visibleFollowUps().length }} {{ visibleFollowUps().length === 1 ? 'review' : 'reviews' }}</span></header>
+                <div class="follow-up-list">
                 @for (followUp of visibleFollowUps(); track followUp.id) {
-                  <div class="visit-row"><div><strong>{{ patientNameFor(followUp.patientId) }}</strong><p>{{ followUp.followUpDate | date:'mediumDate' }}</p><p>{{ followUp.notes || 'No follow-up notes recorded' }}</p></div><button class="ac-btn ac-btn-secondary" (click)="openPatientProfile(followUp.patientId)">Patient history</button></div>
-                } @empty { <p class="empty-state">No upcoming follow-ups for this doctor.</p> }
+                  @let patient = followUpPatient(followUp.patientId);
+                  <article class="follow-up-card" [class.due-today]="followUpIsToday(followUp.followUpDate)">
+                    <div class="follow-up-date" [attr.aria-label]="followUp.followUpDate | date:'fullDate'"><span>{{ followUp.followUpDate | date:'MMM' }}</span><strong>{{ followUp.followUpDate | date:'dd' }}</strong><small>{{ followUp.followUpDate | date:'EEE' }}</small></div>
+                    <div class="follow-up-content">
+                      <div class="follow-up-identity"><span class="follow-up-avatar material-symbols-rounded" aria-hidden="true">person</span><div><h3>{{ patient?.fullName || 'Patient record' }}</h3><p>{{ patient?.medicalRecordNo || 'Patient details unavailable' }}<span class="follow-up-year"> · {{ followUp.followUpDate | date:'yyyy' }}</span></p></div><span class="follow-up-status" [class.today]="followUpIsToday(followUp.followUpDate)">{{ followUpIsToday(followUp.followUpDate) ? 'Due today' : 'Upcoming' }}</span></div>
+                      <div class="follow-up-plan"><span class="material-symbols-rounded" aria-hidden="true">clinical_notes</span><div><small>Review plan</small><p>{{ followUp.notes || 'No follow-up notes recorded. Open patient history to review the previous visit.' }}</p></div></div>
+                    </div>
+                    <div class="follow-up-actions"><button type="button" class="ac-btn ac-btn-secondary" (click)="openPatientProfile(followUp.patientId)" [attr.aria-label]="'View patient history for ' + (patient?.fullName || 'this patient')"><span class="material-symbols-rounded" aria-hidden="true">history</span>Patient history<span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></button></div>
+                  </article>
+                } @empty { <div class="follow-up-empty"><span class="material-symbols-rounded" aria-hidden="true">event_available</span><h3>No upcoming follow-ups</h3><p>No reviews match your current filters.</p></div> }
+                </div>
               </section>
             }
             @case ('history') {
@@ -1394,6 +1405,16 @@ import { LabReport } from '../laboratory/laboratory.models';
     .compact-list, .queue-workspace { display: grid; gap: 8px; }
     .visit-row { width: 100%; min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 8px; align-items: center; border: 1px solid var(--ac-border); border-radius: 9px; padding: 8px 9px; background: color-mix(in srgb, var(--ac-surface) 88%, transparent); color: var(--ac-text); text-align: left; cursor: pointer; }
     .encounter-list button { width: 100%; min-width: 0; display: grid; gap: 3px; align-content: center; border: 1px solid var(--ac-border); border-radius: 9px; padding: 10px 12px; background: var(--ac-surface); color: var(--ac-text); text-align: left; cursor: pointer; }
+    .follow-up-panel{padding:22px}.follow-up-heading{display:flex;align-items:center;gap:14px;margin-bottom:22px}.follow-up-heading-icon{display:grid;place-items:center;width:46px;height:46px;flex-shrink:0;background:color-mix(in srgb,var(--ac-primary) 9%,var(--ac-surface));border:1px solid color-mix(in srgb,var(--ac-primary) 16%,var(--ac-border));border-radius:14px;color:var(--ac-primary)}
+    .follow-up-heading h2{margin:3px 0 5px;font-size:21px}.follow-up-heading p:not(.ac-eyebrow){margin:0;color:var(--ac-muted);font-size:13px}.follow-up-count{margin-left:auto;white-space:nowrap;border:1px solid var(--ac-border);border-radius:20px;padding:7px 12px;font-size:12px;font-weight:600;color:var(--ac-primary);background:var(--ac-surface)}
+    .follow-up-list{display:grid;gap:14px}.follow-up-card{display:grid;grid-template-columns:76px minmax(0,1fr) auto;gap:20px;align-items:center;padding:20px;border:1px solid var(--ac-border);border-radius:16px;background:var(--ac-surface);box-shadow:0 4px 14px color-mix(in srgb,var(--ac-primary) 4%,transparent)}
+    .follow-up-date{align-self:stretch;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:3px;border:1px solid color-mix(in srgb,var(--ac-primary) 15%,var(--ac-border));border-radius:12px;background:linear-gradient(155deg,color-mix(in srgb,var(--ac-primary) 10%,var(--ac-surface)),color-mix(in srgb,#2563eb 5%,var(--ac-surface)));color:var(--ac-primary);min-height:100px}.follow-up-date>span{text-transform:uppercase;letter-spacing:1px;font-size:11px;font-weight:700}.follow-up-date strong{font-size:32px;line-height:1.15;letter-spacing:-1px}.follow-up-date small{font-size:12px;color:var(--ac-muted)}
+    .follow-up-content{min-width:0}.follow-up-identity{display:flex;align-items:center;gap:10px;min-width:0}.follow-up-identity>div{min-width:0}.follow-up-avatar{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;flex-shrink:0;background:color-mix(in srgb,#2563eb 8%,var(--ac-surface));color:#2563eb;font-size:22px}.follow-up-identity h3{margin:0;font-size:16px;overflow-wrap:anywhere}.follow-up-identity p{margin:4px 0 0;font-size:12px;color:var(--ac-muted)}
+    .follow-up-status{margin-left:auto;white-space:nowrap;color:var(--ac-primary);background:color-mix(in srgb,var(--ac-primary) 8%,var(--ac-surface));border-radius:20px;font-size:11px;font-weight:700;padding:6px 10px}.follow-up-status.today{color:#047857;background:color-mix(in srgb,#10b981 10%,var(--ac-surface))}.follow-up-card.due-today{border-color:color-mix(in srgb,#10b981 35%,var(--ac-border))}
+    .follow-up-plan{display:flex;align-items:flex-start;gap:9px;margin-top:14px;padding:12px;border-radius:10px;background:color-mix(in srgb,var(--ac-primary) 3%,var(--ac-surface));border:1px solid color-mix(in srgb,var(--ac-primary) 7%,var(--ac-border))}.follow-up-plan>.material-symbols-rounded{font-size:19px;color:var(--ac-muted);margin-top:1px}.follow-up-plan small{font-size:10px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--ac-muted)}.follow-up-plan p{margin:4px 0 0;font-size:13px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}.follow-up-actions .ac-btn{gap:8px;white-space:nowrap}.follow-up-actions .material-symbols-rounded{font-size:18px}
+    .follow-up-empty{text-align:center;padding:36px 18px;border:1px dashed var(--ac-border);border-radius:14px}.follow-up-empty>.material-symbols-rounded{font-size:32px;color:var(--ac-primary)}.follow-up-empty h3{font-size:16px;margin:12px 0 6px}.follow-up-empty p{color:var(--ac-muted);font-size:13px;margin:0}
+    @media(max-width:1100px){.follow-up-card{grid-template-columns:70px minmax(0,1fr);gap:16px}.follow-up-actions{grid-column:2}.follow-up-date{grid-row:1 / 3}}
+    @media(max-width:600px){.follow-up-panel{padding:14px}.follow-up-heading{flex-wrap:wrap;gap:10px}.follow-up-heading-icon{width:38px;height:38px}.follow-up-heading>div:nth-child(2){flex:1;min-width:180px}.follow-up-heading h2{font-size:18px}.follow-up-heading .follow-up-count{margin-left:48px}.follow-up-card{padding:14px;grid-template-columns:54px minmax(0,1fr);gap:12px}.follow-up-date strong{font-size:27px}.follow-up-identity{flex-wrap:wrap}.follow-up-avatar{display:none}.follow-up-status{margin-left:0}.follow-up-actions .ac-btn{width:100%;justify-content:center}.follow-up-plan{padding:10px}.follow-up-plan>.material-symbols-rounded{display:none}}
     .visit-row:hover, .encounter-list button:hover, .encounter-list button.active { border-color: color-mix(in srgb, var(--ac-primary) 38%, var(--ac-border)); box-shadow: 0 8px 18px color-mix(in srgb, var(--ac-primary) 8%, transparent); }
     .visit-row strong, .encounter-list button strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .visit-row small { grid-column: 2; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; }
@@ -4297,7 +4318,8 @@ export class OpdPageComponent implements OnInit {
     return this.patientContexts()[visit.appointment.patientId]?.documents.filter(document => /radiology|imaging|x.ray|mri|ultrasound|ct.scan/i.test(document.documentType + ' ' + document.documentName)) ?? [];
   }
 
-  protected patientNameFor(id: string): string { return this.patients().find(patient => patient.patientGuid === id)?.fullName ?? 'Patient'; }
+  protected followUpPatient(id: string): PatientSummary | undefined { return this.patients().find(patient => patient.patientGuid === id); }
+  protected followUpIsToday(date: string): boolean { return date.slice(0, 10) === todayInputValue(); }
   protected openPatientProfile(id: string): void { void this.router.navigate(['/patients', id]); }
   protected showHistory(visit: OpdVisitVm): void { this.historyView.set('visits'); this.historyRecordId.set(''); this.historyVisit.set(visit); void this.loadPatientContext(visit); }
   protected retryHistoryContext(): void { const visit = this.historyVisit(); if (visit) void this.loadPatientContext(visit); }
