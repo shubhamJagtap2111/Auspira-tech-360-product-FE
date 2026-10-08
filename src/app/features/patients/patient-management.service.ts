@@ -46,6 +46,10 @@ export class PatientManagementService {
     return firstValueFrom(this.api.get<PatientApiResponse<PatientProfile>>(`/patients/${patientGuid}`));
   }
 
+  prescriptionDocument(patientGuid: string, prescriptionId: string): Promise<PatientApiResponse<import('./patient-prescription-document').SavedPatientPrescription>> {
+    return firstValueFrom(this.api.get<PatientApiResponse<import('./patient-prescription-document').SavedPatientPrescription>>('/patients/'+patientGuid+'/prescriptions/'+prescriptionId+'/document'));
+  }
+
   checkDuplicates(patient: PatientForm): Promise<PatientApiResponse<PatientDuplicateCheck>> {
     return firstValueFrom(this.api.post<PatientApiResponse<PatientDuplicateCheck>>('/patients/duplicates/check', {
       firstName: patient.firstName.trim(),

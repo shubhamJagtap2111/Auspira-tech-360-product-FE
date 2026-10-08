@@ -22,6 +22,7 @@ import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dr
 import { AcDismissiblePopoverDirective } from '../../shared/ui/dismissible-popover.directive';
 import { DialogService } from '../../shared/ui/dialog/dialog.service';
 import { PendingChangesComponent } from '../../core/guards/pending-changes.guard';
+import { NotificationInboxService } from '../../core/notifications/notification-inbox.service';
 
 interface NavItem {
   path: string;
@@ -189,7 +190,7 @@ const fallbackLanguages: Language[] = [
             <div class="header-right">
               <button #notificationTrigger class="hdr-btn notif-btn" (click)="toggleNotifications()" title="Notifications" aria-label="Notifications" [attr.aria-expanded]="notifOpen()">
                 <span class="material-symbols-rounded">notifications</span>
-                <span class="notif-dot">3</span>
+                @if (inbox.unreadCount()) { <span class="notif-dot">{{inbox.unreadCount() > 99 ? '99+' : inbox.unreadCount()}}</span> }
               </button>
               <button class="hdr-btn" title="Messages">
                 <span class="material-symbols-rounded">chat_bubble</span>
@@ -232,22 +233,24 @@ const fallbackLanguages: Language[] = [
             <div class="notif-panel" [acDismissiblePopover]="true" [popoverAnchor]="notificationTrigger" (dismissPopover)="notifOpen.set(false)">
               <div class="np-head">
                 <span class="np-title">Notifications</span>
-                <button class="np-markall">Mark all as read</button>
+                <button class="np-markall" (click)="inbox.markAllRead()" [disabled]="inbox.busy() || !inbox.unreadCount()">Mark all as read</button>
               </div>
-              @for (n of notifications; track n.id) {
-                <div class="np-item" [class.unread]="n.unread">
-                  <div class="np-icon" [style.background]="n.bg" [style.color]="n.color">
-                    <span class="material-symbols-rounded msf" style="font-size:18px">{{ n.icon }}</span>
+              @if (inbox.error()) {<p class="np-status" role="alert">{{inbox.error()}} <button (click)="inbox.refresh()">Retry</button></p>}
+              @if (inbox.loading() && !inbox.recent().length) {<p class="np-status" role="status">Loading notifications…</p>}
+              @for (n of inbox.recent(); track n.id) {
+                <button type="button" class="np-item" [class.unread]="!n.readAt" (click)="notifOpen.set(false); inbox.open(n)">
+                  <div class="np-icon" [style.color]="n.priority === 'CRITICAL' ? 'var(--ac-error)' : 'var(--ac-primary)'">
+                    <span class="material-symbols-rounded msf" style="font-size:18px">{{n.priority === 'CRITICAL' ? 'warning' : 'notifications'}}</span>
                   </div>
                   <div class="np-body">
                     <p class="np-label">{{ n.title }}</p>
-                    <p class="np-time">{{ n.time }}</p>
+                    <p class="np-time">{{n.module}} · {{n.branchCode}} · {{n.createdAt | date:'dd MMM, h:mm a'}}</p>
                   </div>
-                  @if (n.unread) { <span class="np-dot"></span> }
-                </div>
-              }
+                  @if (!n.readAt) { <span class="np-dot" aria-label="Unread"></span> }
+                </button>
+              } @empty { @if (!inbox.loading() && !inbox.error()) {<p class="np-status">You're all caught up.</p>} }
               <div class="np-footer">
-                <a routerLink="/">View all notifications →</a>
+                <a routerLink="/notifications" (click)="notifOpen.set(false)">View all notifications →</a>
               </div>
             </div>
           }
@@ -1006,6 +1009,11 @@ const fallbackLanguages: Language[] = [
     .np-title { font-size: 14px; font-weight: 700; color: var(--ac-text); }
     .np-markall { font-size: 12px; color: var(--ac-primary); font-weight: 600; cursor: pointer; }
     .np-item {
+      width: 100%;
+      text-align: left;
+      font: inherit;
+      border: 0;
+      background: var(--ac-surface);
       display: flex;
       align-items: center;
       gap: 12px;
@@ -1016,6 +1024,9 @@ const fallbackLanguages: Language[] = [
       position: relative;
     }
     .np-item:hover { background: var(--ac-surface-2); }
+    .np-item:focus-visible { outline: 2px solid var(--ac-primary); outline-offset: -3px; }
+    .np-status { padding: 16px; color: var(--ac-muted); font-size: 13px; }
+    .np-markall:disabled { opacity: .5; cursor: default; }
     .np-item.unread { background: var(--ac-primary-light); }
     .np-icon {
       display: flex;
@@ -1936,6 +1947,7 @@ export class AppShellComponent implements OnInit {
   private   readonly apiBaseUrl = inject(API_BASE_URL);
   private   readonly appLoader = inject(AppLoaderService);
   private readonly dialogs = inject(DialogService);
+  protected readonly inbox = inject(NotificationInboxService);
   protected activePage: PendingChangesComponent | null = null;
 
   /* ── State ── */
@@ -2132,7 +2144,6 @@ export class AppShellComponent implements OnInit {
         { path: '/appointments', label: 'Appointments', icon: 'event' },
         { path: '/opd',          label: 'OPD',          icon: 'local_hospital' },
         { path: '/ipd',          label: 'IPD',          icon: 'king_bed' },
-        { path: '/emergency',    label: 'Emergency',    icon: 'emergency' }
       ]
     },
     {
@@ -2216,7 +2227,7 @@ export class AppShellComponent implements OnInit {
     )
   );
 
-  /* ── Notifications mock data ── */
+  /* ── Navigation visibility ── */
   private canShowGroup(group: NavGroup): boolean {
     return !group.requiredPermissionPrefix
       || this.authStore.permissions().some(permission => permission.startsWith(group.requiredPermissionPrefix!));
@@ -2238,13 +2249,6 @@ export class AppShellComponent implements OnInit {
       children: children.length > 0 ? children : undefined
     };
   }
-
-  protected readonly notifications = [
-    { id: 1, icon: 'person_add', title: 'New patient registered: Rahul Sharma', time: '2 min ago', unread: true,  bg: 'rgba(37,99,235,0.1)',  color: '#2563EB' },
-    { id: 2, icon: 'receipt',    title: 'Invoice #INV-0412 generated — ₹4,200', time: '18 min ago', unread: true,  bg: 'rgba(16,185,129,0.1)', color: '#10B981' },
-    { id: 3, icon: 'science',    title: 'Lab report ready: CBC for P-1093',    time: '1 hr ago',   unread: false, bg: 'rgba(124,58,237,0.1)', color: '#7C3AED' },
-    { id: 4, icon: 'warning',    title: 'Low stock alert: Paracetamol 500mg',  time: '3 hr ago',   unread: false, bg: 'rgba(245,158,11,0.1)', color: '#F59E0B' }
-  ];
 
   /* ── Profile menu ── */
   protected readonly profileMenu = [
@@ -2291,6 +2295,7 @@ export class AppShellComponent implements OnInit {
 
   toggleNotifications(): void {
     this.notifOpen.update(open => !open);
+    if (this.notifOpen()) void this.inbox.refresh();
     this.profileOpen.set(false);
     this.langOpen.set(false);
   }

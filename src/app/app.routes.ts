@@ -4,6 +4,7 @@ import { pendingChangesGuard } from './core/guards/pending-changes.guard';
 import { permissionGuard } from './core/guards/permission.guard';
 
 export const routes: Routes = [
+  { path: 'notifications', canActivate: [authGuard], loadComponent: () => import('./features/notifications/notification-inbox-page.component').then(m => m.NotificationInboxPageComponent) },
   { path: 'prescription-access', loadComponent: () => import('./features/opd/prescription-access-page.component').then(m => m.PrescriptionAccessPageComponent) },
   {
     path: 'auth/login',
@@ -156,7 +157,7 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/ipd/ipd-page.component').then(m => m.IpdPageComponent)
   },
-  moduleRoute('emergency', 'Emergency', ['Emergency Triage', 'Critical Queue', 'Ambulance Intake', 'Bed Escalation', 'Incident Notes']),
+  { path: 'emergency', redirectTo: '', pathMatch: 'full' },
   {
     path: 'laboratory',
     canActivate: [authGuard, permissionGuard],

@@ -1,3 +1,4 @@
+import { ActivatedRoute } from '@angular/router';
 import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
@@ -49,7 +50,8 @@ export class InventoryPageComponent implements OnInit {
   receipt:{lineId:string;name:string;unit:string;outstanding:number;quantity:number}[]=[]; receiptNotes='';
   movement={itemId:'',type:'ISSUE',quantity:1,reference:'',adjustmentDirection:'DECREASE',departmentId:'',notes:''};
   requestId='';
-  ngOnInit() { void this.load(); }
+  private readonly route = inject(ActivatedRoute);
+  ngOnInit() { this.route.queryParamMap.subscribe(p=>{const tab=p.get('tab') as Tab|null;if(tab&&['overview','items','assets','orders','vendors','movements'].includes(tab))this.choose(tab);});void this.load(); }
   async load() {
     if(this.loading())return; this.loading.set(true); this.error.set('');
     try {this.data.set(await this.api.workspace());} catch(e) {this.error.set(this.message(e));} finally {this.loading.set(false);}

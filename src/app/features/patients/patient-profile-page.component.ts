@@ -1,3 +1,8 @@
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { BranchContextService } from '../../core/context/branch-context.service';
+import { PrescriptionAccessService } from '../opd/prescription-access.service';
+import { PrescriptionPreview, printablePrescriptionHtml, defaultPrescriptionPrintOptions, openPrescriptionDocument } from '../opd/prescription-document';
+import { savedPatientPrescriptionPreview } from './patient-prescription-document';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
@@ -453,105 +458,7 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
                 <span class="material-symbols-rounded">close</span>
               </button>
             </header>
-            <div class="patient-prescription-sheet">
-              <div class="sheet-row">
-                <small>Patient</small>
-                <strong>{{ prescription.patientName }}</strong>
-              </div>
-              <div class="sheet-row">
-                <small>MRN</small>
-                <strong>{{ prescription.mrn }}</strong>
-              </div>
-              <div class="sheet-row">
-                <small>Doctor</small>
-                <strong>{{ prescription.doctor }}</strong>
-              </div>
-              <div class="sheet-row">
-                <small>Status</small>
-                <strong>{{ prescription.status }}</strong>
-              </div>
-              <article>
-                <small>Prescription details</small>
-                @if (prescription.details.hasStructuredContent) {
-                  <div class="prescription-section-grid">
-                    @if (prescription.details.medicines.length) {
-                      <section class="rx-preview-section rx-medicine-focus">
-                        <h3>Medicines</h3>
-                        <div class="rx-medicine-list">
-                          @for (medicine of prescription.details.medicines; track medicine.name + medicine.instruction) {
-                            <div>
-                              <strong>{{ medicine.name }}</strong>
-                              <p>
-                                @if (medicine.dosage) { <span>{{ medicine.dosage }}</span> }
-                                @if (medicine.frequency) { <span>{{ medicine.frequency }}</span> }
-                                @if (medicine.duration) { <span>{{ medicine.duration }}</span> }
-                                @if (medicine.route) { <span>{{ medicine.route }}</span> }
-                                @if (medicine.quantity) { <span>{{ medicine.quantity }}</span> }
-                              </p>
-                              @if (medicine.instruction && medicine.instruction !== '-') {
-                                <small>{{ medicine.instruction }}</small>
-                              }
-                            </div>
-                          }
-                        </div>
-                      </section>
-                    }
-
-                    @if (prescription.details.vitals.length) {
-                      <section class="rx-preview-section">
-                        <h3>Vitals</h3>
-                        <div class="rx-key-grid compact">
-                          @for (item of prescription.details.vitals; track item.label) {
-                            <span><small>{{ item.label }}</small><strong>{{ item.value }}</strong></span>
-                          }
-                        </div>
-                      </section>
-                    }
-
-                    @if (prescription.details.investigations.length || prescription.details.procedures.length) {
-                      <section class="rx-preview-section">
-                        <h3>Orders & Procedures</h3>
-                        <div class="rx-chip-list">
-                          @for (item of prescription.details.investigations; track item) {
-                            <span>{{ item }}</span>
-                          }
-                          @for (item of prescription.details.procedures; track item) {
-                            <span>{{ item }}</span>
-                          }
-                        </div>
-                      </section>
-                    }
-
-                    @if (prescription.details.advice.length || prescription.details.dietAdvice.length) {
-                      <section class="rx-preview-section">
-                        <h3>Advice</h3>
-                        <div class="rx-chip-list">
-                          @for (item of prescription.details.advice; track item) {
-                            <span>{{ item }}</span>
-                          }
-                          @for (item of prescription.details.dietAdvice; track item) {
-                            <span>{{ item }}</span>
-                          }
-                        </div>
-                      </section>
-                    }
-
-                    @if (prescription.details.followUp.length) {
-                      <section class="rx-preview-section">
-                        <h3>Follow-up</h3>
-                        <div class="rx-key-grid compact">
-                          @for (item of prescription.details.followUp; track item.label) {
-                            <span><small>{{ item.label }}</small><strong>{{ item.value }}</strong></span>
-                          }
-                        </div>
-                      </section>
-                    }
-                  </div>
-                } @else {
-                  <p>{{ prescription.summary }}</p>
-                }
-              </article>
-            </div>
+            @if(prescriptionDocumentHtml(); as document){<iframe class="canonical-prescription-preview" title="OPD prescription preview" [srcdoc]="document" sandbox="allow-same-origin"></iframe>}
             <footer>
               <button class="ac-btn ac-btn-secondary" type="button" (click)="shareSelectedPrescription()">
                 <span class="material-symbols-rounded">ios_share</span>
@@ -572,6 +479,7 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
     </section>
   `,
   styles: `
+    .canonical-prescription-preview { display: block; width: 100%; min-height: 65vh; border: 0; background: white; }
     :host { display: block; height: 100%; min-height: 0; min-width: 0; overflow: hidden; }
     .patient-profile { width: 100%; max-width: 100%; height: 100%; min-height: 0; min-width: 0; overflow: auto; overflow-x: hidden; display: grid; grid-auto-rows: max-content; align-content: start; gap: 16px; padding-bottom: 8px; }
     .patient-profile > * { min-width: 0; max-width: 100%; }
@@ -2075,6 +1983,11 @@ export class PatientProfilePageComponent implements OnInit {
   protected readonly loading = signal(true);
   protected readonly patient = signal<PatientProfile | null>(null);
   protected readonly activeTab = signal<PatientProfileTab>('overview');
+  private readonly prescriptionAccess = inject(PrescriptionAccessService);
+  private readonly prescriptionBranch = inject(BranchContextService);
+  private readonly prescriptionSanitizer = inject(DomSanitizer);
+  protected readonly prescriptionDocumentHtml = signal<SafeHtml | null>(null);
+  private prescriptionPreviewRequest = 0;
   protected readonly selectedPrescription = signal<PatientPrescriptionPreview | null>(null);
   protected readonly allergyTypeOptions: DialogFieldOption[] = [
     { label: 'Drug', value: 'Drug' },
@@ -2204,32 +2117,45 @@ export class PatientProfilePageComponent implements OnInit {
     return titleCase(record.statusCode || 'Finalized');
   }
 
-  protected viewPrescription(patient: PatientProfile, record: PatientConnectedRecord, index: number): void {
-    this.selectedPrescription.set(buildPatientPrescriptionPreview(patient, record, index));
+  protected async viewPrescription(patient:PatientProfile,record:PatientConnectedRecord,index:number):Promise<void>{
+    const request=++this.prescriptionPreviewRequest;
+    try{
+      const prescription=await this.loadPatientPrescription(patient,record,index);
+      if(request!==this.prescriptionPreviewRequest)return;
+      this.prescriptionDocumentHtml.set(this.prescriptionSanitizer.bypassSecurityTrustHtml(printablePrescriptionHtml(prescription.document!,false,defaultPrescriptionPrintOptions())));
+      this.selectedPrescription.set(prescription);
+    }catch{this.toast.error('Unable to load prescription','Please refresh and try again.');}
+  }
+  private async loadPatientPrescription(patient:PatientProfile,record:PatientConnectedRecord,index:number):Promise<PatientPrescriptionPreview>{
+    const [response,header]=await Promise.all([this.service.prescriptionDocument(patient.patientGuid,record.recordGuid),this.prescriptionAccess.header().catch(()=>null)]);
+    if(!response.success||!response.data)throw new Error('Prescription unavailable');
+    const prescription=buildPatientPrescriptionPreview(patient,record,index);
+    prescription.document=savedPatientPrescriptionPreview(patient,response.data,header,this.prescriptionBranch.hospitalName(),prescription);
+    prescription.doctor=prescription.document.doctorName;
+    prescription.status=prescription.document.statusLabel;
+    return prescription;
   }
 
   protected closePrescriptionView(): void {
+    ++this.prescriptionPreviewRequest;
     this.selectedPrescription.set(null);
+    this.prescriptionDocumentHtml.set(null);
   }
 
-  protected printPatientPrescription(patient: PatientProfile, record: PatientConnectedRecord, index: number): void {
-    const prescription = buildPatientPrescriptionPreview(patient, record, index);
-    if (!openPatientPrescriptionDocument(prescription, true)) {
-      this.toast.error('Unable to open prescription', 'Allow pop-ups for this site and try again.');
-    }
+  protected async printPatientPrescription(patient:PatientProfile,record:PatientConnectedRecord,index:number):Promise<void>{await this.openPatientDocument(patient,record,index,false);}
+  protected async downloadPatientPrescription(patient:PatientProfile,record:PatientConnectedRecord,index:number):Promise<void>{await this.openPatientDocument(patient,record,index,true);}
+  private async openPatientDocument(patient:PatientProfile,record:PatientConnectedRecord,index:number,pdf:boolean):Promise<void>{
+    const popup=window.open('','_blank','width=980,height=900');
+    if(!popup){this.toast.error('Unable to open prescription','Allow pop-ups for this site and try again.');return;}
+    try{
+      const prescription=await this.loadPatientPrescription(patient,record,index);
+      popup.opener=null;
+      popup.document.open();popup.document.write(printablePrescriptionHtml(prescription.document!,true,defaultPrescriptionPrintOptions()));popup.document.close();
+      if(pdf)this.toast.info('Download prescription','Use the print dialog and choose Save as PDF.');
+    }catch{popup.close();this.toast.error('Unable to load prescription','Please refresh and try again.');}
   }
-
-  protected downloadPatientPrescription(patient: PatientProfile, record: PatientConnectedRecord, index: number): void {
-    const prescription = buildPatientPrescriptionPreview(patient, record, index);
-    if (openPatientPrescriptionDocument(prescription, true)) {
-      this.toast.info('Download prescription', 'Use the print dialog and choose Save as PDF.');
-    } else {
-      this.toast.error('Unable to open prescription', 'Allow pop-ups for this site and try again.');
-    }
-  }
-
-  protected async sharePatientPrescription(patient: PatientProfile, record: PatientConnectedRecord, index: number): Promise<void> {
-    await this.sharePrescriptionPreview(buildPatientPrescriptionPreview(patient, record, index));
+  protected async sharePatientPrescription(patient:PatientProfile,record:PatientConnectedRecord,index:number):Promise<void>{
+    try{await this.sharePrescriptionPreview(await this.loadPatientPrescription(patient,record,index));}catch{this.toast.error('Unable to load prescription');}
   }
 
   protected printSelectedPrescription(): void {
@@ -2491,6 +2417,7 @@ export class PatientProfilePageComponent implements OnInit {
 }
 
 interface PatientPrescriptionPreview {
+  document?: PrescriptionPreview;
   prescriptionNo: string;
   patientName: string;
   mrn: string;
@@ -2563,6 +2490,7 @@ function extractPrescriptionNo(record: PatientConnectedRecord, index: number): s
 }
 
 function extractPrescriptionDoctor(record: PatientConnectedRecord): string {
+  if(record.title && record.title !== 'Prescription')return record.title;
   const source = record.subtitle || record.title || '';
   const doctorMatch = source.match(/Dr\.?\s+[A-Za-z .]+/i);
   if (doctorMatch) {
@@ -2704,157 +2632,19 @@ function patientPrescriptionPlainText(prescription: PatientPrescriptionPreview):
   ].join('\n');
 }
 
-function openPatientPrescriptionDocument(prescription: PatientPrescriptionPreview, autoPrint: boolean): boolean {
-  const popup = window.open('', '_blank', 'width=900,height=780');
-  if (!popup) {
-    return false;
-  }
-
-  popup.document.open();
-  popup.document.write(printablePatientPrescriptionHtml(prescription, autoPrint));
-  popup.document.close();
-  popup.focus();
-  return true;
+function openPatientPrescriptionDocument(prescription:PatientPrescriptionPreview,autoPrint:boolean):boolean {
+  return prescription.document ? openPrescriptionDocument(prescription.document,autoPrint) : false;
 }
 
-function printablePatientPrescriptionHtml(prescription: PatientPrescriptionPreview, autoPrint: boolean): string {
-  return `<!doctype html>
-<html>
-<head>
-  <title>${escapeHtml(prescription.prescriptionNo)}</title>
-  <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; padding: 28px; color: #0f172a; font-family: Arial, sans-serif; background: #eef4fb; }
-    main { max-width: 900px; margin: 0 auto; overflow: hidden; border: 1px solid #cbd5e1; border-radius: 18px; background: #fff; box-shadow: 0 24px 70px rgba(15, 23, 42, .12); }
-    header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 30px 34px; color: #fff; background: linear-gradient(135deg, #0f4c81, #1d64d8); }
-    h1, h2, p { margin: 0; }
-    .eyebrow { color: #bfdbfe; font-size: 12px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; }
-    h1 { margin-top: 8px; font-size: 30px; line-height: 1.05; }
-    .header-meta { display: grid; gap: 8px; min-width: 180px; text-align: right; }
-    .rx-no { font-size: 22px; font-weight: 900; }
-    .status-pill { justify-self: end; display: inline-flex; padding: 6px 11px; border-radius: 999px; background: rgba(255, 255, 255, .16); color: #eff6ff; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
-    .muted { color: #dbeafe; font-weight: 700; }
-    .meta-grid { display: grid; grid-template-columns: 1.1fr .9fr 1fr; gap: 12px; padding: 20px 34px; border-bottom: 1px solid #dbe4f0; background: #f8fbff; }
-    .meta-grid > div { display: grid; gap: 5px; min-height: 74px; padding: 14px 16px; border: 1px solid #dbe4f0; border-radius: 14px; background: #fff; }
-    small { color: #64748b; font-size: 11px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
-    strong { font-size: 16px; line-height: 1.3; }
-    article { padding: 22px 34px 28px; }
-    article p { margin-top: 8px; color: #334155; font-weight: 700; line-height: 1.55; }
-    .rx-section { margin-top: 14px; padding: 16px; border: 1px solid #dbe4f0; border-radius: 16px; background: #f8fafc; }
-    .rx-section.primary { border-color: #bfdbfe; background: linear-gradient(180deg, #f8fbff, #fff); }
-    .rx-section h2 { margin: 0 0 12px; font-size: 17px; color: #0f172a; }
-    .rx-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-    .rx-grid.compact { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .rx-grid div, .rx-chip { border: 1px solid #dbe4f0; border-radius: 10px; background: #fff; }
-    .rx-grid div { display: grid; gap: 5px; padding: 10px 11px; }
-    .rx-grid strong, .rx-med strong { overflow-wrap: anywhere; }
-    .rx-table { width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 12px; background: #fff; }
-    .rx-table th { padding: 10px 11px; color: #475569; background: #eaf2fb; font-size: 11px; letter-spacing: .06em; text-align: left; text-transform: uppercase; }
-    .rx-table td { padding: 12px 11px; border-top: 1px solid #e5edf7; vertical-align: top; font-size: 13px; line-height: 1.35; }
-    .rx-table td:first-child { color: #64748b; font-weight: 900; }
-    .rx-table strong { display: block; font-size: 14px; }
-    .rx-table .muted-cell { color: #64748b; font-weight: 700; }
-    .empty-note { padding: 16px; border: 1px dashed #cbd5e1; border-radius: 12px; color: #64748b; font-weight: 800; text-align: center; background: #fff; }
-    .rx-chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
-    .rx-chip { padding: 7px 10px; color: #334155; font-size: 13px; font-weight: 700; }
-    .sign-row { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; padding: 18px 34px 26px; border-top: 1px solid #dbe4f0; }
-    .sign-box { min-height: 74px; display: grid; align-content: end; gap: 5px; border-top: 1px solid #94a3b8; padding-top: 8px; color: #0f172a; font-weight: 900; }
-    .sign-box span { color: #64748b; font-size: 12px; font-weight: 800; }
-    footer { padding: 13px 34px; color: #64748b; font-size: 12px; font-weight: 700; background: #f8fafc; border-top: 1px solid #e2e8f0; }
-    @media (max-width: 700px) { header, .sign-row { grid-template-columns: 1fr; } header { display: grid; } .header-meta { text-align: left; } .status-pill { justify-self: start; } .rx-grid, .rx-grid.compact, .meta-grid { grid-template-columns: 1fr; } }
-    @media print { body { padding: 0; background: white; } main { border-radius: 0; box-shadow: none; } }
-  </style>
-</head>
-<body>
-  <main>
-    <header>
-      <div>
-        <p class="eyebrow">Care360 Hospital</p>
-        <h1>Medication Prescription</h1>
-        <p class="muted">Clinical prescription for pharmacy dispensing and patient counselling</p>
-      </div>
-      <div class="header-meta">
-        <span class="rx-no">${escapeHtml(prescription.prescriptionNo)}</span>
-        <span class="muted">${escapeHtml(prescription.date)}</span>
-        <span class="status-pill">${escapeHtml(prescription.status)}</span>
-      </div>
-    </header>
-    <section class="meta-grid">
-      <div><small>Patient</small><strong>${escapeHtml(prescription.patientName)}</strong></div>
-      <div><small>MRN</small><strong>${escapeHtml(prescription.mrn)}</strong></div>
-      <div><small>Doctor</small><strong>${escapeHtml(prescription.doctor)}</strong></div>
-    </section>
-    <article>
-      ${patientPrescriptionPrintableContent(prescription)}
-    </article>
-    <section class="sign-row">
-      <div class="sign-box">Dr. ${escapeHtml(prescription.doctor.replace(/^Dr\.?\s*/i, ''))}<span>Prescribing doctor</span></div>
-      <div class="sign-box">Care360 e-Prescription<span>Generated electronically · no internal IDs shown</span></div>
-    </section>
-    <footer>Review dose, route, frequency, duration, and counselling instructions before dispensing.</footer>
-  </main>
-  ${autoPrint ? '<script>window.addEventListener("load", () => setTimeout(() => window.print(), 150));</script>' : ''}
-</body>
-</html>`;
-}
 
-function patientPrescriptionPrintableContent(prescription: PatientPrescriptionPreview): string {
-  const details = prescription.details;
-  if (!details.hasStructuredContent) {
-    return `<p>${escapeHtml(prescription.summary)}</p>`;
-  }
 
-  return [
-    printableMedicineSection(details.medicines),
-    printableKeyValueSection('Vitals', details.vitals, 'compact'),
-    printableChipSection('Orders & Procedures', [...details.investigations, ...details.procedures]),
-    printableChipSection('Advice', [...details.advice, ...details.dietAdvice]),
-    printableKeyValueSection('Follow-up', details.followUp, 'compact')
-  ].filter(Boolean).join('');
-}
 
-function printableKeyValueSection(title: string, items: PrescriptionKeyValue[], className = ''): string {
-  if (!items.length) {
-    return '';
-  }
 
-  return `<div class="rx-section"><h2>${escapeHtml(title)}</h2><div class="rx-grid ${className}">${items.map(item => `
-    <div><small>${escapeHtml(item.label)}</small><strong>${escapeHtml(item.value)}</strong></div>
-  `).join('')}</div></div>`;
-}
 
-function printableMedicineSection(items: PrescriptionMedicinePreview[]): string {
-  return `<div class="rx-section primary"><h2>Medicines</h2>${items.length ? `
-    <table class="rx-table">
-      <thead>
-        <tr><th>#</th><th>Medicine</th><th>Dose</th><th>Frequency</th><th>Route</th><th>Duration / Qty</th><th>Instructions</th></tr>
-      </thead>
-      <tbody>
-        ${items.map((item, index) => `
-          <tr>
-            <td>${index + 1}</td>
-            <td><strong>${escapeHtml(item.name)}</strong></td>
-            <td>${escapeHtml(item.dosage || '-')}</td>
-            <td>${escapeHtml(item.frequency || '-')}</td>
-            <td>${escapeHtml(item.route || '-')}</td>
-            <td>${escapeHtml([item.duration, item.quantity].filter(Boolean).join(' / ') || '-')}</td>
-            <td class="muted-cell">${escapeHtml(item.instruction && item.instruction !== '-' ? item.instruction : 'As directed')}</td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
-  ` : '<div class="empty-note">No medicines recorded for this prescription.</div>'}</div>`;
-}
 
-function printableChipSection(title: string, items: string[]): string {
-  if (!items.length) {
-    return '';
-  }
 
-  return `<div class="rx-section"><h2>${escapeHtml(title)}</h2><div class="rx-chip-list">${items.map(item => `
-    <span class="rx-chip">${escapeHtml(item)}</span>
-  `).join('')}</div></div>`;
-}
+
+
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, char => ({
