@@ -1,0 +1,147 @@
+:host { --ipd-radius: 18px; }
+.ipd-page.ipd-page { padding: 0 0 28px; }
+.ipd-page.ac-dashboard > .page-header { padding: 20px; }
+.ipd-overview-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.ipd-overview-strip button { display: flex; align-items: center; gap: 13px; padding: 16px; border: 1px solid var(--ac-border); border-radius: 14px; background: var(--ac-surface); color: var(--ac-text); text-align: left; cursor: pointer; }
+.ipd-overview-strip small { display: block; color: var(--ac-muted); font-size: 11px; margin-bottom: 5px; }
+.ipd-overview-strip strong { font-size: 24px; font-weight: 750; line-height: 1; font-variant-numeric: tabular-nums; }
+.ipd-overview-strip em { font-size: 13px; font-style: normal; font-weight: 500; color: var(--ac-muted); }
+.ipd-overview-icon { display: grid; place-items: center; width: 38px; height: 38px; flex-shrink: 0; border-radius: 12px; font-size: 22px; background: var(--ac-primary-light); color: var(--ac-primary); }
+.ipd-overview-icon.teal { background: var(--ac-success-light); color: var(--ac-success); }
+.ipd-overview-icon.purple { background: var(--ac-secondary-light); color: var(--ac-secondary); }
+.ipd-overview-icon.amber { background: var(--ac-warning-light); color: var(--ac-warning-text); }
+@media(max-width:700px) { .ipd-overview-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .ipd-overview-strip button { padding: 13px; gap: 9px; } .ipd-overview-icon { width: 30px; height: 30px; font-size: 18px; border-radius: 9px; } .ipd-overview-strip small { font-size: 10px; } }
+.ipd-focus-bar, .ipd-section-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 18px; }
+.ipd-focus-bar { padding: 6px 0 12px; }
+.ipd-focus-bar h2, .ipd-section-heading h2 { margin: 0; font-size: 22px; letter-spacing: -.6px; }
+.ipd-focus-bar p:last-child, .ipd-section-heading p:last-child { color: var(--ac-muted); font-size: 13px; margin: 7px 0 0; line-height: 1.6; }
+.ipd-focus-switch { display: flex; gap: 4px; padding: 5px; border-radius: 13px; border: 1px solid var(--ac-border); background: var(--ac-surface); }
+.ipd-focus-switch button { display: flex; align-items: center; justify-content: center; gap: 7px; border: 0; padding: 11px 13px; border-radius: 9px; background: transparent; color: var(--ac-muted); font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; white-space: nowrap; }
+.ipd-focus-switch button.active { background: var(--ac-primary-light); color: var(--ac-primary); box-shadow: 0 2px 8px color-mix(in srgb, var(--ac-primary) 8%, transparent); }
+.ipd-focus-switch .material-symbols-rounded { font-size: 19px; }
+.ipd-today-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 22px; align-items: start; }
+.ipd-ward-board, .ipd-patients-workspace { min-width: 0; display: grid; gap: 16px; }
+.ipd-updated { font-size: 11px; color: var(--ac-muted); }
+.ipd-patient-toolbar { display: grid; grid-template-columns: minmax(160px, 1fr) 180px auto; gap: 10px; align-items: center; }
+.ipd-patient-toolbar .search-field { background: var(--ac-surface); border-radius: 12px; min-height: 42px; }
+.ipd-patient-toolbar .search-field input { min-width: 0; }
+.ipd-extra-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 10px; align-items: center; padding: 14px; border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-surface); }
+.ipd-view-chips { display: flex; gap: 7px; flex-wrap: wrap; }
+.ipd-view-chips button { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 7px 11px; border: 1px solid var(--ac-border); background: var(--ac-surface); color: var(--ac-muted); border-radius: 999px; font: inherit; font-size: 11px; font-weight: 650; cursor: pointer; }
+.ipd-view-chips button.active { background: var(--ac-secondary-light); color: var(--ac-secondary); border-color: color-mix(in srgb, var(--ac-secondary) 30%, var(--ac-border)); }
+.ipd-view-chips button span { font-variant-numeric: tabular-nums; padding: 1px 5px; border-radius: 6px; background: color-mix(in srgb, currentColor 8%, transparent); }
+.ipd-patient-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 295px), 1fr)); gap: 15px; }
+.ipd-patient-card { display: flex; flex-direction: column; gap: 14px; padding: 18px; border: 1px solid var(--ac-border); border-radius: var(--ipd-radius); background: var(--ac-surface); box-shadow: 0 4px 18px color-mix(in srgb, var(--ac-text) 4%, transparent); min-width: 0; transition: border-color .2s ease, box-shadow .2s ease; }
+.ipd-patient-card:hover { border-color: color-mix(in srgb, var(--ac-primary) 32%, var(--ac-border)); box-shadow: 0 8px 24px color-mix(in srgb, var(--ac-text) 7%, transparent); }
+.ipd-patient-card.needs-bed { border-color: color-mix(in srgb, var(--ac-warning) 35%, var(--ac-border)); }
+.ipd-card-location { display: flex; align-items: center; gap: 7px; padding-bottom: 12px; border-bottom: 1px solid var(--ac-border); }
+.ipd-card-location > .material-symbols-rounded { font-size: 18px; color: var(--ac-primary); }
+.ipd-card-location strong { font-size: 13px; white-space: nowrap; }
+.ipd-card-location > span:not(.material-symbols-rounded) { color: var(--ac-muted); font-size: 11px; overflow-wrap: anywhere; }
+.ipd-card-location small { margin-left: auto; white-space: nowrap; font-size: 10px; color: var(--ac-muted); background: var(--ac-surface-2); border-radius: 7px; padding: 4px 6px; }
+.ipd-card-person { display: flex; gap: 10px; align-items: center; }
+.ipd-person-avatar { display: grid; place-items: center; flex: 0 0 38px; width: 38px; height: 38px; border-radius: 12px; background: var(--ac-primary-light); color: var(--ac-primary); font-size: 13px; font-weight: 750; }
+.ipd-card-person > div:last-child { min-width: 0; }
+.ipd-card-person h3, .ipd-discharge-list h3 { font-size: 15px; font-weight: 700; margin: 0 0 4px; letter-spacing: -.25px; overflow-wrap: anywhere; }
+.ipd-card-person p { margin: 0; font-size: 10px; color: var(--ac-muted); overflow-wrap: anywhere; }
+.ipd-card-diagnosis { color: var(--ac-text-2); font-size: 12px; line-height: 1.6; margin: 0; overflow-wrap: anywhere; }
+.ipd-card-doctor { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 11px; color: var(--ac-text-2); }
+.ipd-card-doctor > .material-symbols-rounded { font-size: 16px; color: var(--ac-muted); }
+.ipd-card-doctor small { flex-basis: 100%; padding-left: 22px; font-size: 10px; color: var(--ac-muted); }
+.ipd-patient-signals { display: flex; flex-wrap: wrap; gap: 5px; }
+.ipd-signal { font-size: 10px; font-weight: 650; padding: 5px 7px; border-radius: 7px; background: var(--ac-primary-light); color: var(--ac-primary); }
+.ipd-signal.urgent, .ipd-signal.allergy { background: var(--ac-warning-light); color: var(--ac-warning-text); }
+.ipd-signal.preparing { background: var(--ac-secondary-light); color: var(--ac-secondary); }
+.ipd-card-actions { display: flex; align-items: center; gap: 9px; margin-top: auto; padding-top: 4px; }
+.ipd-card-actions .ac-btn { flex: 1; justify-content: center; font-size: 12px; }
+.ipd-icon-action { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 auto; border: 1px solid var(--ac-border); border-radius: 10px; background: var(--ac-surface); color: var(--ac-muted); cursor: pointer; }
+.ipd-icon-action .material-symbols-rounded { font-size: 19px; }
+.ipd-today-sidebar { display: grid; gap: 18px; min-width: 0; }
+.ipd-today-sidebar .panel { padding: 18px; }
+.ipd-work-item { display: flex; align-items: flex-start; gap: 10px; padding: 14px 0; border-bottom: 1px solid var(--ac-border); }
+.ipd-work-item:last-child { border-bottom: 0; }
+.ipd-work-item > div { min-width: 0; }
+.ipd-work-icon { display: grid; place-items: center; flex: 0 0 32px; width: 32px; height: 32px; border-radius: 10px; color: var(--ac-primary); background: var(--ac-primary-light); font-size: 17px; }
+.ipd-work-icon.urgent { background: var(--ac-warning-light); color: var(--ac-warning-text); }
+.ipd-work-item strong { display: block; font-size: 12px; overflow-wrap: anywhere; }
+.ipd-work-item p { margin: 5px 0; font-size: 11px; color: var(--ac-muted); line-height: 1.5; }
+.ipd-work-item .link-btn { font-size: 11px; text-align: left; padding: 3px 0; }
+.ipd-show-work { width: 100%; border: 0; border-radius: 9px; background: var(--ac-surface-2); color: var(--ac-primary); font: inherit; font-size: 12px; padding: 10px; margin-top: 12px; cursor: pointer; }
+.ipd-ward-capacity { display: grid; grid-template-columns: 1fr auto; gap: 8px; text-align: left; width: 100%; border: 0; border-bottom: 1px solid var(--ac-border); background: transparent; padding: 13px 0; color: var(--ac-text); cursor: pointer; }
+.ipd-ward-capacity strong { display: block; font-size: 12px; }
+.ipd-ward-capacity small { display: block; margin-top: 4px; font-size: 10px; color: var(--ac-muted); }
+.ipd-ward-capacity b { font-size: 11px; color: var(--ac-success); }
+.ipd-ward-capacity .bar-track { grid-column: 1 / -1; height: 6px; }
+.ipd-workflow-footer { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; padding: 14px; border-top: 1px solid var(--ac-border); color: var(--ac-muted); font-size: 11px; }
+.ipd-workflow-footer span { display: flex; gap: 6px; align-items: center; }
+.ipd-workflow-footer i { font-style: normal; }
+.ipd-workflow-footer .material-symbols-rounded { font-size: 17px; }
+.ipd-more-tools { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px; background: var(--ac-surface-2); border-radius: 12px; }
+.ipd-more-tools .ac-btn { font-size: 12px; }
+.ipd-more-tools [aria-current="page"] { border-color: var(--ac-primary); color: var(--ac-primary); }
+.ipd-safety-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; border: 1px solid var(--ac-border); border-radius: 12px; background: var(--ac-surface-2); color: var(--ac-text-2); padding: 12px 16px; font-size: 12px; line-height: 1.6; }
+.ipd-safety-strip > .material-symbols-rounded { color: var(--ac-warning); font-size: 20px; }
+.ipd-safety-strip b { font-weight: 700; margin-right: 6px; }
+.ipd-page .ipd-chart-tabs { display: flex; overflow-x: auto; grid-template-columns: none; gap: 5px; padding: 7px; border-radius: 13px; }
+.ipd-chart-tabs button { flex: 0 0 auto; padding: 10px 14px; min-height: 42px; }
+.ipd-chart-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.ipd-chart-summary .panel { padding: 22px; }
+.ipd-summary-reason { display: grid; gap: 6px; padding: 15px; background: var(--ac-surface-2); border-radius: 12px; margin: 15px 0; }
+.ipd-summary-reason small, .ipd-plan-preview small { font-size: 11px; color: var(--ac-muted); }
+.ipd-summary-reason strong { font-size: 14px; line-height: 1.6; }
+.ipd-summary-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 18px 0; }
+.ipd-summary-facts dt { font-size: 11px; color: var(--ac-muted); margin-bottom: 5px; }
+.ipd-summary-facts dd { margin: 0; font-size: 12px; color: var(--ac-text-2); }
+.ipd-summary-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ipd-summary-actions .ac-btn { font-size: 12px; }
+.ipd-summary-vitals { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+.ipd-summary-vitals span { display: grid; gap: 10px; border: 1px solid var(--ac-border); padding: 16px; border-radius: 12px; }
+.ipd-summary-vitals small { font-size: 11px; color: var(--ac-muted); }
+.ipd-summary-vitals strong { font-size: 20px; font-variant-numeric: tabular-nums; }
+.ipd-round-meta { font-size: 11px; color: var(--ac-muted); margin: 16px 0; }
+.ipd-round-preview, .ipd-plan-preview p { white-space: pre-wrap; font-size: 13px; line-height: 1.7; }
+.ipd-plan-preview { padding: 14px; background: var(--ac-surface-2); border-radius: 12px; margin-top: 16px; }
+.ipd-plan-preview p { margin: 6px 0 0; }
+.ipd-next-step-list { display: grid; }
+.ipd-next-step-list button { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 16px 0; border: 0; border-bottom: 1px solid var(--ac-border); background: transparent; color: var(--ac-text); cursor: pointer; }
+.ipd-next-step-list button > .material-symbols-rounded { color: var(--ac-primary); background: var(--ac-primary-light); border-radius: 10px; padding: 9px; font-size: 20px; }
+.ipd-next-step-list b { display: block; font-size: 13px; }
+.ipd-next-step-list small { display: block; font-size: 11px; color: var(--ac-muted); margin-top: 4px; }
+.ipd-next-step-list button > span:last-child { margin-left: auto; }
+.ipd-optional-round { border: 1px solid var(--ac-border); border-radius: 12px; padding: 14px; }
+.ipd-optional-round summary { color: var(--ac-primary); font-size: 12px; font-weight: 650; cursor: pointer; }
+.ipd-optional-fields { margin-top: 18px; }
+.ipd-bed-toolbar { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
+.ipd-bed-toolbar > ac-dropdown { min-width: 200px; }
+.ipd-bed-board { display: grid; gap: 18px; }
+.ipd-live-bed-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 13px; }
+.ipd-live-bed { border: 1px solid var(--ac-border); border-left: 3px solid var(--ac-muted); padding: 16px; border-radius: 13px; background: var(--ac-surface); min-width: 0; }
+.ipd-live-bed.available { border-left-color: var(--ac-success); }
+.ipd-live-bed.occupied, .ipd-live-bed.allocated { border-left-color: var(--ac-primary); }
+.ipd-live-bed.cleaning { border-left-color: var(--ac-warning); }
+.ipd-live-bed > div { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.ipd-live-bed > div > .material-symbols-rounded { color: var(--ac-primary); font-size: 21px; }
+.ipd-live-bed strong { font-size: 15px; }
+.ipd-bed-state { margin-left: auto; background: var(--ac-surface-2); color: var(--ac-muted); padding: 4px 6px; border-radius: 6px; font-size: 9px; }
+.ipd-live-bed > small { display: block; color: var(--ac-muted); margin-top: 8px; font-size: 11px; }
+.ipd-live-bed > p { margin: 12px 0; font-size: 12px; line-height: 1.6; }
+.ipd-live-bed .link-btn { font-size: 11px; padding: 4px 0; }
+.ipd-discharge-queue { display: grid; gap: 20px; }
+.ipd-discharge-list { display: grid; gap: 12px; }
+.ipd-discharge-list > article { display: flex; align-items: center; gap: 14px; padding: 18px; border: 1px solid var(--ac-border); border-radius: 13px; }
+.ipd-discharge-list > article > div:first-of-type { flex: 1; }
+.ipd-discharge-list p { font-size: 12px; color: var(--ac-muted); margin: 4px 0; }
+.ipd-discharge-list small { font-size: 10px; color: var(--ac-secondary); }
+.ipd-discharge-signals { display: grid; gap: 6px; color: var(--ac-muted); font-size: 11px; margin-inline: 12px; }
+.ipd-board-empty { grid-column: 1 / -1; display: grid; justify-items: center; text-align: center; gap: 10px; padding: 48px 20px; border: 1px dashed var(--ac-border-2); border-radius: 16px; background: var(--ac-surface); color: var(--ac-muted); }
+.ipd-board-empty > .material-symbols-rounded { font-size: 34px; color: var(--ac-primary); }
+.ipd-board-empty h3 { margin: 0; font-size: 17px; color: var(--ac-text); }
+.ipd-board-empty p { margin: 0; font-size: 13px; line-height: 1.6; max-width: 380px; }
+.ipd-page .admission-meta-line { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ipd-page .admission-meta-line span { min-width: 0; overflow-wrap: anywhere; }
+.ipd-page button:focus-visible, .ipd-optional-round summary:focus-visible { outline: 2px solid var(--ac-primary); outline-offset: 3px; }
+@media (max-width: 950px) { .ipd-page .admission-meta-line { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1200px) { .ipd-today-layout { grid-template-columns: minmax(0, 1fr) 280px; } .ipd-patient-toolbar { grid-template-columns: minmax(0, 1fr) auto; } .ipd-patient-toolbar > ac-dropdown { grid-column: 1; grid-row: 2; } .ipd-patient-toolbar > button { grid-column: 2; grid-row: 2; } .ipd-patient-toolbar .search-field { grid-column: 1 / -1; } }
+@media (max-width: 950px) { .ipd-today-layout { grid-template-columns: 1fr; } .ipd-today-sidebar { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ipd-extra-filters { grid-template-columns: 1fr 1fr; } .ipd-chart-summary { grid-template-columns: 1fr; } .ipd-discharge-list > article { flex-wrap: wrap; } .ipd-discharge-signals { margin: 0; } }
+@media (max-width: 600px) { .ipd-page { padding: 0 0 18px; } .ipd-focus-switch { width: 100%; } .ipd-focus-switch button { flex: 1; padding: 10px 7px; font-size: 11px; gap: 5px; } .ipd-focus-switch .material-symbols-rounded { font-size: 16px; } .ipd-today-sidebar { grid-template-columns: 1fr; } .ipd-extra-filters { grid-template-columns: 1fr; } .ipd-patient-card { padding: 16px; } .ipd-chart-summary .panel { padding: 16px; } .ipd-safety-strip { align-items: flex-start; gap: 8px; } .ipd-safety-strip > span:not(.material-symbols-rounded) { flex-basis: 100%; } .ipd-discharge-list > article { padding: 14px; } .ipd-discharge-list .ac-btn { width: 100%; justify-content: center; } .ipd-workflow-footer { gap: 9px; font-size: 10px; } }
+@media (prefers-reduced-motion: reduce) { .ipd-patient-card { transition: none; } }

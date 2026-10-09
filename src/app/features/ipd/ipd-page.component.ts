@@ -1,5 +1,4 @@
-import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
-import { buildIpdManagerTasks, ManagerTask } from './ipd-manager-workflow';
+import { buildIpdManagerTasks, ipdTasksForFocus, matchesIpdPatientView, sortIpdPatients, IpdPatientView, IpdWorkFocus, ManagerTask } from './ipd-manager-workflow';
 import { PatientManagementService } from '../patients/patient-management.service';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
@@ -46,18 +45,31 @@ interface IpdDetailTabItem {
   icon: string;
 }
 
-interface IpdKpiCard {
-  label: string;
-  value: string;
-  meta: string;
-  icon: string;
-  tone: string;
-}
-
 @Component({
   standalone: true,
-  imports: [AcKpiCardComponent, CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent],
+  imports: [CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent],
+  styleUrl: './ipd-workspace.css',
   template: `
+    <ng-template #patientCard let-admission>
+      <article class="ipd-patient-card" [class.needs-bed]="!admission.bedNo">
+        <div class="ipd-card-location"><span class="material-symbols-rounded" aria-hidden="true">bed</span><strong>{{ admission.bedNo || 'Needs a bed' }}</strong><span>{{ admission.wardName || 'Ward pending' }}{{ admission.roomNumber ? ' · ' + admission.roomNumber : '' }}</span><small>Day {{ admission.stayDays || 1 }}</small></div>
+        <div class="ipd-card-person"><div class="ipd-person-avatar" aria-hidden="true">{{ initials(admission.patientName) }}</div><div><h3>{{ admission.patientName }}</h3><p>{{ admission.medicalRecordNo }} · {{ admission.admissionNo }}</p></div></div>
+        <p class="ipd-card-diagnosis">{{ admission.primaryDiagnosis || admission.admissionReason || 'Admission reason not recorded' }}</p>
+        <div class="ipd-card-doctor"><span class="material-symbols-rounded" aria-hidden="true">stethoscope</span>{{ admission.doctorName || 'Doctor unassigned' }}<small>{{ admission.departmentName || 'Department not recorded' }}</small></div>
+        <div class="ipd-patient-signals">
+          @if (['CRITICAL', 'EMERGENCY', 'URGENT'].includes(admission.priorityCode?.toUpperCase())) { <span class="ipd-signal urgent">{{ statusText(admission.priorityCode) }} priority</span> }
+          @if (admission.activeOrders > 0) { <span class="ipd-signal">{{ admission.activeOrders }} investigations pending</span> }
+          @if (admission.statusCode === 'DISCHARGE_INITIATED') { <span class="ipd-signal preparing">Discharge in preparation</span> }
+          @if (admission.knownAllergies) { <span class="ipd-signal allergy" [title]="admission.knownAllergies">Allergy recorded</span> }
+        </div>
+        <div class="ipd-card-actions"><button class="ac-btn ac-btn-primary" type="button" (click)="openPatientForFocus(admission)">{{ workFocus() === 'doctor' ? 'Record round' : workFocus() === 'nursing' ? 'Record vitals' : 'Open patient' }}<span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></button><button class="ipd-icon-action" type="button" (click)="openPatientChart(admission, 'overview')" [attr.aria-label]="'View summary for ' + admission.patientName" title="Patient summary"><span class="material-symbols-rounded" aria-hidden="true">clinical_notes</span></button></div>
+      </article>
+    </ng-template>
+    <ng-template #patientFilters>
+      <div class="ipd-patient-toolbar"><label class="search-field"><span class="material-symbols-rounded" aria-hidden="true">search</span><input type="search" aria-label="Find an inpatient" [ngModel]="activeSearchQuery()" (ngModelChange)="activeSearchQuery.set($event)" placeholder="Name, MRN, bed, or admission number" /></label><ac-dropdown name="wardBoardFilter" ariaLabel="Filter ward" [ngModel]="activeWardFilter()" (ngModelChange)="activeWardFilter.set($event)" [options]="activeWardOptions()" /><button type="button" class="ac-btn ac-btn-secondary" [attr.aria-expanded]="patientFiltersOpen()" (click)="patientFiltersOpen.set(!patientFiltersOpen())"><span class="material-symbols-rounded" aria-hidden="true">tune</span>Filters{{ extraFilterCount() ? ' (' + extraFilterCount() + ')' : '' }}</button></div>
+      @if (patientFiltersOpen()) { <div class="ipd-extra-filters"><ac-dropdown name="boardDoctor" ariaLabel="Filter doctor" [ngModel]="activeDoctorFilter()" (ngModelChange)="activeDoctorFilter.set($event)" [options]="activeDoctorOptions()" /><ac-dropdown name="boardDepartment" ariaLabel="Filter department" [ngModel]="activeDepartmentFilter()" (ngModelChange)="activeDepartmentFilter.set($event)" [options]="activeDepartmentOptions()" /><ac-dropdown name="boardPriority" ariaLabel="Filter priority" [ngModel]="activePriorityFilter()" (ngModelChange)="activePriorityFilter.set($event)" [options]="activePriorityOptions()" /><button class="link-btn" type="button" (click)="resetPatientFilters()">Clear filters</button></div> }
+      <div class="ipd-view-chips" aria-label="Patient work lists">@for (view of patientViews; track view.key) { <button type="button" [class.active]="patientView() === view.key" [attr.aria-pressed]="patientView() === view.key" (click)="patientView.set(view.key)">{{ view.label }}<span>{{ patientViewCount(view.key) }}</span></button> }</div>
+    </ng-template>
     <ng-template #readinessPanel>
       <section class="readiness-panel" aria-label="Discharge preparation">
         <h3>Discharge preparation</h3>
@@ -72,8 +84,8 @@ interface IpdKpiCard {
       <header class="page-header ac-workspace-head">
         <div>
           <p class="ac-eyebrow">Inpatient operations</p>
-          <h1 class="ac-page-title">IPD Manager</h1>
-          <p class="page-desc">See what needs attention, admit patients, and keep beds moving.</p>
+          <h1 class="ac-page-title">Inpatient care</h1>
+          <p class="page-desc">Your patients, ward work, and next steps in one place.</p>
         </div>
         <div class="header-actions">
           <button class="ac-btn ac-btn-secondary" type="button" [disabled]="refreshing()" (click)="refresh()">
@@ -88,11 +100,14 @@ interface IpdKpiCard {
       </header>
 
       @if (workspace(); as model) {
-        <section class="ac-kpi-grid" aria-label="Workspace overview">
-        @for (card of kpiCards(); track card.label) {
-          <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.tone" [detail]="card.meta" [pending]="refreshing()"  />
+        @if (!activePatientDetailOpen()) {
+        <section class="ipd-overview-strip" aria-label="Inpatient overview">
+          <button type="button" (click)="setTab('patients')"><span class="ipd-overview-icon material-symbols-rounded" aria-hidden="true">personal_injury</span><span><small>Active patients</small><strong>{{ model.summary.currentAdmissions }}</strong></span></button>
+          <button type="button" (click)="setTab('beds')"><span class="ipd-overview-icon teal material-symbols-rounded" aria-hidden="true">bed</span><span><small>Available beds</small><strong>{{ model.summary.availableBeds }}<em> / {{ model.summary.totalBeds }}</em></strong></span></button>
+          <button type="button" (click)="setTab('admissions')"><span class="ipd-overview-icon purple material-symbols-rounded" aria-hidden="true">person_add</span><span><small>Admitted today</small><strong>{{ model.summary.admissionsToday }}</strong></span></button>
+          <button type="button" (click)="setTab('discharge')"><span class="ipd-overview-icon amber material-symbols-rounded" aria-hidden="true">logout</span><span><small>Discharged today</small><strong>{{ model.summary.dischargesToday }}</strong></span></button>
+        </section>
         }
-      </section>
 
         <nav class="module-tabs ac-workspace-tabs" aria-label="IPD areas">
           @for (tab of visibleManagerTabs(); track tab.key) {
@@ -101,29 +116,29 @@ interface IpdKpiCard {
               {{ tab.label }}
             </button>
           }
-          <button type="button" [class.active]="moreTools()" (click)="moreTools.set(!moreTools())"><span class="material-symbols-rounded">more_horiz</span>{{ moreTools() ? 'Fewer tools' : 'More tools' }}</button>
+          <button type="button" [class.active]="moreTools()" [attr.aria-expanded]="moreTools()" (click)="moreTools.set(!moreTools())"><span class="material-symbols-rounded">more_horiz</span>More tools</button>
         </nav>
+        @if (moreTools()) { <nav class="ipd-more-tools" aria-label="Additional IPD tools">@for (tab of extraManagerTabs; track tab.key) { <button class="ac-btn ac-btn-secondary" type="button" [attr.aria-current]="activeTab() === tab.key ? 'page' : null" (click)="setTab(tab.key)"><span class="material-symbols-rounded" aria-hidden="true">{{ tab.icon }}</span>{{ tab.label }}</button> }</nav> }
 
         @if (loading()) {
           <ac-grid-loader title="Loading IPD..." message="Preparing admissions, beds, and care status." />
         } @else {
           @switch (activeTab()) {
             @case ('dashboard') {
-              <section class="manager-board">
-                <div class="manager-heading"><div><p class="ac-eyebrow">Today’s work</p><h2>{{ managerTasks().length ? managerTasks().length + ' items need attention' : 'You’re up to date' }}</h2><p>Admission numbers, occupancy, pending investigations, and bed turnover update from saved activity.</p></div><span class="soft-pill">Updated {{ formatTime(model.generatedAt) }} · auto-refresh on</span></div>
-                <div class="manager-shortcuts"><button (click)="openAdmissionPanel()"><span class="material-symbols-rounded">person_add</span>Admit a patient</button><button (click)="setTab('patients')"><span class="material-symbols-rounded">groups</span>Find an inpatient</button><button (click)="setTab('beds')"><span class="material-symbols-rounded">bed</span>View available beds</button></div>
-                <div class="manager-columns">
-                  <article class="panel"><div class="panel-head"><div><p class="ac-eyebrow">Action list</p><h2>What to do next</h2></div></div>
-                    @for (task of managerTasks(); track task.key) {
-                      <div class="manager-task"><span class="material-symbols-rounded" [class.urgent]="task.urgent">{{ task.icon }}</span><div><strong>{{ task.title }}</strong><p>{{ task.detail }}</p></div><button class="ac-btn ac-btn-secondary" [disabled]="saving()" (click)="resolveManagerTask(task)">{{ task.action }}</button></div>
-                    } @empty { <div class="empty-state">No pending admissions, bed assignments, cleaning tasks, or discharge preparation in the current records.</div> }
+              <section class="ipd-focus-bar"><div><p class="ac-eyebrow">Start your day</p><h2>{{ workFocus() === 'doctor' ? 'Patients to review' : workFocus() === 'nursing' ? 'Care on your ward' : 'Your ward at a glance' }}</h2><p>{{ focusDescription() }}</p></div><div class="ipd-focus-switch" aria-label="Work focus">@for (focus of workFocusOptions; track focus.key) { <button type="button" [class.active]="workFocus() === focus.key" [attr.aria-pressed]="workFocus() === focus.key" (click)="setWorkFocus(focus.key)"><span class="material-symbols-rounded" aria-hidden="true">{{ focus.icon }}</span>{{ focus.label }}</button> }</div></section>
+              <div class="ipd-today-layout">
+                <section class="ipd-ward-board"><div class="ipd-section-heading"><div><p class="ac-eyebrow">Patient board</p><h2>{{ filteredActiveInpatients().length }} {{ filteredActiveInpatients().length === 1 ? 'patient' : 'patients' }}</h2></div><span class="ipd-updated">Updated {{ formatTime(model.generatedAt) }}</span></div><ng-container *ngTemplateOutlet="patientFilters" /><div class="ipd-patient-grid">@for (admission of filteredActiveInpatients(); track admission.admissionId) { <ng-container *ngTemplateOutlet="patientCard; context: { $implicit: admission }" /> } @empty { <div class="ipd-board-empty"><span class="material-symbols-rounded" aria-hidden="true">ward</span><h3>{{ model.activePatients.length ? 'No patients match this view' : 'No active inpatient stays' }}</h3><p>{{ model.activePatients.length ? 'Choose another work list or clear your filters.' : 'Admitted patients will appear here with their ward, bed, and care actions.' }}</p><button class="ac-btn ac-btn-secondary" type="button" (click)="model.activePatients.length ? resetPatientFilters() : openAdmissionPanel()">{{ model.activePatients.length ? 'Clear filters' : 'Admit a patient' }}</button></div> }</div></section>
+                <aside class="ipd-today-sidebar">
+                  <article class="panel ipd-action-panel"><div class="panel-head"><div><p class="ac-eyebrow">Next steps</p><h2>Needs attention</h2></div><span class="soft-pill">{{ focusedTasks().length }}</span></div>
+                    @for (task of visibleFocusTasks(); track task.key) { <div class="ipd-work-item"><span class="ipd-work-icon material-symbols-rounded" [class.urgent]="task.urgent" aria-hidden="true">{{ task.icon }}</span><div><strong>{{ task.title }}</strong><p>{{ task.detail }}</p><button class="link-btn" type="button" [disabled]="saving()" (click)="resolveManagerTask(task)">{{ task.action }} <span aria-hidden="true">→</span></button></div></div> } @empty { <p class="helper-text">No pending work in this focus. Patient care actions remain available on the board.</p> }
+                    @if (focusedTasks().length > 5) { <button class="ipd-show-work" type="button" [attr.aria-expanded]="allTasksOpen()" (click)="allTasksOpen.set(!allTasksOpen())">{{ allTasksOpen() ? 'Show fewer' : 'Show all ' + focusedTasks().length + ' items' }}</button> }
                   </article>
-                  <article class="panel"><div class="panel-head"><div><p class="ac-eyebrow">Live capacity</p><h2>Ward availability</h2></div></div>
-                    @for (ward of model.wards; track ward.wardId) { <div class="manager-ward"><div><strong>{{ ward.wardName }}</strong><small>{{ ward.occupiedBeds }} occupied / {{ ward.totalBeds }} beds</small></div><span class="soft-pill">{{ ward.availableBeds }} available</span><div class="bar-track"><span class="bar-fill" [style.width.%]="ward.occupancyPercent"></span></div></div> } @empty { <p class="empty-state">Add wards and beds to start managing capacity.</p> }
-                    <p class="helper-text">Transferred and discharged beds move to cleaning automatically. Mark them ready after cleaning is finished.</p>
+                  <article class="panel ipd-capacity-panel"><div class="panel-head"><div><p class="ac-eyebrow">Live capacity</p><h2>Ward availability</h2></div><button class="link-btn" type="button" (click)="setTab('beds')">View beds</button></div>
+                    @for (ward of model.wards; track ward.wardId) { <button class="ipd-ward-capacity" type="button" (click)="activeWardFilter.set(ward.wardName); patientView.set('all')" [attr.aria-label]="'Show patients in ' + ward.wardName"><span><strong>{{ ward.wardName }}</strong><small>{{ ward.occupiedBeds }} of {{ ward.totalBeds }} occupied</small></span><b>{{ ward.availableBeds }} free</b><div class="bar-track"><span class="bar-fill" [style.width.%]="ward.occupancyPercent"></span></div></button> } @empty { <p class="helper-text">Set up wards and beds to see live capacity.</p> }
                   </article>
-                </div>
-              </section>
+                </aside>
+              </div>
+              <section class="ipd-workflow-footer" aria-label="Inpatient journey"><span><i class="material-symbols-rounded" aria-hidden="true">person_add</i>Admit</span><i aria-hidden="true">→</i><span><i class="material-symbols-rounded" aria-hidden="true">bed</i>Place in ward</span><i aria-hidden="true">→</i><span><i class="material-symbols-rounded" aria-hidden="true">stethoscope</i>Record care</span><i aria-hidden="true">→</i><span><i class="material-symbols-rounded" aria-hidden="true">logout</i>Prepare discharge</span></section>
             }
 
             @case ('admissions') {
@@ -372,6 +387,12 @@ interface IpdKpiCard {
 
             @case ('beds') {
               <section class="facility-workspace">
+                <div class="ipd-section-heading"><div><p class="ac-eyebrow">Ward operations</p><h2>Beds & availability</h2><p>Open an occupied bed to see the patient. Mark a bed ready after cleaning.</p></div><button class="ac-btn ac-btn-secondary" type="button" [attr.aria-expanded]="facilitySetupOpen()" (click)="facilitySetupOpen.set(!facilitySetupOpen())"><span class="material-symbols-rounded" aria-hidden="true">settings</span>{{ facilitySetupOpen() ? 'Back to bed board' : 'Manage ward setup' }}</button></div>
+                @if (!facilitySetupOpen()) {
+                  <div class="ipd-bed-toolbar"><ac-dropdown name="bedBoardWard" ariaLabel="Filter beds by ward" [ngModel]="bedWardFilter()" (ngModelChange)="bedWardFilter.set($event)" [options]="bedBoardWardOptions()" /><div class="ipd-view-chips" aria-label="Bed status filters">@for (state of ['ALL', 'AVAILABLE', 'OCCUPIED', 'CLEANING']; track state) { <button type="button" [class.active]="bedView() === state" [attr.aria-pressed]="bedView() === state" (click)="bedView.set(state)">{{ state === 'ALL' ? 'All beds' : statusText(state) }}</button> }</div></div>
+                  <div class="ipd-bed-board">@for (group of visibleBedGroups(); track group.wardName) { <article class="panel"><div class="panel-head"><h2>{{ group.wardName }}</h2><span class="soft-pill">{{ group.available }} available · {{ group.occupied }} occupied</span></div><div class="ipd-live-bed-grid">@for (bed of group.beds; track bed.bedId) { <article class="ipd-live-bed" [ngClass]="bed.statusCode.toLowerCase()"><div><span class="material-symbols-rounded" aria-hidden="true">bed</span><strong>{{ bed.bedNo }}</strong><span class="ipd-bed-state">{{ statusText(bed.statusCode) }}</span></div><small>{{ bed.roomNumber || 'Room not recorded' }} · {{ statusText(bed.bedType) }}</small><p>{{ bed.currentPatientName || (bed.statusCode === 'CLEANING' ? 'Awaiting cleaning completion' : bed.statusCode === 'AVAILABLE' ? 'Ready for admission' : 'Unavailable for admission') }}</p>@if (bed.admissionId && ['OCCUPIED', 'ALLOCATED'].includes(bed.statusCode)) { <button class="link-btn" type="button" (click)="openBedPatient(bed)">Open patient →</button> } @else if (bed.statusCode === 'AVAILABLE') { <button class="link-btn" type="button" (click)="useAvailableBed(bed)">Use for admission →</button> } @else if (bed.statusCode === 'CLEANING') { <button class="link-btn" type="button" [disabled]="saving()" (click)="markBedReady(bed)">Mark clean & ready</button> }</article> }</div></article> } @empty { <div class="ipd-board-empty"><h3>No beds in this view</h3><p>Choose another status or ward. Use ward setup to configure beds.</p></div> }</div>
+                } @else {
+
                 <article class="panel">
                   <div class="section-toolbar">
                     <div>
@@ -496,6 +517,7 @@ interface IpdKpiCard {
                     }
                   }
                 </article>
+                }
               </section>
             }
 
@@ -506,7 +528,7 @@ interface IpdKpiCard {
                     <div class="hero-nav">
                       <button class="link-btn back-link" type="button" (click)="closeInpatientDetail()">
                         <span class="material-symbols-rounded">arrow_back</span>
-                        IPD Admissions
+                        Back to patients
                       </button>
                       <button class="ac-btn ac-btn-secondary" type="button" (click)="printAdmissionSummary()">
                         <span class="material-symbols-rounded">print</span>
@@ -518,7 +540,7 @@ interface IpdKpiCard {
                       <div>
                         <p class="ac-eyebrow">IPD Admission Detail</p>
                         <h2>{{ selected.patientName }}</h2>
-                        <p>{{ selected.medicalRecordNo }} · {{ selected.admissionNo }} · {{ statusText(selected.statusCode) }}</p>
+                        <p>{{ selected.medicalRecordNo }} · {{ selected.admissionNo }}</p>
                       </div>
                       <span class="status-pill">{{ statusText(selected.statusCode) }}</span>
                     </div>
@@ -530,98 +552,20 @@ interface IpdKpiCard {
                     </div>
                   </article>
 
-                  <section class="detail-kpis">
-                    <article>
-                      <span class="material-symbols-rounded">event_available</span>
-                      <div><strong>{{ selected.stayDays || 1 }} Days</strong><small>Admission Day</small></div>
-                    </article>
-                    <article>
-                      <span class="material-symbols-rounded">bed</span>
-                      <div><strong>{{ selected.bedNo || 'Pending' }}</strong><small>Current Bed</small></div>
-                    </article>
-                    <article>
-                      <span class="material-symbols-rounded">receipt_long</span>
-                      <div><strong>{{ formatMoney(selected.outstanding || 0) }}</strong><small>Outstanding</small></div>
-                    </article>
-                    <article>
-                      <span class="material-symbols-rounded">assignment</span>
-                      <div><strong>{{ selected.activeOrders || 0 }}</strong><small>Active Orders</small></div>
-                    </article>
-                  </section>
-
-                  <nav class="detail-tabs" aria-label="IPD admission detail tabs">
-                    @for (tab of detailTabs; track tab.key) {
-                      <button type="button" [class.active]="activeDetailTab() === tab.key" (click)="setDetailTab(tab.key)">
-                        <span class="material-symbols-rounded">{{ tab.icon }}</span>
-                        {{ tab.label }}
-                      </button>
-                    }
+                  <div class="ipd-safety-strip"><span class="material-symbols-rounded" aria-hidden="true">health_and_safety</span><span><b>Allergies</b> {{ selected.knownAllergies || 'Not recorded · verify with patient' }}</span><span><b>Blood group</b> {{ selected.bloodGroup || 'Not recorded' }}</span></div>
+                  <nav class="detail-tabs ipd-chart-tabs" aria-label="Patient chart sections">
+                    @for (tab of primaryDetailTabs; track tab.key) { <button type="button" [class.active]="activeDetailTab() === tab.key" [attr.aria-current]="activeDetailTab() === tab.key ? 'page' : null" (click)="setDetailTab(tab.key)"><span class="material-symbols-rounded" aria-hidden="true">{{ tab.icon }}</span>{{ tab.label }}</button> }
+                    <button type="button" [attr.aria-expanded]="morePatientRecords()" (click)="morePatientRecords.set(!morePatientRecords())"><span class="material-symbols-rounded" aria-hidden="true">more_horiz</span>More records</button>
                   </nav>
+                  @if (morePatientRecords()) { <nav class="ipd-more-tools" aria-label="Additional patient records">@for (tab of secondaryDetailTabs; track tab.key) { <button class="ac-btn ac-btn-secondary" type="button" [attr.aria-current]="activeDetailTab() === tab.key ? 'page' : null" (click)="setDetailTab(tab.key)"><span class="material-symbols-rounded" aria-hidden="true">{{ tab.icon }}</span>{{ tab.label }}</button> }</nav> }
 
                   @switch (activeDetailTab()) {
                     @case ('overview') {
-                      <section class="overview-workspace">
-                        <article class="panel overview-section">
-                          <p class="ac-eyebrow">Section 1</p>
-                          <h2>Admission Summary</h2>
-                          <div class="overview-list">
-                            <span><b>Admission ID</b>{{ selected.admissionNo }}</span>
-                            <span><b>Admitted On</b>{{ formatDate(selected.admittedAt) }}, {{ formatTime(selected.admittedAt) }}</span>
-                            <span><b>Source</b>{{ statusText(selected.admissionSource) }}</span>
-                            <span><b>Department</b>{{ selected.departmentName || 'General Medicine' }}</span>
-                            <span><b>Attending Doctor</b>{{ selected.doctorName || 'Unassigned' }}</span>
-                          </div>
-                        </article>
-
-                        <article class="panel overview-section">
-                          <p class="ac-eyebrow">Section 2</p>
-                          <h2>Current Location</h2>
-                          <div class="location-strip">
-                            <span><b>Ward</b>{{ selected.wardName || 'Pending' }}</span>
-                            <span><b>Room</b>{{ selected.roomNumber || roomFromBed(selected.bedNo) || 'Pending' }}</span>
-                            <span><b>Bed</b>{{ selected.bedNo || 'Pending' }}</span>
-                          </div>
-                        </article>
-
-                        <article class="panel overview-section">
-                          <p class="ac-eyebrow">Section 3</p>
-                          <h2>Clinical Snapshot</h2>
-                          <div class="clinical-snapshot">
-                            <span><b>Primary Diagnosis</b>{{ selected.primaryDiagnosis || 'Not captured' }}</span>
-                            <span><b>Allergies</b>{{ selected.knownAllergies || 'No known allergies' }}</span>
-                            <span><b>Blood Group</b>{{ selected.bloodGroup || 'Not recorded' }}</span>
-                          </div>
-                        </article>
-
-                        <article class="panel overview-section">
-                          <p class="ac-eyebrow">Section 4</p>
-                          <h2>Latest Vitals</h2>
-                          <div class="vitals-strip">
-                            <span><b>Temperature</b>{{ latestVitalValue('temperature') }}</span>
-                            <span><b>Blood Pressure</b>{{ latestVitalValue('bloodPressure') }}</span>
-                            <span><b>Pulse</b>{{ latestVitalValue('pulse') }}</span>
-                            <span><b>SpO2</b>{{ latestVitalValue('spo2') }}</span>
-                          </div>
-                        </article>
-
-                        <article class="panel overview-section timeline-panel">
-                          <div class="panel-head">
-                            <div>
-                              <p class="ac-eyebrow">Section 5</p>
-                              <h2>Recent Activity Timeline</h2>
-                            </div>
-                            <span class="soft-pill">{{ overviewTimeline(selected).length }} events</span>
-                          </div>
-                          <div class="timeline-list">
-                            @for (item of overviewTimeline(selected); track item.label) {
-                              <span>
-                                <b>{{ item.time }}</b>
-                                <i></i>
-                                <strong>{{ item.label }}</strong>
-                              </span>
-                            }
-                          </div>
-                        </article>
+                      <section class="ipd-chart-summary">
+                        <article class="panel ipd-clinical-summary"><div class="panel-head"><div><p class="ac-eyebrow">This stay</p><h2>Clinical summary</h2></div><button class="link-btn" type="button" (click)="setDetailTab('clinical')">Admission details</button></div><div class="ipd-summary-reason"><small>Primary diagnosis / admission reason</small><strong>{{ selected.primaryDiagnosis || selected.admissionReason || 'Not recorded' }}</strong></div><dl class="ipd-summary-facts"><div><dt>Admitted</dt><dd>{{ formatDate(selected.admittedAt) }}</dd></div><div><dt>Department</dt><dd>{{ selected.departmentName || 'Not recorded' }}</dd></div><div><dt>Priority</dt><dd>{{ statusText(selected.priorityCode) }}</dd></div><div><dt>Investigations</dt><dd>{{ selected.activeOrders }} pending</dd></div></dl><div class="ipd-summary-actions"><button class="ac-btn ac-btn-primary" type="button" (click)="setDetailTab('rounds')"><span class="material-symbols-rounded" aria-hidden="true">stethoscope</span>Record round</button><button class="ac-btn ac-btn-secondary" type="button" (click)="setDetailTab('nursing')">Nursing note</button><button class="ac-btn ac-btn-secondary" type="button" (click)="setDetailTab('lab')">Order tests</button></div></article>
+                        <article class="panel"><div class="panel-head"><div><p class="ac-eyebrow">Latest observations</p><h2>Vitals</h2></div><button class="link-btn" type="button" (click)="setDetailTab('vitals')">Record vitals</button></div>@if (vitalsLoading()) { <p class="helper-text" role="status">Loading observations…</p> } @else { <div class="ipd-summary-vitals"><span><small>Temperature</small><strong>{{ latestVitalValue('temperature') }}</strong></span><span><small>Blood pressure</small><strong>{{ latestVitalValue('bloodPressure') }}</strong></span><span><small>Pulse</small><strong>{{ latestVitalValue('pulse') }}</strong></span><span><small>SpO2</small><strong>{{ latestVitalValue('spo2') }}</strong></span></div><p class="helper-text">{{ latestVital() ? 'Recorded ' + formatDate(latestVital()!.recordedAt) + ' at ' + formatTime(latestVital()!.recordedAt) : 'No observations recorded for this stay.' }}</p> }</article>
+                        <article class="panel"><div class="panel-head"><div><p class="ac-eyebrow">Continuity of care</p><h2>Latest doctor round</h2></div><button class="link-btn" type="button" (click)="setDetailTab('rounds')">View rounds</button></div>@if (roundsLoading()) { <p class="helper-text" role="status">Loading rounds…</p> } @else if (doctorRoundRecords()[0]; as round) { <p class="ipd-round-meta">{{ round.doctorName }} · {{ formatDate(round.roundAt) }}, {{ formatTime(round.roundAt) }}</p><p class="ipd-round-preview">{{ round.clinicalNotes }}</p>@if (round.treatmentPlan) { <div class="ipd-plan-preview"><small>Treatment plan</small><p>{{ round.treatmentPlan }}</p></div> } } @else { <p class="helper-text">No round recorded for this stay. Start with your assessment and plan.</p> }</article>
+                        <article class="panel"><div class="panel-head"><div><p class="ac-eyebrow">Movement & discharge</p><h2>Next steps</h2></div></div><div class="ipd-next-step-list"><button type="button" (click)="setDetailTab('transfers')"><span class="material-symbols-rounded" aria-hidden="true">swap_horiz</span><span><b>{{ selected.bedNo ? 'Transfer bed' : 'Assign a bed' }}</b><small>{{ selected.wardName || 'Ward pending' }} · {{ selected.bedNo || 'Bed pending' }}</small></span><span aria-hidden="true">→</span></button><button type="button" (click)="setDetailTab('billing')"><span class="material-symbols-rounded" aria-hidden="true">receipt_long</span><span><b>Review billing</b><small>{{ formatMoney(selected.outstanding) }} outstanding</small></span><span aria-hidden="true">→</span></button><button type="button" (click)="setDetailTab('discharge')"><span class="material-symbols-rounded" aria-hidden="true">logout</span><span><b>Prepare discharge</b><small>Review investigations, billing, and summary</small></span><span aria-hidden="true">→</span></button></div></article>
                       </section>
                     }
                     @case ('clinical') {
@@ -672,6 +616,7 @@ interface IpdKpiCard {
                               <span>Treatment Plan</span>
                               <textarea rows="3" [(ngModel)]="doctorRoundForm.treatmentPlan" name="roundTreatmentPlan" placeholder="Continue current medication, review CBC tomorrow"></textarea>
                             </label>
+                            <details class="ipd-optional-round wide-field"><summary>Medication changes, investigations & follow-up</summary><div class="round-form ipd-optional-fields">
                             <label>
                               <span>Medication Changes</span>
                               <textarea rows="3" [(ngModel)]="doctorRoundForm.medicationChanges" name="roundMedicationChanges" placeholder="Add, stop, or change medication"></textarea>
@@ -692,6 +637,7 @@ interface IpdKpiCard {
                               <span>Next Round Date</span>
                               <input name="nextRoundAt" type="datetime-local" [ngModel]="dateTimeLocalValue(doctorRoundForm.nextRoundAt)" (ngModelChange)="setNextRoundDate($event)" />
                             </label>
+                            </div></details>
                           </div>
                           <div class="inline-actions end">
                             <button class="ac-btn ac-btn-secondary" type="button" (click)="saveCareDraft()"><span class="material-symbols-rounded">save</span>Save Draft</button>
@@ -970,7 +916,6 @@ interface IpdKpiCard {
                       </section>
                     }
                     @case ('discharge') {
-              <section class="panel"><div class="panel-head"><h2>Choose a patient for discharge preparation</h2></div><div class="manager-patient-picker">@for (patient of model.activePatients; track patient.admissionId) { <button [class.selected]="selectedAdmissionId() === patient.admissionId" (click)="selectAdmission(patient, 'discharge')">{{ patient.patientName }} · {{ patient.bedNo || 'Bed pending' }}</button> }</div></section>
                       <section class="panel">
                         <div class="section-toolbar">
                           <div>
@@ -986,10 +931,10 @@ interface IpdKpiCard {
                             <span>{{ selected.wardName || 'Ward pending' }} · {{ selected.bedNo || 'Bed pending' }}</span>
                             <span>Doctor: {{ selected.doctorName || '-' }}</span>
                           </aside>
-                          <label class="note-field">
-                            <span>Discharge summary *</span>
-                            <ng-container *ngTemplateOutlet="readinessPanel" /><textarea rows="9" [(ngModel)]="dischargeSummary" (ngModelChange)="scheduleDischargeSave()" name="detailDischargeSummary" placeholder="Diagnosis, treatment given, condition at discharge, medication advice, follow-up, and billing clearance"></textarea>
-                          </label>
+                          <div class="note-field">
+                            <ng-container *ngTemplateOutlet="readinessPanel" />
+                            <label class="note-field"><span>Discharge summary *</span><textarea rows="9" [(ngModel)]="dischargeSummary" (ngModelChange)="scheduleDischargeSave()" name="detailDischargeSummary" placeholder="Diagnosis, treatment given, condition at discharge, medication advice, follow-up, and billing clearance"></textarea></label>
+                          </div>
                         </div>
                         <div class="inline-actions end">
                           <button class="ac-btn ac-btn-secondary" type="button" (click)="saveDischargeDraft()"><span class="material-symbols-rounded">save</span>Save Draft</button>
@@ -1025,46 +970,7 @@ interface IpdKpiCard {
                   }
                 </section>
               } @else {
-                <section class="panel">
-                  <div class="section-toolbar">
-                    <div>
-                      <p class="ac-eyebrow">Active inpatients</p>
-                      <h2>Current inpatient stay</h2>
-                    </div>
-                    <button class="ac-btn ac-btn-secondary" type="button" (click)="exportActivePatients()">
-                      <span class="material-symbols-rounded">download</span>
-                      Export
-                    </button>
-                  </div>
-                  <div class="active-filters">
-                    <div class="search-field">
-                      <span class="material-symbols-rounded">search</span>
-                      <input type="text" [ngModel]="activeSearchQuery()" (ngModelChange)="activeSearchQuery.set($event)" placeholder="Search patient, MRN, admission ID" />
-                    </div>
-                    <ac-dropdown name="activeWardFilter" [ngModel]="activeWardFilter()" (ngModelChange)="activeWardFilter.set($event)" [options]="activeWardOptions()" />
-                    <ac-dropdown name="activeDoctorFilter" [ngModel]="activeDoctorFilter()" (ngModelChange)="activeDoctorFilter.set($event)" [options]="activeDoctorOptions()" />
-                    <ac-dropdown name="activeDepartmentFilter" [ngModel]="activeDepartmentFilter()" (ngModelChange)="activeDepartmentFilter.set($event)" [options]="activeDepartmentOptions()" />
-                    <ac-dropdown name="activePriorityFilter" [ngModel]="activePriorityFilter()" (ngModelChange)="activePriorityFilter.set($event)" [options]="activePriorityOptions()" />
-                  </div>
-                  <div class="records-table active-table">
-                    <div class="table-head active-head">
-                      <span>Patient</span><span>Admission ID</span><span>Ward</span><span>Bed</span><span>Doctor</span><span>Stay</span><span>Status</span>
-                    </div>
-                    @for (admission of filteredActiveInpatients(); track admission.admissionId) {
-                      <button type="button" class="table-row active-row" (click)="openInpatientDetail(admission)">
-                        <span><strong>{{ admission.patientName }}</strong><small>{{ admission.medicalRecordNo }} · {{ statusText(admission.priorityCode) }}</small></span>
-                        <span><strong>{{ admission.admissionNo }}</strong><small>{{ statusText(admission.admissionSource) }}</small></span>
-                        <span>{{ admission.wardName || 'Ward pending' }}</span>
-                        <span>{{ admission.bedNo || 'Bed pending' }}</span>
-                        <span><strong>{{ admission.doctorName || 'Unassigned' }}</strong><small>{{ admission.departmentName || 'General Medicine' }}</small></span>
-                        <span>Day {{ admission.stayDays || 1 }}</span>
-                        <span><b class="status-pill">{{ statusText(admission.statusCode) }}</b></span>
-                      </button>
-                    } @empty {
-                      <div class="empty-state">No active inpatients found.</div>
-                    }
-                  </div>
-                </section>
+                <section class="ipd-patients-workspace"><div class="ipd-section-heading"><div><p class="ac-eyebrow">Active stays</p><h2>Patients on your ward</h2></div><button class="ac-btn ac-btn-secondary" type="button" (click)="exportActivePatients()"><span class="material-symbols-rounded" aria-hidden="true">download</span>Export</button></div><ng-container *ngTemplateOutlet="patientFilters" /><div class="ipd-patient-grid">@for (admission of filteredActiveInpatients(); track admission.admissionId) { <ng-container *ngTemplateOutlet="patientCard; context: { $implicit: admission }" /> } @empty { <div class="ipd-board-empty"><h3>No patients match this view</h3><p>Try another ward or clear the filters.</p><button class="ac-btn ac-btn-secondary" type="button" (click)="resetPatientFilters()">Clear filters</button></div> }</div></section>
               }
             }
 
@@ -1172,44 +1078,7 @@ interface IpdKpiCard {
             }
 
             @case ('discharge') {
-              <section class="panel">
-                @if (selectedAdmission(); as selected) {
-                <div class="section-toolbar">
-                  <div>
-                    <p class="ac-eyebrow">Discharge planning</p>
-                    <h2>Final bill and discharge summary</h2>
-                  </div>
-                  <button class="ac-btn ac-btn-secondary" type="button" (click)="printDischargeSummary()">
-                    <span class="material-symbols-rounded">print</span>
-                    Print
-                  </button>
-                </div>
-                <div class="discharge-summary">
-                  <aside>
-                    <strong>{{ selected.patientName }}</strong>
-                    <span>{{ selected.medicalRecordNo || '-' }}</span>
-                    <span>{{ selected.wardName || 'Ward pending' }} · {{ selected.bedNo || 'Bed pending' }}</span>
-                    <span>Doctor: {{ selected.doctorName || '-' }}</span>
-                  </aside>
-                  <label class="note-field">
-                    <span>Discharge summary *</span>
-                    <ng-container *ngTemplateOutlet="readinessPanel" /><textarea rows="9" [(ngModel)]="dischargeSummary" (ngModelChange)="scheduleDischargeSave()" name="dischargeSummary" placeholder="Diagnosis, treatment given, condition at discharge, medication advice, follow-up, and billing clearance"></textarea>
-                  </label>
-                </div>
-                <div class="inline-actions end">
-                  <button class="ac-btn ac-btn-secondary" type="button" (click)="saveDischargeDraft()">
-                    <span class="material-symbols-rounded">save</span>
-                    Save Draft
-                  </button>
-                  <button class="ac-btn ac-btn-primary" type="button" [disabled]="saving()" (click)="finalizeDischarge()">
-                    <span class="material-symbols-rounded">task_alt</span>
-                    Finalize Discharge
-                  </button>
-                </div>
-                } @else {
-                  <div class="empty-state">Select an inpatient before planning discharge.</div>
-                }
-              </section>
+              <section class="panel ipd-discharge-queue"><div class="ipd-section-heading"><div><p class="ac-eyebrow">Discharge desk</p><h2>Prepare patients to leave</h2><p>Choose a patient to review the summary, pending investigations, and billing.</p></div><span class="soft-pill">{{ patientViewCount('discharge') }} in preparation</span></div><div class="ipd-view-chips"><button type="button" [class.active]="!dischargePreparingOnly()" (click)="dischargePreparingOnly.set(false)">All active stays</button><button type="button" [class.active]="dischargePreparingOnly()" (click)="dischargePreparingOnly.set(true)">In preparation</button></div><div class="ipd-discharge-list">@for (admission of dischargeCandidates(); track admission.admissionId) { <article><span class="ipd-person-avatar" aria-hidden="true">{{ initials(admission.patientName) }}</span><div><h3>{{ admission.patientName }}</h3><p>{{ admission.medicalRecordNo }} · {{ admission.wardName || 'Ward pending' }} · {{ admission.bedNo || 'Bed pending' }}</p><small>{{ admission.statusCode === 'DISCHARGE_INITIATED' ? 'Discharge in preparation' : 'Active inpatient stay' }}</small></div><div class="ipd-discharge-signals"><span>{{ admission.activeOrders }} pending investigations</span><span>{{ formatMoney(admission.outstanding) }} outstanding</span></div><button class="ac-btn ac-btn-secondary" type="button" (click)="openPatientChart(admission, 'discharge')">Prepare discharge<span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></button></article> } @empty { <div class="ipd-board-empty"><h3>{{ dischargePreparingOnly() ? 'No discharges in preparation' : 'No active inpatient stays' }}</h3><p>Open an active patient’s chart to start preparing a discharge summary.</p></div> }</div></section>
             }
 
             @case ('reports') {
@@ -2251,6 +2120,25 @@ export class IpdPageComponent implements OnInit, OnDestroy {
   protected readonly activeDoctorFilter = signal('');
   protected readonly activeDepartmentFilter = signal('');
   protected readonly activePriorityFilter = signal('');
+  protected readonly workFocus = signal<IpdWorkFocus>('ward');
+  protected readonly patientView = signal<IpdPatientView>('all');
+  protected readonly patientFiltersOpen = signal(false);
+  protected readonly morePatientRecords = signal(false);
+  protected readonly allTasksOpen = signal(false);
+  protected readonly facilitySetupOpen = signal(false);
+  protected readonly bedView = signal('ALL');
+  protected readonly bedWardFilter = signal('');
+  protected readonly dischargePreparingOnly = signal(false);
+  protected readonly workFocusOptions: { key: IpdWorkFocus; label: string; icon: string }[] = [
+    { key: 'ward', label: 'Ward desk', icon: 'ward' },
+    { key: 'doctor', label: 'Doctor rounds', icon: 'stethoscope' },
+    { key: 'nursing', label: 'Nursing', icon: 'health_and_safety' }
+  ];
+  protected readonly patientViews: { key: IpdPatientView; label: string }[] = [
+    { key: 'all', label: 'All patients' }, { key: 'needs-bed', label: 'Needs a bed' },
+    { key: 'investigations', label: 'Investigations' }, { key: 'discharge', label: 'Discharge preparation' }
+  ];
+  protected readonly extraFilterCount = computed(() => [this.activeDoctorFilter(), this.activeDepartmentFilter(), this.activePriorityFilter()].filter(Boolean).length);
   protected readonly admissionPanelOpen = signal(false);
   protected readonly admissionStep = signal(1);
   protected readonly admissionErrors = signal<Record<string, string>>({});
@@ -2276,20 +2164,26 @@ export class IpdPageComponent implements OnInit, OnDestroy {
   private refreshTimer?: ReturnType<typeof setInterval>;
   private dischargeSaveTimer?: ReturnType<typeof setTimeout>;
   private dischargeSaveChain: Promise<void> = Promise.resolve();
-  protected readonly visibleManagerTabs = computed(() => this.tabs.filter(tab => this.moreTools() || ['dashboard', 'admissions', 'beds', 'patients', 'discharge'].includes(tab.key) || tab.key === this.activeTab()));
+  protected readonly visibleManagerTabs = computed(() => this.tabs.filter(tab => ['dashboard', 'admissions', 'beds', 'patients', 'discharge'].includes(tab.key) || tab.key === this.activeTab()));
   protected readonly managerTasks = computed(() => buildIpdManagerTasks(this.workspace()));
+  protected readonly focusedTasks = computed(() => ipdTasksForFocus(this.managerTasks(), this.workFocus()));
+  protected readonly visibleFocusTasks = computed(() => this.allTasksOpen() ? this.focusedTasks() : this.focusedTasks().slice(0, 5));
+  protected readonly dischargeCandidates = computed(() => [...(this.workspace()?.activePatients ?? [])]
+    .filter(patient => !this.dischargePreparingOnly() || matchesIpdPatientView(patient, 'discharge'))
+    .sort((a, b) => Number(matchesIpdPatientView(b, 'discharge')) - Number(matchesIpdPatientView(a, 'discharge')) || a.patientName.localeCompare(b.patientName)));
 
   protected readonly tabs: IpdTabItem[] = [
     { key: 'dashboard', label: 'Today', icon: 'dashboard' },
-    { key: 'admissions', label: 'Admission Desk', icon: 'assignment_add' },
-    { key: 'beds', label: 'Ward & Beds', icon: 'bed' },
-    { key: 'patients', label: 'Active Patients', icon: 'personal_injury' },
+    { key: 'patients', label: 'Patients', icon: 'personal_injury' },
+    { key: 'admissions', label: 'Admissions', icon: 'assignment_add' },
+    { key: 'beds', label: 'Beds & wards', icon: 'bed' },
+    { key: 'discharge', label: 'Discharge', icon: 'logout' },
     { key: 'care', label: 'Clinical Care', icon: 'stethoscope' },
     { key: 'transfers', label: 'Transfers', icon: 'swap_horiz' },
     { key: 'billing', label: 'Billing', icon: 'receipt_long' },
-    { key: 'discharge', label: 'Discharge', icon: 'logout' },
     { key: 'reports', label: 'Reports', icon: 'bar_chart' }
   ];
+  protected readonly extraManagerTabs = this.tabs.filter(tab => ['care', 'transfers', 'billing', 'reports'].includes(tab.key));
 
   protected readonly detailTabs: IpdDetailTabItem[] = [
     { key: 'overview', label: 'Overview', icon: 'dashboard' },
@@ -2307,6 +2201,15 @@ export class IpdPageComponent implements OnInit, OnDestroy {
     { key: 'discharge', label: 'Discharge', icon: 'logout' },
     { key: 'activity', label: 'Activity', icon: 'history' }
   ];
+  protected readonly primaryDetailTabs: IpdDetailTabItem[] = [
+    { key: 'overview', label: 'Summary', icon: 'clinical_notes' },
+    { key: 'rounds', label: 'Doctor rounds', icon: 'stethoscope' },
+    { key: 'nursing', label: 'Nursing notes', icon: 'health_and_safety' },
+    { key: 'vitals', label: 'Vitals', icon: 'monitor_heart' },
+    { key: 'lab', label: 'Investigations', icon: 'science' },
+    { key: 'discharge', label: 'Discharge', icon: 'logout' }
+  ];
+  protected readonly secondaryDetailTabs = this.detailTabs.filter(tab => ['clinical', 'transfers', 'billing'].includes(tab.key));
 
   protected readonly journeySteps = [
     { label: 'Patient', meta: 'Registry', tab: 'admissions' as IpdTab },
@@ -2435,17 +2338,6 @@ export class IpdPageComponent implements OnInit, OnDestroy {
   protected nursingNote = '';
   protected dischargeSummary = '';
 
-  protected readonly kpiCards = computed<IpdKpiCard[]>(() => {
-    const summary = this.workspace()?.summary ?? emptySummary();
-    return [
-      { label: 'Current Admissions', value: formatNumber(summary.currentAdmissions), meta: 'Active inpatient stays', icon: 'personal_injury', tone: '#2563EB' },
-      { label: 'Available Beds', value: formatNumber(summary.availableBeds), meta: `${formatNumber(summary.totalBeds)} total beds`, icon: 'bed', tone: '#10B981' },
-      { label: 'Occupied Beds', value: formatNumber(summary.occupiedBeds), meta: `${formatPercent(summary.occupancyPercent)} occupancy`, icon: 'hotel', tone: '#0891B2' },
-      { label: 'Admissions Today', value: formatNumber(summary.admissionsToday), meta: 'New IPD intake', icon: 'assignment_add', tone: '#7C3AED' },
-      { label: 'Discharges Today', value: formatNumber(summary.dischargesToday), meta: 'Completed stay', icon: 'task_alt', tone: '#F59E0B' }
-    ];
-  });
-
   protected readonly filteredAdmissions = computed(() => {
     const query = this.searchQuery().trim().toLowerCase();
     const status = this.admissionStatusFilter();
@@ -2477,7 +2369,7 @@ export class IpdPageComponent implements OnInit, OnDestroy {
     const priority = this.activePriorityFilter();
     const items = this.workspace()?.activePatients ?? [];
 
-    return items
+    return sortIpdPatients(items
       .filter(item => [
         item.admissionNo,
         item.patientName,
@@ -2492,7 +2384,8 @@ export class IpdPageComponent implements OnInit, OnDestroy {
       .filter(item => !ward || item.wardName === ward)
       .filter(item => !doctor || item.doctorId === doctor)
       .filter(item => !department || item.departmentName === department)
-      .filter(item => !priority || item.priorityCode.toUpperCase() === priority);
+      .filter(item => !priority || item.priorityCode.toUpperCase() === priority)
+      .filter(item => matchesIpdPatientView(item, this.patientView())), this.workFocus());
   });
 
   protected readonly selectedAdmission = computed(() => {
@@ -2537,6 +2430,13 @@ export class IpdPageComponent implements OnInit, OnDestroy {
       occupied: beds.filter(bed => ['OCCUPIED', 'ALLOCATED'].includes(bed.statusCode.toUpperCase())).length
     }));
   });
+  protected readonly bedBoardWardOptions = computed<DropdownOption<string>[]>(() => [
+    { label: 'All wards', value: '' }, ...unique((this.workspace()?.beds ?? []).map(bed => bed.wardName)).map(name => ({ label: name, value: name }))
+  ]);
+  protected readonly visibleBedGroups = computed(() => this.bedGroups()
+    .filter(group => !this.bedWardFilter() || group.wardName === this.bedWardFilter())
+    .map(group => ({ ...group, beds: group.beds.filter(bed => this.bedView() === 'ALL' || bed.statusCode.toUpperCase() === this.bedView() || (this.bedView() === 'OCCUPIED' && bed.statusCode.toUpperCase() === 'ALLOCATED')) }))
+    .filter(group => group.beds.length > 0));
 
   protected readonly wardFilterOptions = computed<DropdownOption<string>[]>(() => {
     const names = unique((this.workspace()?.admissions ?? []).map(item => item.wardName).filter(Boolean));
@@ -2616,10 +2516,14 @@ export class IpdPageComponent implements OnInit, OnDestroy {
   protected readonly labPriorityOptions: DropdownOption<string>[] = [{ label: 'Routine', value: 'ROUTINE' }, { label: 'Urgent', value: 'URGENT' }, { label: 'STAT', value: 'STAT' }];
 
   async ngOnInit(): Promise<void> {
+    const savedFocus = localStorage.getItem('care360.ipd.work-focus');
+    if (savedFocus === 'ward' || savedFocus === 'doctor' || savedFocus === 'nursing') this.workFocus.set(savedFocus);
     this.restoreDrafts();
     await this.load();
-    const labTests = await this.laboratoryService.tests();
-    this.ipdLabTests.set(labTests.data?.filter(test => test.isActive) ?? []);
+    try {
+      const labTests = await this.laboratoryService.tests();
+      this.ipdLabTests.set(labTests.data?.filter(test => test.isActive) ?? []);
+    } catch { this.toast.warning('Laboratory catalogue unavailable', 'Inpatient care is available. Refresh to retry the test catalogue.'); }
     this.applyQueryHandoff();
     this.refreshTimer = setInterval(() => {
       if (document.visibilityState === 'visible' && this.activeTab() === 'dashboard' && !this.saving() && !this.refreshing()) void this.refreshManagerQuietly();
@@ -2633,15 +2537,58 @@ export class IpdPageComponent implements OnInit, OnDestroy {
     try { await this.load(false); } finally { this.refreshing.set(false); }
   }
 
+  protected setWorkFocus(focus: IpdWorkFocus): void {
+    this.workFocus.set(focus);
+    this.allTasksOpen.set(false);
+    localStorage.setItem('care360.ipd.work-focus', focus);
+  }
+
+  protected focusDescription(): string {
+    return this.workFocus() === 'doctor' ? 'Review the patient, record your assessment, and update the care plan.' : this.workFocus() === 'nursing' ? 'Find your patients, record observations, and document nursing care.' : 'Follow admissions, bed assignments, investigations, and discharge preparation.';
+  }
+
+  protected patientViewCount(view: IpdPatientView): number {
+    return (this.workspace()?.activePatients ?? []).filter(patient => (!this.activeWardFilter() || patient.wardName === this.activeWardFilter()) && matchesIpdPatientView(patient, view)).length;
+  }
+
+  protected resetPatientFilters(): void {
+    this.activeSearchQuery.set(''); this.activeWardFilter.set(''); this.activeDoctorFilter.set('');
+    this.activeDepartmentFilter.set(''); this.activePriorityFilter.set(''); this.patientView.set('all');
+  }
+
+  protected openPatientForFocus(admission: IpdAdmissionListItem): void {
+    this.openPatientChart(admission, this.workFocus() === 'doctor' ? 'rounds' : this.workFocus() === 'nursing' ? 'vitals' : 'overview');
+  }
+
+  protected openPatientChart(admission: IpdAdmissionListItem, tab: IpdDetailTab): void {
+    this.setTab('patients');
+    this.openAdmissionDetailTab(admission, tab);
+  }
+
+  protected openBedPatient(bed: IpdBedStatus): void {
+    const admission = this.workspace()?.activePatients.find(patient => patient.admissionId === bed.admissionId);
+    if (admission) this.openPatientChart(admission, 'overview');
+    else this.toast.warning('Patient record unavailable', 'Refresh the ward board to reload the current bed assignment.');
+  }
+
+  protected useAvailableBed(bed: IpdBedStatus): void {
+    this.admissionForm.bedId = bed.bedId;
+    this.openAdmissionPanel();
+  }
+
+  protected markBedReady(bed: IpdBedStatus): void {
+    void this.resolveManagerTask({ key: 'clean-' + bed.bedId, title: bed.bedNo, detail: '', action: '', icon: 'cleaning_services', kind: 'clean', urgent: false, bed });
+  }
+
   protected async resolveManagerTask(task: ManagerTask): Promise<void> {
     if (this.saving()) return;
     if (task.kind === 'clean' && task.bed) {
       try { await this.saveFacility(() => this.service.updateBedStatus(task.bed!.bedId, 'AVAILABLE'), 'Bed ready for the next patient'); } finally { this.saving.set(false); }
     } else if (task.admission) {
       if (task.kind === 'admit') this.openAdmissionRecord(task.admission);
-      else if (task.kind === 'bed') this.selectAdmission(task.admission, 'transfers');
-      else if (task.kind === 'discharge') this.selectAdmission(task.admission, 'discharge');
-      else { this.setTab('patients'); this.openAdmissionDetailTab(task.admission, 'lab'); }
+      else if (task.kind === 'bed') this.openPatientChart(task.admission, 'transfers');
+      else if (task.kind === 'discharge') this.openPatientChart(task.admission, 'discharge');
+      else this.openPatientChart(task.admission, 'lab');
     }
   }
 
@@ -2693,6 +2640,8 @@ export class IpdPageComponent implements OnInit, OnDestroy {
   }
 
   protected setTab(tab: IpdTab): void {
+    if (this.saving()) return;
+    if (this.activePatientDetailOpen() && this.selectedAdmissionId()) this.saveAdmissionCareDraft(this.selectedAdmissionId());
     this.activeTab.set(tab);
     if (tab !== 'patients') {
       this.activePatientDetailOpen.set(false);
@@ -2931,48 +2880,38 @@ export class IpdPageComponent implements OnInit, OnDestroy {
     await this.saveFacility(() => this.service.deleteBed(bed.bedId), 'Bed deleted');
   }
 
-  protected selectAdmission(admission: IpdAdmissionListItem, tab: IpdTab): void {
-    this.selectedAdmissionId.set(admission.admissionId);
-    this.transferBedId = '';
-    this.resetDoctorRoundForm(admission);
-    this.loadAdmissionDraft(admission.admissionId);
-    void this.loadDoctorRounds(admission.admissionId);
-    void this.loadVitals(admission.admissionId);
-    this.setTab(tab);
-  }
-
   protected openInpatientDetail(admission: IpdAdmissionListItem): void {
-    this.selectedAdmissionId.set(admission.admissionId);
-    this.activePatientDetailOpen.set(true);
-    this.activeDetailTab.set('overview');
-    this.transferBedId = '';
-    this.resetDoctorRoundForm(admission);
-    this.loadAdmissionDraft(admission.admissionId);
-    void this.loadDoctorRounds(admission.admissionId);
-    void this.loadVitals(admission.admissionId);
+    this.openPatientChart(admission, 'overview');
   }
 
   protected openAdmissionDetailTab(admission: IpdAdmissionListItem, tab: IpdDetailTab): void {
+    if (this.saving()) return;
+    this.activeTab.set('patients');
+    if (this.selectedAdmissionId() && this.selectedAdmissionId() !== admission.admissionId) this.saveAdmissionCareDraft(this.selectedAdmissionId());
     this.selectedAdmissionId.set(admission.admissionId);
     this.activePatientDetailOpen.set(true);
     this.activeDetailTab.set(tab);
     this.transferBedId = '';
     this.resetDoctorRoundForm(admission);
+    this.resetVitalForm();
+    this.ipdSelectedLabTests.set([]); this.ipdLabNotes = ''; this.ipdLabPriority = 'ROUTINE';
+    this.morePatientRecords.set(this.secondaryDetailTabs.some(item => item.key === tab));
     this.loadAdmissionDraft(admission.admissionId);
-    if (tab === 'rounds') {
-      void this.loadDoctorRounds(admission.admissionId);
-    }
-    if (tab === 'vitals') {
-      void this.loadVitals(admission.admissionId);
-    }
+    void this.loadDoctorRounds(admission.admissionId);
+    void this.loadVitals(admission.admissionId);
+    this.persistView();
   }
 
   protected closeInpatientDetail(): void {
+    if (this.saving()) return;
+    if (this.selectedAdmissionId()) this.saveAdmissionCareDraft(this.selectedAdmissionId());
     this.activePatientDetailOpen.set(false);
     this.activeDetailTab.set('overview');
   }
 
   protected setDetailTab(tab: IpdDetailTab): void {
+    if (this.saving()) return;
+    if (this.secondaryDetailTabs.some(item => item.key === tab)) this.morePatientRecords.set(true);
     this.activeDetailTab.set(tab);
     if (tab === 'vitals') {
       const admission = this.selectedAdmission();
@@ -2989,7 +2928,7 @@ export class IpdPageComponent implements OnInit, OnDestroy {
   }
 
   protected openAdmissionRecord(admission: IpdAdmissionListItem): void {
-    this.selectedAdmissionId.set(admission.admissionId);
+    if (this.saving()) return;
     if (['DRAFT', 'PENDING_ADMISSION'].includes(admission.statusCode.toUpperCase())) {
       this.admissionForm = {
         ...createAdmissionForm(),
@@ -3011,10 +2950,7 @@ export class IpdPageComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.selectAdmission(admission, 'patients');
-    this.activePatientDetailOpen.set(true);
-    void this.loadDoctorRounds(admission.admissionId);
-    void this.loadVitals(admission.admissionId);
+    this.openPatientChart(admission, 'overview');
   }
 
   protected async createAdmission(): Promise<void> {
@@ -3160,15 +3096,13 @@ export class IpdPageComponent implements OnInit, OnDestroy {
   protected async loadDoctorRounds(admissionId: string): Promise<void> {
     this.roundsLoading.set(true);
     this.doctorRoundRecords.set([]);
-    const response = await this.service.doctorRounds(admissionId);
-    this.roundsLoading.set(false);
-
-    if (!response.success || !response.data) {
-      this.toast.error('Unable to load doctor rounds', getApiErrorMessage(response, 'IPD doctor rounds API failed'));
-      return;
-    }
-
-    this.doctorRoundRecords.set(response.data);
+    try {
+      const response = await this.service.doctorRounds(admissionId);
+      if (this.selectedAdmissionId() !== admissionId) return;
+      if (!response.success || !response.data) { this.toast.error('Unable to load doctor rounds', getApiErrorMessage(response, 'IPD doctor rounds API failed')); return; }
+      this.doctorRoundRecords.set([...response.data].sort((a, b) => Date.parse(b.roundAt) - Date.parse(a.roundAt)));
+    } catch { if (this.selectedAdmissionId() === admissionId) this.toast.error('Rounds unavailable', 'Refresh to reload this patient’s rounds.'); }
+    finally { if (this.selectedAdmissionId() === admissionId) this.roundsLoading.set(false); }
   }
 
   protected setDoctorRoundDate(value: string): void {
@@ -3208,9 +3142,9 @@ export class IpdPageComponent implements OnInit, OnDestroy {
 
     this.saving.set(true);
     const response = await this.service.addDoctorRound(admission.admissionId, request);
-    this.saving.set(false);
 
     if (!response.success || !response.data) {
+      this.saving.set(false);
       this.toast.error('Unable to save doctor round', getApiErrorMessage(response, 'IPD doctor round API failed'));
       return;
     }
@@ -3218,21 +3152,20 @@ export class IpdPageComponent implements OnInit, OnDestroy {
     await this.loadDoctorRounds(admission.admissionId);
     this.resetDoctorRoundForm(admission);
     this.saveAdmissionCareDraft(admission.admissionId);
+    this.saving.set(false);
     this.toast.success('Doctor round recorded', 'The round is now part of the inpatient clinical timeline.');
   }
 
   protected async loadVitals(admissionId: string): Promise<void> {
     this.vitalsLoading.set(true);
     this.vitalRecords.set([]);
-    const response = await this.service.vitals(admissionId);
-    this.vitalsLoading.set(false);
-
-    if (!response.success || !response.data) {
-      this.toast.error('Unable to load vitals', getApiErrorMessage(response, 'IPD vitals API failed'));
-      return;
-    }
-
-    this.vitalRecords.set(response.data);
+    try {
+      const response = await this.service.vitals(admissionId);
+      if (this.selectedAdmissionId() !== admissionId) return;
+      if (!response.success || !response.data) { this.toast.error('Unable to load vitals', getApiErrorMessage(response, 'IPD vitals API failed')); return; }
+      this.vitalRecords.set([...response.data].sort((a, b) => Date.parse(b.recordedAt) - Date.parse(a.recordedAt)));
+    } catch { if (this.selectedAdmissionId() === admissionId) this.toast.error('Vitals unavailable', 'Refresh to reload this patient’s observations.'); }
+    finally { if (this.selectedAdmissionId() === admissionId) this.vitalsLoading.set(false); }
   }
 
   protected setVitalDate(value: string): void {
@@ -3268,15 +3201,17 @@ export class IpdPageComponent implements OnInit, OnDestroy {
 
     this.saving.set(true);
     const response = await this.service.saveVitals(admission.admissionId, request);
-    this.saving.set(false);
 
     if (!response.success || !response.data) {
+      this.saving.set(false);
       this.toast.error('Unable to save vitals', getApiErrorMessage(response, 'IPD vitals API failed'));
       return;
     }
 
     await this.loadVitals(admission.admissionId);
     this.resetVitalForm();
+    this.saveAdmissionCareDraft(admission.admissionId);
+    this.saving.set(false);
     this.toast.success('Vitals saved', 'Latest values and trend history updated.');
   }
 
@@ -3874,6 +3809,7 @@ export class IpdPageComponent implements OnInit, OnDestroy {
           doctorRoundForm?: Partial<SaveIpdDoctorRoundRequest>;
           doctorRoundNote?: string;
           nursingNote?: string;
+          vitalForm?: Partial<SaveIpdVitalRequest>;
         };
         this.doctorRoundForm = {
           ...this.doctorRoundForm,
@@ -3881,6 +3817,7 @@ export class IpdPageComponent implements OnInit, OnDestroy {
           clinicalNotes: parsed.doctorRoundForm?.clinicalNotes ?? parsed.doctorRoundNote ?? this.doctorRoundForm.clinicalNotes
         };
         this.nursingNote = parsed.nursingNote ?? '';
+        this.vitalForm = { ...createVitalForm(), ...(parsed.vitalForm ?? {}) };
       } catch {
         localStorage.removeItem(careDraftKey(admissionId));
       }
@@ -3895,7 +3832,8 @@ export class IpdPageComponent implements OnInit, OnDestroy {
   private saveAdmissionCareDraft(admissionId: string): void {
     localStorage.setItem(careDraftKey(admissionId), JSON.stringify({
       doctorRoundForm: this.doctorRoundForm,
-      nursingNote: this.nursingNote
+      nursingNote: this.nursingNote,
+      vitalForm: this.vitalForm
     }));
   }
 

@@ -133,8 +133,8 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
                           <span class="material-symbols-rounded">calendar_month</span>
                           {{ generated.trend.length }} days
                         </span>
-                        <button type="button" class="icon-action" (click)="generateReport(false)" title="Refresh chart">
-                          <span class="material-symbols-rounded">more_vert</span>
+                        <button type="button" class="icon-action" (click)="generateReport(false)" title="Refresh chart" aria-label="Refresh chart">
+                          <span class="material-symbols-rounded" aria-hidden="true">refresh</span>
                         </button>
                       </div>
                     </div>

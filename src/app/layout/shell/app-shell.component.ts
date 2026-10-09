@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, HostListener, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink, RouterLinkActive, RouterOutlet, Router, NavigationCancel, NavigationEnd, NavigationError } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -23,6 +23,7 @@ import { AcDismissiblePopoverDirective } from '../../shared/ui/dismissible-popov
 import { DialogService } from '../../shared/ui/dialog/dialog.service';
 import { PendingChangesComponent } from '../../core/guards/pending-changes.guard';
 import { NotificationInboxService } from '../../core/notifications/notification-inbox.service';
+import { NotificationArrival } from '../../core/notifications/notification-arrival';
 
 interface NavItem {
   path: string;
@@ -188,10 +189,28 @@ const fallbackLanguages: Language[] = [
 
             <!-- Actions -->
             <div class="header-right">
-              <button #notificationTrigger class="hdr-btn notif-btn" (click)="toggleNotifications()" title="Notifications" aria-label="Notifications" [attr.aria-expanded]="notifOpen()">
-                <span class="material-symbols-rounded">notifications</span>
-                @if (inbox.unreadCount()) { <span class="notif-dot">{{inbox.unreadCount() > 99 ? '99+' : inbox.unreadCount()}}</span> }
-              </button>
+              <div class="notif-anchor" [class.notif-critical]="notificationArrival()?.critical">
+                <button #notificationTrigger type="button" class="hdr-btn notif-btn" [class.has-unread]="inbox.unreadCount() > 0" [class.notif-arriving]="notificationArrival()" (click)="toggleNotifications()" title="Notifications" [attr.aria-label]="inbox.unreadCount() ? 'Notifications, ' + inbox.unreadCount() + ' unread' : 'Notifications'" [attr.aria-expanded]="notifOpen()">
+                  <span class="material-symbols-rounded notif-base-icon" aria-hidden="true">notifications</span>
+                  @if (notificationArrival(); as arrival) {
+                    @for (event of [arrival]; track event.sequence) {
+                      <span class="notif-halo" aria-hidden="true"></span>
+                      <span class="material-symbols-rounded notif-ring-icon" aria-hidden="true">notifications_active</span>
+                    }
+                  }
+                  @if (inbox.unreadCount()) { <span class="notif-dot" aria-hidden="true">{{inbox.unreadCount() > 99 ? '99+' : inbox.unreadCount()}}</span> }
+                </button>
+                @if (notificationArrival(); as arrival) {
+                  @for (event of [arrival]; track event.sequence) {
+                    <button type="button" class="notif-arrival-cue" (click)="openNotificationArrival()" [title]="event.title">
+                      <span class="notif-cue-spark" aria-hidden="true"></span>
+                      <span><strong>{{ event.critical ? 'New critical notification' : event.count > 1 ? event.count + ' new notifications' : 'New notification' }}</strong><small>{{ event.title }}</small></span>
+                      <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span>
+                    </button>
+                  }
+                }
+              </div>
+              <span class="notif-announcement" role="status" aria-live="polite" aria-atomic="true">{{ notificationAnnouncement() }}</span>
               <button class="hdr-btn" title="Messages">
                 <span class="material-symbols-rounded">chat_bubble</span>
               </button>
@@ -927,6 +946,27 @@ const fallbackLanguages: Language[] = [
     }
 
     .notif-btn { position: relative; }
+    .notif-anchor { position: relative; --notif-accent: var(--ac-primary); }
+    .notif-anchor.notif-critical { --notif-accent: var(--ac-error); }
+    .notif-btn.has-unread { color: var(--ac-primary); background: var(--ac-primary-light); }
+    .notif-btn.notif-arriving { color: var(--notif-accent); }
+    .notif-arriving .notif-base-icon { visibility: hidden; }
+    .notif-ring-icon { position: absolute; inset: 0; display: grid; place-items: center; transform-origin: 50% 20%; animation: notif-bell-ring 950ms ease-in-out 2; }
+    .notif-halo { position: absolute; inset: 2px; border: 2px solid var(--notif-accent); border-radius: 50%; pointer-events: none; animation: notif-halo-wave 1.5s ease-out 3 both; }
+    .notif-arrival-cue { position: absolute; top: calc(100% + 13px); right: -12px; z-index: 220; display: flex; align-items: center; gap: 12px; width: min(290px, calc(100vw - 32px)); padding: 13px 15px; text-align: left; border: 1px solid var(--ac-border); border-top: 3px solid var(--notif-accent); border-radius: 14px; background: var(--ac-surface); color: var(--ac-text); box-shadow: 0 12px 35px rgba(15,23,42,.18); cursor: pointer; animation: notif-cue-enter 280ms ease-out both; }
+    .notif-arrival-cue:hover { background: var(--ac-surface-2); }
+    .notif-arrival-cue:focus-visible { outline: 2px solid var(--notif-accent); outline-offset: 3px; }
+    .notif-arrival-cue > span:nth-child(2) { flex: 1; min-width: 0; }
+    .notif-arrival-cue strong { display: block; font-size: 12px; line-height: 1.5; }
+    .notif-arrival-cue small { display: block; margin-top: 3px; font-size: 11px; line-height: 1.5; color: var(--ac-muted); white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+    .notif-arrival-cue > .material-symbols-rounded { color: var(--notif-accent); font-size: 18px; }
+    .notif-cue-spark { width: 9px; height: 9px; flex-shrink: 0; border-radius: 50%; background: var(--notif-accent); box-shadow: 0 0 0 5px var(--ac-primary-light); }
+    .notif-announcement { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    @keyframes notif-bell-ring { 0%, 100% { transform: rotate(0); } 15% { transform: rotate(18deg); } 30% { transform: rotate(-15deg); } 45% { transform: rotate(11deg); } 60% { transform: rotate(-7deg); } 75% { transform: rotate(3deg); } }
+    @keyframes notif-halo-wave { 0% { transform: scale(.8); opacity: .7; } 100% { transform: scale(1.7); opacity: 0; } }
+    @keyframes notif-cue-enter { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+    @media (max-width: 600px) { .notif-arrival-cue { position: fixed; top: 116px; right: 16px; } }
+    @media (prefers-reduced-motion: reduce) { .notif-ring-icon, .notif-halo, .notif-arrival-cue { animation: none; } .notif-halo { opacity: .4; } }
     .notif-dot {
       position: absolute;
       top: 4px;
@@ -1960,6 +2000,8 @@ export class AppShellComponent implements OnInit {
   protected readonly commandOpen  = signal(false);
   protected readonly mobileNavigationOpen = signal(false);
   protected readonly notifOpen    = signal(false);
+  protected readonly notificationArrival = signal<NotificationArrival | null>(null);
+  protected readonly notificationAnnouncement = signal('');
   protected readonly profileOpen  = signal(false);
   protected readonly langOpen     = signal(false);
   protected readonly aiAssistantOpen = signal(false);
@@ -1996,6 +2038,16 @@ export class AppShellComponent implements OnInit {
 
   /* ── Dark mode effect ── */
   constructor() {
+    effect(onCleanup => {
+      const arrival = this.inbox.arrival();
+      this.notificationArrival.set(null);
+      if (!arrival) { this.notificationAnnouncement.set(''); return; }
+      this.notificationAnnouncement.set(`${arrival.count === 1 ? 'New notification' : arrival.count + ' new notifications'}: ${arrival.title}`);
+      if (untracked(() => this.notifOpen())) return;
+      this.notificationArrival.set(arrival);
+      const timer = window.setTimeout(() => this.notificationArrival.set(null), 6500);
+      onCleanup(() => window.clearTimeout(timer));
+    });
     effect(() => {
       document.documentElement.classList.toggle('dark', this.dark());
     });
@@ -2294,10 +2346,19 @@ export class AppShellComponent implements OnInit {
   }
 
   toggleNotifications(): void {
+    this.notificationArrival.set(null);
     this.notifOpen.update(open => !open);
     if (this.notifOpen()) void this.inbox.refresh();
     this.profileOpen.set(false);
     this.langOpen.set(false);
+  }
+
+  openNotificationArrival(): void {
+    this.notificationArrival.set(null);
+    this.notifOpen.set(true);
+    this.profileOpen.set(false);
+    this.langOpen.set(false);
+    void this.inbox.refresh();
   }
 
   toggleProfileMenu(): void {

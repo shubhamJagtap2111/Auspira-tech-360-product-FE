@@ -6,6 +6,7 @@ import { ApiClientService } from '../http/api-client.service';
 import { AuthStore } from '../auth/auth.store';
 import { BranchContextService } from '../context/branch-context.service';
 import { SKIP_GLOBAL_LOADER } from '../interceptors/loader.interceptor';
+import { NotificationArrival, NotificationArrivalTracker } from './notification-arrival';
 
 export interface InboxItem {
   id: string; branchCode: string; module: string; priority: 'INFO' | 'WARNING' | 'CRITICAL';
@@ -32,12 +33,16 @@ export class NotificationInboxService {
   readonly loading = signal(false);
   readonly busy = signal(false);
   readonly error = signal('');
+  readonly arrival = signal<NotificationArrival | null>(null);
+  private readonly arrivalTracker = new NotificationArrivalTracker();
 
   constructor() {
     effect(() => {
       const user = this.auth.session()?.userId ?? this.auth.profile()?.userId;
       const branch = this.branch.selectedBranchCode();
       ++this.generation;
+      this.arrivalTracker.reset();
+      this.arrival.set(null);
       this.snapshot.set({ items: [], unreadCount: 0, total: 0, page: 1, pageSize: 30 });
       this.error.set('');
       if (user && branch && this.auth.isAuthenticated()) void this.refresh();
@@ -75,7 +80,11 @@ export class NotificationInboxService {
       }
       if (!reminders.success) throw new Error('Notification reminders could not refresh. Please retry.');
       const result = await this.fetch();
-      if (version === this.generation) { this.snapshot.set(result); this.error.set(''); }
+      if (version === this.generation) {
+        const arrival = this.arrivalTracker.record(result.items);
+        this.snapshot.set(result); this.error.set('');
+        if (arrival) this.arrival.set(arrival);
+      }
     } catch (error) {
       if (version === this.generation) this.error.set(error instanceof Error ? error.message : 'Unable to load notifications.');
     } finally {
