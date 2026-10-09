@@ -4,6 +4,7 @@ import { pendingChangesGuard } from './core/guards/pending-changes.guard';
 import { permissionGuard } from './core/guards/permission.guard';
 
 export const routes: Routes = [
+  { path: 'chat', canActivate: [authGuard], loadComponent: () => import('./features/chat/staff-chat-page.component').then(m => m.StaffChatPageComponent) },
   { path: 'notifications', canActivate: [authGuard], loadComponent: () => import('./features/notifications/notification-inbox-page.component').then(m => m.NotificationInboxPageComponent) },
   { path: 'prescription-access', loadComponent: () => import('./features/opd/prescription-access-page.component').then(m => m.PrescriptionAccessPageComponent) },
   {

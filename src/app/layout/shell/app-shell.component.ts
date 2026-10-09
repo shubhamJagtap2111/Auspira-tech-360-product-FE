@@ -24,6 +24,7 @@ import { DialogService } from '../../shared/ui/dialog/dialog.service';
 import { PendingChangesComponent } from '../../core/guards/pending-changes.guard';
 import { NotificationInboxService } from '../../core/notifications/notification-inbox.service';
 import { NotificationArrival } from '../../core/notifications/notification-arrival';
+import { StaffChatService } from '../../core/chat/staff-chat.service';
 
 interface NavItem {
   path: string;
@@ -211,15 +212,16 @@ const fallbackLanguages: Language[] = [
                 }
               </div>
               <span class="notif-announcement" role="status" aria-live="polite" aria-atomic="true">{{ notificationAnnouncement() }}</span>
-              <button class="hdr-btn" title="Messages">
-                <span class="material-symbols-rounded">chat_bubble</span>
-              </button>
+              <a class="hdr-btn staff-chat-trigger" routerLink="/chat" title="Staff chat" [attr.aria-label]="staffChat.unreadCount() ? 'Staff chat, ' + staffChat.unreadCount() + ' unread messages' : 'Staff chat'">
+                <span class="material-symbols-rounded" aria-hidden="true">chat_bubble</span>
+                @if (staffChat.unreadCount()) {<span class="notif-dot" aria-hidden="true">{{ staffChat.unreadCount() > 99 ? '99+' : staffChat.unreadCount() }}</span>}
+              </a>
               <button
                 class="hdr-btn aira-toggle"
-                [class.active]="showAiAssistantBot()"
+                [class.active]="isStaffChatPage() ? aiAssistantOpen() : showAiAssistantBot()"
                 type="button"
-                (click)="toggleAiAssistantBot()"
-                [title]="showAiAssistantBot() ? 'Hide AIRA' : 'Show AIRA'">
+                (click)="isStaffChatPage() ? toggleAiAssistant() : toggleAiAssistantBot()"
+                [title]="isStaffChatPage() ? 'Ask AIRA' : showAiAssistantBot() ? 'Hide AIRA' : 'Show AIRA'">
                 <span class="aira-message-icon" aria-hidden="true"></span>
               </button>
               <button class="hdr-btn" (click)="toggleDark()" [title]="dark() ? 'Light mode' : 'Dark mode'" [attr.aria-label]="dark() ? 'Light mode' : 'Dark mode'">
@@ -464,7 +466,7 @@ const fallbackLanguages: Language[] = [
           </section>
         }
 
-        @if (showAiAssistantBot()) {
+        @if (showAiAssistantBot() && !isStaffChatPage()) {
           <button class="ai-bot-launcher" type="button" [class.chat-open]="aiAssistantOpen()" (click)="toggleAiAssistant()" aria-label="Open AIRA Ask AI">
             <span class="ai-minimize-dot">
               <span class="material-symbols-rounded">{{ aiAssistantOpen() ? 'remove' : 'add' }}</span>
@@ -946,6 +948,7 @@ const fallbackLanguages: Language[] = [
     }
 
     .notif-btn { position: relative; }
+    .staff-chat-trigger { position: relative; text-decoration: none; }
     .notif-anchor { position: relative; --notif-accent: var(--ac-primary); }
     .notif-anchor.notif-critical { --notif-accent: var(--ac-error); }
     .notif-btn.has-unread { color: var(--ac-primary); background: var(--ac-primary-light); }
@@ -1781,7 +1784,6 @@ const fallbackLanguages: Language[] = [
       }
       .header-left,
       .branch-select,
-      .header-right .hdr-btn[title='Messages'],
       .lang-btn { display: none; }
       .header-center { flex: 1 1 auto; min-width: 0; justify-content: flex-start; }
       .tenant-chip { max-width: 100%; min-width: 0; padding-inline: 10px; }
@@ -1988,6 +1990,7 @@ export class AppShellComponent implements OnInit {
   private   readonly appLoader = inject(AppLoaderService);
   private readonly dialogs = inject(DialogService);
   protected readonly inbox = inject(NotificationInboxService);
+  protected readonly staffChat = inject(StaffChatService);
   protected activePage: PendingChangesComponent | null = null;
 
   /* ── State ── */
@@ -2033,6 +2036,7 @@ export class AppShellComponent implements OnInit {
     this.currentUrl().startsWith('/auth') || this.currentUrl().startsWith('/prescription-access')
   );
   protected readonly isAuthenticated = computed(() => this.authStore.isAuthenticated());
+  protected readonly isStaffChatPage = computed(() => this.currentUrl().startsWith('/chat'));
   private aiConversationHydrated = false;
   private headerContextHydrated = false;
 
@@ -2185,7 +2189,8 @@ export class AppShellComponent implements OnInit {
     {
       label: 'Overview',
       items: [
-        { path: '/', label: 'Dashboard', icon: 'dashboard' }
+        { path: '/', label: 'Dashboard', icon: 'dashboard' },
+        { path: '/chat', label: 'Staff chat', icon: 'forum' }
       ]
     },
     {
