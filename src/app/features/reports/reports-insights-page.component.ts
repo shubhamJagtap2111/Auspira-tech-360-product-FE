@@ -17,7 +17,7 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
   standalone: true,
   imports: [AcKpiCardComponent, CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
   template: `
-    <section class="reports-page ac-workspace">
+    <section class="reports-page ac-workspace ac-dashboard">
       <header class="reports-header ac-workspace-head">
         <div>
           <p class="ac-eyebrow">Analytics</p>
@@ -178,8 +178,8 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
                           }
                         </div>
                         <div class="trend-chart">
-                          @for (point of generated.trend; track point.date) {
-                            <div class="trend-day" [title]="(point.date | date:'dd MMM yyyy') + ': ' + point.primaryValue + ' / ' + point.secondaryValue">
+                          @for (point of generated.trend; track point.date; let index = $index) {
+                            <div class="trend-day" tabindex="0" [style.--bar-delay]="(index * 20) + 'ms'" [attr.aria-label]="(point.date | date:'dd MMM yyyy') + ': ' + point.primaryValue + ' / ' + point.secondaryValue" [attr.data-tooltip]="(point.date | date:'dd MMM') + ': ' + point.primaryValue + ' / ' + point.secondaryValue">
                               <div class="bars">
                                 <span class="bar primary" [style.height.%]="trendHeight(point.primaryValue, generated.trend)"></span>
                                 <span class="bar secondary" [style.height.%]="trendHeight(point.secondaryValue, generated.trend)"></span>
@@ -869,7 +869,7 @@ export class ReportsInsightsPageComponent implements OnInit {
 
   protected trendHeight(value: number, points: Array<{ primaryValue: number; secondaryValue: number }>): number {
     const max = Math.max(1, ...points.flatMap(point => [point.primaryValue, point.secondaryValue]));
-    return Math.max(4, Math.round((Number(value || 0) / max) * 100));
+    return Math.max(0, Math.round((Number(value || 0) / max) * 100));
   }
 
   protected chartTicks(points: Array<{ primaryValue: number; secondaryValue: number }>): number[] {

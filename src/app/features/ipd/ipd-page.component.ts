@@ -68,7 +68,7 @@ interface IpdKpiCard {
         <small aria-live="polite">{{ dischargeDraftStatus() }}</small>
       </section>
     </ng-template>
-    <section class="ipd-page ac-workspace">
+    <section class="ipd-page ac-workspace ac-dashboard">
       <header class="page-header ac-workspace-head">
         <div>
           <p class="ac-eyebrow">Inpatient operations</p>

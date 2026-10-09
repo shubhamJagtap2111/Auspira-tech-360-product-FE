@@ -26,7 +26,7 @@ type QualityTab = 'dashboard' | 'indicators' | 'audits' | 'events' | 'builder';
   standalone: true,
   imports: [AcKpiCardComponent, CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
   template: `
-    <section class="quality-page ac-workspace">
+    <section class="quality-page ac-workspace ac-dashboard">
       <header class="quality-header ac-workspace-head">
         <div>
           <p class="ac-eyebrow">Quality & KPI</p>
@@ -218,8 +218,8 @@ type QualityTab = 'dashboard' | 'indicators' | 'audits' | 'events' | 'builder';
                   </div>
                   @if (trend(); as trendModel) {
                     <div class="month-bars">
-                      @for (point of trendModel.points; track point.month) {
-                        <div class="month-bar" [title]="point.monthLabel + ': ' + point.displayValue">
+                      @for (point of trendModel.points; track point.month; let index = $index) {
+                        <div class="month-bar" tabindex="0" [style.--bar-delay]="(index * 35) + 'ms'" [attr.data-tooltip]="point.monthLabel + ': ' + point.displayValue" [attr.aria-label]="point.monthLabel + ': ' + point.displayValue">
                           <span [class]="statusClass(point.statusCode)" [style.height.%]="trendHeight(point.calculatedValue, trendModel.points)"></span>
                           <small>{{ point.monthLabel }}</small>
                         </div>
@@ -860,11 +860,11 @@ export class QualityIndicatorsPageComponent implements OnInit {
 
   protected trendHeight(value: number | null, points: Array<{ calculatedValue: number | null }>): number {
     if (value === null) {
-      return 4;
+      return 0;
     }
 
     const max = Math.max(1, ...points.map(point => point.calculatedValue ?? 0));
-    return Math.max(4, Math.round((value / max) * 100));
+    return Math.max(0, Math.round((value / max) * 100));
   }
 
   protected statusClass(statusCode: string): string {

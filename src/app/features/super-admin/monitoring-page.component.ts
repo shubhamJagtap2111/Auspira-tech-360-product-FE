@@ -11,7 +11,7 @@ import { MonitoringService } from './monitoring.service';
   imports: [CommonModule, RouterLink, AcGridLoaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="monitoring-page">
+    <section class="monitoring-page ac-dashboard">
       <header class="page-head">
         <div>
           <p class="eyebrow">Monitoring</p>

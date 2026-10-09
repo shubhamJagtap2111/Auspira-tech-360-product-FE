@@ -1,0 +1,155 @@
+/* Dashboard presentation, scoped away from editors and other application pages. */
+.ac-dashboard.ac-dashboard {
+  --dash-shadow: 0 6px 24px color-mix(in srgb, var(--ac-text) 5%, transparent);
+  --dash-blue: linear-gradient(180deg, #60a5fa, #2563eb);
+  --dash-teal: linear-gradient(180deg, #2dd4bf, #0d9488);
+  gap: 22px;
+}
+.ac-dashboard.ac-dashboard > :is(.ac-workspace-head, .page-head, .dashboard-hero) {
+  padding: 24px;
+  border: 1px solid var(--ac-border);
+  border-radius: 20px;
+  background: radial-gradient(ellipse at top right, color-mix(in srgb, var(--ac-secondary) 9%, transparent), transparent 65%), var(--ac-surface);
+  box-shadow: var(--dash-shadow);
+}
+.ac-dashboard.ac-dashboard > :is(.ac-workspace-head, .page-head, .dashboard-hero) h1 {
+  letter-spacing: -.9px;
+  line-height: 1.2;
+}
+.ac-dashboard.ac-dashboard :is(.panel, .chart-panel, .table-panel, .score-panel, .result-panel, .manager-board, .module-tile, .report-card) {
+  border-radius: 16px;
+  border-color: var(--ac-border);
+  box-shadow: var(--dash-shadow);
+}
+.ac-dashboard.ac-dashboard :is(.section-head, .panel-head, .panel-title) :is(h2, h3) {
+  letter-spacing: -.35px;
+  line-height: 1.4;
+}
+.ac-dashboard.ac-dashboard :is(.kpi-card, .metric, .staff-kpi, .metric-card) {
+  border-radius: 16px;
+  box-shadow: var(--dash-shadow);
+  font-variant-numeric: tabular-nums;
+}
+.ac-dashboard.ac-dashboard :is(.kpi-grid, .staff-kpi-grid, .metric-grid, .ac-kpi-grid) { gap: 14px; }
+.ac-dashboard.ac-dashboard .ac-workspace-tabs { border-radius: 14px; padding: 7px; }
+.ac-dashboard.ac-dashboard .ac-workspace-tabs > button { border-radius: 10px; }
+.ac-dashboard.ac-dashboard :is(.chart-legend, .mix-list) { font-variant-numeric: tabular-nums; }
+.ac-dashboard.ac-dashboard .chart-legend { gap: 16px; padding: 8px 0; }
+.ac-dashboard.ac-dashboard .chart-legend i { width: 10px; height: 10px; border-radius: 4px; }
+
+/* Grid lines stay behind the plot. Only marks animate; chart geometry stays fixed. */
+.ac-dashboard.ac-dashboard :is(.activity-chart, .bar-chart, .month-bars, .mis-trend-plot) {
+  background: repeating-linear-gradient(to top, transparent 0, transparent calc(25% - 1px), color-mix(in srgb, var(--ac-border) 65%, transparent) calc(25% - 1px), color-mix(in srgb, var(--ac-border) 65%, transparent) 25%), var(--ac-surface);
+  border-radius: 12px;
+}
+.ac-dashboard.ac-dashboard .activity-chart {
+  grid-template-columns: repeat(var(--chart-columns, 7), minmax(40px, 1fr));
+  overflow-x: auto;
+  padding: 22px 16px 12px;
+  gap: 12px;
+}
+.ac-dashboard.ac-dashboard .activity-bars { gap: 5px; }
+.ac-dashboard.ac-dashboard :is(.activity-bars > span, .bar-chart .bars > i, .trend-chart .bar, .mis-trend-plot .day > span, .month-bar > span) {
+  position: relative;
+  min-height: 0;
+  border-radius: 7px 7px 2px 2px;
+  transform-origin: center bottom;
+  transition: height .45s ease, filter .2s ease;
+  animation: dash-bar-rise .8s cubic-bezier(.22, 1, .36, 1) both;
+  animation-delay: var(--bar-delay, 0ms);
+}
+.ac-dashboard.ac-dashboard :is(.bar-chart .billed, .trend-chart .bar.primary, .mis-trend-plot .day > .primary) {
+  background: var(--dash-blue);
+  box-shadow: 0 4px 12px #2563eb1a;
+}
+.ac-dashboard.ac-dashboard :is(.bar-chart .collected, .trend-chart .bar.secondary, .mis-trend-plot .day > .secondary) {
+  background: var(--dash-teal);
+  box-shadow: 0 4px 12px #0d94881a;
+}
+.ac-dashboard.ac-dashboard .month-bar > span {
+  width: min(24px, 60%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--status) 70%, white), var(--status));
+}
+.ac-dashboard.ac-dashboard .bar-chart .bars { gap: 7px; }
+.ac-dashboard.ac-dashboard .bar-chart .bars > i { width: min(30px, 40%); }
+.ac-dashboard.ac-dashboard .trend-chart .bar { width: min(20px, 38%); }
+.ac-dashboard.ac-dashboard :is(.activity-day, .bar-group, .trend-day, .month-bar, .mis-trend-plot .day):is(:hover, :focus-visible) :is(.bar, i.billed, i.collected, .primary, .secondary, .activity-bars > span, .month-bar > span) {
+  filter: brightness(1.08);
+}
+.ac-dashboard.ac-dashboard :is(.activity-day, .bar-group, .trend-day, .month-bar, .mis-trend-plot .day):focus-visible {
+  outline: 2px solid var(--ac-primary);
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+.ac-dashboard.ac-dashboard .activity-bars span:is(:hover, :focus-visible) i { opacity: 1; }
+.ac-dashboard.ac-dashboard .activity-day:focus-visible .activity-bars i { opacity: 1; }
+.ac-dashboard.ac-dashboard .activity-day small { font-size: 10px; white-space: nowrap; }
+.ac-dashboard.ac-dashboard [data-tooltip] { position: relative; }
+.ac-dashboard.ac-dashboard [data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 220px;
+  padding: 8px 10px;
+  border: 1px solid var(--ac-border);
+  border-radius: 8px;
+  background: var(--ac-text);
+  color: var(--ac-surface);
+  box-shadow: var(--dash-shadow);
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.5;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .15s ease;
+}
+.ac-dashboard.ac-dashboard [data-tooltip]:is(:hover, :focus-visible)::after { opacity: 1; }
+.ac-dashboard.ac-dashboard [data-tooltip]:first-child::after { left: 0; transform: none; }
+.ac-dashboard.ac-dashboard [data-tooltip]:last-child::after { left: auto; right: 0; transform: none; }
+.ac-dashboard.ac-dashboard :is(.bar-track, .status-row .bar) { height: 10px; background: var(--ac-surface-3); }
+.ac-dashboard.ac-dashboard :is(.bar-fill, .status-row .bar > div, .bar-track > span) {
+  min-width: 0;
+  border-radius: inherit;
+  transform-origin: left center;
+  animation: dash-bar-sweep .8s cubic-bezier(.22, 1, .36, 1) both;
+  transition: width .45s ease;
+}
+.ac-dashboard.ac-dashboard .status-row .bar > div { background: var(--dash-teal); }
+.ac-dashboard.ac-dashboard .manager-ward .bar-fill { background: var(--dash-blue); }
+.ac-dashboard.ac-dashboard .hbar-row i::after {
+  transform-origin: left center;
+  animation: dash-bar-sweep .8s cubic-bezier(.22, 1, .36, 1) both;
+}
+
+/* Module-specific details retain their clinical and financial status colors. */
+.ac-dashboard.ac-dashboard .queue-grid .alert { padding: 20px; border-radius: 14px; }
+.ac-dashboard.ac-dashboard .flow { padding: 24px 12px; gap: 12px; }
+.ac-dashboard.ac-dashboard .flow i { border-radius: 14px; box-shadow: var(--dash-shadow); }
+.ac-dashboard.ac-dashboard .stock-value { background: var(--ac-surface-2); border: 1px solid var(--ac-border); border-radius: 14px; }
+.ac-dashboard.ac-dashboard .connected { background: linear-gradient(135deg, var(--ac-surface), color-mix(in srgb, var(--ac-secondary) 5%, var(--ac-surface))); }
+.ac-dashboard.ac-dashboard .score-ring { box-shadow: 0 0 0 8px var(--ac-surface-2), var(--dash-shadow); }
+.ac-dashboard.ac-dashboard :is(.opd-today-grid, .manager-columns, .dashboard-layout, .dashboard-grid, .overview-grid, .control-grid, .lower-grid) { gap: 18px; }
+.ac-dashboard.ac-dashboard .generated { font-size: 11px; padding: 4px 2px; }
+
+@keyframes dash-bar-rise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes dash-bar-sweep { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes dash-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: no-preference) {
+  .ac-dashboard.ac-dashboard :is(.ac-kpi-grid > ac-kpi-card, .kpi-grid > .kpi-card, .kpi-grid > .metric, .metric-grid > .metric-card, .staff-kpi-grid > *) { animation: dash-enter .45s ease both; }
+  .ac-dashboard.ac-dashboard :is(.ac-kpi-grid, .kpi-grid, .metric-grid, .staff-kpi-grid) > :nth-child(2) { animation-delay: 45ms; }
+  .ac-dashboard.ac-dashboard :is(.ac-kpi-grid, .kpi-grid, .metric-grid, .staff-kpi-grid) > :nth-child(3) { animation-delay: 90ms; }
+  .ac-dashboard.ac-dashboard :is(.ac-kpi-grid, .kpi-grid, .metric-grid, .staff-kpi-grid) > :nth-child(n+4) { animation-delay: 135ms; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ac-dashboard.ac-dashboard *, .ac-dashboard.ac-dashboard *::before, .ac-dashboard.ac-dashboard *::after { animation: none !important; transition: none !important; }
+}
+@media (max-width: 600px) {
+  .ac-dashboard.ac-dashboard { gap: 16px; }
+  .ac-dashboard.ac-dashboard > :is(.ac-workspace-head, .page-head, .dashboard-hero) { padding: 18px; border-radius: 16px; }
+  .ac-dashboard.ac-dashboard :is(.kpi-grid, .staff-kpi-grid, .metric-grid, .ac-kpi-grid) { gap: 10px; }
+  .ac-dashboard.ac-dashboard .activity-chart { gap: 8px; padding-inline: 10px; }
+}

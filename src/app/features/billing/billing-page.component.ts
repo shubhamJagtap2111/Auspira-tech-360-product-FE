@@ -25,7 +25,7 @@ type BillingDialog = 'charge-master' | 'charge' | 'invoice' | 'payment' | 'refun
   imports: [AcKpiCardComponent, CommonModule, FormsModule, DatePipe, AcGridLoaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="billing-page ac-workspace">
+    <section class="billing-page ac-workspace ac-dashboard">
       <header class="page-head ac-workspace-head">
         <div>
           <p class="ac-eyebrow">Central Finance</p>
@@ -68,8 +68,8 @@ type BillingDialog = 'charge-master' | 'charge' | 'invoice' | 'payment' | 'refun
                   <div class="panel-head"><div><p class="ac-eyebrow">Revenue Trend</p><h2>Billing vs collection</h2></div><span>Last 6 months</span></div>
                   <div class="chart-legend"><span><i class="billed"></i>Billed</span><span><i class="collected"></i>Collected</span></div>
                   <div class="bar-chart">
-                    @for (point of model.trend; track point.label) {
-                      <div class="bar-group">
+                    @for (point of model.trend; track point.label; let index = $index) {
+                      <div class="bar-group" tabindex="0" [style.--bar-delay]="(index * 55) + 'ms'" [attr.data-tooltip]="point.label + ' · Billed: ' + money(point.billed) + ' · Collected: ' + money(point.collected)" [attr.aria-label]="point.label + ': Billed ' + money(point.billed) + ', Collected ' + money(point.collected)">
                         <div class="bars"><i class="billed" [style.height.%]="barHeight(point.billed, trendMax(model))" [title]="money(point.billed)"></i><i class="collected" [style.height.%]="barHeight(point.collected, trendMax(model))" [title]="money(point.collected)"></i></div>
                         <small>{{ point.label }}</small>
                       </div>

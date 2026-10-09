@@ -80,7 +80,7 @@ interface HospitalPulseItem {
   standalone: true,
   imports: [AcKpiCardComponent, CommonModule, FormsModule, RouterLink],
   template: `
-    <section class="admin-dashboard ac-workspace">
+    <section class="admin-dashboard ac-workspace ac-dashboard">
       <header class="dashboard-hero" [class.staff-hero]="!isHospitalAdmin()">
         <div class="hero-copy">
           <span class="eyebrow">{{ isHospitalAdmin() ? 'Control center' : 'My workspace' }}</span>
@@ -163,17 +163,17 @@ interface HospitalPulseItem {
                   </label>
                 </div>
               </div>
-              <div class="activity-chart">
-                @for (day of model.activityTrend; track day.activityDate) {
-                  <div class="activity-day">
+              <div class="activity-chart" [style.--chart-columns]="model.activityTrend.length || 1" role="group" aria-label="Daily login, record, and security activity">
+                @for (day of model.activityTrend; track day.activityDate; let index = $index) {
+                  <div class="activity-day" tabindex="0" [style.--bar-delay]="(index * 20) + 'ms'" [attr.aria-label]="(day.activityDate | date:'dd MMM') + ': ' + activityDescription(day)">
                     <div class="activity-bars">
                       @for (series of activitySeries; track series.key) {
-                        <span [style.--tone]="series.tone" [style.height.%]="activityHeight(day[series.key], model.activityTrend)">
+                        <span [style.--tone]="series.tone" [style.height.%]="activityHeight(day[series.key], model.activityTrend)" [title]="series.label + ': ' + day[series.key]">
                           <i>{{ day[series.key] }}</i>
                         </span>
                       }
                     </div>
-                    <small>{{ day.activityDate | date: 'EEE' }}</small>
+                    <small>{{ day.activityDate | date: (activityDays() > 7 ? 'dd MMM' : 'EEE') }}</small>
                   </div>
                 } @empty {
                   <p class="empty">{{ t('Administration.Dashboard.Labels.NoData') }}</p>
@@ -1182,7 +1182,11 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
 
   protected activityHeight(value: number, items: ActivityTrendItem[]): number {
     const max = Math.max(...items.flatMap(item => this.activitySeries.map(series => Number(item[series.key]) || 0)), 1);
-    return Math.max(value > 0 ? 14 : 4, Math.round((value / max) * 100));
+    return Math.max(0, Math.round((value / max) * 100));
+  }
+
+  protected activityDescription(day: ActivityTrendItem): string {
+    return this.activitySeries.map(series => `${series.label}: ${day[series.key]}`).join(', ');
   }
 
   protected loginDevice(login: RecentLoginItem): string {

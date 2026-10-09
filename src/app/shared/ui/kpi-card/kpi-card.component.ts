@@ -39,7 +39,14 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
     .kpi-arrow { position:absolute; right:10px; bottom:10px; font-size:16px; color:var(--ac-muted); }
     button .kpi-detail { padding-right:12px; }
     @media(max-width:600px) { .kpi-card { min-height:138px; padding:13px; } .kpi-icon { width:26px; height:26px; right:10px; top:12px; font-size:17px; border-radius:8px; } .kpi-label { min-height:42px; padding-right:29px; } .kpi-value { font-size:25px; } }
-    @media(prefers-reduced-motion:reduce) { button.kpi-card { transition:none; } }
+    .kpi-card { border-top:1px solid var(--ac-border); border-radius:16px; background:linear-gradient(135deg,color-mix(in srgb,var(--kpi-tone) 5%,var(--ac-surface)),var(--ac-surface) 65%); box-shadow:0 6px 24px color-mix(in srgb,var(--ac-text) 5%,transparent); overflow:hidden; }
+    .kpi-card::before { content:''; position:absolute; top:20px; bottom:20px; left:0; width:3px; border-radius:0 3px 3px 0; background:var(--kpi-tone); }
+    .kpi-icon { width:38px; height:38px; border-radius:12px; }
+    .kpi-value { font-size:clamp(24px,2.2vw,32px); letter-spacing:-.8px; }
+    button.kpi-card { transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease; }
+    button.kpi-card:hover:not(:disabled) { transform:translateY(-3px); box-shadow:0 10px 26px color-mix(in srgb,var(--kpi-tone) 12%,transparent); }
+    @media(max-width:600px) { .kpi-icon { width:28px; height:28px; border-radius:9px; } .kpi-value { font-size:25px; } }
+    @media(prefers-reduced-motion:reduce) { button.kpi-card { transition:none; transform:none!important; } }
   `]
 })
 export class AcKpiCardComponent {

@@ -17,7 +17,7 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
   standalone: true,
   imports: [AcKpiCardComponent, CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
   template: `
-    <section class="mis-page ac-workspace">
+    <section class="mis-page ac-workspace ac-dashboard">
       <header class="mis-header ac-workspace-head">
         <div>
           <p class="ac-eyebrow">MIS Reports</p>
@@ -148,9 +148,9 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
                     <span>{{ generated.trend.length }} days</span>
                   </div>
                   @if (generated.trend.length) {
-                    <div class="bars">
-                      @for (point of sampledTrend(generated); track point.date) {
-                        <div class="day" [title]="(point.date | date:'dd MMM yyyy') + ': ' + point.primaryValue + ' / ' + point.secondaryValue">
+                    <div class="bars mis-trend-plot">
+                      @for (point of sampledTrend(generated); track point.date; let index = $index) {
+                        <div class="day" tabindex="0" [style.--bar-delay]="(index * 20) + 'ms'" [attr.aria-label]="(point.date | date:'dd MMM yyyy') + ': ' + point.primaryValue + ' / ' + point.secondaryValue" [attr.data-tooltip]="(point.date | date:'dd MMM') + ': ' + point.primaryValue + ' / ' + point.secondaryValue">
                           <span class="primary" [style.height.%]="trendHeight(point.primaryValue, generated)"></span>
                           <span class="secondary" [style.height.%]="trendHeight(point.secondaryValue, generated)"></span>
                           <small>{{ point.date | date:'d' }}</small>
@@ -483,7 +483,7 @@ export class MisReportsPageComponent implements OnInit {
   protected trendHeight(value: number, report: ReportResult): number {
     const points = this.sampledTrend(report);
     const max = Math.max(1, ...points.flatMap(point => [point.primaryValue, point.secondaryValue]));
-    return Math.max(4, Math.round((Number(value || 0) / max) * 100));
+    return Math.max(0, Math.round((Number(value || 0) / max) * 100));
   }
 
   protected numericKpis(kpis: ReportKpi[]): ReportKpi[] {

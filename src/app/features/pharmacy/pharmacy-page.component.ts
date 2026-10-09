@@ -22,7 +22,7 @@ type DrugMasterType = 'dosage-forms' | 'routes' | 'categories' | 'manufacturers'
   imports: [AcKpiCardComponent, CommonModule, FormsModule, DatePipe, AcGridLoaderComponent, PharmacyImportComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="pharmacy-page ac-workspace">
+    <section class="pharmacy-page ac-workspace ac-dashboard">
       <header class="page-head ac-workspace-head">
         <div><p class="ac-eyebrow">Medication management</p><h1 class="ac-page-title">Pharmacy</h1><p>Validate prescriptions, dispense safely, and manage medicines, formulary rules, batches, and stock from one controlled workspace.</p></div>
         <div class="head-actions">@if(auth.hasPermission('Pharmacy.Import')){<button class="ac-btn ac-btn-secondary" (click)="importOpen.set(true)"><span aria-hidden="true" class="material-symbols-rounded">upload_file</span>Import CSV</button>}<button class="ac-btn ac-btn-secondary" type="button" (click)="refresh()" [disabled]="loading()"><span aria-hidden="true" class="material-symbols-rounded">refresh</span>Refresh</button><button class="ac-btn ac-btn-primary" type="button" (click)="primaryAction()"><span aria-hidden="true" class="material-symbols-rounded">{{ activeTab()==='stock' ? 'inventory' : 'add' }}</span>{{ primaryLabel() }}</button></div>

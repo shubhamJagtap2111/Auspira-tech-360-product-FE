@@ -17,7 +17,7 @@ interface KpiCard {
   standalone: true,
   imports: [CommonModule, AcGridLoaderComponent],
   template: `
-    <section class="super-admin-page">
+    <section class="super-admin-page ac-dashboard">
       <header class="page-head">
         <div>
           <p class="eyebrow">Auspira Control Plane</p>
@@ -54,7 +54,7 @@ interface KpiCard {
               @for (item of model.tenantStatusBreakdown; track item.statusCode) {
                 <div class="status-row">
                   <span>{{ item.statusCode }}</span>
-                  <div class="bar"><div [style.width.%]="statusWidth(item.count, model)"></div></div>
+                  <div class="bar" role="meter" [attr.aria-label]="item.statusCode + ' hospitals'" aria-valuemin="0" [attr.aria-valuemax]="model.summary.totalHospitals" [attr.aria-valuenow]="item.count"><div [style.width.%]="statusWidth(item.count, model)"></div></div>
                   <strong>{{ item.count }}</strong>
                 </div>
               } @empty {
@@ -249,7 +249,7 @@ export class SuperAdminDashboardPageComponent implements OnInit {
 
   protected statusWidth(value: number, model: SuperAdminDashboard): number {
     const max = Math.max(...model.tenantStatusBreakdown.map(item => item.count), 1);
-    return Math.max(6, Math.round((value / max) * 100));
+    return Math.max(0, Math.round((value / max) * 100));
   }
 
   protected activityIcon(type: string): string {

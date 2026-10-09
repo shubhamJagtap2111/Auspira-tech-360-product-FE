@@ -64,7 +64,7 @@ import { LabReport } from '../laboratory/laboratory.models';
         <h2>Patient access code</h2><p>Share this code privately with the patient. Keep it separate from the QR prescription.</p><strong class="access-code">{{ access.accessCode }}</strong><p>Expires {{ access.expiresAt | date:'dd MMM yyyy' }}. Previous completed visits are available after the consultation is completed.</p><button type="button" class="ac-btn ac-btn-primary" (click)="patientAccessDetails.set(null)">Done</button>
       </section></div>
     }
-    <section class="opd-page ac-workspace" [class.consulting]="activeTab() === 'encounter'" [attr.inert]="finishing() ? '' : null">
+    <section class="opd-page ac-workspace ac-dashboard" [class.consulting]="activeTab() === 'encounter'" [attr.inert]="finishing() ? '' : null">
       <header class="page-header ac-workspace-head">
         <div>
           <p class="ac-eyebrow">Clinical workspace</p>

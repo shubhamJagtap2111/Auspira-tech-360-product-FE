@@ -19,7 +19,7 @@ type PendingReportOrder = LabOrder & { processingCount: number; verificationCoun
   imports: [AcKpiCardComponent, CommonModule, FormsModule, AcGridLoaderComponent],
   selector: 'ac-laboratory-page',
   template: `
-    <main class="laboratory-page ac-workspace">
+    <main class="laboratory-page ac-workspace ac-dashboard">
       <header class="page-head ac-workspace-head">
         <div><p class="ac-eyebrow">Clinical diagnostics</p><h1 class="ac-page-title">Laboratory</h1><p>Order, collect, process, verify, and release diagnostic results from one controlled workspace.</p></div>
         <div class="head-actions">
