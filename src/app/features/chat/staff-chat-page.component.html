@@ -1,13 +1,13 @@
 <section class="staff-chat" [class.thread-selected]="chat.activeId()">
   <header class="chat-page-head">
-    <div><p class="eyebrow">WORK TOGETHER</p><h1>Staff chat <span>Internal</span></h1><p>A place for your hospital team to connect.</p></div>
+    <div class="chat-page-title"><span class="material-symbols-rounded" aria-hidden="true">forum</span><h1>Staff chat <span>Internal</span></h1></div>
     <div class="page-head-actions"><span class="connection" [class.live]="chat.connection() === 'live'"><i></i>{{ chat.connection() === 'live' ? 'Connected' : chat.connection() === 'connecting' ? 'Connecting' : chat.connection() === 'unavailable' ? 'Unavailable' : 'Reconnecting' }}</span><button class="chat-primary" (click)="startChat()" [disabled]="!chat.concreteBranch() || chat.connection() === 'unavailable'"><span class="material-symbols-rounded" aria-hidden="true">edit_square</span>New chat</button></div>
   </header>
   @if (!chat.concreteBranch()) { <p class="chat-notice"><span class="material-symbols-rounded" aria-hidden="true">account_tree</span>Select a branch in the top bar to start a chat or send a message.</p> }
   @if (chat.error()) { <div class="chat-error" role="status">{{ chat.error() }}<button (click)="chat.refresh(true)">Retry connection</button></div> }
   <div class="chat-workspace" [class.details-visible]="detailsOpen()">
     <aside class="conversation-sidebar" aria-label="Conversations">
-      <div class="sidebar-head"><h2>Your conversations</h2><span>{{ chat.conversations().length }}</span></div>
+      <div class="sidebar-head"><h2>Conversations</h2><span>{{ chat.conversations().length }}</span></div>
       <label class="chat-search"><span class="material-symbols-rounded" aria-hidden="true">search</span><input aria-label="Search conversations" placeholder="Find a person or conversation" [ngModel]="search()" (ngModelChange)="search.set($event)"></label>
       <div class="conversation-filters" aria-label="Conversation filters"><button [attr.aria-pressed]="filter() === 'all'" (click)="filter.set('all')">All</button><button [attr.aria-pressed]="filter() === 'unread'" (click)="filter.set('unread')">Unread @if (chat.unreadCount()) {<span>{{ chat.unreadCount() }}</span>}</button><button [attr.aria-pressed]="filter() === 'groups'" (click)="filter.set('groups')">Groups</button></div>
       <div class="conversation-list">

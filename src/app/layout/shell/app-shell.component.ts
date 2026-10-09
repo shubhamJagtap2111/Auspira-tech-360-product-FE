@@ -337,7 +337,7 @@ const fallbackLanguages: Language[] = [
           }
 
           <!-- Page Content -->
-          <main class="main-content" id="main-workspace" tabindex="-1">
+          <main class="main-content" [class.chat-workspace-page]="isStaffChatPage()" id="main-workspace" tabindex="-1">
             @if (selectedBranchCode() === 'ALL') {
               <p class="organisation-scope-note"><span class="material-symbols-rounded">account_tree</span>Viewing all branches. Select a branch in the top bar before creating or changing clinical and operational records.</p>
             }
@@ -1974,6 +1974,19 @@ const fallbackLanguages: Language[] = [
       .notif-panel, .lang-drop, .profile-drop { top: 124px; }
       .ai-bot-launcher { bottom: 12px; right: 8px; transform: scale(.72); }
       .ai-chat-panel { bottom: 105px; max-height: calc(100dvh - 230px); }
+    }
+    /* Chat fills the remaining shell space; only its lists and history scroll. */
+    .main-content.chat-workspace-page {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      scrollbar-gutter: auto;
+      padding: 14px 20px 18px;
+    }
+    .chat-workspace-page > router-outlet { display: none; }
+    .chat-workspace-page .organisation-scope-note { flex-shrink: 0; }
+    @media (max-width: 700px) {
+      .main-content.chat-workspace-page { padding: 8px 10px 10px; }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush

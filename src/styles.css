@@ -686,6 +686,14 @@ body.dark input:-webkit-autofill:focus {
   min-width: 0;
   max-width: 100%;
 }
+/* Routed component hosts do not receive the shell's scoped content attribute. */
+.main-content.chat-workspace-page > router-outlet + ac-staff-chat-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
 .main-content :where(section, article, form, fieldset, div) { min-width: 0; }
 .main-content :is(.table-wrap, .table-scroll, .table-container, .table-responsive) {
   min-width: 0;

@@ -207,7 +207,7 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/reports/reports-insights-page.component').then(m => m.ReportsInsightsPageComponent)
   },
-  moduleRoute('support', 'Help Center', ['Tickets', 'Knowledge Base', 'Implementation Help', 'Contact Support']),
+  { path: 'support', canActivate: [authGuard], loadComponent: () => import('./features/support/help-center-page.component').then(m => m.HelpCenterPageComponent) },
   moduleRoute('documentation', 'Documentation', ['User Guides', 'Workflow Manuals', 'Release Notes', 'API Reference']),
   { path: '**', redirectTo: '' }
 ];
