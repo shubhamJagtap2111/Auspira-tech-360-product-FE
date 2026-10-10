@@ -7,7 +7,7 @@ import { AuthStore } from '../auth/auth.store';
 import { BranchContextService } from '../context/branch-context.service';
 import { SKIP_GLOBAL_LOADER } from '../interceptors/loader.interceptor';
 import { ChatQueueStore } from './chat-queue.store';
-import { ChatConversation, ChatMember, ChatMessage, ChatMessagePage, ChatResponse, ChatStaff, QueuedChatMessage, mergeChatMessages, retryDelay, retryableChatFailure } from './staff-chat.models';
+import { ChatConversation, ChatMember, ChatMessage, ChatMessagePage, ChatReceipt, ChatResponse, ChatStaff, QueuedChatMessage, mergeChatMessages, mergeChatReceipts, retryDelay, retryableChatFailure } from './staff-chat.models';
 
 @Injectable({ providedIn: 'root' })
 export class StaffChatService {
@@ -123,6 +123,13 @@ export class StaffChatService {
       if (!initial && response.data.hasMore) await this.pullMessages(id, version);
     } else this.error.set('This conversation could not load. Refresh to retry.');
     if (members.success && members.data) this.members.set(members.data);
+    // Cursor polling returns new messages; refresh receipts for already loaded sends too.
+    const ids = this.messages().filter(message => message.senderId === this.userId()).map(message => message.id);
+    for (let offset = 0; offset < ids.length; offset += 200) {
+      const receipts = await firstValueFrom(this.api.post<ChatResponse<ChatReceipt[]>>(`/chat/conversations/${id}/receipts`, { messageIds: ids.slice(offset, offset + 200) }, this.options));
+      if (version !== this.version || this.activeId() !== id) return;
+      if (receipts.success && receipts.data) this.messages.update(items => mergeChatReceipts(items, receipts.data!));
+    }
   }
 
   async older(): Promise<void> {

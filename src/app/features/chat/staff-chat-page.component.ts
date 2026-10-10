@@ -3,7 +3,7 @@ import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { A11yModule } from '@angular/cdk/a11y';
 import { StaffChatService } from '../../core/chat/staff-chat.service';
-import { ChatConversation, ChatMessage, QueuedChatMessage } from '../../core/chat/staff-chat.models';
+import { ChatConversation, ChatMessage, QueuedChatMessage, chatReceiptState } from '../../core/chat/staff-chat.models';
 import { BranchContextService } from '../../core/context/branch-context.service';
 import { DialogService } from '../../shared/ui/dialog/dialog.service';
 
@@ -108,9 +108,12 @@ export class StaffChatPageComponent {
   composerKey(event: KeyboardEvent): void {
     if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); void this.send(); }
   }
-  readLabel(message: ChatMessage): string {
-    const readers = this.chat.members().filter(member => member.userId !== message.senderId && member.lastReadSequence >= message.sequence).length;
-    return readers ? (this.chat.activeConversation()?.kind === 'DIRECT' ? 'Read' : `Read by ${readers}`) : 'Sent';
+  receiptState = chatReceiptState;
+  receiptLabel(message: ChatMessage): string {
+    const state = chatReceiptState(message);
+    if (state === 'read') return message.recipientCount > 1 ? `Read by all ${message.recipientCount}` : 'Read';
+    if (state === 'delivered') return message.readCount > 0 ? `Read by ${message.readCount} of ${message.recipientCount}` : 'Delivered';
+    return message.readCount > 0 ? `Read by ${message.readCount} of ${message.recipientCount}` : message.deliveredCount > 0 ? `Delivered to ${message.deliveredCount} of ${message.recipientCount}` : 'Sent';
   }
   isNewDay(index: number): boolean {
     const messages = this.chat.messages();

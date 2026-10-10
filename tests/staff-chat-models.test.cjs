@@ -4,6 +4,30 @@ const fs = require('node:fs'), vm = require('node:vm'), ts = require('typescript
 const context = { exports: {} }; vm.createContext(context);
 vm.runInContext(ts.transpileModule(fs.readFileSync('src/app/core/chat/staff-chat.models.ts', 'utf8'), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText, context);
 const { mergeChatMessages, retryDelay, retryableChatFailure } = context.exports;
+const { chatReceiptState, mergeChatReceipts } = context.exports;
+
+test('direct receipts progress from sent to delivered to read', () => {
+  const receipt = { id: 'one', recipientCount: 1, deliveredCount: 0, readCount: 0 };
+  assert.equal(chatReceiptState(receipt), 'sent');
+  assert.equal(chatReceiptState({ ...receipt, deliveredCount: 1 }), 'delivered');
+  assert.equal(chatReceiptState({ ...receipt, deliveredCount: 1, readCount: 1 }), 'read');
+  assert.equal(chatReceiptState({ ...receipt, readCount: 1 }), 'read');
+});
+test('group double ticks require all recipients; blue requires everyone to read', () => {
+  const receipt = { id: 'group', recipientCount: 3, deliveredCount: 1, readCount: 1 };
+  assert.equal(chatReceiptState(receipt), 'sent');
+  assert.equal(chatReceiptState({ ...receipt, deliveredCount: 3 }), 'delivered');
+  assert.equal(chatReceiptState({ ...receipt, deliveredCount: 3, readCount: 3 }), 'read');
+  assert.equal(chatReceiptState({ ...receipt, recipientCount: 0, deliveredCount: 0, readCount: 0 }), 'sent');
+});
+test('receipt polling updates old bubbles without losing content or regressing acknowledgements', () => {
+  const messages = [{ id: 'one', body: 'Keep me', recipientCount: 1, deliveredCount: 1, readCount: 1 },
+    { id: 'two', body: 'Another', recipientCount: 1, deliveredCount: 0, readCount: 0 }];
+  const result = mergeChatReceipts(messages, [{ id: 'one', recipientCount: 1, deliveredCount: 0, readCount: 0 },
+    { id: 'two', recipientCount: 1, deliveredCount: 1, readCount: 0 }]);
+  assert.equal(result[0].readCount, 1); assert.equal(result[0].body, 'Keep me');
+  assert.equal(chatReceiptState(result[1]), 'delivered'); assert.equal(messages[1].deliveredCount, 0);
+});
 test('retry and poll results merge by client message identity without duplicated bubbles', () => {
   const original = [{ clientMessageId: 'same', sequence: 1, body: 'One' }];
   const merged = mergeChatMessages(original, [{ clientMessageId: 'same', sequence: 1, body: 'One', readCount: 1 }, { clientMessageId: 'next', sequence: 2, body: 'Two' }]);

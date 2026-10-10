@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const root = path.resolve('dist/auspira-care360-web/browser');
+const previewPorts = [+(process.env.CHAT_PREVIEW_PORT || 4321), +(process.env.CHAT_PREVIEW_PORT || 4321) + 1];
 const users = [
   { userId: '11111111-1111-4111-8111-111111111111', name: 'Alex Morgan', department: 'Ward coordination', role: 'Hospital administrator' },
   { userId: '22222222-2222-4222-8222-222222222222', name: 'Dr Maya Rao', department: 'General medicine', role: 'Doctor' },
@@ -19,7 +20,7 @@ function room(kind, title, ids, creator = users[0].userId, requestId = randomUUI
   rooms.push(value); return value;
 }
 function message(room, actor, body, clientMessageId = randomUUID()) {
-  const result = { id: randomUUID(), clientMessageId, conversationId: room.id, sequence: room.messages.length + 1, senderId: actor.userId, senderName: actor.name, body, createdAt: new Date().toISOString() };
+  const result = { id: randomUUID(), clientMessageId, conversationId: room.id, sequence: room.messages.length + 1, senderId: actor.userId, senderName: actor.name, body, createdAt: new Date().toISOString(), deliveries: room.members.filter(member => member.active && member.userId !== actor.userId).map(member => ({ userId: member.userId, delivered: false, read: false })) };
   room.messages.push(result); room.updatedAt = result.createdAt; return result;
 }
 const direct = room('DIRECT', '', [users[0].userId, users[1].userId]);
@@ -34,11 +35,11 @@ function serialRoom(room, actor) {
   const mine = member(room, actor);
   return { id: room.id, branchCode: room.branchCode, kind: room.kind, title: room.kind === 'GROUP' ? room.title : users.find(user => room.members.some(member => member.userId === user.userId && user.userId !== actor.userId))?.name || 'Colleague', updatedAt: room.updatedAt, lastSequence: room.messages.length, lastReadSequence: mine.lastReadSequence, myRole: mine.role, memberCount: room.members.filter(member => member.active).length, unreadCount: room.messages.filter(message => message.senderId !== actor.userId && message.sequence > mine.lastReadSequence).length, lastMessage: room.messages.at(-1)?.body || '', lastSenderName: room.messages.at(-1)?.senderName || '' };
 }
-function serialMessage(room, value) { const recipients = room.members.filter(member => member.active && member.userId !== value.senderId); return { ...value, recipientCount: recipients.length, deliveredCount: 0, readCount: recipients.filter(member => member.lastReadSequence >= value.sequence).length }; }
+function serialMessage(room, value) { const { deliveries, ...message } = value; return { ...message, recipientCount: deliveries.length, deliveredCount: deliveries.filter(item => item.delivered).length, readCount: deliveries.filter(item => item.read).length }; }
 const handler = async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'");
-  const portUser = req.socket.localPort === 4322 ? users[1] : users[0];
+  const portUser = req.socket.localPort === previewPorts[1] ? users[1] : users[0];
   const actor = users.find(user => req.headers.authorization === 'Bearer sample-' + user.userId) || portUser;
   const session = { userId: actor.userId, email: 'staff@example.test', fullName: actor.name, accessToken: 'sample-' + actor.userId, refreshToken: 'sample', accessTokenExpiresAt: '2099-01-01T00:00:00Z', permissions, roleCodes: ['HOSPITAL_ADMIN'], menuItems: [], hospitalName: 'Sample Hospital', tenantCode: 'chat-preview' };
   const reply = (data, status = 200, success = true, text = '') => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ success, statusCode: status, message: text, data })); };
@@ -72,11 +73,13 @@ const handler = async (req, res) => {
       const id = api.split('/')[3], conversation = rooms.find(value => value.id === id);
       if (!conversation || !member(conversation, actor)) return reply(null, 404, false, 'Conversation unavailable');
       if (api.endsWith('/members')) return reply(conversation.members.filter(member => member.active).map(member => ({ ...users.find(user => user.userId === member.userId), role: member.role, lastReadSequence: member.lastReadSequence, available: true })));
+      if (api.endsWith('/receipts')) return reply(conversation.messages.filter(message => message.senderId === actor.userId && body.messageIds.includes(message.id)).map(value => { const message = serialMessage(conversation, value); return { id: message.id, recipientCount: message.recipientCount, deliveredCount: message.deliveredCount, readCount: message.readCount }; }));
       if (api.endsWith('/messages') && req.method === 'GET') {
         const after = url.searchParams.get('after'), before = url.searchParams.get('before');
         let values = conversation.messages.filter(message => after ? message.sequence > +after : before ? message.sequence < +before : true);
         const limit = after !== null ? 100 : 50, hasMore = values.length > limit;
         values = after !== null ? values.slice(0, limit) : values.slice(-limit);
+        for (const value of values) { const delivery = value.deliveries.find(item => item.userId === actor.userId); if (delivery) delivery.delivered = true; }
         return reply({ items: values.map(value => serialMessage(conversation, value)), hasMore });
       }
       if (api.endsWith('/messages') && req.method === 'POST') {
@@ -88,7 +91,7 @@ const handler = async (req, res) => {
         if (mode === 'lost-ack') { failures.set(actor.userId, 'online'); return reply(null, 503, false, 'Synthetic acknowledgement loss after commit'); }
         return reply(serialMessage(conversation, value));
       }
-      if (api.endsWith('/read')) { member(conversation, actor).lastReadSequence = Math.max(member(conversation, actor).lastReadSequence, body.throughSequence); return reply({ read: true }); }
+      if (api.endsWith('/read')) { member(conversation, actor).lastReadSequence = Math.max(member(conversation, actor).lastReadSequence, body.throughSequence); for (const value of conversation.messages.filter(message => message.sequence <= body.throughSequence)) { const delivery = value.deliveries.find(item => item.userId === actor.userId); if (delivery) { delivery.delivered = true; delivery.read = true; } } return reply({ read: true }); }
       if (api.endsWith('/manage')) {
         const mine = member(conversation, actor);
         if (body.action !== 'LEAVE' && mine.role !== 'ADMIN') return reply(null, 403, false, 'Administrator required');
@@ -110,4 +113,4 @@ const handler = async (req, res) => {
   if (ext === '.js') return res.end(fs.readFileSync(file, 'utf8').replaceAll('https://auspira-tech-360-product-api.onrender.com/api/v1', '/api/v1'));
   fs.createReadStream(file).pipe(res);
 };
-for (const port of [4321, 4322]) http.createServer(handler).listen(port, '127.0.0.1', () => console.log(`Sample ${port === 4321 ? 'Alex' : 'Maya'} chat: http://127.0.0.1:${port}/fixture`));
+for (const port of previewPorts) http.createServer(handler).listen(port, '127.0.0.1', () => console.log(`Sample ${port === previewPorts[0] ? 'Alex' : 'Maya'} chat: http://127.0.0.1:${port}/fixture`));

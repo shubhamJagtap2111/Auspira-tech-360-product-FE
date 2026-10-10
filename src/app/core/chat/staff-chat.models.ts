@@ -15,6 +15,20 @@ export interface QueuedChatMessage {
 }
 export interface ChatResponse<T> { success: boolean; data: T | null; statusCode?: number; message?: string; }
 export interface ChatMessagePage { items: ChatMessage[]; hasMore: boolean; }
+export type ChatReceipt = Pick<ChatMessage, 'id' | 'recipientCount' | 'deliveredCount' | 'readCount'>;
+export function chatReceiptState(message: ChatReceipt): 'sent' | 'delivered' | 'read' {
+  if (message.recipientCount > 0 && message.readCount >= message.recipientCount) return 'read';
+  if (message.recipientCount > 0 && Math.max(message.deliveredCount, message.readCount) >= message.recipientCount) return 'delivered';
+  return 'sent';
+}
+export function mergeChatReceipts(messages: ChatMessage[], receipts: ChatReceipt[]): ChatMessage[] {
+  const updates = new Map(receipts.map(receipt => [receipt.id, receipt]));
+  return messages.map(message => {
+    const receipt = updates.get(message.id);
+    return receipt ? { ...message, recipientCount: receipt.recipientCount,
+      deliveredCount: Math.max(message.deliveredCount, receipt.deliveredCount), readCount: Math.max(message.readCount, receipt.readCount) } : message;
+  });
+}
 
 export function mergeChatMessages(existing: ChatMessage[], incoming: ChatMessage[]): ChatMessage[] {
   const key = (message: ChatMessage) => `${message.senderId}|${message.clientMessageId}`;
