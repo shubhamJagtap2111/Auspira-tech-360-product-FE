@@ -1,18 +1,21 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, HostListener, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { A11yModule } from '@angular/cdk/a11y';
 import { AcDropdownComponent } from '../dropdown/dropdown.component';
 import { ConfirmDialogState, DialogFormValues, DialogIntent, DialogService } from './dialog.service';
 
 @Component({
   selector: 'ac-confirm-dialog',
   standalone: true,
-  imports: [CommonModule, FormsModule, AcDropdownComponent],
+  imports: [CommonModule, FormsModule, AcDropdownComponent, A11yModule],
   template: `
     @if (dialogSvc.dialog(); as dialog) {
       <div class="dialog-backdrop" (click)="dismiss(dialog.dismissible)">
         <section
           class="dialog-card"
+          cdkTrapFocus
+          [cdkTrapFocusAutoCapture]="true"
           [ngClass]="'intent-' + dialog.intent"
           role="dialog"
           aria-modal="true"
@@ -75,7 +78,7 @@ import { ConfirmDialogState, DialogFormValues, DialogIntent, DialogService } fro
           }
 
           <div class="dialog-actions">
-            <button class="dialog-btn secondary" type="button" (click)="cancel()">
+            <button class="dialog-btn secondary" type="button" cdkFocusInitial (click)="cancel()">
               {{ dialog.cancelText }}
             </button>
             <button class="dialog-btn primary" type="button" [disabled]="!isValid(dialog)" (click)="confirm(dialog)" autofocus>

@@ -6,6 +6,8 @@ import { firstValueFrom } from 'rxjs';
 import { ApiClientService } from '../../core/http/api-client.service';
 import { AuthStore } from '../../core/auth/auth.store';
 import { BranchContextService } from '../../core/context/branch-context.service';
+import { DialogService } from '../../shared/ui/dialog/dialog.service';
+import { AcDropdownComponent } from '../../shared/ui/dropdown/dropdown.component';
 
 interface Response<T> { success: boolean; data: T | null; message: string; }
 interface Template { id: string; name: string; category: string; body: string; guidance: string; fields: string[]; custom: boolean; }
@@ -14,11 +16,12 @@ interface Doctor { id: string; name: string; registration: string; }
 interface Row { id: string; number: number; title: string; patient: string; mrn: string; status: string; branch: string; createdAt: string; }
 interface Document { id: string; number: number; patient_id: string; doctor_id: string; template_id: string; title: string; body: string; status: string; version: number; fields: Record<string,string>; snapshot: Record<string,string>; issued_at: string | null; created_at: string; cancelled_at: string | null; cancellation_reason: string; }
 
-@Component({ selector: 'app-certificates-page', standalone: true, imports: [CommonModule, FormsModule, A11yModule], templateUrl: './certificates-page.component.html', styleUrl: './certificates-page.component.css' })
+@Component({ selector: 'app-certificates-page', standalone: true, imports: [CommonModule, FormsModule, A11yModule, AcDropdownComponent], templateUrl: './certificates-page.component.html', styleUrl: './certificates-page.component.css' })
 export class CertificatesPageComponent {
   private readonly api = inject(ApiClientService);
   protected readonly auth = inject(AuthStore);
   protected readonly branch = inject(BranchContextService);
+  protected readonly dialogs = inject(DialogService);
   protected readonly templates = signal<Template[]>([]);
   protected readonly rows = signal<Row[]>([]);
   protected readonly patients = signal<Patient[]>([]);
@@ -33,6 +36,16 @@ export class CertificatesPageComponent {
   protected readonly selected = signal<Template | null>(null);
   protected readonly filtered = computed(() => this.templates().filter(t => (this.category() === 'All' || t.category === this.category()) && (t.name+' '+t.category).toLowerCase().includes(this.templateQuery().toLowerCase())));
   protected readonly categories = computed(() => ['All', ...new Set(this.templates().map(t => t.category))]);
+  protected readonly categoryOptions = computed(() => this.categories().map(c => ({label:c === 'All' ? 'All categories' : c,value:c})));
+  protected readonly doctorOptions = computed(() => this.doctors().map(d => ({label:`${d.name} · ${d.registration || 'Registration missing'}`,value:d.id})));
+  protected readonly patientOptions = computed(() => {
+    const options = this.patients().map(p => ({label:`${p.name} · ${p.mrn}`,value:p.id}));
+    const saved = this.saved();
+    if(saved && !options.some(p => p.value === saved.patient_id))options.push({label:`${saved.snapshot['patientName']} · ${saved.snapshot['mrn']}`,value:saved.patient_id});
+    return options;
+  });
+  protected readonly customCount = computed(() => this.templates().filter(t => t.custom).length);
+  protected readonly statusOptions = [{label:'All statuses',value:''},{label:'Draft',value:'DRAFT'},{label:'Issued',value:'ISSUED'},{label:'Cancelled',value:'CANCELLED'}];
   protected patientSearch = ''; protected registerSearch = ''; protected status = ''; protected page = 1; protected total = 0;
   protected patientId = ''; protected doctorId = ''; protected fields: Record<string,string> = {};
   protected confirmed = false; protected reason = ''; protected showCustom = false;
@@ -46,6 +59,11 @@ export class CertificatesPageComponent {
     effect(() => { this.branch.selectedBranchCode(); this.generation++; this.selected.set(null); this.saved.set(null); this.fields = {}; this.dirty = false; this.patients.set([]); this.doctors.set([]); this.rows.set([]); void this.load(); });
   }
   protected allowed(action: string) { return this.auth.hasPermission('Certificates.' + action); }
+  protected editorDisabled() { return this.busy() || !this.specificBranch() || !this.allowed(this.saved() ? 'Edit' : 'Create'); }
+  protected categoryIcon(category: string) { return ({'General':'description','Fitness':'health_and_safety','Leave & recovery':'medical_services','Travel':'flight','Hospital records':'local_hospital','Custom':'edit_note'} as Record<string,string>)[category] || 'article'; }
+  protected templateExcerpt(t: Template) { return t.body.replace(/\{([a-zA-Z][a-zA-Z0-9]*)\}/g,(_,key: string) => `[${this.label(key).toLowerCase()}]`); }
+  protected previewPatient() { const saved=this.saved(); if(saved && !this.dirty)return {name:saved.snapshot['patientName'],mrn:saved.snapshot['mrn']}; const p = this.patients().find(p => p.id === this.patientId); return {name:p?.name || saved?.snapshot['patientName'] || 'Select a patient',mrn:p?.mrn || saved?.snapshot['mrn'] || '—'}; }
+  protected previewDoctor() { const saved=this.saved(); if(saved && !this.dirty)return {name:saved.snapshot['doctorName'],registration:saved.snapshot['registration']}; const d = this.doctors().find(d => d.id === this.doctorId); return {name:d?.name || saved?.snapshot['doctorName'] || 'Certifying doctor',registration:d?.registration || saved?.snapshot['registration'] || '—'}; }
   protected specificBranch() { const code = this.branch.selectedBranchCode(); return !!code && !['ALL','NONE'].includes(code); }
   private async request<T>(method: 'get'|'post'|'put', path: string, body?: unknown): Promise<T> {
     const response = await firstValueFrom(method === 'get' ? this.api.get<Response<T>>(path) : method === 'put' ? this.api.put<Response<T>>(path,body) : this.api.post<Response<T>>(path,body));
@@ -72,8 +90,8 @@ export class CertificatesPageComponent {
     try { const patients = await this.request<Patient[]>('get','/certificates/patients?search='+encodeURIComponent(this.patientSearch)); if(generation === this.generation && request === this.patientGeneration)this.patients.set(patients); }
     catch(e) { this.error.set((e as Error).message); }
   }
-  protected choose(t: Template) {
-    if(this.dirty && !window.confirm('Discard unsaved certificate changes?'))return;
+  protected async choose(t: Template) {
+    if(!await this.confirmDiscard())return;
     this.selected.set(t); this.saved.set(null); this.fields = { hospitalName: this.branch.hospitalName(), examDate: this.today(), identificationMark: '', address: '' };
     this.patientId = ''; this.doctorId = ''; this.confirmed = false; this.reason = ''; this.dirty = false; this.error.set(''); this.notice.set(''); this.draftId = crypto.randomUUID();
     void this.searchPatients();
@@ -89,7 +107,7 @@ export class CertificatesPageComponent {
     await this.work(async () => { const old = this.saved(); const result = await this.request<{id:string}>(old ? 'put':'post','/certificates'+(old?'/'+old.id:''),{id:old?.id ?? this.draftId,patientId:this.patientId,doctorId:this.doctorId,templateId:this.selected()!.id,fields:this.fields,version:old?.version ?? 0}); await this.open(result.id,true); this.notice.set('Draft saved. Review the saved preview before issuing.'); await this.loadRegister(); });
   }
   protected async open(id: string, force = false) {
-    if(!force && this.dirty && !window.confirm('Discard unsaved certificate changes?'))return;
+    if(!force && !await this.confirmDiscard())return;
     const generation = this.generation;
     try { const d = await this.request<Document>('get','/certificates/'+id); if(generation !== this.generation)return; this.saved.set(d); this.selected.set(this.templates().find(t=>t.id===d.template_id) ?? {id:d.template_id,name:d.title,body:d.body,fields:[],category:'Archived',guidance:d.snapshot['guidance'],custom:false}); this.fields = {...d.fields}; this.patientId = d.patient_id; this.doctorId = d.doctor_id; this.dirty = false; this.confirmed = false; this.reason = ''; }
     catch(e) { this.error.set((e as Error).message); }
@@ -99,16 +117,21 @@ export class CertificatesPageComponent {
   protected async saveTemplate() { await this.work(async()=>{await this.request('post','/certificates/templates',{id:crypto.randomUUID(),name:this.customName,body:this.customBody,guidance:this.customGuidance}); this.showCustom=false; this.customName=''; this.customBody=''; this.customGuidance=''; await this.load(); this.notice.set('Custom template added to this branch.');}); }
   private async work(action:()=>Promise<void>) { if(this.busy())return; this.busy.set(true); this.error.set(''); this.notice.set(''); try {await action();}catch(e){this.error.set((e as Error).message);}finally{this.busy.set(false);} }
   protected async next(delta:number) { this.page+=delta; await this.loadRegister(); }
-  protected close() { if(this.dirty && !window.confirm('Discard unsaved certificate changes?'))return; this.selected.set(null); this.saved.set(null); this.dirty=false; }
+  protected async close() { if(!await this.confirmDiscard())return; this.selected.set(null); this.saved.set(null); this.dirty=false; }
+  private async confirmDiscard() {
+    if(this.dialogs.dialog())return false;
+    return !this.dirty || await this.dialogs.confirmDiscard('You have unsaved certificate changes. Discard them or keep editing this certificate.');
+  }
   hasUnsavedChanges() { return this.dirty; }
+  unsavedChangesMessage() { return 'You have unsaved certificate changes. Discard them or keep editing this certificate.'; }
   @HostListener('window:beforeunload', ['$event']) protected beforeUnload(event: BeforeUnloadEvent) { if(this.dirty){event.preventDefault();event.returnValue='';} }
-  @HostListener('document:keydown.escape') protected escape() { if(this.selected() && !this.busy())this.close(); }
+  protected escape(event: Event) { event.stopPropagation(); if(this.selected() && !this.busy() && !this.dialogs.dialog())void this.close(); }
   protected print() {
     const d = this.saved(); if(!d || this.dirty)return;
     const esc = (s:unknown) => String(s ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
     const frame = document.createElement('iframe'); frame.style.position='fixed';frame.style.width='0';frame.style.height='0';frame.style.border='0';document.body.appendChild(frame);
     const doc = frame.contentDocument!; const s=d.snapshot;
-    doc.open();doc.write(`<!doctype html><html><head><title>Certificate ${esc(d.number)}</title><style>@page{size:A4;margin:20mm}body{font:12pt Georgia,serif;color:#172b3a;line-height:1.65}header{text-align:center;border-bottom:2px solid #183e55;padding-bottom:18px}h1{font-size:22pt}h2{text-align:center;margin:30px 0}article{white-space:pre-wrap;overflow-wrap:anywhere}footer{margin-top:48px}.meta{display:flex;justify-content:space-between;font-size:10pt;margin:20px 0}.status{font-size:24pt;color:#a33;text-align:center}small{font-size:9pt}</style></head><body><header><h1>${esc(s['hospitalName'])}</h1>${esc(s['branch'])}</header>${d.status!=='ISSUED'?`<p class="status">${esc(d.status)} — NOT VALID FOR USE</p>`:''}<h2>${esc(d.title)}</h2><div class="meta"><span>Certificate: CERT-${esc(d.number)}</span><span>Date: ${esc(new Date(d.issued_at ?? d.created_at).toLocaleDateString())}</span></div><p>Patient: ${esc(s['patientName'])} · UHID: ${esc(s['mrn'])}<br>Address: ${esc(s['address'])}<br>Identification mark: ${esc(d.fields['identificationMark'])}</p><article>${esc(d.body)}</article><footer><p>_________________________<br>Dr. ${esc(s['doctorName'])}<br>${esc(s['qualification'])}<br>Registration: ${esc(s['registration'])}</p><p>Patient signature / thumb impression: _________________________</p><small>${esc(s['guidance'])}</small>${d.status==='CANCELLED'?`<p>Cancellation: ${esc(d.cancellation_reason)}</p>`:''}</footer></body></html>`);doc.close();
+    doc.open();doc.write(`<!doctype html><html><head><title>Certificate ${esc(d.number)}</title><style>@page{size:A4;margin:20mm}body{font:11pt Arial,Helvetica,sans-serif;color:#26345a;line-height:1.8}*{box-sizing:border-box}header{text-align:center;border-bottom:2px solid #2563eb;padding-bottom:20px;color:#172554}h1{font-size:22pt;letter-spacing:-.5pt;margin:0 0 6px}h2{text-align:center;margin:30px 0;font-size:16pt;color:#172554}article{white-space:pre-wrap;overflow-wrap:anywhere}footer{margin-top:48px;border-top:1px solid #e3e7f1;padding-top:18px}.meta{display:flex;justify-content:space-between;font-size:10pt;margin:20px 0}.status{font-size:16pt;color:#991b1b;text-align:center;border:1px solid #fecaca;padding:10px}small{font-size:9pt}</style></head><body><header><h1>${esc(s['hospitalName'])}</h1>${esc(s['branch'])}</header>${d.status!=='ISSUED'?`<p class="status">${esc(d.status)} — NOT VALID FOR USE</p>`:''}<h2>${esc(d.title)}</h2><div class="meta"><span>Certificate: CERT-${esc(d.number)}</span><span>Date: ${esc(new Date(d.issued_at ?? d.created_at).toLocaleDateString())}</span></div><p>Patient: ${esc(s['patientName'])} · UHID: ${esc(s['mrn'])}<br>Address: ${esc(s['address'])}<br>Identification mark: ${esc(d.fields['identificationMark'])}</p><article>${esc(d.body)}</article><footer><p>_________________________<br>Dr. ${esc(s['doctorName'])}<br>${esc(s['qualification'])}<br>Registration: ${esc(s['registration'])}</p><p>Patient signature / thumb impression: _________________________</p><small>${esc(s['guidance'])}</small>${d.status==='CANCELLED'?`<p>Cancellation: ${esc(d.cancellation_reason)}</p>`:''}</footer></body></html>`);doc.close();
     setTimeout(()=>{frame.contentWindow?.focus();frame.contentWindow?.print();setTimeout(()=>frame.remove(),60000);},250);
   }
   private today() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
