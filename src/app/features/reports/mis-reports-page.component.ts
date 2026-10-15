@@ -78,7 +78,7 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
           <ac-grid-loader title="Loading MIS reports..." message="Preparing management dashboard, catalogue, and filters." [compact]="true" />
         </section>
       } @else {
-        <section class="ac-kpi-grid" aria-label="Overview">
+        <section class="ac-kpi-grid" aria-label="Overview" tabindex="0" role="region">
           @for (card of summaryCards(); track card.label) {
             <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.color" [detail]="card.meta" [actionable]="true" (activated)="selectReportByKey(card.reportKey)" />
           }
@@ -132,7 +132,7 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
             @if (generating()) {
               <ac-grid-loader title="Generating MIS report..." message="Aggregating report metrics from hospital transactions." [compact]="true" />
             } @else {
-              <section class="ac-kpi-grid" aria-label="Report indicators">
+              <section class="ac-kpi-grid" aria-label="Report indicators" tabindex="0" role="region">
                 @for (kpi of generated.kpis; track kpi.label) {
                   <ac-kpi-card [label]="kpi.label" [value]="kpi.value" [icon]="kpi.icon" [tone]="kpi.color" [detail]="kpi.meta" />
                 }

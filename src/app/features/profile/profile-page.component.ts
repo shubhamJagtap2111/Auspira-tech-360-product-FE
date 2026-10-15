@@ -97,7 +97,7 @@ interface ProfilePreference {
             </div>
           </div>
         </div>
-        <div class="hero-stats">
+        <div class="hero-stats ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
           @for (s of heroStats(); track s.label) {
             <div class="hero-stat">
               <strong>{{ s.value }}</strong>

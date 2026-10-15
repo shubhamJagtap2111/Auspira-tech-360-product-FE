@@ -31,7 +31,7 @@ import { DatabaseManagementService } from './database-management.service';
       </header>
 
       @if (snapshot(); as model) {
-        <section class="stat-grid">
+        <section class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
           <article class="stat"><span class="material-symbols-rounded">database</span><p>Databases</p><strong>{{ model.summary.totalDatabases }}</strong></article>
           <article class="stat"><span class="material-symbols-rounded">verified</span><p>Healthy</p><strong>{{ model.summary.healthyDatabases }}</strong></article>
           <article class="stat"><span class="material-symbols-rounded">storage</span><p>Storage</p><strong>{{ model.summary.totalStorageGb }} GB</strong></article>

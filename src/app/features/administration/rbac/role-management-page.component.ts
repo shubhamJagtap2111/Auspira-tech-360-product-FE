@@ -42,7 +42,7 @@ interface PermissionGroupView {
         </div>
       </header>
 
-      <section class="stat-grid">
+      <section class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
         <article class="stat-card">
           <span class="material-symbols-rounded">admin_panel_settings</span>
           <div>

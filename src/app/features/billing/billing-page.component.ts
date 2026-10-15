@@ -57,7 +57,7 @@ type BillingDialog = 'charge-master' | 'charge' | 'invoice' | 'payment' | 'refun
         @switch (activeTab()) {
           @case ('dashboard') {
             @if (dashboard(); as model) {
-              <section class="ac-kpi-grid" aria-label="Workspace overview">
+              <section class="ac-kpi-grid" aria-label="Workspace overview" tabindex="0" role="region">
         @for (card of dashboardCards(model); track card.label) {
           <ac-kpi-card [label]="card.label" [value]="money(card.value)" [icon]="card.icon" [tone]="card.color" [detail]="card.meta" [pending]="loading()"  />
         }
@@ -141,7 +141,7 @@ type BillingDialog = 'charge-master' | 'charge' | 'invoice' | 'payment' | 'refun
           }
 
           @case ('payments') {
-            <section class="ac-kpi-grid" aria-label="Collection overview"><ac-kpi-card label="Completed collections" [value]="money(completedCollections())" icon="payments" [detail]="completedPaymentCount() + ' transactions'" /><ac-kpi-card label="Today" [value]="money(todayPayments())" icon="account_balance_wallet" tone="var(--ac-teal)" detail="Across all payment modes" /></section>
+            <section class="ac-kpi-grid" aria-label="Collection overview" tabindex="0" role="region"><ac-kpi-card label="Completed collections" [value]="money(completedCollections())" icon="payments" [detail]="completedPaymentCount() + ' transactions'" /><ac-kpi-card label="Today" [value]="money(todayPayments())" icon="account_balance_wallet" tone="var(--ac-teal)" detail="Across all payment modes" /></section>
             <section class="panel"><div class="panel-head"><div><p class="ac-eyebrow">Collection Ledger</p><h2>Payments</h2></div></div><div class="table-wrap"><table><thead><tr><th>Payment</th><th>Patient</th><th>Invoice</th><th>Date</th><th>Mode</th><th>Amount</th><th>Status</th><th>Receipt</th></tr></thead><tbody>
               @for (payment of payments(); track payment.id) { <tr><td><strong>{{ payment.paymentNo }}</strong><small>{{ payment.collectedBy || 'Billing desk' }}</small></td><td>{{ payment.patientName }}</td><td><button class="row-link" type="button" (click)="viewInvoiceById(payment.invoiceId)">{{ payment.invoiceNo }}</button></td><td>{{ payment.paidAt | date:'medium' }}</td><td>{{ titleCase(payment.paymentMode) }}<small>{{ payment.referenceNumber || 'No reference' }}</small></td><td><strong>{{ money(payment.amount) }}</strong></td><td><span class="status" [class]="statusClass(payment.statusCode)">{{ statusLabel(payment.statusCode) }}</span></td><td>@if(payment.receiptId){<button class="icon-btn" type="button" (click)="printReceiptById(payment.receiptId)" title="Print receipt"><span class="material-symbols-rounded">print</span></button>} @if(payment.statusCode==='COMPLETED'){<button class="icon-btn danger" type="button" (click)="reversePayment(payment)" title="Reverse payment"><span class="material-symbols-rounded">undo</span></button>}</td></tr> }
               @empty { <tr><td colspan="8"><div class="empty">No payments recorded.</div></td></tr> }

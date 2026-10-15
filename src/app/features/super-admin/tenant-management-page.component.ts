@@ -78,7 +78,7 @@ interface TenantTabItem {
         </button>
       </section>
 
-      <section class="stat-grid">
+      <section class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
         @for (stat of stats(); track stat.label) {
           <article class="stat" [style.--tone]="stat.tone">
             <span class="material-symbols-rounded">{{ stat.icon }}</span>

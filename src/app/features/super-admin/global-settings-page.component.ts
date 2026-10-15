@@ -42,7 +42,7 @@ const categories = [
       </header>
 
       @if (snapshot(); as model) {
-        <section class="stat-grid">
+        <section class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
           <article class="stat"><span class="material-symbols-rounded">tune</span><p>Settings</p><strong>{{ model.summary.totalSettings }}</strong></article>
           <article class="stat"><span class="material-symbols-rounded">key</span><p>Secrets</p><strong>{{ model.summary.encryptedSettings }}</strong></article>
           <article class="stat"><span class="material-symbols-rounded">public</span><p>Countries</p><strong>{{ model.summary.countries }}</strong></article>

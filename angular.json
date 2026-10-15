@@ -40,7 +40,8 @@
               "src/enterprise-theme.css",
               "src/administration.css",
               "src/workspace-design.css",
-              "src/dashboard-design.css"
+              "src/dashboard-design.css",
+              "src/kpi-design.css"
             ],
             "allowedCommonJsDependencies": [
               "qrcode"

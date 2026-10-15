@@ -96,7 +96,7 @@ interface HospitalPulseItem {
 
       @if (dashboard(); as model) {
         @if (isHospitalAdmin()) {
-          <section class="ac-kpi-grid" aria-label="Hospital overview">
+          <section class="ac-kpi-grid" aria-label="Hospital overview" tabindex="0" role="region">
             @for (card of createOperationalCards(model.operationalSummary); track card.label) {
               <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.tone" [detail]="card.subLabel" />
             }
@@ -356,7 +356,7 @@ interface HospitalPulseItem {
             </div>
           </section>
         } @else {
-          <section class="ac-kpi-grid" aria-label="Hospital overview">
+          <section class="ac-kpi-grid" aria-label="Hospital overview" tabindex="0" role="region">
             @for (card of createStaffCards(model.summary); track card.label) {
               <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.tone" [detail]="card.subLabel" />
             }

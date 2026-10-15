@@ -63,7 +63,7 @@ type PlanTab = 'plans' | 'features' | 'pricing' | 'limits';
       </nav>
 
       @if (catalog(); as model) {
-        <section class="stat-grid">
+        <section class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
           <article class="stat">
             <span class="material-symbols-rounded">workspace_premium</span>
             <p>Plans</p>

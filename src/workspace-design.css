@@ -6,7 +6,7 @@
 .ac-workspace.ac-workspace .ac-workspace-head p:last-child { margin:0; max-width:720px; font-size:13px; line-height:1.6; color:var(--ac-muted); }
 .main-content .ac-workspace.ac-workspace .ac-workspace-head :is(.ac-eyebrow,.eyebrow) { margin:0 0 5px; color:var(--ac-secondary); font-size:10px; font-weight:750; letter-spacing:.09em; text-transform:uppercase; }
 .ac-workspace.ac-workspace .ac-workspace-head :is(.header-actions,.head-actions,.page-actions,.actions) { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:8px; flex:none; }
-.ac-kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr)); gap:12px; min-width:0; }
+/* KPI strip layout is shared with older module metrics in kpi-design.css. */
 .ac-workspace.ac-workspace .ac-workspace-tabs { display:flex; align-items:center; gap:4px; width:100%; min-width:0; overflow-x:auto; scrollbar-width:thin; padding:6px; margin:0; border:1px solid var(--ac-border); border-radius:12px; background:var(--ac-surface); box-shadow:var(--ac-sh-xs); }
 .ac-workspace.ac-workspace .ac-workspace-tabs > button { display:inline-flex; flex:none; justify-content:center; align-items:center; gap:7px; min-height:40px; height:auto; padding:9px 13px; border:1px solid transparent; border-radius:8px; background:transparent; color:var(--ac-muted); font:inherit; font-size:12px; font-weight:650; white-space:nowrap; cursor:pointer; }
 .ac-workspace.ac-workspace .ac-workspace-tabs > button:is(.active,.selected) { background:var(--ac-secondary-light); color:var(--ac-secondary); border-color:color-mix(in srgb,var(--ac-secondary) 20%,var(--ac-border)); box-shadow:none; }
@@ -26,8 +26,6 @@
   .ac-workspace.ac-workspace > .ac-workspace-head { gap:12px; padding-bottom:16px; }
   .ac-workspace.ac-workspace .ac-workspace-head :is(.header-actions,.head-actions,.actions) { width:100%; flex-wrap:wrap; }
   .ac-workspace.ac-workspace .ac-workspace-head .ac-btn { flex:1 1 auto; justify-content:center; min-height:42px; padding:9px 12px; }
-  .ac-kpi-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
   .ac-workspace.ac-workspace .ac-workspace-tabs { border-radius:10px; }
   .ac-workspace.ac-workspace .ac-workspace-tabs > button { min-height:42px; padding:9px 11px; }
 }
-@media(max-width:359px) { .ac-kpi-grid { grid-template-columns:1fr; } }

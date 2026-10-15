@@ -52,7 +52,7 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
             </div>
           </div>
 
-          <section class="overview-grid summary-kpis">
+          <section class="overview-grid summary-kpis ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
             @for (card of overviewCards(); track card.label) {
               <article class="metric-card">
                 <span class="material-symbols-rounded" [style.color]="card.color">{{ card.icon }}</span>
@@ -117,7 +117,7 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
                     <small>{{ criticalAlerts(currentPatient) }} critical</small>
                   </div>
 
-                  <div class="safety-metric-grid">
+                  <div class="safety-metric-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
                     <span>
                       <small>Active allergies</small>
                       <strong>{{ currentPatient.overview.activeAllergies }}</strong>

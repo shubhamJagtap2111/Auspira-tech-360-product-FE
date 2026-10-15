@@ -83,7 +83,7 @@ import { LabReport } from '../laboratory/laboratory.models';
         </div>
       </header>
 
-      <section class="ac-kpi-grid" aria-label="Workspace overview">
+      <section class="ac-kpi-grid" aria-label="Workspace overview" tabindex="0" role="region">
         @for (card of statCards(); track card.label) {
           <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.color" [detail]="card.meta" [pending]="loading()" [actionable]="true" (activated)="openStatCard(card.tab)" />
         }

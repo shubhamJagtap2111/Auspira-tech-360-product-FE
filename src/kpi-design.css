@@ -1,0 +1,124 @@
+/* Compact KPI strips across hospital and platform workspaces.
+   Only designated metric containers opt in; clinical forms, charts and print grids retain their layout. */
+.main-content .ac-kpi-grid.ac-kpi-grid,
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis {
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 2px 0 8px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ac-border-2) transparent;
+  scroll-snap-type: x proximity;
+}
+.main-content .ac-kpi-grid.ac-kpi-grid > *,
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis > * {
+  flex: 1 0 144px;
+  min-width: 144px;
+  max-width: 210px;
+  margin: 0;
+  scroll-snap-align: start;
+}
+.main-content .ac-kpi-grid.ac-kpi-grid > ac-kpi-card { height: auto; }
+.main-content :is(.ac-kpi-grid,.ac-compact-kpis):focus-visible { outline: 2px solid var(--ac-primary); outline-offset: 2px; border-radius: 10px; }
+
+/* Older module KPIs use nested copy or direct label/value children. */
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis > :is(article,button,div,span) {
+  box-sizing: border-box;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0,1fr) 26px;
+  align-content: center;
+  align-items: center;
+  gap: 3px 8px;
+  min-height: 88px;
+  height: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--ac-border);
+  border-radius: 10px;
+  color: var(--ac-text);
+  background: var(--ac-surface);
+  box-shadow: 0 2px 8px color-mix(in srgb,var(--ac-text) 3%,transparent);
+  text-align: left;
+}
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis > :is(article,button,div,span):has(>div),
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis.ipd-overview-strip > button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis > * > :is(div,span:not(.material-symbols-rounded)) { min-width: 0; }
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis > * :is(strong,b:not(header b)) {
+  display: block;
+  margin: 0;
+  font-size: 21px;
+  font-weight: 750;
+  line-height: 1.15;
+  letter-spacing: -.4px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis > * :is(p,small,em) {
+  display: block;
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.45;
+  font-style: normal;
+  color: var(--ac-muted);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis > * > div { display: grid; gap: 3px; }
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis > * > .material-symbols-rounded,
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis > * > header > .material-symbols-rounded {
+  position: static;
+  display: grid;
+  place-items: center;
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  padding: 0;
+  border-radius: 7px;
+  font-size: 16px;
+  color: var(--compact-kpi-tone,var(--tone,var(--ac-primary)));
+  background: color-mix(in srgb,var(--compact-kpi-tone,var(--tone,var(--ac-primary))) 9%,var(--ac-surface));
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis > * > p { grid-column: 1; grid-row: 1; }
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis > * > strong { grid-column: 1; grid-row: 2; }
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis > * > small { grid-column: 1 / -1; grid-row: 3; }
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis > *:has(>header) { grid-template-columns: minmax(0,1fr); }
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis > * > header { display: flex; justify-content: space-between; grid-column: 1; grid-row: 1; gap: 6px; font-size: 10px; }
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis > *:has(>header) > p { grid-row: 3; }
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis > *:has(>header) > small { grid-row: 4; }
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis > *::before { display: none; }
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis > button { cursor: pointer; }
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis > button:hover:not(:disabled) { border-color: var(--ac-primary); background: var(--ac-primary-light); transform: none; }
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis > button.active { border-color: var(--ac-primary); background: var(--ac-primary-light); }
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis > button:focus-visible { outline: 2px solid var(--ac-primary); outline-offset: -2px; }
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis.ipd-overview-strip strong em { display: inline; font-size: 12px; }
+.main-content :is(.summary-kpis,.hero-stats,.safety-metric-grid).ac-compact-kpis > :is(article,div,span) { min-height: 64px; }
+.main-content .hero-stats.ac-compact-kpis .hero-stat > span { font-size: 10px; color: var(--ac-muted); }
+.main-content .safety-metric-grid.ac-compact-kpis > span { grid-template-columns: 1fr; }
+.main-content .safety-metric-grid.ac-compact-kpis > span > small { grid-row: 1; }
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis :is(.amber,.warning) { --compact-kpi-tone: var(--ac-warning-text); }
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis :is(.green,.healthy,.success) { --compact-kpi-tone: var(--ac-success-text); }
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis :is(.red,.danger,.failed,.critical) { --compact-kpi-tone: var(--ac-error-text); }
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis :is(.purple,.violet) { --compact-kpi-tone: var(--ac-secondary); }
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis .teal { --compact-kpi-tone: var(--ac-teal); }
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis > :is(.failed,.critical,.danger) { border-color: color-mix(in srgb,var(--ac-error) 40%,var(--ac-border)); }
+
+@media(max-width:600px) {
+  .main-content .ac-kpi-grid.ac-kpi-grid,
+  .main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis { gap: 8px; }
+  .main-content .ac-kpi-grid.ac-kpi-grid > *,
+  .main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis > * { flex-basis: 152px; min-width: 152px; max-width: 185px; }
+}

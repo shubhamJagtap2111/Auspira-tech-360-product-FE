@@ -37,7 +37,7 @@ type BillingTab = 'invoices' | 'payments' | 'taxes' | 'gst' | 'refunds' | 'credi
       </header>
 
       @if (snapshot(); as model) {
-        <section class="stat-grid">
+        <section class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
           <article class="stat"><span class="material-symbols-rounded">receipt_long</span><p>Open Invoices</p><strong>{{ money(model.summary.openInvoiceAmount, model.summary.currencyCode) }}</strong></article>
           <article class="stat"><span class="material-symbols-rounded">payments</span><p>Paid</p><strong>{{ money(model.summary.paidAmount, model.summary.currencyCode) }}</strong></article>
           <article class="stat"><span class="material-symbols-rounded">percent</span><p>Tax / GST</p><strong>{{ money(model.summary.taxCollected, model.summary.currencyCode) }}</strong></article>

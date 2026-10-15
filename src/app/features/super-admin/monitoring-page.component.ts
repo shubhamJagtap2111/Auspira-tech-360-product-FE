@@ -29,7 +29,7 @@ import { MonitoringService } from './monitoring.service';
       </header>
 
       @if (snapshot(); as model) {
-        <section class="metric-grid">
+        <section class="metric-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
           @for (card of visibleMetricCards(); track card.key) {
             <article class="metric-card" [class]="statusClass(card.status)">
               <header>

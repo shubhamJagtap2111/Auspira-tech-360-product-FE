@@ -87,7 +87,7 @@ type QualityTab = 'dashboard' | 'indicators' | 'audits' | 'events' | 'builder';
         </section>
       } @else if (dashboard(); as model) {
         @if (activeTab() === 'dashboard') {
-          <section class="ac-kpi-grid" aria-label="Overview">
+          <section class="ac-kpi-grid" aria-label="Overview" tabindex="0" role="region">
           @for (card of dashboardCards(model); track card.label) {
             <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.color" [detail]="card.meta"  />
           }

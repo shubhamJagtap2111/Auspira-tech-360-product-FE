@@ -54,7 +54,7 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
             </div>
           </div>
 
-          <section class="overview-grid summary-kpis">
+          <section class="overview-grid summary-kpis ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
             @for (card of overviewCards(); track card.label) {
               <article class="metric-card">
                 <span class="material-symbols-rounded" [style.color]="card.color">{{ card.icon }}</span>

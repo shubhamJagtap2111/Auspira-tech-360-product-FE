@@ -30,7 +30,7 @@ interface KpiCard {
       </header>
 
       @if (dashboard(); as model) {
-        <section class="kpi-grid">
+        <section class="kpi-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
           @for (card of createCards(model.summary); track card.label) {
             <article class="metric" [style.--tone]="card.tone">
               <span class="material-symbols-rounded">{{ card.icon }}</span>

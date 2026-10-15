@@ -31,7 +31,7 @@ import { NotificationCenterSnapshot, NotificationTemplateItem } from './notifica
       </header>
 
       @if (snapshot(); as model) {
-        <section class="stat-grid">
+        <section class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
           <article class="stat"><span class="material-symbols-rounded">campaign</span><p>Campaigns</p><strong>{{ model.summary.totalCampaigns }}</strong></article>
           <article class="stat"><span class="material-symbols-rounded">mark_email_read</span><p>Sent</p><strong>{{ model.summary.sentCampaigns }}</strong></article>
           <article class="stat"><span class="material-symbols-rounded">event_upcoming</span><p>Scheduled</p><strong>{{ model.summary.scheduledCampaigns }}</strong></article>

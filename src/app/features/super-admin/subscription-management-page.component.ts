@@ -52,7 +52,7 @@ type SubscriptionTab = 'subscriptions' | 'invoices' | 'payments' | 'renewals' | 
       </nav>
 
       @if (snapshot(); as model) {
-        <section class="stat-grid">
+        <section class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
           <article class="stat">
             <span class="material-symbols-rounded">autorenew</span>
             <p>Subscriptions</p>

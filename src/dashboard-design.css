@@ -26,11 +26,11 @@
   line-height: 1.4;
 }
 .ac-dashboard.ac-dashboard :is(.kpi-card, .metric, .staff-kpi, .metric-card) {
-  border-radius: 16px;
-  box-shadow: var(--dash-shadow);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--ac-text) 3%, transparent);
   font-variant-numeric: tabular-nums;
 }
-.ac-dashboard.ac-dashboard :is(.kpi-grid, .staff-kpi-grid, .metric-grid, .ac-kpi-grid) { gap: 14px; }
+.ac-dashboard.ac-dashboard :is(.kpi-grid, .staff-kpi-grid, .metric-grid, .ac-kpi-grid) { gap: 10px; }
 .ac-dashboard.ac-dashboard .ac-workspace-tabs { border-radius: 14px; padding: 7px; }
 .ac-dashboard.ac-dashboard .ac-workspace-tabs > button { border-radius: 10px; }
 .ac-dashboard.ac-dashboard :is(.chart-legend, .mix-list) { font-variant-numeric: tabular-nums; }

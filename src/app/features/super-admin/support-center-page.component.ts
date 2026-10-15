@@ -31,7 +31,7 @@ import { SupportCenterService } from './support-center.service';
       </header>
 
       @if (snapshot(); as model) {
-        <section class="stat-grid">
+        <section class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
           <article class="stat"><span class="material-symbols-rounded">confirmation_number</span><p>Tickets</p><strong>{{ model.summary.totalTickets }}</strong></article>
           <article class="stat"><span class="material-symbols-rounded">pending_actions</span><p>Open</p><strong>{{ model.summary.openTickets }}</strong></article>
           <article class="stat"><span class="material-symbols-rounded">priority_high</span><p>Critical</p><strong>{{ model.summary.criticalTickets }}</strong></article>

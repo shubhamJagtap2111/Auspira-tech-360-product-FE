@@ -41,7 +41,7 @@ const permissions = {
         </div>
       </header>
 
-      <section class="stat-grid">
+      <section class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
         <article class="stat-card">
           <span class="material-symbols-rounded">account_tree</span>
           <div>

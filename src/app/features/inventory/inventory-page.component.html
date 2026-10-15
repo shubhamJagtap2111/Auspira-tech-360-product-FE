@@ -9,7 +9,7 @@
   @if(error()){<div class="error" role="alert">{{error()}} <button class="ac-btn ac-btn-secondary" (click)="load()">Retry</button></div>}
   @if(loading()){<div class="loading" role="status"><span class="spinner"></span>Loading inventory…</div>}
   @if(!error()){
-    <section class="ac-kpi-grid" aria-label="Inventory overview">
+    <section class="ac-kpi-grid" aria-label="Inventory overview" tabindex="0" role="region">
       <ac-kpi-card label="Stock items" [value]="data().items.length" icon="inventory_2" detail="Items in the stores register" [pending]="loading()" [actionable]="true" (activated)="choose('items')" />
       <ac-kpi-card label="Replenishment needed" [value]="lowStock().length" icon="warning" tone="var(--ac-warning-text)" detail="At or below reorder level" [pending]="loading()" [actionable]="true" (activated)="choose('items');state.set('LOW')" />
       <ac-kpi-card label="Open purchase orders" [value]="openOrders().length" icon="shopping_cart" tone="var(--ac-secondary)" detail="Orders awaiting fulfilment" [pending]="loading()" [actionable]="true" (activated)="choose('orders')" />

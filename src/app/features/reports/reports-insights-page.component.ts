@@ -79,7 +79,7 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
           <ac-grid-loader title="Loading reports..." message="Preparing dashboard metrics, report catalog, and filter lists." [compact]="true" />
         </section>
       } @else if (workspace(); as model) {
-        <section class="ac-kpi-grid" aria-label="Overview">
+        <section class="ac-kpi-grid" aria-label="Overview" tabindex="0" role="region">
           @for (card of summaryCards(); track card.label) {
             <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.color" [detail]="card.meta" [actionable]="true" (activated)="openSummaryRoute(card.route)" />
           }
@@ -113,7 +113,7 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
             @if (generating()) {
               <ac-grid-loader title="Generating report..." message="Aggregating report data from module transactions." [compact]="true" />
             } @else {
-              <section class="ac-kpi-grid" aria-label="Report indicators">
+              <section class="ac-kpi-grid" aria-label="Report indicators" tabindex="0" role="region">
                 @for (kpi of generated.kpis; track kpi.label) {
                   <ac-kpi-card [label]="kpi.label" [value]="kpi.value" [icon]="kpi.icon" [tone]="kpi.color" [detail]="kpi.meta" />
                 }

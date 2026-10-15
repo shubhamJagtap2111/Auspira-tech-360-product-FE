@@ -42,7 +42,7 @@ type WizardStep = 'basic' | 'plan' | 'database' | 'admin' | 'features' | 'review
       </header>
 
       @if (snapshot(); as model) {
-        <section class="stat-grid">
+        <section class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
           <article class="stat">
             <span class="material-symbols-rounded">deployed_code</span>
             <p>Provision Jobs</p>

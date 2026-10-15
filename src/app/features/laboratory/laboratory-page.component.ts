@@ -35,7 +35,7 @@ type PendingReportOrder = LabOrder & { processingCount: number; verificationCoun
       @else {
         @switch(activeTab()){
           @case('dashboard'){
-            <section class="ac-kpi-grid" aria-label="Workspace overview">
+            <section class="ac-kpi-grid" aria-label="Workspace overview" tabindex="0" role="region">
         @for (card of dashboardCards(); track card.label) {
           <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.tab === 'critical' ? 'var(--ac-error)' : 'var(--ac-primary)'" [detail]="card.meta" [pending]="loading()" [actionable]="true" (activated)="setActiveTab(card.tab)" />
         }

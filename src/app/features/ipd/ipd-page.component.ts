@@ -101,7 +101,7 @@ interface IpdDetailTabItem {
 
       @if (workspace(); as model) {
         @if (!activePatientDetailOpen()) {
-        <section class="ipd-overview-strip" aria-label="Inpatient overview">
+        <section class="ipd-overview-strip ac-compact-kpis" aria-label="Inpatient overview" tabindex="0" role="region">
           <button type="button" (click)="setTab('patients')"><span class="ipd-overview-icon material-symbols-rounded" aria-hidden="true">personal_injury</span><span><small>Active patients</small><strong>{{ model.summary.currentAdmissions }}</strong></span></button>
           <button type="button" (click)="setTab('beds')"><span class="ipd-overview-icon teal material-symbols-rounded" aria-hidden="true">bed</span><span><small>Available beds</small><strong>{{ model.summary.availableBeds }}<em> / {{ model.summary.totalBeds }}</em></strong></span></button>
           <button type="button" (click)="setTab('admissions')"><span class="ipd-overview-icon purple material-symbols-rounded" aria-hidden="true">person_add</span><span><small>Admitted today</small><strong>{{ model.summary.admissionsToday }}</strong></span></button>
