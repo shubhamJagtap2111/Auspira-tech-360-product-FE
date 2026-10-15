@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, HostListener, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { RouterLink, RouterLinkActive, RouterOutlet, Router, NavigationCancel, NavigationEnd, NavigationError } from '@angular/router';
+import { RouterLink, RouterLinkActive, RouterOutlet, Router, NavigationStart, NavigationCancel, NavigationEnd, NavigationError } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { A11yModule } from '@angular/cdk/a11y';
 import { filter, map, startWith } from 'rxjs';
@@ -2096,10 +2096,21 @@ export class AppShellComponent implements OnInit {
     document.documentElement.classList.toggle('dark', this.dark());
     this.aiMessages.set(this.loadAiConversation());
     this.aiChatHistory.set(this.loadAiConversationHistory());
+    const supportNavigations = new Set<number>();
     this.router.events
-      .pipe(filter(event => event instanceof NavigationEnd || event instanceof NavigationCancel || event instanceof NavigationError))
+      .pipe(filter(event => event instanceof NavigationStart || event instanceof NavigationEnd || event instanceof NavigationCancel || event instanceof NavigationError))
       .subscribe(event => {
-        this.appLoader.reset();
+        if (event instanceof NavigationStart) {
+          const destination = event.url.split(/[?#]/)[0];
+          const current = this.router.url.split(/[?#]/)[0];
+          if ((destination === '/support' || destination === '/documentation') && destination !== current) {
+            supportNavigations.add(event.id);
+            this.appLoader.showImmediate();
+          }
+          return;
+        }
+        if (supportNavigations.delete(event.id)) this.appLoader.hide();
+        else this.appLoader.reset();
         if (event instanceof NavigationEnd) {
           this.closeMobileNavigation();
           sessionStorage.removeItem(CHUNK_RECOVERY_STORAGE_KEY);

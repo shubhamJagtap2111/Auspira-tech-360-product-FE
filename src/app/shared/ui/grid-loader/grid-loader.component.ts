@@ -12,7 +12,7 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
             <polyline points="0.157 23.954, 14 23.954, 21.843 48, 43 0, 50 24, 64 24" class="front"></polyline>
           </svg>
         </div>
-        <span>Working securely...</span>
+        <span role="status">{{ title }}</span>
       </div>
     </div>
   `,

@@ -9,8 +9,9 @@ import { API_BASE_URL } from '../../core/http/api-endpoints';
 import { HelpCenterService } from './help-center.service';
 import { HelpActivity, HelpDetail, HelpResponse, HelpTicket, HelpWorkspace, TicketDraft, ticketTransitions, validTicket } from './help-center.models';
 import { HelpArticle, helpArticles, implementationTasks } from './help-center.articles';
+import { AcGridLoaderComponent } from '../../shared/ui/grid-loader/grid-loader.component';
 
-@Component({standalone:true, imports:[CommonModule,FormsModule,RouterLink,A11yModule], changeDetection:ChangeDetectionStrategy.OnPush,
+@Component({standalone:true, imports:[CommonModule,FormsModule,RouterLink,A11yModule,AcGridLoaderComponent], changeDetection:ChangeDetectionStrategy.OnPush,
   templateUrl:'./help-center-page.component.html',styleUrl:'./help-center-page.component.css'})
 export class HelpCenterPageComponent {
   private readonly api = inject(HelpCenterService);
@@ -56,7 +57,7 @@ export class HelpCenterPageComponent {
     effect(()=>{
       const scope=[this.baseUrl,this.auth.session()?.tenantCode??'',this.userId(),this.branch.selectedBranchCode()??''].join('|');
       if(scope===this.scope)return;
-      this.scope=scope; this.version++; this.workspace.set(null); this.detail.set(null); this.newOpen.set(false); this.error.set(''); this.notice.set(''); this.page=1;
+      this.scope=scope; this.version++; this.workspace.set(null); this.detail.set(null); this.loading.set(false); this.detailLoading.set(false); this.newOpen.set(false); this.error.set(''); this.notice.set(''); this.page=1;
       this.replyBody=''; this.checked.set(this.readStorage<string[]>('checklist',[]));
       if(this.userId()&&this.branch.selectedBranchCode())void this.load();
     });
@@ -79,13 +80,15 @@ export class HelpCenterPageComponent {
       this.workspace.set(response.data);this.error.set('');
       const id=this.detail()?.ticket.id??this.route.snapshot.queryParamMap.get('ticket');
       if(id&&/^[0-9a-f-]{36}$/i.test(id))await this.open(id,quiet);
-    }finally{if(version===this.version&&load===this.loadVersion)this.loading.set(false);}
+    }catch{if(version===this.version&&load===this.loadVersion)this.error.set('Help Center could not connect. Your draft is preserved.');}
+    finally{if(version===this.version&&load===this.loadVersion)this.loading.set(false);}
   }
   filtersChanged():void{this.page=1;void this.load();}
   searchChanged():void{window.clearTimeout(this.searchTimer);this.searchTimer=window.setTimeout(()=>this.filtersChanged(),300);}
   async open(id:string,quiet=false):Promise<void>{
     const version=this.version, detailVersion=++this.detailVersion;
     if(!quiet){this.detailLoading.set(true);this.detail.set(null);}
+    try {
     const response=await this.api.detail(id);
     if(version!==this.version||detailVersion!==this.detailVersion)return;
     this.detailLoading.set(false);
@@ -95,6 +98,8 @@ export class HelpCenterPageComponent {
     if(!quiet||!previous){this.updateStatus=response.data.ticket.status;this.updatePriority=response.data.ticket.priority;this.updateAssignee=response.data.ticket.assigneeId??'';this.updateResolution=response.data.ticket.resolution;this.updateRequest=crypto.randomUUID();this.updateVersion=response.data.ticket.version;}
     if(!quiet){const draft=this.readStorage<{body:string;requestId:string}>('reply:'+id,{body:'',requestId:crypto.randomUUID()});this.replyBody=draft.body;this.replyRequest=draft.requestId;
       void this.router.navigate([],{relativeTo:this.route,queryParams:{ticket:id},queryParamsHandling:'merge',replaceUrl:true});}
+    }catch{if(version===this.version&&detailVersion===this.detailVersion)this.error.set('This ticket could not load. Please try again.');}
+    finally{if(version===this.version&&detailVersion===this.detailVersion)this.detailLoading.set(false);}
   }
   close():void{this.detailVersion++;this.detail.set(null);this.detailLoading.set(false);void this.router.navigate([],{relativeTo:this.route,queryParams:{ticket:null},queryParamsHandling:'merge',replaceUrl:true});}
   startTicket(category='TECHNICAL'):void{this.draft=this.readStorage<TicketDraft>('new',this.emptyDraft());if(category!=='TECHNICAL'){this.draft.category=category;this.draftChanged();}this.newOpen.set(true);}
