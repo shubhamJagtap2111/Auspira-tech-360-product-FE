@@ -2212,6 +2212,7 @@ export class AppShellComponent implements OnInit {
         { path: '/patients',     label: 'Patients',     icon: 'people' },
         { path: '/doctors',      label: 'Doctors',      icon: 'medical_services' },
         { path: '/appointments', label: 'Appointments', icon: 'event' },
+        { path: '/certificates', label: 'Certificates', icon: 'workspace_premium', requiredPermission: 'Certificates.View' },
         { path: '/opd',          label: 'OPD',          icon: 'local_hospital' },
         { path: '/ipd',          label: 'IPD',          icon: 'king_bed' },
       ]
