@@ -2225,6 +2225,8 @@ export class AppShellComponent implements OnInit {
         { path: '/appointments', label: 'Appointments', icon: 'event' },
         { path: '/certificates', label: 'Certificates', icon: 'workspace_premium', requiredPermission: 'Certificates.View' },
         { path: '/opd',          label: 'OPD',          icon: 'local_hospital' },
+        { path: '/orders', label: 'Clinical Orders', icon: 'assignment', requiredPermission: 'Orders.View' },
+        { path: '/inpatient-care', label: 'Inpatient Care', icon: 'clinical_notes', requiredPermission: 'InpatientCare.View' },
         { path: '/ipd',          label: 'IPD',          icon: 'king_bed' },
       ]
     },
@@ -2232,8 +2234,10 @@ export class AppShellComponent implements OnInit {
       label: 'Operations',
       items: [
         { path: '/laboratory', label: 'Laboratory', icon: 'biotech' },
+        { path: '/laboratory-operations', label: 'Laboratory operations', icon: 'science', requiredPermission:'InpatientCare.View' },
         { path: '/pharmacy',   label: 'Pharmacy',   icon: 'medication', requiredPermission: 'Pharmacy.View' },
         { path: '/billing',    label: 'Billing',    icon: 'receipt_long', requiredPermission: 'Billing.View' },
+        { path: '/revenue', label: 'Revenue & payers', icon:'account_balance', requiredPermission:'Billing.View' },
         { path: '/inventory',  label: 'Inventory',  icon: 'inventory_2' }
       ]
     },
@@ -2251,6 +2255,7 @@ export class AppShellComponent implements OnInit {
       label: 'System',
       items: [
         { path: '/administration/system-configuration', label: 'Hospital Settings', icon: 'settings', requiredPermission: 'Administration.SystemConfiguration.View', hospitalAdminOnly: true },
+        { path: '/integrations', label: 'Device Integrations', icon: 'hub', requiredPermission: 'Integrations.View' },
         { path: '/profile/activity-logs', label: 'Audit Logs', icon: 'history' },
         { path: '/profile/account-settings', label: 'Account Settings', icon: 'manage_accounts' }
       ]

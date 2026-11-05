@@ -1,0 +1,48 @@
+<section class="ac-workspace" [attr.aria-busy]="busy()">
+  <header class="ac-workspace-head">
+    <div><p class="ac-eyebrow">Clinical coordination</p><h1 class="ac-page-title">Clinical orders</h1><p>Track patient requests, department acknowledgement and execution in one place.</p></div>
+    <div class="header-actions"><a class="ac-btn ac-btn-secondary" [routerLink]="admissionId?'/inpatient-care':'/opd'" [queryParams]="admissionId?{admissionId:admissionId}:{}"><span class="material-symbols-rounded" aria-hidden="true">stethoscope</span>{{ admissionId?'Inpatient care':'Doctor desk' }}</a></div>
+  </header>
+  @if (error()) { <p class="feedback feedback-error" role="alert"><span class="material-symbols-rounded" aria-hidden="true">error</span>{{ error() }}</p> }
+  @if (notice()) { <p class="feedback feedback-success" role="status"><span class="material-symbols-rounded" aria-hidden="true">check_circle</span>{{ notice() }}</p> }
+  @if (auth.hasPermission('Orders.Create')) {
+    <section class="panel" aria-labelledby="place-order-heading">
+      <div class="section-head"><div><h2 id="place-order-heading">Place an order</h2><p class="section-copy">{{ admissionId?'Use the inpatient medication workspace for prescribing, reconciliation and medication safety checks.':'Use the OPD prescription workflow for medication requests and medication safety checks.' }}</p></div></div>
+      <div class="fields">
+        @if(!admissionId){<label class="field">Find patient<input class="ac-input" type="search" [(ngModel)]="search" (change)="findPatients()" placeholder="Name or MRN"></label>
+        <label class="field">Patient<ac-dropdown [(ngModel)]="patientId" (ngModelChange)="patientChanged()" [options]="patientOptions()" ariaLabel="Patient" placeholder="Choose patient" /></label>
+        <label class="field">OPD encounter<ac-dropdown [(ngModel)]="consultationId" [options]="encounterOptions()" ariaLabel="OPD encounter" placeholder="Choose encounter" /></label>}@else{<p class="field-hint">Inpatient admission context is fixed for this request. <a routerLink="/inpatient-care" [queryParams]="{admissionId:admissionId}">Return to inpatient care</a></p>}
+        <label class="field">Service<ac-dropdown [(ngModel)]="catalogueId" [options]="serviceOptions()" ariaLabel="Service" placeholder="Choose service" /></label>
+        <label class="field">Priority<ac-dropdown [(ngModel)]="priority" [options]="priorityOptions" ariaLabel="Priority" /></label>
+        <label class="field">Specimen reference<input class="ac-input" [(ngModel)]="specimen" maxlength="128" placeholder="Required for analyzer simulation"></label>
+      </div>
+      <label class="check"><input type="checkbox" [(ngModel)]="simulationOnly"><span>Simulation order — exclude from normal billing and clinical release</span></label>
+      <div class="actions"><button class="ac-btn ac-btn-primary" type="button" [disabled]="busy() || !patientId || !catalogueId" (click)="create()"><span class="material-symbols-rounded" aria-hidden="true">add</span>Place order</button><button class="ac-btn ac-btn-secondary" type="button" [disabled]="busy()" (click)="newRequest()">New request</button></div>
+      @if (queue().length) { <div class="queue-context">Queue: @for(q of queue(); track q.id) { <span class="ac-badge ac-badge-secondary">{{ q.token }} · {{ label(q.status) }}</span> }</div> }
+    </section>
+  }
+  <section class="panel" aria-labelledby="worklist-heading">
+    <div class="section-head"><div><h2 id="worklist-heading">Department worklist</h2><p class="section-copy">Add a reason before changing the status of an order.</p></div><button class="ac-btn ac-btn-secondary" type="button" (click)="refresh()" [disabled]="busy()"><span class="material-symbols-rounded" aria-hidden="true">refresh</span>Refresh</button></div>
+    <div class="fields">
+      <label class="field">Department<ac-dropdown [(ngModel)]="department" (ngModelChange)="page=1; refresh()" [options]="filterDepartmentOptions" ariaLabel="Worklist department" /></label>
+      <label class="field">Status<ac-dropdown [(ngModel)]="status" (ngModelChange)="page=1; refresh()" [options]="statusOptions" ariaLabel="Worklist status" /></label>
+      <label class="field">Action reason<input class="ac-input" [(ngModel)]="reason" maxlength="500" placeholder="Required for state changes"></label>
+    </div>
+    <div class="table-wrap" [class.has-records]="orders().length > 0" role="region" aria-label="Department orders" tabindex="0"><table class="ac-table"><thead><tr><th scope="col">Patient</th><th scope="col">Service</th><th scope="col">Priority</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead><tbody>
+      @for(o of orders(); track o.id) {
+        <tr><td>{{ o.patient }}<small class="record-meta">{{ o.mrn }} · {{ o.branch }}</small></td><td>{{ o.name }}<small class="record-meta">{{ label(o.department) }} · {{ label(o.sourceKind) }}</small>@if(o.simulationOnly) { <span class="ac-badge ac-badge-secondary simulation-mark">Simulation</span> }</td><td><span [class]="badge(o.priority)">{{ label(o.priority) }}</span></td><td><span [class]="badge(o.status)">{{ label(o.status) }}</span><small class="record-meta">Version {{ o.version }}</small></td><td><div class="row-actions">
+          <button class="ac-btn ac-btn-secondary" type="button" (click)="showHistory(o)" [attr.aria-label]="'View order history for ' + o.patient">History</button>
+          @if(o.sourceKind === 'DIRECT') {
+            @if(next(o) && auth.hasPermission('Orders.Execute')) { <button class="ac-btn ac-btn-primary" type="button" [disabled]="busy() || !reason.trim()" (click)="transition(o,next(o)!)">{{ nextLabel(o) }}</button> }
+            @if(next(o) && auth.hasPermission('Orders.Cancel')) { <button class="ac-btn ac-btn-secondary" type="button" [disabled]="busy() || !reason.trim()" (click)="transition(o,'CANCELLED')">Cancel</button> }
+          } @else { <a class="ac-btn ac-btn-secondary" [routerLink]="o.sourceKind === 'LAB' ? '/laboratory' : '/pharmacy'">Open source workflow</a> }
+        </div></td></tr>
+      } @empty { <tr><td colspan="5"><div class="empty-state">{{ busy() ? 'Loading orders…' : 'No orders found for these filters.' }}</div></td></tr> }
+    </tbody></table></div>
+    <nav class="pager" aria-label="Worklist pages"><button class="ac-btn ac-btn-secondary" type="button" [disabled]="busy() || page===1" (click)="page=page-1; refresh()">Previous</button><span>Page {{ page }}</span><button class="ac-btn ac-btn-secondary" type="button" [disabled]="busy() || orders().length<50" (click)="page=page+1; refresh()">Next</button></nav>
+  </section>
+  @if(history().length) { <section class="panel" aria-labelledby="order-history-heading"><div class="section-head"><h2 id="order-history-heading">Order history</h2></div>@for(h of history(); track h.version) { <article class="history-record"><span [class]="badge(h.status)">{{ label(h.status) }}</span><p>{{ h.reason }}</p><small class="record-meta">{{ h.createdAt | date:'medium' }} · {{ h.actor }}</small></article> }</section> }
+  @if(auth.hasPermission('Orders.Configure')) {
+    <section class="panel" aria-labelledby="catalogue-heading"><div class="section-head"><div><h2 id="catalogue-heading">Add catalogue service</h2><p class="section-copy">Configure the services available to the selected branch.</p></div></div><div class="fields"><label class="field">Code<input class="ac-input" [(ngModel)]="catalogueCode" maxlength="64"></label><label class="field">Name<input class="ac-input" [(ngModel)]="catalogueName" maxlength="160"></label><label class="field">Department<ac-dropdown [(ngModel)]="catalogueDepartment" [options]="catalogueDepartmentOptions" ariaLabel="Catalogue department" /></label></div><div class="actions"><button class="ac-btn ac-btn-primary" type="button" [disabled]="busy() || !catalogueCode || !catalogueName" (click)="configure()">Add service</button></div></section>
+  }
+</section>

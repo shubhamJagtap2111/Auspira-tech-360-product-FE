@@ -4,6 +4,9 @@ import { pendingChangesGuard } from './core/guards/pending-changes.guard';
 import { permissionGuard } from './core/guards/permission.guard';
 
 export const routes: Routes = [
+  { path: 'inpatient-care', canActivate: [authGuard, permissionGuard], data: { permission: 'InpatientCare.View' }, loadComponent: () => import('./features/inpatient-care/inpatient-care-page.component').then(m => m.InpatientCarePageComponent) },
+  { path: 'orders', canActivate: [authGuard, permissionGuard], data: { permission: 'Orders.View' }, loadComponent: () => import('./features/orders/shared-orders-page.component').then(m => m.SharedOrdersPageComponent) },
+  { path: 'integrations', canActivate: [authGuard, permissionGuard], data: { permission: 'Integrations.View' }, loadComponent: () => import('./features/integrations/integrations-page.component').then(m => m.IntegrationsPageComponent) },
   { path: 'certificates', canActivate: [authGuard, permissionGuard], canDeactivate: [pendingChangesGuard], data: { permission: 'Certificates.View' }, loadComponent: () => import('./features/certificates/certificates-page.component').then(m => m.CertificatesPageComponent) },
   { path: 'chat', canActivate: [authGuard], loadComponent: () => import('./features/chat/staff-chat-page.component').then(m => m.StaffChatPageComponent) },
   { path: 'notifications', canActivate: [authGuard], loadComponent: () => import('./features/notifications/notification-inbox-page.component').then(m => m.NotificationInboxPageComponent) },
@@ -174,6 +177,8 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/pharmacy/pharmacy-page.component').then(m => m.PharmacyPageComponent)
   },
+  {path:'revenue',canActivate:[authGuard,permissionGuard],data:{permission:'Billing.View',mode:'revenue'},loadComponent:()=>import('./features/phase-four/phase-four-workspace.component').then(m=>m.PhaseFourWorkspaceComponent)},
+  {path:'laboratory-operations',canActivate:[authGuard,permissionGuard],data:{permission:'InpatientCare.View',mode:'laboratory'},loadComponent:()=>import('./features/phase-four/phase-four-workspace.component').then(m=>m.PhaseFourWorkspaceComponent)},
   {
     path: 'billing',
     canActivate: [authGuard, permissionGuard],

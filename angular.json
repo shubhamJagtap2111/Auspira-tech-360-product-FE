@@ -46,12 +46,24 @@
             "allowedCommonJsDependencies": [
               "qrcode"
             ]
+          },
+          "configurations": {
+            "development": {
+              "optimization": false,
+              "sourceMap": true,
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.development.ts"
+                }
+              ]
+            }
           }
         },
         "serve": {
           "builder": "@angular/build:dev-server",
           "options": {
-            "buildTarget": "auspira-care360-web:build",
+            "buildTarget": "auspira-care360-web:build:development",
             "port": 4200,
             "proxyConfig": "proxy.conf.json"
           }

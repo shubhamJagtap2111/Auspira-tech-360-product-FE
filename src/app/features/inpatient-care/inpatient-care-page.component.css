@@ -1,0 +1,15 @@
+.care-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.care-summary { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,180px),1fr)); gap: 16px; }
+.care-summary dt { color: var(--ac-muted); font-size: 12px; }
+.care-summary dd { margin: 6px 0 0; color: var(--ac-text); font-weight: 600; overflow-wrap: anywhere; }
+.care-entry { margin-top: 20px; }
+.scan-fields { margin-top: 20px; }
+
+.record-payload { max-height: 360px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 16px; background: var(--ac-surface-2); border: 1px solid var(--ac-border); border-radius: var(--ac-r-md); }
+
+.care-subworkspace { display: grid; gap: 20px; min-width: 0; }
+.care-subworkspace .fields { grid-template-columns: repeat(auto-fit,minmax(min(100%,300px),1fr)); align-items: start; }
+
+@media (max-width: 640px) {
+  .ac-workspace-head .header-actions .ac-btn, .care-tabs > button { min-height: 44px; }
+}

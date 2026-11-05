@@ -72,6 +72,7 @@ import { LabReport } from '../laboratory/laboratory.models';
           <p class="page-desc">Your waiting patients, current consultation, and clinical decisions in one place.</p>
         </div>
         <div class="header-actions">
+          @if (auth.hasPermission('Orders.View')) { <button class="ac-btn ac-btn-secondary" type="button" (click)="openClinicalOrders()">Clinical orders</button> }
           <button class="ac-btn ac-btn-secondary" type="button" (click)="reload()">
             <span aria-hidden="true" class="material-symbols-rounded">refresh</span>
             Refresh
@@ -3695,6 +3696,15 @@ export class OpdPageComponent implements OnInit {
     void this.router.navigate(['/appointments']);
   }
 
+  protected openClinicalOrders(): void {
+    const visit = this.selectedVisit();
+    const url = this.router.createUrlTree(['/orders'], { queryParams: {
+      patientId: visit?.appointment.patientId || undefined,
+      consultationId: visit?.consultation?.id || undefined
+    } });
+    window.open(this.router.serializeUrl(url), '_blank', 'noopener');
+  }
+
   protected selectVisit(visit: OpdVisitVm, tab: OpdTab = 'encounter'): void {
     if (isCompletedVisit(visit) || normalizeCode(visit.consultation?.statusCode) === 'CANCELLED') { this.showHistory(visit); return; }
     const draftState = readEncounterDraftState(visit);
@@ -3966,7 +3976,7 @@ export class OpdPageComponent implements OnInit {
     return durations.length ? Math.max(1, Math.round(durations.reduce((sum, value) => sum + value, 0) / durations.length)) : null;
   });
   protected readonly completedPatientName = signal('');
-  private readonly auth = inject(AuthStore);
+  protected readonly auth = inject(AuthStore);
   private focusPatientId = '';
   constructor() {
     const poll = setInterval(() => this.observeDraftChanges(), 1000);

@@ -1,0 +1,8 @@
+.ac-workspace { display: grid; gap: 20px; min-width: 0; }
+.workspace-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.field-block { max-width: 640px; }
+h3 { margin-bottom: 16px; color: var(--ac-text); }
+.ac-table td { max-width: 280px; overflow-wrap: anywhere; white-space: normal; }
+@media (max-width: 640px) { .ac-btn, .ac-workspace-head .header-actions .ac-btn { min-height: 44px; } .header-actions { width: 100%; flex-wrap: wrap; } }
+
+.actions + .actions { margin-top: 12px; }
