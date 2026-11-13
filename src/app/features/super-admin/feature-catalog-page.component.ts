@@ -1,3 +1,4 @@
+import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -10,7 +11,7 @@ import { FeatureCatalogService } from './feature-catalog.service';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
+  imports: [...AC_KPI_VISIBILITY, CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
   template: `
     <section class="feature-page">
       <header class="page-head">
@@ -19,7 +20,7 @@ import { FeatureCatalogService } from './feature-catalog.service';
           <h1 class="ac-page-title">Feature Flags by Plan</h1>
           <p>Configure feature availability across plans from catalog records and plan assignments.</p>
         </div>
-        <div class="head-actions">
+        <div class="head-actions"><ac-kpi-toggle />
           <a class="icon-btn" routerLink="/super-admin/plans" title="Open plans">
             <span class="material-symbols-rounded">workspace_premium</span>
           </a>
@@ -34,7 +35,7 @@ import { FeatureCatalogService } from './feature-catalog.service';
       </header>
 
       @if (catalog(); as model) {
-        <section class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
+        <section acKpiRegion class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
           <article class="stat">
             <span class="material-symbols-rounded">toggle_on</span>
             <p>Features</p>

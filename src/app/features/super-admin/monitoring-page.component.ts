@@ -1,3 +1,4 @@
+import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
@@ -8,7 +9,7 @@ import { MonitoringService } from './monitoring.service';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, RouterLink, AcGridLoaderComponent],
+  imports: [...AC_KPI_VISIBILITY, CommonModule, RouterLink, AcGridLoaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="monitoring-page ac-dashboard">
@@ -18,7 +19,7 @@ import { MonitoringService } from './monitoring.service';
           <h1 class="ac-page-title">Platform Health Dashboard</h1>
           <p>Track CPU, memory, database health, slow queries, requests, errors, queue state, and tenant storage across the Care360 control plane.</p>
         </div>
-        <div class="head-actions">
+        <div class="head-actions"><ac-kpi-toggle />
           <a class="icon-btn" routerLink="/super-admin/databases" title="Open database management">
             <span class="material-symbols-rounded">database</span>
           </a>
@@ -29,7 +30,7 @@ import { MonitoringService } from './monitoring.service';
       </header>
 
       @if (snapshot(); as model) {
-        <section class="metric-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
+        <section acKpiRegion class="metric-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
           @for (card of visibleMetricCards(); track card.key) {
             <article class="metric-card" [class]="statusClass(card.status)">
               <header>

@@ -1,3 +1,4 @@
+import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -15,7 +16,7 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent, AcPageActionsComponent],
+  imports: [...AC_KPI_VISIBILITY, CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent, AcPageActionsComponent],
   template: `
     <section class="doctor-profile">
       <ac-page-actions backLink="/doctors" backLabel="Doctor Registry" (refreshed)="reload()" />
@@ -54,7 +55,8 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
             </div>
           </div>
 
-          <section class="overview-grid summary-kpis ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
+          <div class="ac-kpi-page-actions"><ac-kpi-toggle /></div>
+          <section acKpiRegion class="overview-grid summary-kpis ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
             @for (card of overviewCards(); track card.label) {
               <article class="metric-card">
                 <span class="material-symbols-rounded" [style.color]="card.color">{{ card.icon }}</span>

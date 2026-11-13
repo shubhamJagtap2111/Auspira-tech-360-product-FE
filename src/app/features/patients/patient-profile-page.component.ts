@@ -1,3 +1,4 @@
+import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { BranchContextService } from '../../core/context/branch-context.service';
 import { PrescriptionAccessService } from '../opd/prescription-access.service';
@@ -19,7 +20,7 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
 
 @Component({
   standalone: true,
-  imports: [CommonModule, AcGridLoaderComponent, AcPageActionsComponent],
+  imports: [...AC_KPI_VISIBILITY, CommonModule, AcGridLoaderComponent, AcPageActionsComponent],
   template: `
     <section class="patient-profile">
       <ac-page-actions backLink="/patients" backLabel="Patient Registry" (refreshed)="reload()" />
@@ -52,7 +53,8 @@ type PatientProfileTab = 'overview' | 'personal' | 'medical' | 'allergies' | 'in
             </div>
           </div>
 
-          <section class="overview-grid summary-kpis ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
+          <div class="ac-kpi-page-actions"><ac-kpi-toggle /></div>
+          <section acKpiRegion class="overview-grid summary-kpis ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
             @for (card of overviewCards(); track card.label) {
               <article class="metric-card">
                 <span class="material-symbols-rounded" [style.color]="card.color">{{ card.icon }}</span>

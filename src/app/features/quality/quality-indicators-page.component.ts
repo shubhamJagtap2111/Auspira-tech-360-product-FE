@@ -1,3 +1,4 @@
+import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
 import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
@@ -24,7 +25,7 @@ type QualityTab = 'dashboard' | 'indicators' | 'audits' | 'events' | 'builder';
 
 @Component({
   standalone: true,
-  imports: [AcKpiCardComponent, CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
+  imports: [...AC_KPI_VISIBILITY, AcKpiCardComponent, CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
   template: `
     <section class="quality-page ac-workspace ac-dashboard">
       <header class="quality-header ac-workspace-head">
@@ -33,7 +34,7 @@ type QualityTab = 'dashboard' | 'indicators' | 'audits' | 'events' | 'builder';
           <h1 class="ac-page-title">Automated Quality Indicators</h1>
           <p>Track hospital quality indicators, capture audits and safety events, compare against targets, and push monthly results into MIS.</p>
         </div>
-        <div class="header-actions">
+        <div class="header-actions"><ac-kpi-toggle />
           <button type="button" class="ac-btn ac-btn-secondary" [routerLink]="['/reports/mis']" [queryParams]="{ report: 'patient-mis' }">
             <span class="material-symbols-rounded">analytics</span>
             MIS Reports
@@ -87,7 +88,7 @@ type QualityTab = 'dashboard' | 'indicators' | 'audits' | 'events' | 'builder';
         </section>
       } @else if (dashboard(); as model) {
         @if (activeTab() === 'dashboard') {
-          <section class="ac-kpi-grid" aria-label="Overview" tabindex="0" role="region">
+          <section acKpiRegion class="ac-kpi-grid" aria-label="Overview" tabindex="0" role="region">
           @for (card of dashboardCards(model); track card.label) {
             <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.color" [detail]="card.meta"  />
           }

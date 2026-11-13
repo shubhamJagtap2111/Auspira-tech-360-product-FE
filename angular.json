@@ -41,7 +41,8 @@
               "src/administration.css",
               "src/workspace-design.css",
               "src/dashboard-design.css",
-              "src/kpi-design.css"
+              "src/kpi-design.css",
+              "src/app/shared/styles/compact-workspace.css"
             ],
             "allowedCommonJsDependencies": [
               "qrcode"

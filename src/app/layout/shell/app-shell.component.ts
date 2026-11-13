@@ -1928,7 +1928,7 @@ const fallbackLanguages: Language[] = [
     .search-btn { width: min(100%, 280px); min-width: 0; border-radius: 10px; box-shadow: none; }
     .search-placeholder { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .tenant-chip { background: var(--ac-secondary-light); border-color: transparent; }
-    .main-content { padding: clamp(18px, 2vw, 32px); background: var(--ac-bg); scrollbar-gutter: stable; }
+    .main-content { padding: 16px 20px; background: var(--ac-bg); scrollbar-gutter: stable; }
     .mobile-navigation-trigger, .mobile-navigation-close, .mobile-navigation-backdrop { display: none; }
     .skip-to-workspace { position: fixed; top: 8px; left: 12px; transform: translateY(-200%); z-index: 10000; padding: 10px 16px; background: var(--ac-surface); color: var(--ac-primary); border: 1px solid var(--ac-primary); border-radius: 8px; }
     .skip-to-workspace:focus { transform: none; }
@@ -2234,6 +2234,12 @@ export class AppShellComponent implements OnInit {
       label: 'Operations',
       items: [
         { path: '/laboratory', label: 'Laboratory', icon: 'biotech' },
+        { path:'/stores',label:'Stores and equipment',icon:'inventory_2',requiredPermission:'Stores.View' },
+        { path:'/allied-care',label:'Allied care',icon:'medical_services',requiredPermission:'Allied.View' },
+        { path:'/kitchen',label:'Kitchen worklist',icon:'restaurant',requiredPermission:'Allied.Kitchen' },
+        { path:'/operation-theatre',label:'Operation theatre',icon:'surgical',requiredPermission:'OT.View' },
+        { path:'/radiology',label:'Radiology & imaging',icon:'radiology',requiredPermission:'Radiology.View' },
+        { path:'/emergency',label:'Emergency care',icon:'emergency',requiredPermission:'Emergency.View' },
         { path: '/laboratory-operations', label: 'Laboratory operations', icon: 'science', requiredPermission:'InpatientCare.View' },
         { path: '/pharmacy',   label: 'Pharmacy',   icon: 'medication', requiredPermission: 'Pharmacy.View' },
         { path: '/billing',    label: 'Billing',    icon: 'receipt_long', requiredPermission: 'Billing.View' },

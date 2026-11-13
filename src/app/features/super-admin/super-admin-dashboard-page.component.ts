@@ -1,3 +1,4 @@
+import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ToastService } from '../../shared/ui/toast/toast.service';
@@ -15,7 +16,7 @@ interface KpiCard {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, AcGridLoaderComponent],
+  imports: [...AC_KPI_VISIBILITY, CommonModule, AcGridLoaderComponent],
   template: `
     <section class="super-admin-page ac-dashboard">
       <header class="page-head">
@@ -27,10 +28,10 @@ interface KpiCard {
         <button class="icon-btn" type="button" (click)="load()" title="Refresh dashboard">
           <span class="material-symbols-rounded">refresh</span>
         </button>
-      </header>
+      <ac-kpi-toggle /></header>
 
       @if (dashboard(); as model) {
-        <section class="kpi-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
+        <section acKpiRegion class="kpi-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
           @for (card of createCards(model.summary); track card.label) {
             <article class="metric" [style.--tone]="card.tone">
               <span class="material-symbols-rounded">{{ card.icon }}</span>

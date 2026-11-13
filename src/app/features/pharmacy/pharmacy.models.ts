@@ -25,4 +25,5 @@ export interface DrugAllergyMapping { id: string; genericDrugId: string; generic
 export interface DrugAllergyMappingOptions { genericDrugs: Array<{ id: string; code: string; name: string }>; behaviors: DrugAllergyBehavior[]; }
 export interface SaveDrugAllergyMappingRequest { genericDrugId: string; allergenName: string; allergenAliases: string[]; behaviorCode: DrugAllergyBehavior; clinicalRecommendation: string; reviewNotes: string; isActive: boolean; }
 export interface ReceiveBatchRequest { requestId?:string; medicineId: string; batchNumber: string; expiryDate: string; quantity: number; purchasePrice: number; mrp: number; salePrice: number; locationId: string | null; }
-export interface DispenseLine { prescriptionItemId: string; medicineId: string; batchId: string; quantity: number; }
+export interface DispenseLine { prescriptionItemId: string; medicineId: string; batchId: string; quantity: number; storeLocationId?: string; }
+export interface PharmacyStoreBalance { batchId: string; locationId: string | null; locationName: string | null; available: number | null; unassigned: number; }

@@ -1,3 +1,4 @@
+import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -10,7 +11,7 @@ import { SupportCenterService } from './support-center.service';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
+  imports: [...AC_KPI_VISIBILITY, CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="support-page">
@@ -20,7 +21,7 @@ import { SupportCenterService } from './support-center.service';
           <h1 class="ac-page-title">Tickets, Hospitals, Issues, SLA</h1>
           <p>Track hospital support tickets by issue, priority, SLA deadline, and status from the Super Admin control plane.</p>
         </div>
-        <div class="head-actions">
+        <div class="head-actions"><ac-kpi-toggle />
           <a class="icon-btn" routerLink="/super-admin/monitoring" title="Open monitoring">
             <span class="material-symbols-rounded">monitoring</span>
           </a>
@@ -31,7 +32,7 @@ import { SupportCenterService } from './support-center.service';
       </header>
 
       @if (snapshot(); as model) {
-        <section class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
+        <section acKpiRegion class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
           <article class="stat"><span class="material-symbols-rounded">confirmation_number</span><p>Tickets</p><strong>{{ model.summary.totalTickets }}</strong></article>
           <article class="stat"><span class="material-symbols-rounded">pending_actions</span><p>Open</p><strong>{{ model.summary.openTickets }}</strong></article>
           <article class="stat"><span class="material-symbols-rounded">priority_high</span><p>Critical</p><strong>{{ model.summary.criticalTickets }}</strong></article>

@@ -1,3 +1,4 @@
+import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -10,7 +11,7 @@ import { NotificationCenterSnapshot, NotificationTemplateItem } from './notifica
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
+  imports: [...AC_KPI_VISIBILITY, CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="notification-page">
@@ -20,7 +21,7 @@ import { NotificationCenterSnapshot, NotificationTemplateItem } from './notifica
           <h1 class="ac-page-title">Application Updates, Maintenance, Renewal Reminders</h1>
           <p>Send platform-wide or targeted hospital communications through Email, SMS, Push, and WhatsApp channels.</p>
         </div>
-        <div class="head-actions">
+        <div class="head-actions"><ac-kpi-toggle />
           <a class="icon-btn" routerLink="/super-admin/support" title="Open support center">
             <span class="material-symbols-rounded">support_agent</span>
           </a>
@@ -31,7 +32,7 @@ import { NotificationCenterSnapshot, NotificationTemplateItem } from './notifica
       </header>
 
       @if (snapshot(); as model) {
-        <section class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
+        <section acKpiRegion class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
           <article class="stat"><span class="material-symbols-rounded">campaign</span><p>Campaigns</p><strong>{{ model.summary.totalCampaigns }}</strong></article>
           <article class="stat"><span class="material-symbols-rounded">mark_email_read</span><p>Sent</p><strong>{{ model.summary.sentCampaigns }}</strong></article>
           <article class="stat"><span class="material-symbols-rounded">event_upcoming</span><p>Scheduled</p><strong>{{ model.summary.scheduledCampaigns }}</strong></article>

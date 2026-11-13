@@ -1,0 +1,8 @@
+.workflow-body { min-width: 0; border: 0; margin: 0; padding: 0; }
+.ac-table td { overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .workspace-tabs .ac-btn, .actions .ac-btn, .header-actions .ac-btn { min-height: 44px; }
+}
+
+.policy-check { inline-size: 20px; block-size: 20px; accent-color: var(--ac-primary); }
+.field:has(.policy-check) { min-block-size: 44px; }

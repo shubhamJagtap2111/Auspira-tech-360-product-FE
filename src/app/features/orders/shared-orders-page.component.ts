@@ -33,14 +33,14 @@ export class SharedOrdersPageComponent {
   protected readonly error = signal(''); protected readonly notice = signal('');
   protected search = ''; protected patientId = ''; protected consultationId = ''; protected catalogueId = '';
   protected priority = 'ROUTINE'; protected specimen = ''; protected simulationOnly = false;
-  protected admissionId = '';
+  protected admissionId = ''; protected emergencyEpisodeId = '';
   protected department = ''; protected status = ''; protected reason = ''; protected page = 1;
   protected catalogueCode = ''; protected catalogueName = ''; protected catalogueDepartment = 'LAB';
   protected readonly label = workspaceStateLabel;
   protected readonly badge = workspaceBadgeClass;
   protected readonly patientOptions = computed(() => this.patients().map(p => ({ value: p.id, label: `${p.name} · ${p.mrn}` })));
   protected readonly encounterOptions = computed(() => [{ value: '', label: 'No OPD encounter' }, ...this.encounters().map(e => ({ value: e.id, label: `${workspaceStateLabel(e.status)} · ${e.id}` }))]);
-  protected readonly serviceOptions = computed(() => this.catalogue().filter(c => c.active).map(c => ({ value: c.id, label: `${workspaceStateLabel(c.department)} · ${c.name}` })));
+  protected readonly serviceOptions = computed(() => this.catalogue().filter(c => c.active&&(!this.emergencyEpisodeId||['IMAGING','PROCEDURE'].includes(c.department))).map(c => ({ value: c.id, label: `${workspaceStateLabel(c.department)} · ${c.name}` })));
   protected readonly departmentOptions = ['LAB','IMAGING','PROCEDURE','PHARMACY'].map(value => ({ value, label: workspaceStateLabel(value) }));
   protected readonly filterDepartmentOptions = [{ value: '', label: 'All departments' }, ...this.departmentOptions];
   protected readonly catalogueDepartmentOptions = this.departmentOptions.filter(o => o.value !== 'PHARMACY');
@@ -51,8 +51,8 @@ export class SharedOrdersPageComponent {
   constructor() {
     effect(() => {
       this.branch.selectedBranchCode(); this.generation++; this.patientGeneration++;
-      this.patientId = this.route.snapshot.queryParamMap.get('patientId') ?? ''; this.consultationId = this.route.snapshot.queryParamMap.get('consultationId') ?? '';
-      this.admissionId = this.route.snapshot.queryParamMap.get('admissionId') ?? '';
+      this.patientId = this.generation===1?(this.route.snapshot.queryParamMap.get('patientId')??''):'';this.consultationId=this.generation===1?(this.route.snapshot.queryParamMap.get('consultationId')??''):'';this.emergencyEpisodeId=this.generation===1?(this.route.snapshot.queryParamMap.get('emergencyEpisodeId')??''):'';
+      this.admissionId = this.generation===1?(this.route.snapshot.queryParamMap.get('admissionId')??''):'';
       this.orders.set([]); this.history.set([]); this.encounters.set([]); this.queue.set([]); this.page = 1;
       this.catalogue.set([]); this.patients.set([]); this.catalogueId = ''; this.specimen = ''; this.reason = ''; this.simulationOnly = false;
       this.notice.set('');
@@ -89,7 +89,7 @@ export class SharedOrdersPageComponent {
     catch (e) { if (generation === this.generation) this.error.set(this.message(e)); }
   }
   protected async create() {
-    const body = { patientId: this.patientId, consultationId: this.admissionId ? null : this.consultationId || null, catalogueId: this.catalogueId, priority: this.priority, specimen: this.specimen, simulationOnly: this.simulationOnly, admissionId: this.admissionId || null };
+    const body = { patientId: this.patientId, consultationId: this.admissionId ? null : this.consultationId || null, catalogueId: this.catalogueId, priority: this.priority, specimen: this.specimen, simulationOnly: this.simulationOnly, admissionId: this.admissionId || null,...(this.emergencyEpisodeId?{emergencyEpisodeId:this.emergencyEpisodeId}:{}) };
     const snapshot = JSON.stringify(body);
     if (snapshot !== this.requestSnapshot) { this.key = crypto.randomUUID(); this.requestSnapshot = snapshot; }
     await this.write('/orders', { ...body, idempotencyKey: this.key }, 'Order saved.');

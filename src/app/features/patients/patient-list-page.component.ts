@@ -1,3 +1,4 @@
+import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
 import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
@@ -21,7 +22,7 @@ type PatientDatePickerMode = 'calendar' | 'years';
 
 @Component({
   standalone: true,
-  imports: [AcKpiCardComponent, CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent, AcPaginationComponent, AcAdminDrawerComponent, AcDismissiblePopoverDirective],
+  imports: [...AC_KPI_VISIBILITY, AcKpiCardComponent, CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent, AcPaginationComponent, AcAdminDrawerComponent, AcDismissiblePopoverDirective],
   template: `
     <section class="patients ac-workspace">
       <header class="page-header ac-workspace-head">
@@ -30,7 +31,7 @@ type PatientDatePickerMode = 'calendar' | 'years';
           <h1 class="ac-page-title">Patient Registry</h1>
           <p class="page-desc">Find patients, register new arrivals, and access their contact details and care records.</p>
         </div>
-        <div class="header-actions">
+        <div class="header-actions"><ac-kpi-toggle />
           <button class="ac-btn ac-btn-secondary" type="button" (click)="exportCsv()" [disabled]="patients().length === 0">
             <span class="material-symbols-rounded">download</span>
             Export
@@ -42,7 +43,7 @@ type PatientDatePickerMode = 'calendar' | 'years';
         </div>
       </header>
 
-      <section class="ac-kpi-grid" aria-label="Workspace overview" tabindex="0" role="region">
+      <section acKpiRegion class="ac-kpi-grid" aria-label="Workspace overview" tabindex="0" role="region">
         @for (card of statCards(); track card.label) {
           <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.color" [detail]="card.meta" [pending]="initialLoading()"  />
         }

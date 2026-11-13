@@ -1,3 +1,4 @@
+import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
 import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
@@ -15,7 +16,7 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
 
 @Component({
   standalone: true,
-  imports: [AcKpiCardComponent, CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
+  imports: [...AC_KPI_VISIBILITY, AcKpiCardComponent, CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
   template: `
     <section class="reports-page ac-workspace ac-dashboard">
       <header class="reports-header ac-workspace-head">
@@ -24,7 +25,7 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
           <h1 class="ac-page-title">Reports & Insights</h1>
           <p>Analyze clinical operations, financial performance, resources, and hospital activity.</p>
         </div>
-        <div class="header-actions">
+        <div class="header-actions"><ac-kpi-toggle />
           <button type="button" class="ac-btn ac-btn-secondary" (click)="resetFilters()">
             <span class="material-symbols-rounded">restart_alt</span>
             Reset
@@ -79,7 +80,7 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
           <ac-grid-loader title="Loading reports..." message="Preparing dashboard metrics, report catalog, and filter lists." [compact]="true" />
         </section>
       } @else if (workspace(); as model) {
-        <section class="ac-kpi-grid" aria-label="Overview" tabindex="0" role="region">
+        <section acKpiRegion class="ac-kpi-grid" aria-label="Overview" tabindex="0" role="region">
           @for (card of summaryCards(); track card.label) {
             <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.color" [detail]="card.meta" [actionable]="true" (activated)="openSummaryRoute(card.route)" />
           }
@@ -113,7 +114,7 @@ type DatePreset = 'today' | '7' | '30' | 'custom';
             @if (generating()) {
               <ac-grid-loader title="Generating report..." message="Aggregating report data from module transactions." [compact]="true" />
             } @else {
-              <section class="ac-kpi-grid" aria-label="Report indicators" tabindex="0" role="region">
+              <section acKpiRegion class="ac-kpi-grid" aria-label="Report indicators" tabindex="0" role="region">
                 @for (kpi of generated.kpis; track kpi.label) {
                   <ac-kpi-card [label]="kpi.label" [value]="kpi.value" [icon]="kpi.icon" [tone]="kpi.color" [detail]="kpi.meta" />
                 }

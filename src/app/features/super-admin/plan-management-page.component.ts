@@ -1,3 +1,4 @@
+import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -20,7 +21,7 @@ type PlanTab = 'plans' | 'features' | 'pricing' | 'limits';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, AcGridLoaderComponent],
+  imports: [...AC_KPI_VISIBILITY, CommonModule, FormsModule, RouterLink, AcGridLoaderComponent],
   template: `
     <section class="plan-page">
       <header class="page-head">
@@ -29,7 +30,7 @@ type PlanTab = 'plans' | 'features' | 'pricing' | 'limits';
           <h1 class="ac-page-title">Plans, Features, Pricing, Limits</h1>
           <p>Configure SaaS packages, usage ceilings, feature availability, tenant counts, and commercial settings.</p>
         </div>
-        <div class="head-actions">
+        <div class="head-actions"><ac-kpi-toggle />
           <a class="icon-btn" routerLink="/super-admin" title="Open Super Admin dashboard">
             <span class="material-symbols-rounded">dashboard</span>
           </a>
@@ -63,7 +64,7 @@ type PlanTab = 'plans' | 'features' | 'pricing' | 'limits';
       </nav>
 
       @if (catalog(); as model) {
-        <section class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
+        <section acKpiRegion class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
           <article class="stat">
             <span class="material-symbols-rounded">workspace_premium</span>
             <p>Plans</p>

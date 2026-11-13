@@ -1,3 +1,4 @@
+import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
 import { PrescriptionPreview, PrescriptionPrintFormat, PrescriptionPrintOptions, PrescriptionVital, defaultPrescriptionPrintOptions, openPrescriptionDocument } from './prescription-document';
 import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
 import { PrescriptionAccessService, PrescriptionAccessLink, PrescriptionHospitalHeader } from './prescription-access.service';
@@ -46,7 +47,7 @@ import { LabReport } from '../laboratory/laboratory.models';
 
 @Component({
   standalone: true,
-  imports: [AcKpiCardComponent, CommonModule, FormsModule, A11yModule, AcDropdownComponent, AcGridLoaderComponent, AcDismissiblePopoverDirective],
+  imports: [...AC_KPI_VISIBILITY, AcKpiCardComponent, CommonModule, FormsModule, A11yModule, AcDropdownComponent, AcGridLoaderComponent, AcDismissiblePopoverDirective],
   template: `
     <ng-template #previousVisitPanel let-visit>
       <section class="history-visit"><h3>Previous visit</h3>
@@ -71,7 +72,7 @@ import { LabReport } from '../laboratory/laboratory.models';
           <h1 class="ac-page-title">Today's OPD</h1>
           <p class="page-desc">Your waiting patients, current consultation, and clinical decisions in one place.</p>
         </div>
-        <div class="header-actions">
+        <div class="header-actions"><ac-kpi-toggle />
           @if (auth.hasPermission('Orders.View')) { <button class="ac-btn ac-btn-secondary" type="button" (click)="openClinicalOrders()">Clinical orders</button> }
           <button class="ac-btn ac-btn-secondary" type="button" (click)="reload()">
             <span aria-hidden="true" class="material-symbols-rounded">refresh</span>
@@ -84,7 +85,7 @@ import { LabReport } from '../laboratory/laboratory.models';
         </div>
       </header>
 
-      <section class="ac-kpi-grid" aria-label="Workspace overview" tabindex="0" role="region">
+      <section acKpiRegion class="ac-kpi-grid" aria-label="Workspace overview" tabindex="0" role="region">
         @for (card of statCards(); track card.label) {
           <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.color" [detail]="card.meta" [pending]="loading()" [actionable]="true" (activated)="openStatCard(card.tab)" />
         }

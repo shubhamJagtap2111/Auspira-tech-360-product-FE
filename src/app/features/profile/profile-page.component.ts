@@ -1,3 +1,4 @@
+import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -58,7 +59,7 @@ interface ProfilePreference {
 
 @Component({
   standalone: true,
-  imports: [FormsModule, AcDropdownComponent],
+  imports: [...AC_KPI_VISIBILITY, FormsModule, AcDropdownComponent],
   template: `
     <div class="profile-page">
 
@@ -69,6 +70,7 @@ interface ProfilePreference {
           <h1 class="ac-page-title">My Profile</h1>
           <p class="page-sub">Manage your account settings and preferences.</p>
         </div>
+        <ac-kpi-toggle />
       </div>
 
       <!-- Profile Hero -->
@@ -97,7 +99,7 @@ interface ProfilePreference {
             </div>
           </div>
         </div>
-        <div class="hero-stats ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
+        <div acKpiRegion class="hero-stats ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
           @for (s of heroStats(); track s.label) {
             <div class="hero-stat">
               <strong>{{ s.value }}</strong>

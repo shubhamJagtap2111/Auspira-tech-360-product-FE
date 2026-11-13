@@ -1,3 +1,4 @@
+import { AC_KPI_VISIBILITY } from '../../../shared/ui/kpi-visibility';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -24,7 +25,7 @@ interface PermissionGroupView {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcAdminDrawerComponent, AcGridLoaderComponent],
+  imports: [...AC_KPI_VISIBILITY, CommonModule, FormsModule, AcAdminDrawerComponent, AcGridLoaderComponent],
   template: `
     <section class="rbac-page ac-workspace">
       <header class="page-head ac-workspace-head">
@@ -32,7 +33,7 @@ interface PermissionGroupView {
           <h1 class="ac-page-title">{{ t('Administration.Rbac.Roles.Title') }}</h1>
           <p>{{ t('Administration.Rbac.Roles.Subtitle') }}</p>
         </div>
-        <div class="page-actions">
+        <div class="page-actions"><ac-kpi-toggle />
           @if (can(permissions.create)) {
             <button class="ac-btn ac-btn-primary" type="button" (click)="startCreate()">
               <span class="material-symbols-rounded">add</span>
@@ -42,7 +43,7 @@ interface PermissionGroupView {
         </div>
       </header>
 
-      <section class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
+      <section acKpiRegion class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
         <article class="stat-card">
           <span class="material-symbols-rounded">admin_panel_settings</span>
           <div>

@@ -24,16 +24,16 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
   `,
   styles: [`
     :host { display:block; min-width:0; container-type:inline-size; }
-    .kpi-card { box-sizing:border-box; position:relative; display:flex; align-items:center; width:100%; height:88px; min-height:0; padding:10px 12px 10px 14px; border:1px solid var(--ac-border); border-radius:10px; background:linear-gradient(115deg,color-mix(in srgb,var(--kpi-tone) 4%,var(--ac-surface)),var(--ac-surface) 75%); color:var(--ac-text); text-align:left; font:inherit; box-shadow:0 2px 8px color-mix(in srgb,var(--ac-text) 3%,transparent); overflow:hidden; }
+    .kpi-card { box-sizing:border-box; position:relative; display:flex; align-items:center; width:100%; height:72px; min-height:0; padding:8px 12px 8px 14px; border:1px solid var(--ac-border); border-radius:10px; background:linear-gradient(115deg,color-mix(in srgb,var(--kpi-tone) 4%,var(--ac-surface)),var(--ac-surface) 75%); color:var(--ac-text); text-align:left; font:inherit; box-shadow:0 2px 8px color-mix(in srgb,var(--ac-text) 3%,transparent); overflow:hidden; }
     .kpi-card::before { content:''; position:absolute; inset:15px auto 15px 0; width:2px; border-radius:0 2px 2px 0; background:var(--kpi-tone); }
     button.kpi-card { cursor:pointer; transition:border-color .15s,background .15s; }
     button.kpi-card:hover:not(:disabled) { border-color:color-mix(in srgb,var(--kpi-tone) 50%,var(--ac-border)); background:color-mix(in srgb,var(--kpi-tone) 6%,var(--ac-surface)); }
     button.kpi-card:focus-visible { outline:2px solid var(--ac-primary); outline-offset:2px; }
     button.kpi-card:disabled { cursor:wait; }
-    .kpi-icon { position:absolute; right:10px; top:10px; width:25px; height:25px; display:grid; place-items:center; border-radius:7px; color:var(--kpi-tone); background:color-mix(in srgb,var(--kpi-tone) 9%,var(--ac-surface)); font-size:16px; }
-    .kpi-copy { display:grid; gap:3px; min-width:0; width:100%; }
+    .kpi-icon { position:absolute; right:10px; top:8px; width:25px; height:25px; display:grid; place-items:center; border-radius:7px; color:var(--kpi-tone); background:color-mix(in srgb,var(--kpi-tone) 9%,var(--ac-surface)); font-size:16px; }
+    .kpi-copy { display:grid; gap:2px; min-width:0; width:100%; }
     .kpi-label { display:block; min-height:0; padding-right:27px; font-size:11px; font-weight:650; color:var(--ac-text-3); line-height:1.4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .kpi-value { display:block; min-width:0; font-size:23px; font-weight:750; line-height:1.12; letter-spacing:-.6px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .kpi-value { display:block; min-width:0; font-size:21px; font-weight:750; line-height:1.12; letter-spacing:-.6px; font-variant-numeric:tabular-nums; white-space:nowrap; }
     .kpi-value.long-value { font-size:clamp(11px,9.5cqi,20px); letter-spacing:-.3px; }
     .kpi-value.very-long-value { font-size:clamp(9px,7cqi,16px); }
     .kpi-detail { display:block; font-size:10px; line-height:1.4; color:var(--ac-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }

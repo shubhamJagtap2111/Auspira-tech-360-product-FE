@@ -1,3 +1,4 @@
+import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
 import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
 import { appointmentCalendarDates, calendarDateKey, CalendarPeriod, shiftAppointmentCalendar } from './appointment-calendar';
 import { CommonModule } from '@angular/common';
@@ -33,7 +34,7 @@ import { AppointmentManagementService } from './appointment-management.service';
 
 @Component({
   standalone: true,
-  imports: [AcKpiCardComponent, CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent, AcAdminDrawerComponent],
+  imports: [...AC_KPI_VISIBILITY, AcKpiCardComponent, CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent, AcAdminDrawerComponent],
   template: `
     <section class="appointment-page ac-workspace">
       <header class="page-header ac-workspace-head">
@@ -42,7 +43,7 @@ import { AppointmentManagementService } from './appointment-management.service';
           <h1 class="ac-page-title">Appointment Management</h1>
           <p class="page-desc">See who’s coming in, choose a day, and manage each appointment in one place.</p>
         </div>
-        <div class="header-actions">
+        <div class="header-actions"><ac-kpi-toggle />
           <button class="ac-btn ac-btn-secondary" type="button" (click)="setToday()">
             <span class="material-symbols-rounded">today</span>
             Today
@@ -54,7 +55,7 @@ import { AppointmentManagementService } from './appointment-management.service';
         </div>
       </header>
 
-      <section class="ac-kpi-grid" aria-label="Workspace overview" tabindex="0" role="region">
+      <section acKpiRegion class="ac-kpi-grid" aria-label="Workspace overview" tabindex="0" role="region">
         @for (card of statCards(); track card.label) {
           <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.color" [detail]="card.meta" [pending]="initialLoading()"  />
         }

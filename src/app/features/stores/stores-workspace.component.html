@@ -1,0 +1,108 @@
+<div class="ac-workspace">
+  <header class="ac-workspace-head">
+    <div>
+      <p class="ac-eyebrow">Care360 · Hospital operations</p>
+      <h1 class="ac-page-title">{{ title }}</h1>
+      <p class="section-copy">{{ subtitle }}</p>
+    </div>
+    <div class="header-actions">
+      @if (workspace === 'stores') { <a class="ac-btn ac-btn-secondary" routerLink="/inventory">Inventory</a> }
+      <button type="button" class="ac-btn ac-btn-ghost" (click)="refresh()" [disabled]="busy()">Refresh</button>
+    </div>
+  </header>
+  @if (error()) { <p class="feedback feedback-error" role="alert">{{ error() }}</p> }
+  @if (notice()) { <p class="feedback feedback-success" role="status">{{ notice() }}</p> }
+  @if (busy()) { <p class="section-copy" role="status">Loading or saving records…</p> }
+  <nav class="workspace-tabs" [attr.aria-label]="title + ' workspaces'">
+    @for (value of tabs; track value) {
+      <button type="button" class="ac-btn" [class.active]="tab() === value" [attr.aria-pressed]="tab() === value" (click)="chooseTab(value)" [disabled]="busy()">{{ label(value) }}</button>
+    }
+  </nav>
+  @if (form(); as current) {
+    <section class="panel">
+      <div class="section-head">
+        <h2>{{ current.title }}</h2>
+        @if (tab() === 'equipment' && can('Integrations.View')) {
+          <a class="ac-btn ac-btn-secondary" routerLink="/integrations">Integration control plane</a>
+        }
+      </div>
+      <div class="fields"><label class="field">Action
+        <ac-dropdown [ariaLabel]="title + ' action'" [options]="actions()" [ngModel]="current.key" (ngModelChange)="chooseAction($event)" [disabled]="busy()" />
+      </label></div>
+      @if (current.key === 'referral') {
+        <form class="fields" (ngSubmit)="searchPatients()">
+          <label class="field">Find patient by name or MRN
+            <input class="ac-input" name="patientSearch" [(ngModel)]="patientSearch" maxlength="120" [disabled]="busy()" />
+          </label>
+          <div class="actions"><button type="submit" class="ac-btn ac-btn-secondary" [disabled]="busy()">Find patient</button></div>
+        </form>
+      }
+      <form (ngSubmit)="submit()">
+        <fieldset class="workflow-body" [disabled]="busy()">
+          <div class="fields">
+            @for (input of current.fields; track input.key) {
+              <label class="field">{{ input.label }}
+                @if (input.source || input.choices) {
+                  <ac-dropdown [ariaLabel]="input.label" [name]="input.key" [options]="options(input)" [(ngModel)]="values[input.key]" (ngModelChange)="changed(input.key)" [disabled]="busy()" />
+                } @else if (input.type === 'checkbox') {
+                  <input type="checkbox" class="policy-check" [name]="input.key" [(ngModel)]="values[input.key]" />
+                } @else if (input.type === 'textarea') {
+                  <textarea class="ac-input" [name]="input.key" [(ngModel)]="values[input.key]" rows="3" maxlength="2000"></textarea>
+                } @else {
+                  <input class="ac-input" [name]="input.key" [type]="input.type ?? 'text'" [(ngModel)]="values[input.key]" step="any" maxlength="2000" />
+                }
+              </label>
+            }
+          </div>
+          @if (medicationSafety(); as rules) {
+            <section class="panel" aria-label="Medication safety review">
+              <h3>Medication safety review</h3>
+              @for (rule of rules; track rule['ruleId']) {
+                <div class="field">
+                  <strong>{{ label(string(rule['kind'])) }} · {{ label(string(rule['behavior'])) }}</strong>
+                  <p>{{ rule['recommendation'] }}</p>
+                  @if (rule['behavior'] === 'REQUIRE_OVERRIDE') {
+                    <label class="field">Prescriber reason for this override
+                      <textarea class="ac-input" [name]="'override-' + rule['ruleId']" [(ngModel)]="overrideReasons[string(rule['ruleId'])]" rows="3" maxlength="2000"></textarea>
+                    </label>
+                  }
+                </div>
+              } @empty { <p class="section-copy">No active allergy or interaction rule was returned. Verify the patient, dose, route, and timing before signing.</p> }
+            </section>
+          }
+          @if (preview(); as quote) {
+            <section class="panel" aria-label="Approved pricing preview">
+              <h3>Approved pricing preview</h3>
+              <div class="fields">
+                @for (key of priceTotals; track key) { <div><strong>{{ label(key) }}</strong><p>{{ display(quote[key], key) }}</p></div> }
+              </div>
+            </section>
+          }
+          <div class="actions">
+            <button type="submit" class="ac-btn ac-btn-primary" [disabled]="busy() || safetyBlocked()">
+              {{ (current.key === 'prescribe' || (current.key === 'medicationState' && values['status'] === 'ACTIVE')) && !medicationSafety() ? 'Review medication safety' : current.key === 'price' && !preview() ? 'Preview approved pricing' : current.title }}
+            </button>
+          </div>
+        </fieldset>
+      </form>
+    </section>
+  }
+  @for (table of tables(); track table) {
+    <section class="panel">
+      <div class="section-head"><h2>{{ label(table) }}</h2></div>
+      <div class="table-wrap" role="region" tabindex="0" [attr.aria-label]="label(table) + ' records'" [class.has-records]="rows(table).length > 0">
+        <table class="ac-table">
+          <thead><tr>@for (column of columns[table]; track column) { <th scope="col">{{ label(column) }}</th> }</tr></thead>
+          <tbody>
+            @for (row of rows(table); track row['id']) {
+              <tr>@for (column of columns[table]; track column) {
+                <td>@if (column === 'status') { <span [class]="badge(string(row[column]))">{{ label(string(row[column])) }}</span> }
+                @else { {{ display(row[column], column) }} }</td>
+              }</tr>
+            } @empty { <tr><td [attr.colspan]="columns[table].length" class="empty-state">No {{ label(table).toLowerCase() }} in this branch.</td></tr> }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+</div>

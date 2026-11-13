@@ -1,7 +1,7 @@
 <section class="inventory-page ac-workspace ac-dashboard" [attr.aria-busy]="loading()">
   <header class="page-head ac-workspace-head">
     <div><span class="eyebrow">HOSPITAL STORES</span><h1>Inventory</h1><p>Supplies ready for care. Equipment ready for use.</p></div>
-    <div class="actions"><button class="ac-btn ac-btn-secondary" (click)="load()" [disabled]="loading()||busy()"><span class="material-symbols-rounded" aria-hidden="true">refresh</span>Refresh</button>
+    <div class="actions"><ac-kpi-toggle /><button class="ac-btn ac-btn-secondary" (click)="load()" [disabled]="loading()||busy()"><span class="material-symbols-rounded" aria-hidden="true">refresh</span>Refresh</button>
       @if(tab()==='ledger'&&can('Edit')){<button class="ac-btn ac-btn-primary" (click)="open('movement')" [disabled]="!canWrite()||busy()||!activeItems().length">Record movement</button>} @else if(can('Create')) {<button class="ac-btn ac-btn-primary" (click)="open(tab()==='vendors'?'vendor':tab()==='assets'?'asset':tab()==='orders'?'order':'item')" [disabled]="!canWrite()||busy()||loading()"><span class="material-symbols-rounded" aria-hidden="true">add</span>{{tab()==='vendors'?'New vendor':tab()==='assets'?'Register asset':tab()==='orders'?'New order':'New item'}}</button>}
     </div>
   </header>
@@ -9,7 +9,7 @@
   @if(error()){<div class="error" role="alert">{{error()}} <button class="ac-btn ac-btn-secondary" (click)="load()">Retry</button></div>}
   @if(loading()){<div class="loading" role="status"><span class="spinner"></span>Loading inventory…</div>}
   @if(!error()){
-    <section class="ac-kpi-grid" aria-label="Inventory overview" tabindex="0" role="region">
+    <section acKpiRegion class="ac-kpi-grid" aria-label="Inventory overview" tabindex="0" role="region">
       <ac-kpi-card label="Stock items" [value]="data().items.length" icon="inventory_2" detail="Items in the stores register" [pending]="loading()" [actionable]="true" (activated)="choose('items')" />
       <ac-kpi-card label="Replenishment needed" [value]="lowStock().length" icon="warning" tone="var(--ac-warning-text)" detail="At or below reorder level" [pending]="loading()" [actionable]="true" (activated)="choose('items');state.set('LOW')" />
       <ac-kpi-card label="Open purchase orders" [value]="openOrders().length" icon="shopping_cart" tone="var(--ac-secondary)" detail="Orders awaiting fulfilment" [pending]="loading()" [actionable]="true" (activated)="choose('orders')" />

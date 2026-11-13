@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ApiClientService } from '../../core/http/api-client.service';
-import { DispenseLine, DrugAllergyBehavior, DrugAllergyMapping, DrugAllergyMappingOptions, DrugInteractionBehavior, DrugInteractionOptions, DrugInteractionRule, DrugInteractionSeverity, DrugMasterOptions, FormularyOptions, FormularyPolicy, FormularyStatus, Medicine, PharmacyDashboard, PrescriptionDetail, PrescriptionQueueItem, ReceiveBatchRequest, RecentDispensing, SaveDrugAllergyMappingRequest, SaveDrugInteractionRequest, SaveFormularyPolicyRequest, SaveGenericDrugRequest, SaveMedicineRequest, StockBatch } from './pharmacy.models';
+import { PharmacyStoreBalance, DispenseLine, DrugAllergyBehavior, DrugAllergyMapping, DrugAllergyMappingOptions, DrugInteractionBehavior, DrugInteractionOptions, DrugInteractionRule, DrugInteractionSeverity, DrugMasterOptions, FormularyOptions, FormularyPolicy, FormularyStatus, Medicine, PharmacyDashboard, PrescriptionDetail, PrescriptionQueueItem, ReceiveBatchRequest, RecentDispensing, SaveDrugAllergyMappingRequest, SaveDrugInteractionRequest, SaveFormularyPolicyRequest, SaveGenericDrugRequest, SaveMedicineRequest, StockBatch } from './pharmacy.models';
 
 @Injectable({ providedIn: 'root' })
 export class PharmacyService {
@@ -29,6 +29,7 @@ export class PharmacyService {
   createAllergyMapping(body: SaveDrugAllergyMappingRequest) { return this.post<{ id: string }>('/pharmacy/allergy-mappings', body); }
   updateAllergyMapping(id: string, body: SaveDrugAllergyMappingRequest) { return this.put<{ id: string }>(`/pharmacy/allergy-mappings/${id}`, body); }
   stock(search = '', state = '') { return this.get<StockBatch[]>(`/pharmacy/stock?search=${encodeURIComponent(search)}&state=${encodeURIComponent(state)}`); }
+  storeBalances() { return this.get<PharmacyStoreBalance[]>('/pharmacy/stock/store-balances'); }
   receiveBatch(body: ReceiveBatchRequest) { return this.post<{ id: string }>('/pharmacy/stock/batches', body); }
   dispense(prescriptionId: string, items: DispenseLine[], notes = '', requestId?:string) { return this.post<{ id: string; dispenseNumber: string; saleNumber: string; totalAmount: number }>('/pharmacy/dispensings', { prescriptionId, locationId: null, notes, items, requestId }); }
   private async get<T>(path:string):Promise<T>{return unwrap(await firstValueFrom(this.api.get<PharmacyApiResponse<T>|T>(path)));}

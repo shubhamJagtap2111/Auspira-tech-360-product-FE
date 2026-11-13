@@ -1,0 +1,7 @@
+.workflow-body { min-width:0; border:0; margin:0; padding:0; }
+.readiness-checks { margin:16px 0; padding:16px; border:1px solid var(--ac-border); border-radius:var(--ac-r-sm); }
+.readiness-checks legend { padding:0 8px; font-weight:600; }
+.check { display:flex; align-items:center; gap:12px; min-height:44px; }
+.check input { width:20px; height:20px; flex:none; accent-color:var(--ac-primary); }
+.ac-table td { overflow-wrap:anywhere; }
+@media(max-width:640px) { .workspace-tabs .ac-btn,.actions .ac-btn,.header-actions .ac-btn { min-height:44px; } }

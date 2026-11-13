@@ -1,0 +1,97 @@
+/* Application-wide workspace density. Preserve brand/theme tokens and clinical forms. */
+.main-content .ac-workspace.ac-workspace,
+.main-content .ac-dashboard.ac-dashboard { gap: 12px; }
+.main-content:not(.chat-workspace-page) > router-outlet + * > :is(section, div, main) { row-gap: 12px; }
+
+.main-content :is(.ac-workspace, .ac-dashboard) > :is(.ac-workspace-head, .page-head, .page-header, .dashboard-hero),
+.main-content :is(.page-head, .page-header, .page-heading, .ac-workspace-head) {
+  gap: 12px;
+  padding: 0 0 10px;
+  margin: 0;
+  min-height: 0;
+  align-items: center;
+}
+.main-content .ac-page-title,
+.main-content .ac-workspace.ac-workspace .ac-workspace-head h1,
+.main-content :is(.page-head, .page-header, .page-heading, .ac-workspace-head, .dashboard-hero) h1 {
+  margin: 2px 0 4px;
+  font-size: 22px !important;
+  line-height: 1.25;
+  letter-spacing: -.035em;
+}
+.main-content .ac-workspace.ac-workspace .ac-workspace-head :is(.ac-eyebrow, .eyebrow) { margin-bottom: 2px; }
+.main-content .ac-workspace.ac-workspace .ac-workspace-head p:last-child,
+.main-content :is(.page-head, .page-header, .page-heading, .ac-workspace-head, .dashboard-hero) > div > p:last-child {
+  font-size: 12px;
+  line-height: 1.45;
+  margin-bottom: 0;
+}
+.main-content .ac-dashboard.ac-dashboard > :is(.ac-workspace-head, .page-head, .dashboard-hero) {
+  padding: 12px 16px;
+  border-radius: var(--ac-r-md);
+  box-shadow: var(--ac-sh-sm);
+}
+.main-content .admin-dashboard .dashboard-hero { min-height: 0 !important; }
+.main-content .admin-dashboard .hero-tags { margin-top: 8px; }
+.main-content .ac-kpi-page-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Hidden regions leave no empty strip and cannot receive keyboard focus. */
+.main-content [acKpiRegion][hidden] { display: none !important; }
+.main-content :is(.ac-kpi-grid.ac-kpi-grid, .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis) { padding-block: 0; }
+.main-content .ac-compact-kpis.ac-compact-kpis.ac-compact-kpis > :is(article, button, div, span) {
+  min-height: 72px;
+  padding: 8px 12px;
+}
+
+@media (min-width: 769px) {
+  .main-content .ac-btn { min-height: 36px; padding: 7px 12px; font-size: 12px; }
+  .main-content :is(.toolbar, .workspace-toolbar, .filter-panel) { gap: 8px; padding: 8px 10px; }
+  .main-content :is(.toolbar, .workspace-toolbar, .filter-panel) :is(.ac-input, .toolbar-input, .ac-dropdown-trigger, input:not([type=checkbox]):not([type=radio]), select) {
+    min-height: 36px;
+    height: 36px;
+  }
+  .main-content .ac-workspace.ac-workspace .ac-workspace-tabs { padding: 4px; }
+  .main-content .ac-workspace.ac-workspace .ac-workspace-tabs > button { min-height: 36px; padding: 7px 12px; }
+  .main-content :is(.ac-table, .table-scroll > table, .table-wrap > table, .table-container > table) > thead > tr > th {
+    padding: 7px 12px !important;
+    line-height: 1.4;
+  }
+  .main-content :is(.ac-table, .table-scroll > table, .table-wrap > table, .table-container > table) > tbody > tr > td {
+    padding: 6px 12px !important;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .main-content ac-pagination .ac-pagination { padding: 6px 12px; gap: 8px; }
+  .main-content :is(.table, .table-wrap, .table-scroll) > :is(.table-head, .table-row) {
+    padding-block: 8px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-content :is(.header-actions, .head-actions, .page-actions) { flex-wrap: wrap; }
+  .main-content ac-kpi-toggle { max-width: 100%; }
+  .main-content .ac-btn,
+  .main-content .ac-workspace.ac-workspace .ac-workspace-head .ac-btn,
+  .main-content .ac-workspace.ac-workspace .ac-workspace-tabs > button { min-height: 44px; }
+  .main-content ac-kpi-toggle .ac-btn { width: 100%; }
+  .main-content .ac-workspace.ac-workspace .ac-workspace-head .header-actions > :is(.ac-btn, ac-kpi-toggle) {
+    flex: 1 1 calc(50% - 4px);
+    width: auto;
+    min-width: 0;
+  }
+  .main-content .ac-workspace > .toolbar:has(> .search-field) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 10px;
+  }
+  .main-content .ac-workspace > .toolbar > :is(.search-field, .date-filter) { grid-column: 1 / -1; }
+  .main-content .ac-workspace > .toolbar .search-field { min-width: 0; }
+  .main-content .ac-workspace > .toolbar :is(.ac-dropdown-trigger, .toolbar-input, .date-filter, .icon-btn, .toolbar-count) { min-height: 44px; }
+  .main-content .ac-dashboard.ac-dashboard > :is(.ac-workspace-head, .page-head, .dashboard-hero) { padding: 12px; }
+}
+
+@media print {
+  ac-kpi-toggle, .ac-kpi-page-actions { display: none !important; }
+}

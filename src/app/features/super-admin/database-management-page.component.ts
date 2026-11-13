@@ -1,3 +1,4 @@
+import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -10,7 +11,7 @@ import { DatabaseManagementService } from './database-management.service';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
+  imports: [...AC_KPI_VISIBILITY, CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="database-page">
@@ -20,7 +21,7 @@ import { DatabaseManagementService } from './database-management.service';
           <h1 class="ac-page-title">DBA Console</h1>
           <p>Monitor tenant databases, backups, storage, health, connections, and migration state from one control-plane workspace.</p>
         </div>
-        <div class="head-actions">
+        <div class="head-actions"><ac-kpi-toggle />
           <a class="icon-btn" routerLink="/super-admin/tenants" title="Open tenants">
             <span class="material-symbols-rounded">corporate_fare</span>
           </a>
@@ -31,7 +32,7 @@ import { DatabaseManagementService } from './database-management.service';
       </header>
 
       @if (snapshot(); as model) {
-        <section class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
+        <section acKpiRegion class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
           <article class="stat"><span class="material-symbols-rounded">database</span><p>Databases</p><strong>{{ model.summary.totalDatabases }}</strong></article>
           <article class="stat"><span class="material-symbols-rounded">verified</span><p>Healthy</p><strong>{{ model.summary.healthyDatabases }}</strong></article>
           <article class="stat"><span class="material-symbols-rounded">storage</span><p>Storage</p><strong>{{ model.summary.totalStorageGb }} GB</strong></article>

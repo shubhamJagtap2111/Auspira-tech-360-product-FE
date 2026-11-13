@@ -1,3 +1,4 @@
+import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -17,7 +18,7 @@ type WizardStep = 'basic' | 'plan' | 'database' | 'admin' | 'features' | 'review
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
+  imports: [...AC_KPI_VISIBILITY, CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="provision-page">
@@ -27,7 +28,7 @@ type WizardStep = 'basic' | 'plan' | 'database' | 'admin' | 'features' | 'review
           <h1 class="ac-page-title">Create Hospital</h1>
           <p>Provision PostgreSQL databases, seed RBAC, create the hospital admin, issue licenses, and update the master control plane.</p>
         </div>
-        <div class="head-actions">
+        <div class="head-actions"><ac-kpi-toggle />
           <a class="icon-btn" routerLink="/super-admin/tenants" title="Open hospital list">
             <span class="material-symbols-rounded">corporate_fare</span>
           </a>
@@ -42,7 +43,7 @@ type WizardStep = 'basic' | 'plan' | 'database' | 'admin' | 'features' | 'review
       </header>
 
       @if (snapshot(); as model) {
-        <section class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
+        <section acKpiRegion class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
           <article class="stat">
             <span class="material-symbols-rounded">deployed_code</span>
             <p>Provision Jobs</p>

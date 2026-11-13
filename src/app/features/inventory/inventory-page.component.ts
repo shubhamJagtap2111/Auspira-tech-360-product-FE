@@ -1,3 +1,4 @@
+import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
 import { ActivatedRoute } from '@angular/router';
 import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
 import { CommonModule } from '@angular/common';
@@ -14,7 +15,7 @@ import { InventoryService, emptyWorkspace, StoreItem, Vendor, Asset, PurchaseOrd
 type Tab = 'overview'|'items'|'orders'|'assets'|'vendors'|'ledger';
 type Editor = 'item'|'vendor'|'asset'|'order'|'receive'|'movement'|null;
 @Component({
-  standalone:true, imports:[AcKpiCardComponent,CommonModule,FormsModule,RouterLink,AcAdminDrawerComponent],
+  standalone:true, imports: [...AC_KPI_VISIBILITY, AcKpiCardComponent,CommonModule,FormsModule,RouterLink,AcAdminDrawerComponent],
   templateUrl:'./inventory-page.component.html', styleUrl:'./inventory-page.component.css', changeDetection:ChangeDetectionStrategy.OnPush
 })
 export class InventoryPageComponent implements OnInit {

@@ -1,3 +1,4 @@
+import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -16,7 +17,7 @@ type BillingTab = 'invoices' | 'payments' | 'taxes' | 'gst' | 'refunds' | 'credi
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
+  imports: [...AC_KPI_VISIBILITY, CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="billing-page">
@@ -26,7 +27,7 @@ type BillingTab = 'invoices' | 'payments' | 'taxes' | 'gst' | 'refunds' | 'credi
           <h1 class="ac-page-title">Invoices, Payments, Taxes, GST</h1>
           <p>Control SaaS billing operations across invoices, payment receipts, GST rates, refunds, credits, and ledger transactions.</p>
         </div>
-        <div class="head-actions">
+        <div class="head-actions"><ac-kpi-toggle />
           <a class="icon-btn" routerLink="/super-admin/subscriptions" title="Open subscriptions">
             <span class="material-symbols-rounded">autorenew</span>
           </a>
@@ -37,7 +38,7 @@ type BillingTab = 'invoices' | 'payments' | 'taxes' | 'gst' | 'refunds' | 'credi
       </header>
 
       @if (snapshot(); as model) {
-        <section class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
+        <section acKpiRegion class="stat-grid ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
           <article class="stat"><span class="material-symbols-rounded">receipt_long</span><p>Open Invoices</p><strong>{{ money(model.summary.openInvoiceAmount, model.summary.currencyCode) }}</strong></article>
           <article class="stat"><span class="material-symbols-rounded">payments</span><p>Paid</p><strong>{{ money(model.summary.paidAmount, model.summary.currencyCode) }}</strong></article>
           <article class="stat"><span class="material-symbols-rounded">percent</span><p>Tax / GST</p><strong>{{ money(model.summary.taxCollected, model.summary.currencyCode) }}</strong></article>

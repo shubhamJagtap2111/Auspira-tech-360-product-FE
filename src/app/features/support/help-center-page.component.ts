@@ -1,3 +1,4 @@
+import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -11,7 +12,7 @@ import { HelpActivity, HelpDetail, HelpResponse, HelpTicket, HelpWorkspace, Tick
 import { HelpArticle, helpArticles, implementationTasks } from './help-center.articles';
 import { AcGridLoaderComponent } from '../../shared/ui/grid-loader/grid-loader.component';
 
-@Component({standalone:true, imports:[CommonModule,FormsModule,RouterLink,A11yModule,AcGridLoaderComponent], changeDetection:ChangeDetectionStrategy.OnPush,
+@Component({standalone:true, imports: [...AC_KPI_VISIBILITY, CommonModule,FormsModule,RouterLink,A11yModule,AcGridLoaderComponent], changeDetection:ChangeDetectionStrategy.OnPush,
   templateUrl:'./help-center-page.component.html',styleUrl:'./help-center-page.component.css'})
 export class HelpCenterPageComponent {
   private readonly api = inject(HelpCenterService);

@@ -177,6 +177,12 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/pharmacy/pharmacy-page.component').then(m => m.PharmacyPageComponent)
   },
+  {path:'allied-care',canActivate:[authGuard,permissionGuard],data:{permission:'Allied.View',workspace:'allied'},loadComponent:()=>import('./features/stores/stores-workspace.component').then(m=>m.StoresWorkspaceComponent)},
+  {path:'kitchen',canActivate:[authGuard,permissionGuard],data:{permission:'Allied.Kitchen',workspace:'kitchen'},loadComponent:()=>import('./features/stores/stores-workspace.component').then(m=>m.StoresWorkspaceComponent)},
+  {path:'stores',canActivate:[authGuard,permissionGuard],data:{permission:'Stores.View'},loadComponent:()=>import('./features/stores/stores-workspace.component').then(m=>m.StoresWorkspaceComponent)},
+  {path:'operation-theatre',canActivate:[authGuard,permissionGuard],data:{permission:'OT.View'},loadComponent:()=>import('./features/surgical/surgical-workspace.component').then(m=>m.SurgicalWorkspaceComponent)},
+  {path:'radiology',canActivate:[authGuard,permissionGuard],data:{permission:'Radiology.View',mode:'radiology'},loadComponent:()=>import('./features/phase-five/phase-five-workspace.component').then(m=>m.PhaseFiveWorkspaceComponent)},
+  {path:'emergency',canActivate:[authGuard,permissionGuard],data:{permission:'Emergency.View',mode:'emergency'},loadComponent:()=>import('./features/phase-five/phase-five-workspace.component').then(m=>m.PhaseFiveWorkspaceComponent)},
   {path:'revenue',canActivate:[authGuard,permissionGuard],data:{permission:'Billing.View',mode:'revenue'},loadComponent:()=>import('./features/phase-four/phase-four-workspace.component').then(m=>m.PhaseFourWorkspaceComponent)},
   {path:'laboratory-operations',canActivate:[authGuard,permissionGuard],data:{permission:'InpatientCare.View',mode:'laboratory'},loadComponent:()=>import('./features/phase-four/phase-four-workspace.component').then(m=>m.PhaseFourWorkspaceComponent)},
   {

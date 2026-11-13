@@ -1,3 +1,4 @@
+import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
 import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
@@ -18,7 +19,7 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
 
 @Component({
   standalone: true,
-  imports: [AcKpiCardComponent, CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent, AcPaginationComponent, AcAdminDrawerComponent],
+  imports: [...AC_KPI_VISIBILITY, AcKpiCardComponent, CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent, AcPaginationComponent, AcAdminDrawerComponent],
   template: `
     <section class="doctor-registry ac-workspace">
       <header class="page-header ac-workspace-head">
@@ -27,7 +28,7 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
           <h1 class="ac-page-title">Doctor Registry</h1>
           <p class="page-desc">Find doctors, review availability, and manage their specialties and consultation schedules.</p>
         </div>
-        <div class="header-actions">
+        <div class="header-actions"><ac-kpi-toggle />
           <button class="ac-btn ac-btn-secondary" type="button" (click)="exportCsv()" [disabled]="doctors().length === 0">
             <span class="material-symbols-rounded">download</span>
             Export
@@ -39,7 +40,7 @@ type DoctorDrawerMode = 'view' | 'edit' | 'create';
         </div>
       </header>
 
-      <section class="ac-kpi-grid" aria-label="Workspace overview" tabindex="0" role="region">
+      <section acKpiRegion class="ac-kpi-grid" aria-label="Workspace overview" tabindex="0" role="region">
         @for (card of statCards(); track card.label) {
           <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.color" [detail]="card.meta" [pending]="initialLoading()"  />
         }

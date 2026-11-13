@@ -1,3 +1,4 @@
+import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
 import { buildIpdManagerTasks, ipdTasksForFocus, matchesIpdPatientView, sortIpdPatients, IpdPatientView, IpdWorkFocus, ManagerTask } from './ipd-manager-workflow';
 import { PatientManagementService } from '../patients/patient-management.service';
 import { CommonModule } from '@angular/common';
@@ -47,7 +48,7 @@ interface IpdDetailTabItem {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent],
+  imports: [...AC_KPI_VISIBILITY, CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent],
   styleUrl: './ipd-workspace.css',
   template: `
     <ng-template #patientCard let-admission>
@@ -87,7 +88,7 @@ interface IpdDetailTabItem {
           <h1 class="ac-page-title">Inpatient care</h1>
           <p class="page-desc">Your patients, ward work, and next steps in one place.</p>
         </div>
-        <div class="header-actions">
+        <div class="header-actions"><ac-kpi-toggle />
           <button class="ac-btn ac-btn-secondary" type="button" [disabled]="refreshing()" (click)="refresh()">
             <span class="material-symbols-rounded" [class.spin]="refreshing()">{{ refreshing() ? 'progress_activity' : 'refresh' }}</span>
             Refresh
@@ -101,7 +102,7 @@ interface IpdDetailTabItem {
 
       @if (workspace(); as model) {
         @if (!activePatientDetailOpen()) {
-        <section class="ipd-overview-strip ac-compact-kpis" aria-label="Inpatient overview" tabindex="0" role="region">
+        <section acKpiRegion class="ipd-overview-strip ac-compact-kpis" aria-label="Inpatient overview" tabindex="0" role="region">
           <button type="button" (click)="setTab('patients')"><span class="ipd-overview-icon material-symbols-rounded" aria-hidden="true">personal_injury</span><span><small>Active patients</small><strong>{{ model.summary.currentAdmissions }}</strong></span></button>
           <button type="button" (click)="setTab('beds')"><span class="ipd-overview-icon teal material-symbols-rounded" aria-hidden="true">bed</span><span><small>Available beds</small><strong>{{ model.summary.availableBeds }}<em> / {{ model.summary.totalBeds }}</em></strong></span></button>
           <button type="button" (click)="setTab('admissions')"><span class="ipd-overview-icon purple material-symbols-rounded" aria-hidden="true">person_add</span><span><small>Admitted today</small><strong>{{ model.summary.admissionsToday }}</strong></span></button>

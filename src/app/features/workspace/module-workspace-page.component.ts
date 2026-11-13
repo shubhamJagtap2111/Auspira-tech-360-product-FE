@@ -1,14 +1,15 @@
+import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
 
 @Component({
   standalone: true,
-  imports: [AcKpiCardComponent],
+  imports: [...AC_KPI_VISIBILITY, AcKpiCardComponent],
   template: `
     <section class="workspace ac-workspace">
-      <header class="ac-workspace-head"><div><p class="ac-eyebrow">Hospital operations</p><h1 class="ac-page-title">{{ title }}</h1><p>A dedicated workspace for the hospital team.</p></div><span class="connection-state"><span class="material-symbols-rounded" aria-hidden="true">cloud_off</span> Not connected</span></header>
-      <section class="ac-kpi-grid" aria-label="Data availability" tabindex="0" role="region">
+      <header class="ac-workspace-head"><div><p class="ac-eyebrow">Hospital operations</p><h1 class="ac-page-title">{{ title }}</h1><p>A dedicated workspace for the hospital team.</p></div><span class="connection-state"><span class="material-symbols-rounded" aria-hidden="true">cloud_off</span> Not connected</span><ac-kpi-toggle /></header>
+      <section acKpiRegion class="ac-kpi-grid" aria-label="Data availability" tabindex="0" role="region">
         <ac-kpi-card label="Open cases" value="—" icon="pending_actions" detail="Live data unavailable" />
         <ac-kpi-card label="Priority attention" value="—" icon="emergency" tone="var(--ac-warning-text)" detail="Live data unavailable" />
         <ac-kpi-card label="Completed today" value="—" icon="task_alt" tone="var(--ac-teal)" detail="Live data unavailable" />

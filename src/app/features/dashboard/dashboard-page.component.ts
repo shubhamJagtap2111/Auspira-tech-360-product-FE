@@ -1,3 +1,4 @@
+import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
 import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
@@ -78,7 +79,7 @@ interface HospitalPulseItem {
 
 @Component({
   standalone: true,
-  imports: [AcKpiCardComponent, CommonModule, FormsModule, RouterLink],
+  imports: [...AC_KPI_VISIBILITY, AcKpiCardComponent, CommonModule, FormsModule, RouterLink],
   template: `
     <section class="admin-dashboard ac-workspace ac-dashboard">
       <header class="dashboard-hero" [class.staff-hero]="!isHospitalAdmin()">
@@ -91,12 +92,12 @@ interface HospitalPulseItem {
             <span><span class="material-symbols-rounded">domain</span>Care360 Hospital</span>
           </div>
         </div>
-        <button class="ac-btn ac-btn-secondary dashboard-refresh" type="button" (click)="load()" [attr.title]="t('Administration.Rbac.Actions.Refresh')"><span class="material-symbols-rounded" aria-hidden="true">refresh</span>Refresh overview</button>
+        <div class="header-actions"><ac-kpi-toggle /><button class="ac-btn ac-btn-secondary dashboard-refresh" type="button" (click)="load()" [attr.title]="t('Administration.Rbac.Actions.Refresh')"><span class="material-symbols-rounded" aria-hidden="true">refresh</span>Refresh overview</button></div>
       </header>
 
       @if (dashboard(); as model) {
         @if (isHospitalAdmin()) {
-          <section class="ac-kpi-grid" aria-label="Hospital overview" tabindex="0" role="region">
+          <section acKpiRegion class="ac-kpi-grid" aria-label="Hospital overview" tabindex="0" role="region">
             @for (card of createOperationalCards(model.operationalSummary); track card.label) {
               <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.tone" [detail]="card.subLabel" />
             }
@@ -356,7 +357,7 @@ interface HospitalPulseItem {
             </div>
           </section>
         } @else {
-          <section class="ac-kpi-grid" aria-label="Hospital overview" tabindex="0" role="region">
+          <section acKpiRegion class="ac-kpi-grid" aria-label="Hospital overview" tabindex="0" role="region">
             @for (card of createStaffCards(model.summary); track card.label) {
               <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.tone" [detail]="card.subLabel" />
             }

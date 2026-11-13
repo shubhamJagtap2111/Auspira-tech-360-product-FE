@@ -1,3 +1,5 @@
+import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
+import { BranchContextService } from '../../core/context/branch-context.service';
 import { ActivatedRoute } from '@angular/router';
 import { AcKpiCardComponent } from '../../shared/ui/kpi-card/kpi-card.component';
 import { CommonModule } from '@angular/common';
@@ -16,13 +18,13 @@ type PendingReportOrder = LabOrder & { processingCount: number; verificationCoun
 
 @Component({
   standalone: true,
-  imports: [AcKpiCardComponent, CommonModule, FormsModule, AcGridLoaderComponent],
+  imports: [...AC_KPI_VISIBILITY, AcKpiCardComponent, CommonModule, FormsModule, AcGridLoaderComponent],
   selector: 'ac-laboratory-page',
   template: `
     <main class="laboratory-page ac-workspace ac-dashboard">
       <header class="page-head ac-workspace-head">
         <div><p class="ac-eyebrow">Clinical diagnostics</p><h1 class="ac-page-title">Laboratory</h1><p>Order, collect, process, verify, and release diagnostic results from one controlled workspace.</p></div>
-        <div class="head-actions">
+        <div class="head-actions"><ac-kpi-toggle />
           <button class="ac-btn ac-btn-secondary" type="button" (click)="refresh()" [disabled]="loading()"><span class="material-symbols-rounded">refresh</span><span>Refresh</span></button>
           <button class="ac-btn ac-btn-primary" type="button" (click)="openOrderDialog()"><span class="material-symbols-rounded">add</span><span>New Lab Order</span></button>
         </div>
@@ -35,7 +37,7 @@ type PendingReportOrder = LabOrder & { processingCount: number; verificationCoun
       @else {
         @switch(activeTab()){
           @case('dashboard'){
-            <section class="ac-kpi-grid" aria-label="Workspace overview" tabindex="0" role="region">
+            <section acKpiRegion class="ac-kpi-grid" aria-label="Workspace overview" tabindex="0" role="region">
         @for (card of dashboardCards(); track card.label) {
           <ac-kpi-card [label]="card.label" [value]="card.value" [icon]="card.icon" [tone]="card.tab === 'critical' ? 'var(--ac-error)' : 'var(--ac-primary)'" [detail]="card.meta" [pending]="loading()" [actionable]="true" (activated)="setActiveTab(card.tab)" />
         }
@@ -531,6 +533,7 @@ type PendingReportOrder = LabOrder & { processingCount: number; verificationCoun
   `]
 })
 export class LaboratoryPageComponent implements OnInit {
+  private readonly branchContext=inject(BranchContextService);protected emergencyContext:{patientId:string;episodeId:string;branch:string|null}|null=null;private pendingOrder:{body:string;key:string}|null=null;
   private readonly service=inject(LaboratoryService); private readonly toast=inject(ToastService); protected readonly auth=inject(AuthStore);
   protected readonly orderDialogOpen=signal(false);
   protected readonly loading=signal(true); protected readonly saving=signal(false); protected readonly activeTab=signal<LabTab>(readStoredLaboratoryTab()); protected readonly dashboard=signal<LabDashboard|null>(null); protected readonly tests=signal<LabTest[]>([]); protected readonly orders=signal<LabOrder[]>([]); protected readonly pending=signal<PendingCollection[]>([]); protected readonly worklist=signal<LabWorkItem[]>([]); protected readonly verification=signal<VerificationItem[]>([]); protected readonly reports=signal<LabReport[]>([]); protected readonly critical=signal<CriticalResult[]>([]); protected readonly options=signal<OrderOptions|null>(null); protected readonly selectedTest=signal<any|null>(null); protected readonly resultEditor=signal<LabResultDetail|null>(null); protected readonly reviewEditor=signal<LabResultDetail|null>(null); protected readonly rejectTarget=signal<RejectTarget|null>(null); protected readonly acknowledgeItem=signal<CriticalResult|null>(null); protected readonly recentSamples=signal<CollectedSample[]>([]);
@@ -544,13 +547,13 @@ export class LaboratoryPageComponent implements OnInit {
   protected readonly sortedWorklist=computed(()=>[...this.worklist()].sort((a,b)=>workStatusRank(a.statusCode)-workStatusRank(b.statusCode)||priorityRank(a.priority)-priorityRank(b.priority)||dateRank(b.startedAt)-dateRank(a.startedAt)||a.testName.localeCompare(b.testName)));
   protected readonly pendingReportOrders=computed(()=>{const released=new Set(this.reports().map(r=>r.orderNumber));const working=countByOrder(this.worklist().map(w=>w.orderNumber));const verifying=countByOrder(this.verification().map(v=>v.orderNumber));return this.visibleOrders().filter(o=>!released.has(o.orderNumber)&&!['REPORT_RELEASED','CANCELLED'].includes((o.statusCode||'').toUpperCase())).map(o=>({...o,processingCount:working.get(o.orderNumber)||0,verificationCount:verifying.get(o.orderNumber)||0})).filter(o=>o.processingCount||o.verificationCount||['VERIFICATION_PENDING','RESULT_ENTERED','PROCESSING','SAMPLE_RECEIVED','SAMPLE_COLLECTED','ORDERED','REGISTERED','SAMPLE_PENDING','RECOLLECTION_REQUIRED'].includes((o.statusCode||'').toUpperCase())).sort((a,b)=>priorityRank(a.priority)-priorityRank(b.priority)||dateRank(b.orderedAt)-dateRank(a.orderedAt));});
   private readonly route = inject(ActivatedRoute);
-  ngOnInit(){this.route.queryParamMap.subscribe(params => {const tab=params.get('tab') as LabTab|null;if(tab && this.tabs.some(t=>t.key===tab))this.setActiveTab(tab);});void this.refresh();}
+  ngOnInit(){this.route.queryParamMap.subscribe(params => {const tab=params.get('tab') as LabTab|null;if(tab && this.tabs.some(t=>t.key===tab))this.setActiveTab(tab);const patientId=params.get('patientId'),episodeId=params.get('encounterId');if(params.get('source')==='EMERGENCY'&&patientId&&episodeId&&/^[0-9a-f-]{36}$/i.test(patientId)&&/^[0-9a-f-]{36}$/i.test(episodeId)){this.emergencyContext={patientId,episodeId,branch:this.branchContext.selectedBranchCode()};this.orderForm.patientId=patientId;this.orderForm.sourceModule='EMERGENCY';this.orderForm.priority='STAT';this.setActiveTab('orders');}});void this.refresh();}
   protected setActiveTab(tab:LabTab){this.activeTab.set(tab);persistLaboratoryTab(tab);}
-  protected openOrderDialog(){this.setActiveTab('orders');this.orderDialogOpen.set(true);}
+  protected openOrderDialog(){if(this.emergencyContext){if(this.emergencyContext.branch!==this.branchContext.selectedBranchCode()){this.emergencyContext=null;this.orderForm.patientId='';this.orderForm.sourceModule='MANUAL';}else{this.orderForm.patientId=this.emergencyContext.patientId;this.orderForm.sourceModule='EMERGENCY';this.orderForm.priority='STAT';}}this.setActiveTab('orders');this.orderDialogOpen.set(true);}
   protected closeOrderDialog(){this.orderDialogOpen.set(false);}
   protected async refresh(){this.loading.set(true);try{const [d,t,o,p,cs,w,v,r,c,x]=await Promise.all([this.service.dashboard(),this.service.tests(),this.service.orders(),this.service.pendingCollection(),this.service.collectedSamples(),this.service.worklist(),this.service.verification(),this.service.reports(),this.service.critical(),this.service.orderOptions()]);this.dashboard.set(d.data);this.tests.set(t.data||[]);this.orders.set(o.data||[]);this.pending.set(p.data||[]);this.recentSamples.set(cs.data||[]);this.worklist.set(w.data||[]);this.verification.set(v.data||[]);this.reports.set(r.data||[]);this.critical.set(c.data||[]);this.options.set(x.data);}finally{this.loading.set(false);}}
   protected toggleTest(id:string){this.orderForm.testIds=this.orderForm.testIds.includes(id)?this.orderForm.testIds.filter(x=>x!==id):[...this.orderForm.testIds,id];}
-  protected async createOrder(){if(!this.orderForm.patientId||!this.orderForm.testIds.length){this.toast.warning('Order details required','Select a patient and at least one test.');return;}this.saving.set(true);try{const response=await this.service.createOrder({patientId:this.orderForm.patientId,encounterId:null,encounterType:this.orderForm.sourceModule,doctorId:this.orderForm.doctorId||null,sourceModule:this.orderForm.sourceModule,priority:this.orderForm.priority,clinicalNotes:this.orderForm.clinicalNotes,testIds:this.orderForm.testIds,packageIds:[],idempotencyKey:crypto.randomUUID()});if(response.success){this.toast.success('Lab order created',response.data?.orderNumber||'Order sent to laboratory.');this.orderForm={patientId:'',doctorId:'',sourceModule:'MANUAL',priority:'ROUTINE',clinicalNotes:'',testIds:[]};this.closeOrderDialog();await this.refresh();}else this.toast.error('Unable to create order',response.message);}finally{this.saving.set(false);}}
+  protected async createOrder(){if(!this.orderForm.patientId||!this.orderForm.testIds.length){this.toast.warning('Order details required','Select a patient and at least one test.');return;}if(this.orderForm.sourceModule==='EMERGENCY'&&(!this.emergencyContext||this.emergencyContext.branch!==this.branchContext.selectedBranchCode()||this.orderForm.patientId!==this.emergencyContext.patientId)){this.toast.warning('Emergency context required','Open the active Emergency episode and request investigations for its original source patient.');return;}this.saving.set(true);try{const body={patientId:this.orderForm.patientId,encounterId:this.orderForm.sourceModule==='EMERGENCY'?this.emergencyContext!.episodeId:null,encounterType:this.orderForm.sourceModule,doctorId:this.orderForm.doctorId||null,sourceModule:this.orderForm.sourceModule,priority:this.orderForm.priority,clinicalNotes:this.orderForm.clinicalNotes,testIds:this.orderForm.testIds,packageIds:[]};const snapshot=JSON.stringify(body);if(!this.pendingOrder||this.pendingOrder.body!==snapshot)this.pendingOrder={body:snapshot,key:crypto.randomUUID()};const response=await this.service.createOrder({...body,idempotencyKey:this.pendingOrder.key});if(response.success){this.pendingOrder=null;}if(response.success){this.toast.success('Lab order created',response.data?.orderNumber||'Order sent to laboratory.');this.orderForm={patientId:'',doctorId:'',sourceModule:'MANUAL',priority:'ROUTINE',clinicalNotes:'',testIds:[]};this.closeOrderDialog();await this.refresh();}else this.toast.error('Unable to create order',response.message);}finally{this.saving.set(false);}}
   protected async collect(row:PendingCollection){const response=await this.service.collect(row.orderId);if(response.success&&response.data){this.toast.success('Sample collected',`${response.data.sampleNumber} barcode generated.`);await this.refresh();}else this.toast.error('Collection failed',response.message);}
   protected async receive(id:string){const response=await this.service.receive(id);if(response.success){this.recentSamples.update(x=>x.filter(s=>s.id!==id));this.toast.success('Sample received','Added to processing worklist.');await this.refresh();}else this.toast.error('Unable to receive sample',response.message);}
   protected async receiveAndProcess(sample:CollectedSample){

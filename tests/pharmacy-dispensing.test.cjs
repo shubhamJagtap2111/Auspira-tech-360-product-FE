@@ -32,3 +32,13 @@ test('rejects missing, zero, negative and nonfinite quantities', () => {
   for (const quantity of [null, 0, -1, NaN, Infinity]) assert.match(dispensingIssue([line({ quantity })], [batch()]), /valid quantity/);
   assert.match(dispensingIssue([], [batch()]), /no medicines/);
 });
+
+test('requires an eligible location and totals repeated picks within the same bin', () => {
+  const locations = [
+    { batchId: 'b1', locationId: 'a', locationName: 'A', available: 5, unassigned: 0 },
+    { batchId: 'b1', locationId: 'b', locationName: 'B', available: 5, unassigned: 0 }
+  ];
+  assert.match(dispensingIssue([line({ quantity: 1 })], [batch()], locations), /needs a store location/);
+  assert.match(dispensingIssue([line({ quantity: 3, storeLocationId: 'a' }), line({ quantity: 3, storeLocationId: 'a' })], [batch()], locations), /enough available stock/);
+  assert.equal(dispensingIssue([line({ quantity: 5, storeLocationId: 'a' }), line({ quantity: 5, storeLocationId: 'b' })], [batch()], locations), null);
+});
