@@ -32,8 +32,8 @@ export class KpiVisibilityService {
     const page = this.page();
     const preference = this.preferences()[page];
     if (preference !== undefined) return preference;
-    try { return this.document.defaultView?.localStorage.getItem(this.key(page)) === 'hidden'; }
-    catch { return false; }
+    try { return this.document.defaultView?.localStorage.getItem(this.key(page)) !== 'visible'; }
+    catch { return true; }
   });
 
   toggle(): void {
@@ -74,11 +74,18 @@ export class AcKpiRegionDirective implements OnDestroy {
     <button type="button" class="ac-btn ac-btn-secondary ac-kpi-toggle"
       [attr.aria-expanded]="!visibility.hidden()" [attr.aria-controls]="visibility.controls() || null"
       (click)="visibility.toggle()">
-      <span class="material-symbols-rounded" aria-hidden="true">{{ visibility.hidden() ? 'expand_more' : 'expand_less' }}</span>
+      <svg class="kpi-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+        aria-hidden="true" focusable="false">
+        <path [attr.d]="visibility.hidden() ? 'm6 9 6 6 6-6' : 'm6 15 6-6 6 6'" />
+      </svg>
       {{ visibility.hidden() ? 'Show KPIs' : 'Hide KPIs' }}
     </button>
   `,
-  styles: [`:host { display: inline-flex; flex: 0 0 auto; }`]
+  styles: [`
+    :host { display: inline-flex; flex: 0 0 auto; }
+    .kpi-chevron { display: block; flex: 0 0 16px; }
+  `]
 })
 export class AcKpiToggleComponent {
   readonly visibility = inject(KpiVisibilityService);

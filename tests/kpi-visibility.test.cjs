@@ -45,29 +45,38 @@ function fixture(storage = new Map(), blocked = false) {
 
 test('KPI preference survives reload and stays independent between pages', () => {
   const { service, storage, navigate } = fixture();
-  assert.equal(service.hidden(), false);
-  service.toggle();
-  assert.equal(service.hidden(), true);
-  assert.equal(fixture(storage).service.hidden(), true);
-  navigate('doctors');
-  assert.equal(service.hidden(), false);
-  navigate('patients');
   assert.equal(service.hidden(), true);
   service.toggle();
+  assert.equal(service.hidden(), false);
   assert.equal(fixture(storage).service.hidden(), false);
+  navigate('doctors');
+  assert.equal(service.hidden(), true);
+  navigate('patients');
+  assert.equal(service.hidden(), false);
+  service.toggle();
+  assert.equal(fixture(storage).service.hidden(), true);
 });
 
 test('profile preferences store route patterns rather than patient identifiers', () => {
   const { service, storage, navigate } = fixture();
   navigate('patients/:patientGuid'); service.toggle();
   assert.deepEqual([...storage.keys()], ['care360.ui.kpis:/patients/:patientGuid']);
-  navigate('patients'); assert.equal(service.hidden(), false);
+  navigate('patients'); assert.equal(service.hidden(), true);
 });
 
 test('KPI toggling still works when browser storage is unavailable', () => {
   const { service } = fixture(new Map(), true);
-  service.toggle(); assert.equal(service.hidden(), true);
+  assert.equal(service.hidden(), true);
   service.toggle(); assert.equal(service.hidden(), false);
+  service.toggle(); assert.equal(service.hidden(), true);
+});
+
+test('only an explicit visible preference expands a page', () => {
+  for (const value of ['hidden', '', 'invalid']) {
+    const storage = new Map([['care360.ui.kpis:/patients', value]]);
+    assert.equal(fixture(storage).service.hidden(), true);
+  }
+  assert.equal(fixture(new Map([['care360.ui.kpis:/patients', 'visible']])).service.hidden(), false);
 });
 
 test('dynamic KPI region removal clears its accessible control reference', () => {
