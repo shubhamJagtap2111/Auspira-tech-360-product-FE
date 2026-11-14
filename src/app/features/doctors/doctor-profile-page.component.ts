@@ -2,7 +2,7 @@ import { AC_KPI_VISIBILITY } from '../../shared/ui/kpi-visibility';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { getApiErrorMessage } from '../../core/http/api-error-message';
 import { DialogService } from '../../shared/ui/dialog/dialog.service';
 import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dropdown.component';
@@ -16,7 +16,7 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
 
 @Component({
   standalone: true,
-  imports: [...AC_KPI_VISIBILITY, CommonModule, FormsModule, AcDropdownComponent, AcGridLoaderComponent, AcPageActionsComponent],
+  imports: [...AC_KPI_VISIBILITY, CommonModule, FormsModule, RouterLink, AcDropdownComponent, AcGridLoaderComponent, AcPageActionsComponent],
   template: `
     <section class="doctor-profile">
       <ac-page-actions backLink="/doctors" backLabel="Doctor Registry" (refreshed)="reload()" />
@@ -55,7 +55,7 @@ type DoctorProfileTab = 'overview' | 'professional' | 'availability' | 'schedule
             </div>
           </div>
 
-          <div class="ac-kpi-page-actions"><ac-kpi-toggle /></div>
+          <div class="ac-kpi-page-actions"><a class="ac-btn ac-btn-secondary" routerLink="/appointments/booking" [queryParams]="{doctorId:currentDoctor.doctorGuid}">Booking link & QR</a><ac-kpi-toggle /></div>
           <section acKpiRegion class="overview-grid summary-kpis ac-compact-kpis" tabindex="0" aria-label="Summary indicators" role="region">
             @for (card of overviewCards(); track card.label) {
               <article class="metric-card">

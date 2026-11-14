@@ -4,6 +4,8 @@ import { pendingChangesGuard } from './core/guards/pending-changes.guard';
 import { permissionGuard } from './core/guards/permission.guard';
 
 export const routes: Routes = [
+  { path: 'book/:link', loadComponent: () => import('./features/appointments/public-booking-page.component').then(m => m.PublicBookingPageComponent) },
+  { path: 'appointments/booking', canActivate: [authGuard, permissionGuard], data: { permission: 'Appointments.View' }, loadComponent: () => import('./features/appointments/booking-centre-page.component').then(m => m.BookingCentrePageComponent) },
   { path: 'inpatient-care', canActivate: [authGuard, permissionGuard], data: { permission: 'InpatientCare.View' }, loadComponent: () => import('./features/inpatient-care/inpatient-care-page.component').then(m => m.InpatientCarePageComponent) },
   { path: 'orders', canActivate: [authGuard, permissionGuard], data: { permission: 'Orders.View' }, loadComponent: () => import('./features/orders/shared-orders-page.component').then(m => m.SharedOrdersPageComponent) },
   { path: 'integrations', canActivate: [authGuard, permissionGuard], data: { permission: 'Integrations.View' }, loadComponent: () => import('./features/integrations/integrations-page.component').then(m => m.IntegrationsPageComponent) },

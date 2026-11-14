@@ -2046,7 +2046,7 @@ export class AppShellComponent implements OnInit {
     { initialValue: window.location.pathname + window.location.search }
   );
   protected readonly isAuthPage = computed(() =>
-    this.currentUrl().startsWith('/auth') || this.currentUrl().startsWith('/prescription-access')
+    this.currentUrl().startsWith('/auth') || this.currentUrl().startsWith('/prescription-access') || this.currentUrl().startsWith('/book/')
   );
   protected readonly isAuthenticated = computed(() => this.authStore.isAuthenticated());
   protected readonly isStaffChatPage = computed(() => this.currentUrl().startsWith('/chat'));
@@ -2243,7 +2243,7 @@ export class AppShellComponent implements OnInit {
         { path: '/laboratory-operations', label: 'Laboratory operations', icon: 'science', requiredPermission:'InpatientCare.View' },
         { path: '/pharmacy',   label: 'Pharmacy',   icon: 'medication', requiredPermission: 'Pharmacy.View' },
         { path: '/billing',    label: 'Billing',    icon: 'receipt_long', requiredPermission: 'Billing.View' },
-        { path: '/revenue', label: 'Revenue & payers', icon:'account_balance', requiredPermission:'Billing.View' },
+        { path: '/revenue', label: 'Revenue & payers', icon:'account_balance_wallet', requiredPermission:'Billing.View' },
         { path: '/inventory',  label: 'Inventory',  icon: 'inventory_2' }
       ]
     },
@@ -2275,14 +2275,14 @@ export class AppShellComponent implements OnInit {
           icon: 'analytics',
           children: [
             { path: '/reports', queryParams: { report: 'dashboard-overview' }, label: 'Dashboard', icon: 'dashboard' },
+            { path: '/reports/mis', queryParams: { report: 'patient-mis' }, label: 'MIS Reports', icon: 'analytics' },
             { path: '/reports', queryParams: { report: 'appointment-summary' }, label: 'Appointments', icon: 'event_available' },
             { path: '/reports', queryParams: { report: 'opd-summary' }, label: 'OPD Clinical', icon: 'stethoscope' },
             { path: '/reports', queryParams: { report: 'ipd-bed' }, label: 'IPD Dashboard', icon: 'king_bed' },
-            { path: '/reports', queryParams: { report: 'financial-summary' }, label: 'Revenue', icon: 'payments' },
             { path: '/reports', queryParams: { report: 'doctor-performance' }, label: 'Doctor Performance', icon: 'monitoring' },
+            { path: '/reports', queryParams: { report: 'financial-summary' }, label: 'Revenue', icon: 'payments' },
             { path: '/reports', queryParams: { report: 'inventory-stock' }, label: 'Inventory', icon: 'inventory_2' },
-            { path: '/quality', label: 'Quality & KPI', icon: 'health_metrics' },
-            { path: '/reports/mis', queryParams: { report: 'patient-mis' }, label: 'MIS Reports', icon: 'analytics' }
+            { path: '/quality', label: 'Quality & KPI', icon: 'health_metrics' }
           ]
         }
       ]

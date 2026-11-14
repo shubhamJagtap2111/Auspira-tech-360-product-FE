@@ -2,6 +2,7 @@ import { AC_KPI_VISIBILITY } from '../../../shared/ui/kpi-visibility';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { AuthStore } from '../../../core/auth/auth.store';
 import { BranchContextService } from '../../../core/context/branch-context.service';
 import { I18nService } from '../../../core/i18n/i18n.service';
@@ -24,7 +25,7 @@ const permissions = {
 
 @Component({
   standalone: true,
-  imports: [...AC_KPI_VISIBILITY, CommonModule, FormsModule, AcAdminDrawerComponent, AcDropdownComponent, AcPaginationComponent, AcGridLoaderComponent],
+  imports: [...AC_KPI_VISIBILITY, CommonModule, FormsModule, RouterLink, AcAdminDrawerComponent, AcDropdownComponent, AcPaginationComponent, AcGridLoaderComponent],
   template: `
     <section class="branch-page ac-workspace">
       <header class="page-head ac-workspace-head">
@@ -32,7 +33,7 @@ const permissions = {
           <h1 class="ac-page-title">{{ t('Administration.Branch.Title') }}</h1>
           <p>{{ t('Administration.Branch.Subtitle') }}</p>
         </div>
-        <div class="page-actions"><ac-kpi-toggle />
+        <div class="page-actions"><ac-kpi-toggle /><a class="ac-btn ac-btn-secondary" routerLink="/appointments/booking" [queryParams]="{tab:'links'}">Booking QR for selected branch</a>
           @if (can(permissions.create)) {
             <button class="ac-btn ac-btn-primary" type="button" (click)="startCreate()">
               <span class="material-symbols-rounded">add</span>

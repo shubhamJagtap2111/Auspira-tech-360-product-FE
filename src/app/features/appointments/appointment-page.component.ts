@@ -43,7 +43,7 @@ import { AppointmentManagementService } from './appointment-management.service';
           <h1 class="ac-page-title">Appointment Management</h1>
           <p class="page-desc">See who’s coming in, choose a day, and manage each appointment in one place.</p>
         </div>
-        <div class="header-actions"><ac-kpi-toggle />
+        <div class="header-actions"><ac-kpi-toggle /><button class="ac-btn ac-btn-secondary" type="button" (click)="openBookingCentre()">Online Booking & QR</button>
           <button class="ac-btn ac-btn-secondary" type="button" (click)="setToday()">
             <span class="material-symbols-rounded">today</span>
             Today
@@ -288,8 +288,8 @@ import { AppointmentManagementService } from './appointment-management.service';
               </div>
               <div class="form-grid">
                 <label>
-                  <span>Patient *</span>
-                  <ac-dropdown name="formPatient" [(ngModel)]="form().patientId" [options]="patientOptions()" />
+                  <span>Existing patient or new visitor</span>
+                  <ac-dropdown name="formPatient" [(ngModel)]="form().patientId" [options]="patientOptions()" [disabled]="!!form().appointmentId" />
                 </label>
                 <label>
                   <span>Branch *</span>
@@ -767,7 +767,7 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
   }
 
   protected readonly patientOptions = computed<DropdownOption<string>[]>(() => [
-    { label: 'Select patient', value: '' },
+    { label: 'New visitor — register on arrival', value: '' },
     ...this.patients().map(patient => ({ label: `${patient.fullName} · ${patient.medicalRecordNo}`, value: patient.patientGuid }))
   ]);
 
@@ -837,7 +837,7 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
     const queueMap = new Map(this.queues().map(queue => [queue.appointmentId, queue]));
     return this.appointments()
       .map(appointment => {
-        const patient = patientMap.get(appointment.patientId) ?? null;
+        const patient = patientMap.get(appointment.patientId ?? '') ?? null;
         const doctor = doctorMap.get(appointment.doctorId) ?? null;
         const queue = queueMap.get(appointment.id) ?? null;
         const doctorDepartment = appointment.departmentName?.trim() || doctor?.departmentName || '-';
@@ -853,8 +853,8 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
           patient,
           doctor,
           queue,
-          patientName: patient?.fullName ?? 'Unknown patient',
-          patientMrn: patient?.medicalRecordNo ?? 'MRN not found',
+          patientName: patient?.fullName ?? appointment.visitorName ?? 'Unregistered visitor',
+          patientMrn: patient?.medicalRecordNo ?? 'Not registered',
           doctorName: doctor?.fullName ?? 'Unknown doctor',
           doctorDepartment,
           doctorSpecialization: doctor?.primarySpecialization ?? '-',
@@ -1055,9 +1055,11 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
     return patient?.fullName ?? 'Appointment';
   }
 
+  protected openBookingCentre(): void { void this.router.navigate(['/appointments/booking']); }
+
   protected canSave(): boolean {
     const current = this.form();
-    return Boolean(current.patientId && current.branchName && current.departmentName && current.doctorId && current.appointmentDate && current.appointmentTime)
+    return Boolean((current.patientId || (current.visitorName?.trim() && /^\+?[0-9]{7,15}$/.test(current.visitorPhone ?? ''))) && current.branchName && current.departmentName && current.doctorId && current.appointmentDate && current.appointmentTime)
       && !this.isSelectedSlotUnavailable()
       && !this.hasPatientTimeConflict();
   }
@@ -1235,6 +1237,7 @@ export class AppointmentPageComponent implements OnInit, OnDestroy {
   }
 
   protected checkInActionLabel(appointment: AppointmentVm): string {
+    if (!appointment.patientId) return 'Register & check in';
     return appointment.queue || this.queues().some(queue => queue.appointmentId === appointment.id) ? 'Update check-in' : 'Check in';
   }
 
@@ -1540,7 +1543,9 @@ function mapAppointmentToForm(appointment: AppointmentRecord): AppointmentForm {
   return {
     appointmentId: appointment.id,
     appointmentNo: appointment.appointmentNo || derivedAppointmentNo(appointment.id),
-    patientId: appointment.patientId,
+    patientId: appointment.patientId ?? '',
+    visitorName: appointment.visitorName, visitorPhone: appointment.visitorPhone,
+    bookerName: appointment.bookerName, bookerRelationship: appointment.bookerRelationship,
     branchName: appointment.branchName || 'Main Branch',
     departmentName: appointment.departmentName ?? '',
     doctorId: appointment.doctorId,

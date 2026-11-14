@@ -339,7 +339,7 @@ export interface OpdClinicalForm {
 }
 
 export interface OpdVisitVm {
-  appointment: AppointmentRecord;
+  appointment: AppointmentRecord & { patientId: string };
   queue: AppointmentQueueRecord | null;
   consultation: OpdConsultationRecord | null;
   patient: PatientSummary | null;

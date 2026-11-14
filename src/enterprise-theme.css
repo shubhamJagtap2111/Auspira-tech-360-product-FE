@@ -152,7 +152,7 @@ input, select, textarea { accent-color: var(--ac-primary); }
 .admin-dashboard .hero-panel { box-shadow: none; border-color: var(--ac-border); background: var(--ac-surface); padding: 14px; border-radius: 12px; }
 .admin-dashboard .hero-panel > .material-symbols-rounded { width: 34px; height: 34px; background: var(--ac-secondary-light); color: var(--ac-secondary); }
 .admin-dashboard .hero-panel strong { font-size: 14px; }
-.admin-dashboard .hero-tags span { background: var(--ac-surface); font-weight: 600; }
+.admin-dashboard .hero-tags > span { background: var(--ac-surface); font-weight: 600; }
 .admin-dashboard .metric-card { border-top-width: 1px; border-radius: 12px; box-shadow: var(--ac-sh-sm); }
 .admin-dashboard .quick-action-strip { border-radius: 14px; background: var(--ac-surface); }
 .admin-dashboard .attention-panel { background: var(--ac-surface); }

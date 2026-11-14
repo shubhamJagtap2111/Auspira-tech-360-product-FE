@@ -88,8 +88,8 @@ interface HospitalPulseItem {
           <h1 class="ac-page-title">{{ isHospitalAdmin() ? t('Administration.Dashboard.Title') : 'Welcome, ' + displayName() }}</h1>
           <p>{{ isHospitalAdmin() ? 'Today’s hospital activity, pending work, and operational readiness in one place.' : 'Your daily tasks, assigned modules, and care-team updates.' }}</p>
           <div class="hero-tags">
-            <span><span class="material-symbols-rounded">badge</span>{{ roleLabel() }}</span>
-            <span><span class="material-symbols-rounded">domain</span>Care360 Hospital</span>
+            <span><span class="material-symbols-rounded" aria-hidden="true">badge</span>{{ roleLabel() }}</span>
+            <span><span class="material-symbols-rounded" aria-hidden="true">domain</span>Care360 Hospital</span>
           </div>
         </div>
         <div class="header-actions"><ac-kpi-toggle /><button class="ac-btn ac-btn-secondary dashboard-refresh" type="button" (click)="load()" [attr.title]="t('Administration.Rbac.Actions.Refresh')"><span class="material-symbols-rounded" aria-hidden="true">refresh</span>Refresh overview</button></div>
@@ -450,8 +450,8 @@ interface HospitalPulseItem {
     .eyebrow { color: #0f766e; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
     .dashboard-hero p { margin: 6px 0 0; color: var(--ac-text-2); font-size: 14px; max-width: 880px; line-height: 1.55; }
     .hero-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
-    .hero-tags span { min-height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--ac-border); border-radius: 999px; background: rgba(255,255,255,.68); color: var(--ac-text); font-size: 12px; font-weight: 800; }
-    .hero-tags .material-symbols-rounded { font-size: 17px; color: var(--ac-primary); }
+    .hero-tags > span { min-height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--ac-border); border-radius: 999px; background: rgba(255,255,255,.68); color: var(--ac-text); font-size: 12px; font-weight: 800; }
+    .hero-tags .material-symbols-rounded { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 18px; width: 18px; height: 18px; font-size: 17px; line-height: 1; color: var(--ac-primary); }
     .hero-panel { border: 1px solid rgba(255,255,255,.8); background: rgba(255,255,255,.72); border-radius: 8px; padding: 16px; display: grid; align-content: center; gap: 7px; box-shadow: 0 18px 38px rgba(15,23,42,.08); }
     .hero-panel > .material-symbols-rounded { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 8px; color: var(--ac-primary); background: rgba(37,99,235,.12); }
     .hero-panel strong { font-size: 18px; }
@@ -672,10 +672,10 @@ interface HospitalPulseItem {
     }
     :host-context(.dark) .eyebrow { color: #2dd4bf; }
     :host-context(.dark) .dashboard-hero p { color: var(--ac-border-2); }
-    :host-context(.dark) .hero-tags span {
+    :host-context(.dark) .hero-tags > span {
       border-color: rgba(148,163,184,.22);
       background: rgba(15,23,42,.72);
-      color: var(--ac-border);
+      color: var(--ac-text);
       box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
     }
     :host-context(.dark) .hero-tags .material-symbols-rounded { color: #60a5fa; }

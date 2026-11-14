@@ -16,7 +16,7 @@ import { AcDropdownComponent, DropdownOption } from '../../shared/ui/dropdown/dr
 import { AcDismissiblePopoverDirective } from '../../shared/ui/dismissible-popover.directive';
 import { AcGridLoaderComponent } from '../../shared/ui/grid-loader/grid-loader.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
-import { AppointmentCheckInForm, AppointmentForm, AppointmentQueueRecord, AppointmentRecord, appointmentPriorityOptions, appointmentTypeOptions } from '../appointments/appointment-management.models';
+import { AppointmentCheckInForm, AppointmentForm, AppointmentQueueRecord, AppointmentRecord as BookingAppointmentRecord, appointmentPriorityOptions, appointmentTypeOptions } from '../appointments/appointment-management.models';
 import { AppointmentManagementService } from '../appointments/appointment-management.service';
 import { DoctorSummary } from '../doctors/doctor-management.models';
 import { DoctorManagementService } from '../doctors/doctor-management.service';
@@ -3615,7 +3615,7 @@ export class OpdPageComponent implements OnInit {
       ]);
 
       if (appointments.success && appointments.data) {
-        this.appointments.set(appointments.data);
+        this.appointments.set(appointments.data.filter((a): a is AppointmentRecord => !!a.patientId));
       } else {
         this.toast.error('Unable to load appointments', getApiErrorMessage(appointments, 'Appointment API failed'));
       }
@@ -5873,7 +5873,9 @@ export class OpdPageComponent implements OnInit {
     ].join(' ').toLowerCase().includes(search);
   }
 
-  private upsertAppointment(appointment: AppointmentRecord): void {
+  private upsertAppointment(record: BookingAppointmentRecord): void {
+    if (!record.patientId) return;
+    const appointment: AppointmentRecord = { ...record, patientId: record.patientId };
     this.appointments.update(appointments => appointments.some(item => item.id === appointment.id)
       ? appointments.map(item => item.id === appointment.id ? appointment : item)
       : [appointment, ...appointments]);
@@ -5911,6 +5913,8 @@ type PrescriptionStatus = 'DRAFT' | 'GENERATED' | 'FINALIZED' | 'PRINTED' | 'SHA
 
 
 
+
+interface AppointmentRecord extends BookingAppointmentRecord { patientId: string; }
 
 interface ClinicalSummaryPreview {
   caption: string;

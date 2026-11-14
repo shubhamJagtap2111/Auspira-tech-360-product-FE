@@ -11,7 +11,13 @@ export type AppointmentViewMode = 'calendar' | 'list';
 export interface AppointmentRecord {
   id: string;
   appointmentNo: string;
-  patientId: string;
+  patientId: string | null;
+  visitorName?: string | null;
+  visitorPhone?: string | null;
+  bookerName?: string | null;
+  bookerRelationship?: string | null;
+  arrivedAt?: string | null;
+  bookingSlotId?: string | null;
   doctorId: string;
   startsAt: string;
   appointmentType: AppointmentTypeCode | string;
@@ -25,6 +31,10 @@ export interface AppointmentRecord {
 }
 
 export interface AppointmentForm {
+  visitorName?: string | null;
+  visitorPhone?: string | null;
+  bookerName?: string | null;
+  bookerRelationship?: string | null;
   appointmentId: string;
   appointmentNo: string;
   patientId: string;

@@ -12,7 +12,7 @@ vm.runInContext(ts.transpileModule(code, { compilerOptions: { target: ts.ScriptT
 const signal = initial => { let value = initial; const read = () => value; read.set = next => value = next; read.update = change => value = change(value); return read; };
 function fixture(queueId = '') {
   const page = new context.CheckIn();
-  const appointment = { id: 'appointment', statusCode: 'SCHEDULED', patientName: 'Test patient', queue: null };
+  const appointment = { id: 'appointment', patientId: 'registered-patient', statusCode: 'SCHEDULED', patientName: 'Test patient', queue: null };
   Object.assign(page, {
     checkingIn: signal(false), checkInAppointment: signal(appointment), checkInDrawerOpen: signal(true),
     checkInForm: signal({ queueId, appointmentId: appointment.id }), queues: signal([]), canSubmitCheckIn: () => true,

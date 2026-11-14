@@ -71,6 +71,7 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
 function isAnonymousAuthRequest(url: string): boolean {
   return [
     '/prescription-access/patient',
+    '/public-booking/',
     '/auth/login',
     '/auth/external/google',
     '/auth/forgot-password',
